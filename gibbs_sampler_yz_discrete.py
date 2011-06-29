@@ -139,9 +139,6 @@ class Sampler:
         
         return np.where(np.random.rand() < cum_prob)[0][0] # Slightly faster than np.find
     
-    def array2string(self, array):
-        # return np.array2string(array, suppress_small=True)
-        return '  |  '.join([' '.join(str(k) for k in item) for item in array])
     
     
     #######
@@ -407,8 +404,8 @@ class Sampler:
             
             print "N\tZ_true then Z"
             for data_p in data_misclassified:
-                print "%d\t%s" % (data_p, self.array2string(self.data_gen.Z_true[data_p]))
-                print "\t%s" % (self.array2string(self.Z[data_p]))
+                print "%d\t%s" % (data_p, array2string(self.data_gen.Z_true[data_p]))
+                print "\t%s" % (array2string(self.Z[data_p]))
     
     
     def compute_metric_all(self):

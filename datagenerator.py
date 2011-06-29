@@ -159,8 +159,7 @@ class DataGenerator:
     #         for k in np.arange(self.K):
     #             subaxe=f.add_subplot(1, self.K, k)
     #             scaledimage(self.features[k], ax=subaxe)
-    #         
-    #     
+    
     
 
 
@@ -175,7 +174,7 @@ if __name__ == '__main__':
     
     random_network = RandomNetwork.create_instance_uniform(K, M, D=D, R=R, W_type='identity', W_parameters=[0.1, 0.5])
     
-    data_gen = DataGenerator(N, T, random_network, type_Z='discrete', weighting_alpha=0.8, weighting_beta = 1.0, weight_prior='recency')
+    data_gen = DataGenerator(N, T, random_network, type_Z='binary', weighting_alpha=0.8, weighting_beta = 1.0, weight_prior='recency')
     
     data_gen.plot_data(16)
     

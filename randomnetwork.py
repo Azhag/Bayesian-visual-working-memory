@@ -183,6 +183,21 @@ class RandomNetwork:
         
         return sum_features
     
+    def get_network_features_combined_binary(self, Z):
+        
+        if Z.ndim == 2:
+            #sum_features = np.trace(self.network_representations[:, Z])
+            
+            # sum_features = np.tensordot(Z, self.network_representations)
+            sum_features = np.dot(Z[0], self.network_representations[0]) + np.dot(Z[1], self.network_representations[1])
+        elif Z.ndim == 4:
+            # sum_features = np.tensordot(Z, self.network_representations, axes=[[3,2], [1,0]])
+            sum_features = np.tensordot(Z, self.network_representations, axes=2)
+        else:
+            raise ValueError('Wrong dimensionality for Z')
+        
+        return sum_features
+    
     
     ############
     
