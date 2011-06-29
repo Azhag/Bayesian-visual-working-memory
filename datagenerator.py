@@ -91,8 +91,7 @@ class DataGenerator:
         ## Create Z, assigning a feature to each time for each datapoint
         
         if type_Z == 'binary':
-            # TODO Sampler to be changed for R>1
-            self.Z_true = np.zeros((self.N, self.T, self.R*self.random_network.K))
+            self.Z_true = np.zeros((self.N, self.T, self.R, self.random_network.K))
         elif type_Z == 'discrete':
             self.Z_true = np.zeros((self.N, self.T, self.R), dtype='int')
         else:
@@ -116,7 +115,7 @@ class DataGenerator:
             if type_Z == 'binary':
                 # Activate those features for the current datapoint
                 for r in np.arange(self.R):
-                    self.Z_true[i, np.arange(self.T), self.random_network.K*r + self.chosen_orientations[i][:,r]] = 1.0
+                    self.Z_true[i, np.arange(self.T), r, self.chosen_orientations[i][:,r]] = 1.0
             elif type_Z == 'discrete':
                 self.Z_true[i] = self.chosen_orientations[i]
         
