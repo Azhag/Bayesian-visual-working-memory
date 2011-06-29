@@ -12,6 +12,7 @@ import scipy.special as scsp
 import time
 from datagenerator import *
 from randomnetwork import *
+from utils import *
 
 class Sampler:
     '''
@@ -192,7 +193,7 @@ class Sampler:
                     
                     for k in np.arange(self.K):
                         # Get the prior prob of z_n_t_k
-                        self.lprob_zntrk[k] = np.log(self.dir_alpha + self.Akr[k,r]) - np.log(self.K*self.dir_alpha + N - 1.)
+                        self.lprob_zntrk[k] = np.log(self.dir_alpha + self.Akr[k,r]) - np.log(self.K*self.dir_alpha + self.N - 1.)
                         
                         # Get the likelihood of ynt using z_n_t = k
                         self.Z[n, t, r] = k
@@ -338,7 +339,7 @@ class Sampler:
         for r in np.arange(self.R):            
             for k in np.arange(self.K):
                 l += scsp.gammaln(self.dir_alpha + self.Akr[k, r])
-            l -= scsp.gammaln(self.K*self.dir_alpha + N)
+            l -= scsp.gammaln(self.K*self.dir_alpha + self.N)
         
         return l
         
@@ -537,8 +538,10 @@ def profiling_run():
 
 ####################################
 
-
-if __name__ == '__main__':
+def do_simple_run():
+    
+    print "Simple run"
+    
     N = 100
     T = 2
     K = 20
@@ -546,23 +549,69 @@ if __name__ == '__main__':
     M = 200
     R = 2
     
+    random_network = RandomNetwork.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[0.1, 0.5], sigma=0.2, gamma=0.005, rho=0.005)
+    data_gen = DataGenerator(N, T, random_network, type_Z='discrete', weighting_alpha=0.5, weight_prior='recency', sigma_y = 0.02)
+    sampler = Sampler(data_gen, dirichlet_alpha=1./K, sigma_to_sample=True, sigma_alpha=2, sigma_beta=0.5)
     
-    if False:
+    if True:
+        t = time.time()
         
-        random_network = RandomNetwork.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[0.1, 0.5], sigma=0.2, gamma=0.005, rho=0.005)
-        data_gen = DataGenerator(N, T, random_network, type_Z='discrete', weighting_alpha=0.5, weight_prior='recency', sigma_y = 0.02)
-        sampler = Sampler(data_gen, dirichlet_alpha=1./K, sigma_to_sample=True, sigma_alpha=2, sigma_beta=0.5)
+        (log_y, log_z, log_joint) = sampler.run(50, verbose=True)
         
-        if True:
-            t = time.time()
+        print '\nElapsed time: %d' % (time.time()-t)
+        
+        print '\nSigma_y: %.3f' % np.sqrt(sampler.sigma2y)
+        
+        sampler.print_z_comparison()
+        
+        (stats_original, angle_errors) = sampler.compute_metric_all()
+        
+        print stats_original
+        
+        # Computed beforehand
+        precision_guessing = 0.2
+        
+        if False:
+            plt.figure()
+            plt.plot(1./stats_original[1]-precision_guessing)
+            plt.show()
+        precisions = 1./stats_original[1] - precision_guessing
+        
+        mean_last_precision = np.mean(precisions[:,-1])
+        avg_precision = np.mean(precisions)
+        
+        plt.show()
+    
+    return locals()
+    
+
+def do_search_dirichlet_alpha():
+    print "Plot effect of Dirichlet_alpha"
+    
+    N = 100
+    T = 2
+    K = 20
+    D = 50
+    M = 200
+    R = 2
+    
+    dir_alpha_space = np.array([0.01, 0.1, 0.5, 0.7, 1.5])
+    nb_repetitions = 2
+    
+    mean_last_precision = np.zeros((dir_alpha_space.size, nb_repetitions))
+    avg_precision = np.zeros((dir_alpha_space.size, nb_repetitions))
+    
+    for dir_alpha_i in np.arange(dir_alpha_space.size):
+        print "Doing Dir_alpha %.3f" % dir_alpha_space[dir_alpha_i]
+        
+        for repet_i in np.arange(nb_repetitions):
+            print "%d/%d" % (repet_i+1, nb_repetitions)
             
-            (log_y, log_z, log_joint) = sampler.run(50, verbose=True)
+            random_network = RandomNetwork.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[0.1, dir_alpha_space[dir_alpha_i]], sigma=0.2, gamma=0.005, rho=0.005)
+            data_gen = DataGenerator(N, T, random_network, type_Z='discrete', weighting_alpha=0.9, weight_prior='recency', sigma_y = 0.02)
+            sampler = Sampler(data_gen, dirichlet_alpha=1./K, sigma_to_sample=False, sigma_alpha=2, sigma_beta=0.5)
             
-            print '\nElapsed time: %d' % (time.time()-t)
-            
-            print '\nSigma_y: %.3f' % np.sqrt(sampler.sigma2y)
-            
-            sampler.print_z_comparison()
+            (log_y, log_z, log_joint) = sampler.run(5, verbose=False)
             
             (stats_original, angle_errors) = sampler.compute_metric_all()
             
@@ -571,181 +620,76 @@ if __name__ == '__main__':
             # Computed beforehand
             precision_guessing = 0.2
             
-            if False:
-                plt.figure()
-                plt.plot(1./stats_original[1]-precision_guessing)
-                plt.show()
+            # Get the precisions
             precisions = 1./stats_original[1] - precision_guessing
             
-            mean_last_precision = np.mean(precisions[:,-1])
-            avg_precision = np.mean(precisions)
+            mean_last_precision[dir_alpha_i, repet_i] = np.mean(precisions[-1])
+            avg_precision[dir_alpha_i, repet_i] = np.mean(precisions)
     
     
+    mean_last_precision_avg = np.mean(mean_last_precision, axis=1)
+    mean_last_precision_std = np.std(mean_last_precision, axis=1)
+    avg_precision_avg = np.mean(avg_precision, axis=1)
+    avg_precision_std = np.std(avg_precision, axis=1)
     
+    ax = plot_std_area(dir_alpha_space, mean_last_precision_avg, mean_last_precision_std)
+    plot_std_area(dir_alpha_space, avg_precision_avg, avg_precision_std, ax_handle=ax)
     
+    return locals()
     
-    if True:
-        ### Plot effect of Dirichlet_alpha
-        dir_alpha_space = np.array([0.01, 0.1, 0.5, 0.7, 1.5])
-        nb_repetitions = 10
+
+def do_search_alphat():
+    print "Plot effect of alpha_t"
+    
+    N = 100
+    T = 2
+    K = 20
+    D = 50
+    M = 200
+    R = 2
+    
+    alphat_space = np.array([0.3, 0.5, 0.7, 1., 1.5])
+    nb_repetitions = 5
+    
+    mean_last_precision = np.zeros((alphat_space.size, nb_repetitions))
+    other_precision = np.zeros((alphat_space.size, nb_repetitions))
+    
+    for alpha_i in np.arange(alphat_space.size):
+        print "Doing alpha_t %.3f" % alphat_space[alpha_i]
         
-        mean_last_precision = np.zeros((dir_alpha_space.size, nb_repetitions))
-        avg_precision = np.zeros((dir_alpha_space.size, nb_repetitions))
-        
-        for dir_alpha_i in np.arange(dir_alpha_space.size):
-            print "Doing Dir_alpha %.3f" % dir_alpha_space[dir_alpha_i]
+        for repet_i in np.arange(nb_repetitions):
+            print "%d/%d" % (repet_i+1, nb_repetitions)
             
-            for repet_i in np.arange(nb_repetitions):
-                print "%d/%d" % (repet_i+1, nb_repetitions)
-                
-                random_network = RandomNetwork.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[0.1, dir_alpha_space[dir_alpha_i]], sigma=0.2, gamma=0.005, rho=0.005)
-                data_gen = DataGenerator(N, T, random_network, type_Z='discrete', weighting_alpha=0.9, weight_prior='recency', sigma_y = 0.02)
-                sampler = Sampler(data_gen, dirichlet_alpha=1./K, sigma_to_sample=False, sigma_alpha=2, sigma_beta=0.5)
-                
-                (log_y, log_z, log_joint) = sampler.run(50, verbose=False)
-                
-                (stats_original, angle_errors) = sampler.compute_metric_all()
-                
-                print stats_original
-                
-                # Computed beforehand
-                precision_guessing = 0.2
-                
-                # Get the precisions
-                precisions = 1./stats_original[1] - precision_guessing
-                
-                mean_last_precision[dir_alpha_i, repet_i] = np.mean(precisions[-1])
-                avg_precision[dir_alpha_i, repet_i] = np.mean(precisions)
-           
-           
-        
-    
-    if False:
-        ### Plot effect of alpha_t
-        alphat_space = np.array([0.3, 0.5, 0.7, 1., 1.5])
-        nb_repetitions = 5
-        
-        mean_last_precision = np.zeros((alphat_space.size, nb_repetitions))
-        other_precision = np.zeros((alphat_space.size, nb_repetitions))
-        
-        for alpha_i in np.arange(alphat_space.size):
-            print "Doing alpha_t %.3f" % alphat_space[alpha_i]
+            random_network = RandomNetwork.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[0.1, 0.5], sigma=0.2, gamma=0.005, rho=0.005)
+            data_gen = DataGenerator(N, T, random_network, type_Z='discrete', weighting_alpha=alphat_space[alpha_i], weight_prior='recency', sigma_y = 0.02)
+            sampler = Sampler(data_gen, dirichlet_alpha=1./K, sigma_to_sample=False, sigma_alpha=2, sigma_beta=0.5)
             
-            for repet_i in np.arange(nb_repetitions):
-                print "%d/%d" % (repet_i+1, nb_repetitions)
-                
-                random_network = RandomNetwork.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[0.1, 0.5], sigma=0.2, gamma=0.005, rho=0.005)
-                data_gen = DataGenerator(N, T, random_network, type_Z='discrete', weighting_alpha=alphat_space[alpha_i], weight_prior='recency', sigma_y = 0.02)
-                sampler = Sampler(data_gen, dirichlet_alpha=1./K, sigma_to_sample=False, sigma_alpha=2, sigma_beta=0.5)
-                
-                (log_y, log_z, log_joint) = sampler.run(50, verbose=False)
-                
-                (stats_original, angle_errors) = sampler.compute_metric_all()
-                
-                #print stats_original
-                
-                # Computed beforehand
-                precision_guessing = 0.2
-                
-                # Get the precisions
-                precisions = 1./stats_original[1] - precision_guessing
-                
-                mean_last_precision[alpha_i, repet_i] = np.mean(precisions[-1])
-                other_precision[alpha_i, repet_i] = np.mean(precisions[:-1])
-       
-       
+            (log_y, log_z, log_joint) = sampler.run(50, verbose=False)
+            
+            (stats_original, angle_errors) = sampler.compute_metric_all()
+            
+            #print stats_original
+            
+            # Computed beforehand
+            precision_guessing = 0.2
+            
+            # Get the precisions
+            precisions = 1./stats_original[1] - precision_guessing
+            
+            mean_last_precision[alpha_i, repet_i] = np.mean(precisions[-1])
+            other_precision[alpha_i, repet_i] = np.mean(precisions[:-1])
     
+    return locals()
     
-    # 
-    # #### Basic calls
-    # data_gen = DataGenerator(N, M, 0.2, max_nb_features=6)
-    # sampler = Sampler(data_gen.X, data_gen.features, pi_alpha = 10.)
-    # 
-    # t = time.time()
-    # (log_x, log_z, log_joint) = sampler.run(20, verbose=True)
-    # 
-    # print time.time()-t
-    # 
-    # sampler.print_z_comparison(data_gen.Z)
-    # 
+
+####################################
+if __name__ == '__main__':
     
-    ### Gathering some stats
-    # Effet of many features present
-    # nb_features = np.arange(1, 9)
-    #     nb_repetitions = 20
-    # 
-    #     score = np.zeros((nb_features.size, nb_repetitions))
-    # 
-    #     for (i, feat) in enumerate(nb_features):
-    #         print "%d features..." % feat
-    #         for repet in np.arange(nb_repetitions):
-    #             print "%.0f %%" % (100*(repet+1.)/nb_repetitions)
-    #             data_gen = DataGenerator(N, M, sigma, max_nb_features = feat)
-    #             sampler = Sampler(data_gen.X, data_gen.features, pi_alpha = 2.)
-    #             sampler.run(50, verbose=False)
-    #             score[i,repet] = sampler.compute_correctness_full(data_gen.Z)
-    #         
-    #     
-    #     print score
-    #     score_mean = np.mean(score, axis=1)
-    #     score_std = np.std(score, axis=1)
-    #     
-    #     plt.errorbar(nb_features, score_mean, yerr=score_std)
-    #     
-    #     plt.show()
+    # Switch on different actions
+    action_to_do = 1
+    actions = [do_simple_run, do_search_dirichlet_alpha, do_search_alphat]
     
+    # Run it
+    all_vars = actions[action_to_do]()
     
-    ### Optimise the hyperparameters
-    # alpha = 2 is (marginally) better. But mostly ineffective
-    # pi_alpha_space = np.arange(0.1, 20., 2.)
-    #     nb_repetitions = 20
-    #     score = np.zeros((pi_alpha_space.size, nb_repetitions))
-    #     
-    #     for (i, pi_alpha) in enumerate(pi_alpha_space):
-    #         print "Pi alpha: %.1f" % pi_alpha
-    #         for repet in np.arange(nb_repetitions):
-    #             print "%.0f %%" % (100*(repet+1.)/nb_repetitions)
-    #             data_gen = DataGenerator(N, M, sigma)
-    #             sampler = Sampler(data_gen.X, data_gen.features, pi_alpha = pi_alpha)
-    #             sampler.run(50, verbose=False)
-    #             score[i,repet] = sampler.compute_correctness_full(data_gen.Z)
-    #     
-    #     
-    #     print score
-    #     score_mean = np.mean(score, axis=1)
-    #     score_std = np.std(score, axis=1)
-    #     
-    #     plt.errorbar(pi_alpha_space, score_mean, yerr=score_std)
-    #     
-    #     plt.show()
-    
-    ### Check if the number of features in the memory makes performance decays already
-    # nb_repetitions = 20
-    #     K = 9
-    #     
-    #     score = np.zeros((K, nb_repetitions))
-    #     cnt_nb_features = np.zeros(K)
-    #     
-    #     for repet in np.arange(nb_repetitions):
-    #         print "%.0f %%" % (100*(repet+1.)/nb_repetitions)
-    #         data_gen = DataGenerator(N, M, sigma)
-    #         sampler = Sampler(data_gen.X, data_gen.features, pi_alpha = 2.)
-    #         sampler.run(50, verbose=False)
-    #         
-    #         # Now get the score, but depending on how many feature each datapoint has
-    #         features_datapoints = np.sum(data_gen.Z, axis=1)
-    #         unique_nb_features = np.unique(features_datapoints)
-    #         
-    #         for nb_feature in unique_nb_features:
-    #             # Now for the datapoints concerned, check the performance
-    #             score[nb_feature, repet] = sampler.compute_errors(sampler.Z[features_datapoints == nb_feature], data_gen.Z[features_datapoints == nb_feature])
-    #             cnt_nb_features[nb_feature] += np.sum(features_datapoints == nb_feature)
-    #         
-    #     
-    #     print score
-    #     score_mean = np.mean(score, axis=1)
-    #     score_std = np.std(score, axis=1)
-    #     
-    #     plt.errorbar(np.arange(K), score_mean, yerr=score_std)
-    #     
-    #     plt.show()
+    plt.show()
