@@ -33,9 +33,12 @@ def plot_std_area(x, y, std, ax_handle=None):
     
     return ax_handle
 
-def array2string(self, array):
+def array2string(array):
     # return np.array2string(array, suppress_small=True)
-    return '  |  '.join([' '.join(str(k) for k in item) for item in array])
+    if array.ndim == 2:
+        return '  |  '.join([' '.join(str(k) for k in item) for item in array])
+    elif array.ndim == 3:
+        return '  |  '.join([', '.join([' '.join([str(it) for it in obj]) for obj in item]) for item in array])
 
 
 if __name__ == '__main__':

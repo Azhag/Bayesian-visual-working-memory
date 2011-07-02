@@ -13,6 +13,9 @@ import time
 from datagenerator import *
 from randomnetwork import *
 from utils import *
+import sys
+import os.path
+import argparse
 
 class Sampler:
     '''
@@ -681,12 +684,30 @@ def do_search_alphat():
 
 ####################################
 if __name__ == '__main__':
-    
     # Switch on different actions
-    action_to_do = 1
     actions = [do_simple_run, do_search_dirichlet_alpha, do_search_alphat]
     
+    print sys.argv[1:]
+    
+    parser = argparse.ArgumentParser(description='Sample a model of Visual working memory.')
+    parser.add_argument('--label', help='label added to output files', default='')
+    parser.add_argument('--output_directory', nargs='?', default='Data')
+    parser.add_argument('--action_to_do', choices=np.arange(len(actions)), default=0)
+    args = parser.parse_args()
+    
+    should_save = True
+    output_dir = os.path.join(args.output_directory, args.label)
+    
     # Run it
-    all_vars = actions[action_to_do]()
+    all_vars = actions[args.action_to_do]()
+    
+    if 'data_gen' in all_vars:
+        data_gen = all_vars['data_gen']
+    if 'sampler' in all_vars:
+        sampler = all_vars['sampler']
+    
+    
+    # Save the results
+    
     
     plt.show()

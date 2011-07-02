@@ -199,6 +199,7 @@ class RandomNetwork:
         return sum_features
     
     
+    
     ############
     
     def plot_population_representation(self):

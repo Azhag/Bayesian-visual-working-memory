@@ -11,6 +11,10 @@ import numpy as np
 import scipy.special as scsp
 import time
 from datagenerator import *
+import sys
+import os.path
+import argparse
+
 
 class Sampler:
     '''
@@ -297,6 +301,7 @@ class Sampler:
         return l
         
     
+    
     #########
     
     def run(self, iterations=10, verbose=True):
@@ -305,6 +310,8 @@ class Sampler:
             
             Running time: XXms * N * iterations
         '''
+        
+        print "---- Starting Sampler, for %d iterations ---" % iterations
         
         # Get the original loglikelihoods
         log_y = np.zeros(iterations+1)
@@ -352,13 +359,13 @@ class Sampler:
         
         if data_misclassified.size > 0:
             # Only if they are errors, print them :)
-            plot_limit = 15
-            data_misclassified_plot = data_misclassified[:plot_limit]
             
-            max_nb_features = np.max((np.max(np.sum(self.Z[data_misclassified_plot], axis=1)), 
-                                      np.max(np.sum(true_Z[data_misclassified_plot], axis=1))))
+            print "Wrong datapoints: %s\n" % (data_misclassified)
             
-            print "Wrong datapoints: %s\n(plotting the first %d only)" % (data_misclassified, plot_limit)
+            print "N\tZ_true then Z"
+            for data_p in data_misclassified:
+                print "%d\t%s" % (data_p, array2string(self.data_gen.Z_true[data_p].astype(int)))
+                print "\t%s" % (array2string(self.Z[data_p].astype(int)))
             
     
     def compute_metric_all(self):
@@ -366,7 +373,7 @@ class Sampler:
         '''
             Get metric statistics for the whole dataset
             
-            Z:  N x T x R
+            Z:  N x T x R x K
         '''
         
         (angle_errors_stats, angle_errors) = self.compute_angle_error()
@@ -379,14 +386,37 @@ class Sampler:
         return [angle_errors_stats, angle_errors]
     
     
+    def get_inferred_angles(self, input_Z):
+        '''
+            Infer the angles based on the binary codes
+            
+            Assume that multiple features on are representing one angle only.
+        '''
+        
+        inferred_angles = np.empty((self.N, self.T, self.R))
+        
+        for n in np.arange(self.N):
+            for t in np.arange(self.T):
+                for r in np.arange(self.R):
+                    # Chosen angles
+                    chosen_angles = self.random_network.possible_angles[input_Z[n,t,r]]
+                    
+                    if chosen_angles.size == 0:
+                        # Empty, no chosen angle
+                        inferred_angles[n,t,r] = 0.0
+                    else:
+                        # Get mean chosen angle, assume this is the actual choice.
+                        inferred_angles[n,t,r] = self.compute_mean_std_circular_data(chosen_angles)[0]
+                        
+        return inferred_angles
+    
     
     def compute_angle_error(self):
-        # TODO CONVERT FOR BINARY
         '''
             Compute the mean angle error for the current assignment of Z
         '''
         # Compute the angle difference error between predicted and ground truth
-        angle_errors = self.random_network.possible_angles[self.Z] - self.random_network.possible_angles[self.data_gen.Z_true]
+        angle_errors = self.get_inferred_angles(self.Z) - self.get_inferred_angles(self.data_gen.Z_true.astype(bool))
         
         # Correct for obtuse angles
         angle_errors = self.smallest_angle_vectors(angle_errors)
@@ -395,7 +425,6 @@ class Sampler:
         return (self.compute_mean_std_circular_data(angle_errors), angle_errors)
     
     def smallest_angle_vectors(self, angles):
-        # TODO CONVERT FOR BINARY
         '''
             Get the smallest angle between the two responses
         '''
@@ -407,7 +436,6 @@ class Sampler:
     
     
     def compute_mean_std_circular_data(self, angles):
-        # TODO CONVERT FOR BINARY
         '''
             Compute the mean vector, the std deviation according to the Circular Statistics formula
             Assume a NxTxR matrix, averaging over N
@@ -428,7 +456,26 @@ class Sampler:
         return (angle_mean_error, angle_std_dev_error, angle_mean_vector, avg_error)
     
     
-    
+    def plot_precision(self):
+        '''
+            Compute the precision of recall and plot it.
+        '''
+        (stats_original, angle_errors) = self.compute_metric_all()
+        
+        # Computed beforehand
+        precision_guessing = 0.2
+        
+        precisions = 1./stats_original[1] - precision_guessing
+        
+        mean_last_precision = np.mean(precisions[:,-1])
+        avg_precision = np.mean(precisions)
+        
+        plt.figure()
+        plt.plot(1./stats_original[1]-precision_guessing)
+        
+        print "Precision last item: %.3f" % mean_last_precision
+        print "Average precision: %.3f" % avg_precision
+
     
     ####
     
@@ -490,17 +537,19 @@ def profiling_run():
 
 ####################################
 
-def do_simple_run():
-    
+def do_simple_run(args):
     
     print "Simple run"
     
-    N = 100
-    T = 2
-    K = 20
-    D = 50
-    M = 100
-    R = 2
+    
+    
+    N = args.N
+    T = args.T
+    K = args.K
+    D = args.D
+    M = args.M
+    R = args.R
+    
     
     random_network = RandomNetwork.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[0.1, 0.5], sigma=0.2, gamma=0.005, rho=0.005)
     data_gen = DataGenerator(N, T, random_network, type_Z='binary', weighting_alpha=0.5, weight_prior='recency', sigma_y = 0.02)
@@ -509,31 +558,16 @@ def do_simple_run():
     if True:
         t = time.time()
         
-        (log_y, log_z, log_joint) = sampler.run(10, verbose=True)
+        (log_y, log_z, log_joint) = sampler.run(50, verbose=True)
         
         print '\nElapsed time: %d' % (time.time()-t)
         
         print '\nSigma_y: %.3f' % np.sqrt(sampler.sigma2y)
         
-        # sampler.print_z_comparison()
-        #         
-        #         (stats_original, angle_errors) = sampler.compute_metric_all()
-        #         
-        #         print stats_original
-        #         
-        #         # Computed beforehand
-        #         precision_guessing = 0.2
-        #         
-        #         if False:
-        #             plt.figure()
-        #             plt.plot(1./stats_original[1]-precision_guessing)
-        #             plt.show()
-        #         precisions = 1./stats_original[1] - precision_guessing
-        #         
-        #         mean_last_precision = np.mean(precisions[:,-1])
-        #         avg_precision = np.mean(precisions)
-        #         
-        #         plt.show()
+        sampler.print_z_comparison()
+        
+        sampler.plot_precision()
+        
     
     return locals()
     
@@ -543,18 +577,38 @@ def do_simple_run():
 
 
 if __name__ == '__main__':
-    
     # Switch on different actions
-    action_to_do = 1
-    actions = [do_simple_run, profile_me]
+    actions = [do_simple_run]
+    
+    print sys.argv[1:]
+    
+    parser = argparse.ArgumentParser(description='Sample a model of Visual working memory.')
+    parser.add_argument('--label', help='label added to output files', default='')
+    parser.add_argument('--output_directory', nargs='?', default='Data')
+    parser.add_argument('--action_to_do', choices=np.arange(len(actions)), default=0)
+    parser.add_argument('--nb_samples', default=10)
+    parser.add_argument('--N', default=100, help='Number of datapoints')
+    parser.add_argument('--T', default=2, help='Number of times')
+    parser.add_argument('--K', default=20, help='Number of representated features')
+    parser.add_argument('--D', default=50, help='Dimensionality of features')
+    parser.add_argument('--M', default=100, help='Dimensionality of data/memory')
+    parser.add_argument('--R', default=2, help='Number of population codes')
+    
+    args = parser.parse_args()
+    
+    should_save = True
+    output_dir = os.path.join(args.output_directory, args.label)
     
     # Run it
-    all_vars = actions[action_to_do]()
+    all_vars = actions[args.action_to_do](args)
     
     if 'data_gen' in all_vars:
         data_gen = all_vars['data_gen']
     if 'sampler' in all_vars:
         sampler = all_vars['sampler']
     
-    plt.show()
     
+    # Save the results
+    
+    
+    plt.show()
