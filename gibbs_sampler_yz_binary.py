@@ -583,7 +583,7 @@ if __name__ == '__main__':
     print sys.argv[1:]
     
     parser = argparse.ArgumentParser(description='Sample a model of Visual working memory.')
-    parser.add_argument('--label', help='label added to output files', default='')
+    parser.add_argument('label', help='label added to output files', default='')
     parser.add_argument('--output_directory', nargs='?', default='Data')
     parser.add_argument('--action_to_do', choices=np.arange(len(actions)), default=0)
     parser.add_argument('--nb_samples', default=10)
