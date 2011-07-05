@@ -538,20 +538,22 @@ def profiling_run():
 
 ####################################
 
-def do_simple_run():
+def do_simple_run(args):
     
     print "Simple run"
     
-    N = 100
-    T = 2
-    K = 20
-    D = 50
-    M = 200
-    R = 2
+    
+    N = args.N
+    T = args.T
+    K = args.K
+    D = args.D
+    M = args.M
+    R = args.R
+    
     
     random_network = RandomNetwork.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[0.1, 0.5], sigma=0.2, gamma=0.005, rho=0.005)
-    data_gen = DataGenerator(N, T, random_network, type_Z='discrete', weighting_alpha=0.5, weight_prior='recency', sigma_y = 0.02)
-    sampler = Sampler(data_gen, dirichlet_alpha=1./K, sigma_to_sample=True, sigma_alpha=2, sigma_beta=0.5)
+    data_gen = DataGenerator(N, T, random_network, type_Z='discrete', weighting_alpha=0.7, weight_prior='recency', sigma_y = 0.05)
+    sampler = Sampler(data_gen, dirichlet_alpha=1./K, sigma_to_sample=False, sigma_alpha=3, sigma_beta=0.5)
     
     if True:
         t = time.time()
@@ -585,15 +587,16 @@ def do_simple_run():
     return locals()
     
 
-def do_search_dirichlet_alpha():
+def do_search_dirichlet_alpha(args):
     print "Plot effect of Dirichlet_alpha"
     
-    N = 100
-    T = 2
-    K = 20
-    D = 50
-    M = 200
-    R = 2
+    N = args.N
+    T = args.T
+    K = args.K
+    D = args.D
+    M = args.M
+    R = args.R
+    
     
     dir_alpha_space = np.array([0.01, 0.1, 0.5, 0.7, 1.5])
     nb_repetitions = 2
@@ -638,15 +641,15 @@ def do_search_dirichlet_alpha():
     return locals()
     
 
-def do_search_alphat():
+def do_search_alphat(args):
     print "Plot effect of alpha_t"
     
-    N = 100
-    T = 2
-    K = 20
-    D = 50
-    M = 200
-    R = 2
+    N = args.N
+    T = args.T
+    K = args.K
+    D = args.D
+    M = args.M
+    R = args.R
     
     alphat_space = np.array([0.3, 0.5, 0.7, 1., 1.5])
     nb_repetitions = 5
@@ -693,21 +696,34 @@ if __name__ == '__main__':
     parser.add_argument('--label', help='label added to output files', default='')
     parser.add_argument('--output_directory', nargs='?', default='Data')
     parser.add_argument('--action_to_do', choices=np.arange(len(actions)), default=0)
+    parser.add_argument('--nb_samples', default=100)
+    parser.add_argument('--N', default=100, help='Number of datapoints')
+    parser.add_argument('--T', default=2, help='Number of times')
+    parser.add_argument('--K', default=20, help='Number of representated features')
+    parser.add_argument('--D', default=50, help='Dimensionality of features')
+    parser.add_argument('--M', default=100, help='Dimensionality of data/memory')
+    parser.add_argument('--R', default=2, help='Number of population codes')
+    
     args = parser.parse_args()
     
     should_save = True
     output_dir = os.path.join(args.output_directory, args.label)
     
     # Run it
-    all_vars = actions[args.action_to_do]()
+    all_vars = actions[args.action_to_do](args)
     
     if 'data_gen' in all_vars:
         data_gen = all_vars['data_gen']
     if 'sampler' in all_vars:
         sampler = all_vars['sampler']
-    
+    if 'log_joint' in all_vars:
+        log_joint = all_vars['log_joint']
+    if 'log_z' in all_vars:
+        log_z = all_vars['log_z']
     
     # Save the results
-    
+    if should_save:
+        output_file = os.path.join(output_dir, 'all_vars.npy')
+        np.save(output_file, all_vars)
     
     plt.show()
