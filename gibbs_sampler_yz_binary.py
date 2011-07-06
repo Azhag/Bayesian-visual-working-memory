@@ -549,6 +549,7 @@ def do_simple_run(args):
     D = args.D
     M = args.M
     R = args.R
+    nb_samples = np.int(args.nb_samples)
     
     
     random_network = RandomNetwork.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[0.1, 0.5], sigma=0.2, gamma=0.005, rho=0.005)
@@ -558,7 +559,7 @@ def do_simple_run(args):
     if True:
         t = time.time()
         
-        (log_y, log_z, log_joint) = sampler.run(50, verbose=True)
+        (log_y, log_z, log_joint) = sampler.run(nb_samples  , verbose=True)
         
         print '\nElapsed time: %d' % (time.time()-t)
         
@@ -587,9 +588,9 @@ if __name__ == '__main__':
     parser.add_argument('--output_directory', nargs='?', default='Data')
     parser.add_argument('--action_to_do', choices=np.arange(len(actions)), default=0)
     parser.add_argument('--nb_samples', default=10)
-    parser.add_argument('--N', default=200, help='Number of datapoints')
-    parser.add_argument('--T', default=5, help='Number of times')
-    parser.add_argument('--K', default=30, help='Number of representated features')
+    parser.add_argument('--N', default=100, help='Number of datapoints')
+    parser.add_argument('--T', default=2, help='Number of times')
+    parser.add_argument('--K', default=20, help='Number of representated features')
     parser.add_argument('--D', default=50, help='Dimensionality of features')
     parser.add_argument('--M', default=200, help='Dimensionality of data/memory')
     parser.add_argument('--R', default=2, help='Number of population codes')
@@ -609,6 +610,9 @@ if __name__ == '__main__':
     
     
     # Save the results
+    if should_save:
+        output_file = os.path.join(output_dir, 'all_vars.npy')
+        np.save(output_file, all_vars)
     
     
     plt.show()
