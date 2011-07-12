@@ -551,10 +551,11 @@ def do_simple_run(args):
     R = args.R
     nb_samples = np.int(args.nb_samples)
     
+    print args
     
-    random_network = RandomNetwork.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[0.1, 0.5], sigma=0.2, gamma=0.005, rho=0.005)
-    data_gen = DataGenerator(N, T, random_network, type_Z='binary', weighting_alpha=0.5, weight_prior='recency', sigma_y = 0.02)
-    sampler = Sampler(data_gen, pi_alpha=1., sigma_to_sample=True, sigma_alpha=2, sigma_beta=0.5)
+    random_network = RandomNetwork.create_instance_uniform(K, M, D=D, R=R, W_type='identity', W_parameters=[0.1, 0.5], sigma=0.2, gamma=0.002, rho=0.002)
+    data_gen = DataGenerator(N, T, random_network, type_Z='binary', weighting_alpha=1.0, weight_prior='uniform', sigma_y = 0.05)
+    sampler = Sampler(data_gen, pi_alpha=1., sigma_to_sample=True, sigma_alpha=4, sigma_beta=0.5)
     
     if True:
         t = time.time()
@@ -584,15 +585,15 @@ if __name__ == '__main__':
     print sys.argv[1:]
     
     parser = argparse.ArgumentParser(description='Sample a model of Visual working memory.')
-    parser.add_argument('label', help='label added to output files', default='')
+    parser.add_argument('--label', help='label added to output files', default='')
     parser.add_argument('--output_directory', nargs='?', default='Data')
     parser.add_argument('--action_to_do', choices=np.arange(len(actions)), default=0)
     parser.add_argument('--nb_samples', default=10)
     parser.add_argument('--N', default=100, help='Number of datapoints')
     parser.add_argument('--T', default=2, help='Number of times')
-    parser.add_argument('--K', default=20, help='Number of representated features')
-    parser.add_argument('--D', default=50, help='Dimensionality of features')
-    parser.add_argument('--M', default=200, help='Dimensionality of data/memory')
+    parser.add_argument('--K', default=6, help='Number of representated features')
+    parser.add_argument('--D', default=20, help='Dimensionality of features')
+    parser.add_argument('--M', default=100, help='Dimensionality of data/memory')
     parser.add_argument('--R', default=2, help='Number of population codes')
     
     args = parser.parse_args()
