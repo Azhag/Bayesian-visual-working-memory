@@ -369,7 +369,6 @@ class Sampler:
             
     
     def compute_metric_all(self):
-        # TODO CONVERT FOR BINARY
         '''
             Get metric statistics for the whole dataset
             

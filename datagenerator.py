@@ -16,7 +16,7 @@ from populationcode import *
 from randomnetwork import *
 
 class DataGenerator:
-    def __init__(self, N, T, random_network, type_Z = 'binary', time_weights=None, sigma_y = 0.05, weighting_alpha=0.3, weighting_beta = 1.0, weight_prior='uniform'):
+    def __init__(self, N, T, random_network, type_Z = 'binary', time_weights=None, sigma_y = 0.05, weighting_alpha=0.3, weighting_beta = 1.0, specific_weighting=0.0, weight_prior='uniform'):
         '''
                        N:   number of datapoints
                        T:   number of patterns per datapoint
@@ -41,7 +41,7 @@ class DataGenerator:
         
         # Initialise the weights for time decays if needed
         if time_weights is None:
-            self.initialise_time_weights(prior=weight_prior, weighting_alpha=weighting_alpha, weighting_beta=weighting_beta)
+            self.initialise_time_weights(prior=weight_prior, weighting_alpha=weighting_alpha, weighting_beta=weighting_beta, specific_weighting=specific_weighting)
         else:
             self.time_weights = time_weights
         
@@ -50,7 +50,7 @@ class DataGenerator:
         
         
     
-    def initialise_time_weights(self, prior='uniform', weighting_alpha=0.3, weighting_beta=1.0, primacy_weighting=2.):
+    def initialise_time_weights(self, prior='uniform', weighting_alpha=0.3, weighting_beta=1.0, specific_weighting=0.):
         '''
             Initialises the weights used for mixing through time in the final 'memory'
             
@@ -60,18 +60,21 @@ class DataGenerator:
                 
             format: [alpha_t ; beta_t], alpha_t mix the past, beta_t mix the current pattern
         '''
-        self.time_weights = np.zeros((2, self.T))
+        self.time_weights = np.zeros((2, self.T, self.random_network.M, self.random_network.M))
         
         if prior == 'uniform':
-            self.time_weights[0] = weighting_alpha*np.ones(self.T)
-            self.time_weights[1] = weighting_beta*np.ones(self.T)
+            for t in np.arange(self.T):
+                self.time_weights[0, t] = weighting_alpha*np.eye(self.random_network.M)
+                self.time_weights[1, t] = weighting_beta*np.eye(self.random_network.M)
         elif prior == 'primacy':
-            self.time_weights[0] = weighting_alpha*np.ones(self.T)
-            self.time_weights[1] = weighting_beta*np.ones(self.T)
-            self.time_weights[1,0] *= primacy_weighting
+            for t in np.arange(self.T):
+                self.time_weights[0, t] = weighting_alpha*np.eye(self.random_network.M)
+                self.time_weights[1, t] = weighting_beta*np.eye(self.random_network.M)
+            self.time_weights[1,0] *= specific_weighting
         elif prior =='recency':
-            self.time_weights[0] = weighting_alpha*np.ones(self.T)
-            self.time_weights[1] = weighting_beta*(np.ones(self.T) + 0.2*np.arange(self.T))
+            for t in np.arange(self.T):
+                self.time_weights[0, t] = weighting_alpha*np.eye(self.random_network.M)
+                self.time_weights[1, t] = weighting_beta*(1. + t*specific_weighting)*np.eye(self.random_network.M)
         else:
             raise ValueError('Prior for time weights unknown')
         
@@ -125,7 +128,7 @@ class DataGenerator:
             
             # Combine them together
             for t in np.arange(self.T):
-                self.Y[i] = self.time_weights[0, t]*self.Y[i].copy() + self.time_weights[1, t]*x_samples_sum[t] + self.sigma_y*np.random.randn(self.random_network.M)
+                self.Y[i] = np.dot(self.time_weights[0, t], self.Y[i]) + np.dot(self.time_weights[1, t], x_samples_sum[t]) + self.sigma_y*np.random.randn(self.random_network.M)
                 self.all_Y[i, t] = self.Y[i]
             
             
@@ -174,7 +177,7 @@ if __name__ == '__main__':
     
     random_network = RandomNetwork.create_instance_uniform(K, M, D=D, R=R, W_type='identity', W_parameters=[0.1, 0.5])
     
-    data_gen = DataGenerator(N, T, random_network, type_Z='binary', weighting_alpha=0.8, weighting_beta = 1.0, weight_prior='recency')
+    data_gen = DataGenerator(N, T, random_network, type_Z='discrete', weighting_alpha=0.8, specific_weighting=0.2, weighting_beta = 1.0, weight_prior='recency')
     
     data_gen.plot_data(16)
     

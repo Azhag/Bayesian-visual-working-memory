@@ -97,11 +97,11 @@ class Sampler:
         self.Y = np.zeros((self.N, self.T, self.M))
         
         # t=0 is different
-        self.Y[:,0,:] = self.time_weights[1,0]*features_combined[:,0,:] + np.sqrt(self.sigma2y)*np.random.randn(self.N, self.M)
+        self.Y[:,0,:] = np.dot(features_combined[:,0,:], self.time_weights[1,0]) + np.sqrt(self.sigma2y)*np.random.randn(self.N, self.M)
         
         # t < T
         for t in np.arange(1, self.T-1):
-            self.Y[:, t, :] = self.time_weights[0, t]*self.Y[:, t-1, :] + self.time_weights[1, t]*features_combined[:, t, :] + np.sqrt(self.sigma2y)*np.random.randn(self.N, self.M)
+            self.Y[:, t, :] = np.dot(self.Y[:, t-1, :], self.time_weights[0, t]) + np.dot(features_combined[:, t, :], self.time_weights[1, t]) + np.sqrt(self.sigma2y)*np.random.randn(self.N, self.M)
         
         # t= T is fixed
         self.Y[:, self.T-1, :] = self.YT
@@ -200,6 +200,8 @@ class Sampler:
                         lik_ynt = self.compute_loglikelihood_ynt(n, t)
                         
                         self.lprob_zntrk[k] += lik_ynt
+                        
+                        print "%d,%d,%d,%d: lik_ynt:%.3f" % (n,t,r,k, lik_ynt)
                     
                     
                     # Get the new sample
@@ -231,17 +233,32 @@ class Sampler:
             for t in permuted_time:
                 
                 # Posterior covariance
-                delta = self.sigma2y/(1. + self.time_weights[0, t+1]**2.)
+                invdelta_nosigma2y = (1. + np.dot(self.time_weights[0, t+1], self.time_weights[0, t+1].T))
                 
                 # Posterior mean
-                mu = self.time_weights[0, t+1]*(self.Y[n,t+1] - self.time_weights[1, t+1]*features_combined[n, t+1])
-                mu += self.time_weights[1, t]*features_combined[n,t]
+                mu = np.dot(self.time_weights[0, t+1], (self.Y[n,t+1] - np.dot(self.time_weights[1, t+1], features_combined[n, t+1])))
+                mu += np.dot(self.time_weights[1, t], features_combined[n,t])
                 if t>0:
-                    mu += self.time_weights[0, t]*self.Y[n, t-1]
-                mu /= (1. + self.time_weights[0, t+1]**2)
+                    mu += np.dot(self.time_weights[0, t], self.Y[n, t-1])
+                
+                mu = np.linalg.solve(invdelta_nosigma2y, mu)
                 
                 # Sample the new Y[n,t]
-                self.Y[n,t] = mu + np.sqrt(delta)*np.random.randn(self.M)
+                self.Y[n,t] = mu + np.sqrt(self.sigma2y)*np.dot(np.linalg.cholesky(invdelta_nosigma2y), np.random.randn(self.M))
+                
+                # OLD VERSION, easier A and B
+                # # Posterior covariance
+                # delta = self.sigma2y/(1. + self.time_weights[0, t+1]**2.)
+                # 
+                # # Posterior mean
+                # mu = self.time_weights[0, t+1]*(self.Y[n,t+1] - self.time_weights[1, t+1]*features_combined[n, t+1])
+                # mu += self.time_weights[1, t]*features_combined[n,t]
+                # if t>0:
+                #     mu += self.time_weights[0, t]*self.Y[n, t-1]
+                # mu /= (1. + self.time_weights[0, t+1]**2)
+                # 
+                # # Sample the new Y[n,t]
+                # self.Y[n,t] = mu + np.sqrt(delta)*np.random.randn(self.M)
             
         
         
@@ -249,14 +266,20 @@ class Sampler:
     def sample_sigmay(self):
         '''
             Sample a new sigmay, assuming an inverse-gamma prior
+            
+            Y: N x T x M
         '''
+        
+        # TODO CHANGE THIS.
         
         features_combined = self.random_network.get_network_features_combined(self.Z)
         
-        # Computes \sum_t \sum_n (y_n_t - beta_t y_n_{t-1} - alpha_t WP z_n_t), with tensor also
+        # Computes \sum_t \sum_n (y_n_t - beta_t y_n_{t-1} - alpha_t WP z_n_t), with G also
         Ytminus = np.zeros_like(self.Y)
         Ytminus[:, 1:, :] = self.Y[:, :-1, :]
-        Y_proj = self.Y - (features_combined.transpose(0,2,1)*self.time_weights[1]).transpose(0,2,1) - (Ytminus.transpose(0,2,1)*self.time_weights[0]).transpose(0,2,1)
+        Y_proj = np.zeros_like(self.Y)
+        for t in np.arange(self.T):
+            Y_proj[:,t,:] = self.Y[:,t,:] - np.dot(features_combined[:,t,:], self.time_weights[1,t]) - np.dot(Ytminus[:,t,:], self.time_weights[0,t])
         
         self.sigma2y = self.sample_invgamma(self.sigmay_alpha + self.T*self.N*self.M/2., self.sigmay_beta + 0.5*np.tensordot(Y_proj, Y_proj, axes=3))
     
@@ -280,9 +303,9 @@ class Sampler:
         
         features_combined = self.random_network.get_network_features_combined(self.Z[n,t])
         
-        ynt_proj = self.Y[n,t] - self.time_weights[1, t]*features_combined
+        ynt_proj = self.Y[n,t] - np.dot(self.time_weights[1, t], features_combined)
         if t>0:
-            ynt_proj -= self.time_weights[0, t]*self.Y[n, t-1]
+            ynt_proj -= np.dot(self.time_weights[0, t], self.Y[n, t-1])
             
         
         l = -0.5*self.M*np.log(2.*np.pi*self.sigma2y)
@@ -317,11 +340,14 @@ class Sampler:
         '''
             Compute the log likelihood of P(Y | Y, X, sigma2, P)
         '''
+        
         features_combined = self.random_network.get_network_features_combined(self.Z)
         
         Ytminus = np.zeros_like(self.Y)
         Ytminus[:, 1:, :] = self.Y[:, :-1, :]
-        Y_proj = self.Y.transpose(0,2,1) - (features_combined.transpose(0,2,1)*self.time_weights[1]) - (Ytminus.transpose(0,2,1)*self.time_weights[0])
+        Y_proj = np.zeros_like(self.Y)
+        for t in np.arange(self.T):
+            Y_proj[:,t,:] = self.Y[:,t,:] - np.dot(features_combined[:,t,:], self.time_weights[1,t]) - np.dot(Ytminus[:,t,:], self.time_weights[0,t])
         
         l = -0.5*self.N*self.M*self.T*np.log(2.*np.pi*self.sigma2y)
         l -= 0.5/self.sigma2y*np.tensordot(Y_proj, Y_proj, axes=3)
@@ -405,7 +431,7 @@ class Sampler:
             
             print "Wrong datapoints: %s\n" % (data_misclassified)
             
-            print "N\tZ_true then Z"
+            print "N\tZ_true | inferred Z"
             for data_p in data_misclassified:
                 print "%d\t%s" % (data_p, array2string(self.data_gen.Z_true[data_p]))
                 print "\t%s" % (array2string(self.Z[data_p]))
@@ -549,16 +575,16 @@ def do_simple_run(args):
     D = args.D
     M = args.M
     R = args.R
+    nb_samples = args.nb_samples
     
-    
-    random_network = RandomNetwork.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[0.1, 0.5], sigma=0.2, gamma=0.005, rho=0.005)
-    data_gen = DataGenerator(N, T, random_network, type_Z='discrete', weighting_alpha=0.7, weight_prior='recency', sigma_y = 0.05)
+    random_network = RandomNetwork.create_instance_uniform(K, M, D=D, R=R, W_type='identity', W_parameters=[0.1, 0.5], sigma=0.2, gamma=0.005, rho=0.005)
+    data_gen = DataGenerator(N, T, random_network, type_Z='discrete', weighting_alpha=1.0, specific_weighting=0.2, weight_prior='recency', sigma_y = 0.05)
     sampler = Sampler(data_gen, dirichlet_alpha=1./K, sigma_to_sample=False, sigma_alpha=3, sigma_beta=0.5)
     
     if True:
         t = time.time()
         
-        (log_y, log_z, log_joint) = sampler.run(50, verbose=True)
+        (log_y, log_z, log_joint) = sampler.run(nb_samples, verbose=True)
         
         print '\nElapsed time: %d' % (time.time()-t)
         
@@ -696,7 +722,7 @@ if __name__ == '__main__':
     parser.add_argument('--label', help='label added to output files', default='')
     parser.add_argument('--output_directory', nargs='?', default='Data')
     parser.add_argument('--action_to_do', choices=np.arange(len(actions)), default=0)
-    parser.add_argument('--nb_samples', default=100)
+    parser.add_argument('--nb_samples', default=5)
     parser.add_argument('--N', default=100, help='Number of datapoints')
     parser.add_argument('--T', default=2, help='Number of times')
     parser.add_argument('--K', default=20, help='Number of representated features')
