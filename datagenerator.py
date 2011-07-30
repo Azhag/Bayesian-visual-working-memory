@@ -16,7 +16,7 @@ from populationcode import *
 from randomnetwork import *
 
 class DataGenerator:
-    def __init__(self, N, T, random_network, type_Z = 'binary', time_weights=None, sigma_y = 0.05, weighting_alpha=0.3, weighting_beta = 1.0, weight_prior='uniform'):
+    def __init__(self, N, T, random_network, type_Z = 'binary', time_weights=None, sigma_y = 0.05, weighting_alpha=0.3, weighting_beta = 1.0, specific_weighting = 0.3, weight_prior='uniform'):
         '''
                        N:   number of datapoints
                        T:   number of patterns per datapoint
@@ -41,7 +41,7 @@ class DataGenerator:
         
         # Initialise the weights for time decays if needed
         if time_weights is None:
-            self.initialise_time_weights(prior=weight_prior, weighting_alpha=weighting_alpha, weighting_beta=weighting_beta)
+            self.initialise_time_weights(prior=weight_prior, weighting_alpha=weighting_alpha, weighting_beta=weighting_beta, specific_weighting=specific_weighting)
         else:
             self.time_weights = time_weights
         
@@ -50,7 +50,7 @@ class DataGenerator:
         
         
     
-    def initialise_time_weights(self, prior='uniform', weighting_alpha=0.3, weighting_beta=1.0, primacy_weighting=2.):
+    def initialise_time_weights(self, prior='uniform', weighting_alpha=0.3, weighting_beta=1.0, specific_weighting=2.):
         '''
             Initialises the weights used for mixing through time in the final 'memory'
             
@@ -68,10 +68,10 @@ class DataGenerator:
         elif prior == 'primacy':
             self.time_weights[0] = weighting_alpha*np.ones(self.T)
             self.time_weights[1] = weighting_beta*np.ones(self.T)
-            self.time_weights[1,0] *= primacy_weighting
+            self.time_weights[1,0] *= specific_weighting
         elif prior =='recency':
             self.time_weights[0] = weighting_alpha*np.ones(self.T)
-            self.time_weights[1] = weighting_beta*(np.ones(self.T) + 0.2*np.arange(self.T))
+            self.time_weights[1] = weighting_beta*(np.ones(self.T) + specific_weighting*np.arange(self.T))
         else:
             raise ValueError('Prior for time weights unknown')
         
