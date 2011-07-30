@@ -16,7 +16,7 @@ from populationcode import *
 from randomnetwork import *
 
 class DataGenerator:
-    def __init__(self, N, T, random_network, type_Z = 'binary', time_weights=None, sigma_y = 0.05, weighting_alpha=0.3, weighting_beta = 1.0, specific_weighting=0.0, weight_prior='uniform'):
+    def __init__(self, N, T, random_network, type_Z = 'binary', time_weights=None, sigma_y = 0.05, weighting_alpha=0.3, weighting_beta = 1.0, specific_weighting=0.0, time_weights_prior='uniform'):
         '''
                        N:   number of datapoints
                        T:   number of patterns per datapoint
@@ -41,7 +41,7 @@ class DataGenerator:
         
         # Initialise the weights for time decays if needed
         if time_weights is None:
-            self.initialise_time_weights(prior=weight_prior, weighting_alpha=weighting_alpha, weighting_beta=weighting_beta, specific_weighting=specific_weighting)
+            self.initialise_time_weights(prior=time_weights_prior, weighting_alpha=weighting_alpha, weighting_beta=weighting_beta, specific_weighting=specific_weighting)
         else:
             self.time_weights = time_weights
         
@@ -74,6 +74,10 @@ class DataGenerator:
         elif prior =='recency':
             for t in np.arange(self.T):
                 self.time_weights[0, t] = weighting_alpha*np.eye(self.random_network.M)
+                self.time_weights[1, t] = weighting_beta*(1. + t*specific_weighting)*np.eye(self.random_network.M)
+        elif prior == 'random':
+            for t in np.arange(self.T):
+                self.time_weights[0, t] = weighting_alpha*np.random.randn(self.random_network.M, self.random_network.M)
                 self.time_weights[1, t] = weighting_beta*(1. + t*specific_weighting)*np.eye(self.random_network.M)
         else:
             raise ValueError('Prior for time weights unknown')

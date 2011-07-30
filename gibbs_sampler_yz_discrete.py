@@ -201,7 +201,7 @@ class Sampler:
                         
                         self.lprob_zntrk[k] += lik_ynt
                         
-                        print "%d,%d,%d,%d: lik_ynt:%.3f" % (n,t,r,k, lik_ynt)
+                        # print "%d,%d,%d,%d: lik_ynt:%.3f" % (n,t,r,k, lik_ynt)
                     
                     
                     # Get the new sample
@@ -233,10 +233,10 @@ class Sampler:
             for t in permuted_time:
                 
                 # Posterior covariance
-                invdelta_nosigma2y = (1. + np.dot(self.time_weights[0, t+1], self.time_weights[0, t+1].T))
+                invdelta_nosigma2y = (np.eye(self.M) + np.dot(self.time_weights[0, t+1], self.time_weights[0, t+1].T))
                 
                 # Posterior mean
-                mu = np.dot(self.time_weights[0, t+1], (self.Y[n,t+1] - np.dot(self.time_weights[1, t+1], features_combined[n, t+1])))
+                mu = np.dot(self.time_weights[0, t+1].T, (self.Y[n,t+1] - np.dot(self.time_weights[1, t+1], features_combined[n, t+1])))
                 mu += np.dot(self.time_weights[1, t], features_combined[n,t])
                 if t>0:
                     mu += np.dot(self.time_weights[0, t], self.Y[n, t-1])
@@ -555,7 +555,7 @@ def profiling_run():
     R = 2
     
     random_network = RandomNetwork.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[0.2, 0.7])
-    data_gen = DataGenerator(N, T, random_network, type_Z='discrete', weighting_alpha=0.6, weight_prior='recency', sigma_y = 0.02)
+    data_gen = DataGenerator(N, T, random_network, type_Z='discrete', weighting_alpha=0.6, time_weights_prior='recency', sigma_y = 0.02)
     sampler = Sampler(data_gen, dirichlet_alpha=0.5/K, sigma_to_sample=True, sigma_alpha=3, sigma_beta=0.5)
     
     (log_y, log_z, log_joint) = sampler.run(10, verbose=True)
@@ -577,9 +577,9 @@ def do_simple_run(args):
     R = args.R
     nb_samples = args.nb_samples
     
-    random_network = RandomNetwork.create_instance_uniform(K, M, D=D, R=R, W_type='identity', W_parameters=[0.1, 0.5], sigma=0.2, gamma=0.005, rho=0.005)
-    data_gen = DataGenerator(N, T, random_network, type_Z='discrete', weighting_alpha=1.0, specific_weighting=0.2, weight_prior='recency', sigma_y = 0.05)
-    sampler = Sampler(data_gen, dirichlet_alpha=1./K, sigma_to_sample=False, sigma_alpha=3, sigma_beta=0.5)
+    random_network = RandomNetwork.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[0.1, 0.5], sigma=0.2, gamma=0.005, rho=0.005)
+    data_gen = DataGenerator(N, T, random_network, type_Z='discrete', weighting_alpha=0.75, specific_weighting=0.3, time_weights_prior='recency', sigma_y = 0.05)
+    sampler = Sampler(data_gen, dirichlet_alpha=1./K, sigma_to_sample=False, sigma_alpha=5, sigma_beta=0.5)
     
     if True:
         t = time.time()
@@ -599,7 +599,7 @@ def do_simple_run(args):
         # Computed beforehand
         precision_guessing = 0.2
         
-        if False:
+        if True:
             plt.figure()
             plt.plot(1./stats_original[1]-precision_guessing)
             plt.show()
@@ -637,7 +637,7 @@ def do_search_dirichlet_alpha(args):
             print "%d/%d" % (repet_i+1, nb_repetitions)
             
             random_network = RandomNetwork.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[0.1, dir_alpha_space[dir_alpha_i]], sigma=0.2, gamma=0.005, rho=0.005)
-            data_gen = DataGenerator(N, T, random_network, type_Z='discrete', weighting_alpha=0.9, weight_prior='recency', sigma_y = 0.02)
+            data_gen = DataGenerator(N, T, random_network, type_Z='discrete', weighting_alpha=0.9, time_weights_prior='recency', sigma_y = 0.02)
             sampler = Sampler(data_gen, dirichlet_alpha=1./K, sigma_to_sample=False, sigma_alpha=2, sigma_beta=0.5)
             
             (log_y, log_z, log_joint) = sampler.run(5, verbose=False)
@@ -690,7 +690,7 @@ def do_search_alphat(args):
             print "%d/%d" % (repet_i+1, nb_repetitions)
             
             random_network = RandomNetwork.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[0.1, 0.5], sigma=0.2, gamma=0.005, rho=0.005)
-            data_gen = DataGenerator(N, T, random_network, type_Z='discrete', weighting_alpha=alphat_space[alpha_i], weight_prior='recency', sigma_y = 0.02)
+            data_gen = DataGenerator(N, T, random_network, type_Z='discrete', weighting_alpha=alphat_space[alpha_i], time_weights_prior='recency', sigma_y = 0.02)
             sampler = Sampler(data_gen, dirichlet_alpha=1./K, sigma_to_sample=False, sigma_alpha=2, sigma_beta=0.5)
             
             (log_y, log_z, log_joint) = sampler.run(50, verbose=False)
@@ -722,12 +722,12 @@ if __name__ == '__main__':
     parser.add_argument('--label', help='label added to output files', default='')
     parser.add_argument('--output_directory', nargs='?', default='Data')
     parser.add_argument('--action_to_do', choices=np.arange(len(actions)), default=0)
-    parser.add_argument('--nb_samples', default=5)
+    parser.add_argument('--nb_samples', default=20)
     parser.add_argument('--N', default=100, help='Number of datapoints')
     parser.add_argument('--T', default=2, help='Number of times')
-    parser.add_argument('--K', default=20, help='Number of representated features')
-    parser.add_argument('--D', default=50, help='Dimensionality of features')
-    parser.add_argument('--M', default=100, help='Dimensionality of data/memory')
+    parser.add_argument('--K', default=10, help='Number of representated features')
+    parser.add_argument('--D', default=20, help='Dimensionality of features')
+    parser.add_argument('--M', default=200, help='Dimensionality of data/memory')
     parser.add_argument('--R', default=2, help='Number of population codes')
     
     args = parser.parse_args()

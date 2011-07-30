@@ -527,7 +527,7 @@ def profiling_run():
     R = 2
     
     random_network = RandomNetwork.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[0.1, 0.5], sigma=0.2, gamma=0.005, rho=0.005)
-    data_gen = DataGenerator(N, T, random_network, type_Z='binary', weighting_alpha=0.5, weight_prior='recency', sigma_y = 0.02)
+    data_gen = DataGenerator(N, T, random_network, type_Z='binary', weighting_alpha=0.5, time_weights_prior='recency', sigma_y = 0.02)
     sampler = Sampler(data_gen, pi_alpha=1., sigma_to_sample=True, sigma_alpha=2, sigma_beta=0.5)
     
     (log_y, log_z, log_joint) = sampler.run(10, verbose=False)
@@ -553,7 +553,7 @@ def do_simple_run(args):
     print args
     
     random_network = RandomNetwork.create_instance_uniform(K, M, D=D, R=R, W_type='identity', W_parameters=[0.1, 0.5], sigma=0.2, gamma=0.002, rho=0.002)
-    data_gen = DataGenerator(N, T, random_network, type_Z='binary', weighting_alpha=1.0, weight_prior='uniform', sigma_y = 0.05)
+    data_gen = DataGenerator(N, T, random_network, type_Z='binary', weighting_alpha=1.0, time_weights_prior='uniform', sigma_y = 0.05)
     sampler = Sampler(data_gen, pi_alpha=1., sigma_to_sample=True, sigma_alpha=4, sigma_beta=0.5)
     
     if True:
