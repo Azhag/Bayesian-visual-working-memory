@@ -61,6 +61,7 @@ class RandomNetwork:
         
         # Define the possible objects
         self.possible_objects_indices = np.array(cross([[x for x in np.arange(self.K)]]*self.R))
+        self.possible_objects = np.array(cross([[x for x in self.possible_angles]]*self.R))
         
         self.network_initialised = True
     
@@ -141,9 +142,9 @@ class RandomNetwork:
                 self.W[r, m, indices] = sigma_W*np.random.randn(self.number_connections[m, r])
     
     
-    def sample_network_response(self, chosen_orientations):
+    def sample_network_response_indices(self, chosen_orientations):
         '''
-            Get a random response for a/multiple orientation(s) from the population code,
+            Get a random response for a/multiple orientation(s) indices from the population code,
             transform it through W and return that
             
             return: R x number_input_orientations x M
@@ -165,6 +166,29 @@ class RandomNetwork:
         
         return net_samples
     
+    def sample_network_response(self, chosen_orientations):
+        '''
+            Get a random response for a/multiple orientation(s) from the population code,
+            transform it through W and return that
+            
+            return: R x number_input_orientations x M
+        '''
+        
+        dim = chosen_orientations.shape
+        
+        if np.size(dim) > 1:
+            net_samples = np.zeros((self.R, dim[1], self.M))
+        else:
+            net_samples = np.zeros((self.R, dim[0], self.M))
+        
+        for r in np.arange(self.R):
+            if np.size(dim) > 1:
+                # We have different orientations for the different population codes. It should be on the first dimension.
+                net_samples[r] = np.dot(self.popcodes[r].sample_random_response(chosen_orientations[r]), self.W[r].T)
+            else:
+                net_samples[r] = np.dot(self.popcodes[r].sample_random_response(chosen_orientations), self.W[r].T)
+        
+        return net_samples
     
     def get_network_features_combined(self, Z):
         
@@ -303,7 +327,7 @@ if __name__ == '__main__':
     rn = RandomNetwork.create_instance_uniform(K, M, D=D, R=2, W_type='identity', W_parameters=[0.1, 0.5], sigma=0.6)
     # rn = RandomNetwork.create_instance_uniform(K, M, D=D, R=2, W_type='identity', W_param=0.2)
     
-    net_samples = rn.sample_network_response(np.array([[5], [2]]))
+    net_samples = rn.sample_network_response_indices(np.array([[5], [2]]))
     plt.figure()
     for r in np.arange(1):
         plt.plot(np.linspace(0, np.pi, M), net_samples[r].T, 'g')
