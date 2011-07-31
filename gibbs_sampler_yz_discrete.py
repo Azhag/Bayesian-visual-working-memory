@@ -233,7 +233,7 @@ class Sampler:
             for t in permuted_time:
                 
                 # Posterior covariance
-                invdelta_nosigma2y = (np.eye(self.M) + np.dot(self.time_weights[0, t+1], self.time_weights[0, t+1].T))
+                invdelta_nosigma2y = (np.eye(self.M) + np.dot(self.time_weights[0, t+1].T, self.time_weights[0, t+1]))
                 
                 # Posterior mean
                 mu = np.dot(self.time_weights[0, t+1].T, (self.Y[n,t+1] - np.dot(self.time_weights[1, t+1], features_combined[n, t+1])))
@@ -244,7 +244,7 @@ class Sampler:
                 mu = np.linalg.solve(invdelta_nosigma2y, mu)
                 
                 # Sample the new Y[n,t]
-                self.Y[n,t] = mu + np.sqrt(self.sigma2y)*np.dot(np.linalg.cholesky(invdelta_nosigma2y), np.random.randn(self.M))
+                self.Y[n,t] = mu + np.sqrt(self.sigma2y)*np.dot(np.linalg.cholesky(np.linalg.inv(invdelta_nosigma2y)), np.random.randn(self.M))
                 
                 # OLD VERSION, easier A and B
                 # # Posterior covariance
@@ -578,8 +578,8 @@ def do_simple_run(args):
     nb_samples = args.nb_samples
     
     random_network = RandomNetwork.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[0.1, 0.5], sigma=0.2, gamma=0.005, rho=0.005)
-    data_gen = DataGenerator(N, T, random_network, type_Z='discrete', weighting_alpha=0.75, specific_weighting=0.3, time_weights_prior='recency', sigma_y = 0.05)
-    sampler = Sampler(data_gen, dirichlet_alpha=1./K, sigma_to_sample=False, sigma_alpha=5, sigma_beta=0.5)
+    data_gen = DataGenerator(N, T, random_network, type_Z='discrete', weighting_alpha=0.75, specific_weighting=0.3, time_weights_prior='random', sigma_y = 0.05)
+    sampler = Sampler(data_gen, dirichlet_alpha=1./K, sigma_to_sample=False, sigma_alpha=5, sigma_beta=0.8)
     
     if True:
         t = time.time()
@@ -724,7 +724,7 @@ if __name__ == '__main__':
     parser.add_argument('--action_to_do', choices=np.arange(len(actions)), default=0)
     parser.add_argument('--nb_samples', default=20)
     parser.add_argument('--N', default=100, help='Number of datapoints')
-    parser.add_argument('--T', default=2, help='Number of times')
+    parser.add_argument('--T', default=3, help='Number of times')
     parser.add_argument('--K', default=10, help='Number of representated features')
     parser.add_argument('--D', default=20, help='Dimensionality of features')
     parser.add_argument('--M', default=200, help='Dimensionality of data/memory')
