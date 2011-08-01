@@ -15,6 +15,7 @@ from hinton_plot import *
 from utils import *
 
 class RandomNetwork:
+    
     def __init__(self, M, D=50, R=1, sigma_pop=0.6, rho_pop=0.5, gamma_pop=0.1, W_type='identity', W_parameters=[0.5], percentage_population_connections = 0.4, max_angle=np.pi):
         '''
             M: number of random neurons
@@ -142,6 +143,8 @@ class RandomNetwork:
                 self.W[r, m, indices] = sigma_W*np.random.randn(self.number_connections[m, r])
     
     
+    ###
+    
     def sample_network_response_indices(self, chosen_orientations):
         '''
             Get a random response for a/multiple orientation(s) indices from the population code,
@@ -189,6 +192,7 @@ class RandomNetwork:
                 net_samples[r] = np.dot(self.popcodes[r].sample_random_response(chosen_orientations), self.W[r].T)
         
         return net_samples
+    
     
     def get_network_features_combined(self, Z):
         
@@ -317,6 +321,89 @@ class RandomNetwork:
     
     
 
+class RandomNetworkContinuous(RandomNetwork):
+    def __init__(self, M, D=50, R=1, sigma_pop=0.6, rho_pop=0.5, gamma_pop=0.1, W_type='identity', W_parameters=[0.5], percentage_population_connections = 0.4, max_angle=2.*np.pi):
+        
+        RandomNetwork.__init__(self, M, D=D, R=R, sigma_pop=sigma_pop, rho_pop = rho_pop, gamma_pop =gamma_pop, W_type = W_type, W_parameters = W_parameters, percentage_population_connections = percentage_population_connections, max_angle = max_angle)
+        
+    
+    
+    def sample_network_response(self, chosen_orientations):
+        '''
+            Get a random response for a/multiple orientation(s) from the population code,
+            transform it through W and return that
+            
+            return: R x number_input_orientations x M
+        '''
+        
+        dim = chosen_orientations.shape
+        
+        if np.size(dim) > 1:
+            net_samples = np.zeros((self.R, dim[1], self.M))
+        else:
+            net_samples = np.zeros((self.R, dim[0], self.M))
+        
+        for r in np.arange(self.R):
+            if np.size(dim) > 1:
+                # We have different orientations for the different population codes. It should be on the first dimension.
+                net_samples[r] = np.dot(self.popcodes[r].sample_random_response(chosen_orientations[r]), self.W[r].T)
+            else:
+                net_samples[r] = np.dot(self.popcodes[r].sample_random_response(chosen_orientations), self.W[r].T)
+        
+        return net_samples
+    
+    def get_network_features_combined(self, Z):
+        '''
+            
+        '''
+        if Z.ndim == 1:
+            # Hopefully still fast enough...
+            
+            sum_features = np.dot(self.popcodes[0].mean_response(Z[0]), self.W[0].T) + np.dot(self.popcodes[1].mean_response(Z[1]), self.W[1].T)
+        elif Z.ndim == 2:
+            (N, R) = Z.shape
+            sum_features = np.zeros((N, self.M))
+            for r in np.arange(self.R):
+                sum_features[n] += np.dot(self.popcodes[r].mean_response(Z[:,r]), self.W[r].T)
+        else:
+            raise ValueError('Wrong dimensionality for Z')
+        
+        return sum_features
+    
+    
+    def get_popcode_response(self, Z, r):
+        '''
+            Return the output of one population code
+        '''
+        return np.dot(self.popcodes[r].mean_response(Z), self.W[r].T)
+    
+    
+    def sample_network_response_indices(self, chosen_orientations):
+        raise NotImplementedError()
+    
+    def get_network_features_combined_binary(self, Z):
+        raise NotImplementedError()
+    
+    def plot_population_representation(self):
+        raise NotImplementedError()
+    
+    
+    @classmethod
+    def create_instance_uniform(cls, K, M, D=50, R=1, sigma=0.2, rho=0.01, gamma=0.01, W_type='identity', W_parameters=[0.5], max_angle=2.*np.pi):
+        '''
+            Create a RandomNetwork instance, and fill-in the K possible orientations, uniformly in [0, 2pi]
+                If multiple features (R>1), uses the same parameters for everybody (wait till location needed)
+        '''
+        rn = RandomNetworkContinuous(M, D=D, R=R, sigma_pop=sigma, rho_pop=rho, gamma_pop=gamma, W_type=W_type, W_parameters=W_parameters, max_angle=max_angle)
+        
+        # Used only for compatibility and data generation. Generate a few possible objects.
+        #   Even though now during sampling, any angle is possible.
+        possible_angles = np.linspace(0., max_angle, K, endpoint=False)
+        rn.assign_possible_orientations(possible_angles)
+        
+        return rn
+    
+    
 
 if __name__ == '__main__':
     K = 10

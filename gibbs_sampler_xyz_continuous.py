@@ -9,6 +9,7 @@ Copyright (c) 2011 Gatsby Unit. All rights reserved.
 
 import numpy as np
 import scipy.special as scsp
+from scipy.stats import vonmises as vm
 import time
 from datagenerator import *
 from randomnetwork import *
@@ -24,7 +25,7 @@ class Sampler:
         y_t | x_t, y_{t-1} ~ Normal
         
     '''
-    def __init__(self, data_gen, dirichlet_alpha=0.5, sigma_to_sample=True, sigma_alpha=1.0, sigma_beta=2.0):
+    def __init__(self, data_gen, theta_kappa=0.1, sigma_to_sample=True, sigma_alpha=1.0, sigma_beta=2.0):
         '''
             Initialise the sampler
         '''
@@ -43,37 +44,38 @@ class Sampler:
         # Time weights
         self.time_weights = data_gen.time_weights
         
-        # Initialise the feature-assignment matrix
-        self.init_z(dirichlet_alpha)
-        
-        # Initial sigma_y
-        self.sigma_to_sample = sigma_to_sample
+        # Initialise the matrix of angles
+        self.init_z(theta_kappa)
         
         # Initial sigma_y
         self.init_sigma2y(sigma_alpha, sigma_beta)
+        self.sigma_to_sample = sigma_to_sample
         
-        # Initialise the Y
-        self.init_y()
+        # Initialise the X
+        # self.init_x()
+        
+        # Initialise y_tc
+        # self.init_y()
+        
+        # Initialise all the n
+        # self.init_n()
         
         # Maximum exponent in current precision
         self.__maxexp__ = np.finfo('float').maxexp
     
-    def init_z(self, dirichlet_alpha):
+    
+    def init_z(self, theta_gamma=0.0, theta_kappa = 2.0):
         '''
-            Sample initial Z uniformly, for each population and time
+            Sample initial angles. Use a Von Mises prior, low concentration (~flat)
             
-            dir_alpha : K
-            Z:          N x T x R
-            A:          K x R
+            Z:          N x R
         '''
         
-        self.dir_alpha = float(dirichlet_alpha)
-        self.Z = np.random.randint(self.K, size=(self.N, self.T, self.R))
+        self.theta_gamma = theta_gamma
+        self.theta_kappa = theta_kappa
+        self.Z = np.random.vonmises(theta_gamma, theta_kappa, size=(self.N, self.R))
         
         self.lprob_zntrk = np.zeros(self.K)
-        
-        # Get the matrix of counts
-        self.Akr = np.array([np.sum(np.sum(self.Z == k, axis=0), axis=0) for k in np.arange(self.K)])
         
     
     
@@ -82,6 +84,15 @@ class Sampler:
         self.sigmay_beta = sigmay_beta
         self.sigma2y = self.sample_invgamma(sigmay_alpha, sigmay_beta)
         # self.sigma2y = 0.01
+    
+    
+    def init_x(self):
+        '''
+            Initialise the R 'x' variables
+            
+            X:          N x R x M
+        '''
+        self.x = self.random_network.sample_network_response(self.Z.T).transpose(1,0,2)
     
     
     def init_y(self):
@@ -93,6 +104,8 @@ class Sampler:
             Y:                    N x T x M
             Z:                    N x T x R
         '''
+        
+        # TODO Convert
         
         features_combined = self.random_network.get_network_features_combined(self.Z)
         
@@ -107,7 +120,12 @@ class Sampler:
         
         # t= T is fixed
         self.Y[:, self.T-1, :] = self.YT
-        
+    
+    def init_n(self):
+        '''
+            Initialise the background noise variables n.
+        '''
+        pass
     
     ########
     
@@ -556,10 +574,11 @@ def do_simple_run(args):
     nb_samples = args.nb_samples
     
     random_network = RandomNetwork.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[0.1, 0.5], sigma=0.2, gamma=0.005, rho=0.005)
-    data_gen = DataGenerator(N, T, random_network, type_Z='discrete', weighting_alpha=0.85, specific_weighting=0.1, weight_prior='recency', sigma_y = 0.02)
-    sampler = Sampler(data_gen, dirichlet_alpha=1./K, sigma_to_sample=False, sigma_alpha=3, sigma_beta=0.5)
     
-    if True:
+    data_gen = DataGeneratorContinuous(N, T, random_network, sigma_y = 0.02, time_weights_parameters = dict(weighting_alpha=0.85, weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='recency'))
+    sampler = Sampler(data_gen, theta_kappa=0.1, sigma_to_sample=False, sigma_alpha=3, sigma_beta=0.5)
+    
+    if False:
         t = time.time()
         
         (log_y, log_z, log_joint) = sampler.run(nb_samples, verbose=True)

@@ -554,7 +554,7 @@ def do_simple_run(args):
     nb_samples = args.nb_samples
     
     random_network = RandomNetwork.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[0.1, 0.5], sigma=0.2, gamma=0.005, rho=0.005)
-    data_gen = DataGenerator(N, T, random_network, type_Z='discrete', weighting_alpha=0.85, specific_weighting=0.1, weight_prior='recency', sigma_y = 0.02)
+    data_gen = DataGeneratorDiscrete(N, T, random_network, sigma_y = 0.02, time_weights_parameters = dict(weighting_alpha=0.85, weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='recency'))
     sampler = Sampler(data_gen, dirichlet_alpha=1./K, sigma_to_sample=False, sigma_alpha=3, sigma_beta=0.5)
     
     if True:
