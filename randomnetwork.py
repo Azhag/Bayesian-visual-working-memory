@@ -134,13 +134,14 @@ class RandomNetwork:
         mean_number_connections = self.R*self.D*percentage_population_connections
         
         # Get the actual random number of connections for each neuron
-        self.number_connections = np.round(self.ratio_connections*mean_number_connections).astype(int)
+        self.number_connections = np.ceil(self.ratio_connections*mean_number_connections).astype(int)
         
         # Now connect neurons to features accordingly. Choose K_i_n features uniformly.
         for m in np.arange(self.M):
             for r in np.arange(self.R):
                 indices = np.random.permutation(np.arange(self.D))[:self.number_connections[m, r]]
-                self.W[r, m, indices] = sigma_W*np.random.randn(self.number_connections[m, r])
+                self.W[r, m, indices] = sigma_W*np.random.randn(np.min((self.D, self.number_connections[m, r])))
+        
     
     
     ###
@@ -364,7 +365,7 @@ class RandomNetworkContinuous(RandomNetwork):
             (N, R) = Z.shape
             sum_features = np.zeros((N, self.M))
             for r in np.arange(self.R):
-                sum_features[n] += np.dot(self.popcodes[r].mean_response(Z[:,r]), self.W[r].T)
+                sum_features += np.dot(self.popcodes[r].mean_response(Z[:,r]), self.W[r].T)
         else:
             raise ValueError('Wrong dimensionality for Z')
         
@@ -407,7 +408,7 @@ class RandomNetworkContinuous(RandomNetwork):
 
 if __name__ == '__main__':
     K = 10
-    M = 100
+    M = 200
     D = 100
     R = 2
     

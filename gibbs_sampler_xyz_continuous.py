@@ -25,9 +25,11 @@ class Sampler:
         y_t | x_t, y_{t-1} ~ Normal
         
     '''
-    def __init__(self, data_gen, theta_kappa=0.1, sigma_to_sample=True, sigma_alpha=1.0, sigma_beta=2.0):
+    def __init__(self, data_gen, tc=-1, theta_kappa=0.1, sigma_to_sample=True, sigma_alpha=1.0, sigma_beta=2.0, n_parameters = dict()):
         '''
             Initialise the sampler
+            
+            n_parameters:         {means: T x M, covariances: T x M x M}
         '''
         
         # Get the data
@@ -44,7 +46,10 @@ class Sampler:
         # Time weights
         self.time_weights = data_gen.time_weights
         
-        # Initialise the matrix of angles
+        # Initialise t_c
+        self.init_tc(tc=tc)
+        
+        # Initialise latent angles
         self.init_z(theta_kappa)
         
         # Initial sigma_y
@@ -52,16 +57,30 @@ class Sampler:
         self.sigma_to_sample = sigma_to_sample
         
         # Initialise the X
-        # self.init_x()
+        self.init_x()
         
         # Initialise y_tc
-        # self.init_y()
+        self.init_y_n(n_parameters)
         
         # Initialise all the n
         # self.init_n()
         
         # Maximum exponent in current precision
         self.__maxexp__ = np.finfo('float').maxexp
+    
+    
+    def init_tc(self, tc=-1):
+        '''
+            Initialise the time of recall
+            
+            Could be sampled later, for now just fix it.
+        '''
+        
+        if tc < 0 or tc is None:
+            # Start with last one.
+            tc = self.T
+        
+        self.tc = tc
     
     
     def init_z(self, theta_gamma=0.0, theta_kappa = 2.0):
@@ -80,6 +99,9 @@ class Sampler:
     
     
     def init_sigma2y(self, sigmay_alpha, sigmay_beta):
+        '''
+            Sample initial sigma. Use an Inverse Gamma prior
+        '''
         self.sigmay_alpha = sigmay_alpha
         self.sigmay_beta = sigmay_beta
         self.sigma2y = self.sample_invgamma(sigmay_alpha, sigmay_beta)
@@ -89,41 +111,71 @@ class Sampler:
     def init_x(self):
         '''
             Initialise the R 'x' variables
+            They come from a projected Gaussian, in the RandomNetwork class.
             
             X:          N x R x M
         '''
         self.x = self.random_network.sample_network_response(self.Z.T).transpose(1,0,2)
     
     
-    def init_y(self):
+    def init_y_n(self, n_parameters):
         '''
-            Initialise the full Y
+            Initialise y_tc and the background noise variables n. To simplify the indexing, they all live in the same array Y_N
+            
+            the last t index is observed, and will not be modified
+            
+            Y_N:                  N x T x M
+            Z:                    N x R
+            
+            n_parameters:         {means: T x M, covariances: T x M x M}
+        '''
+        
+        # Store the parameters and precompute the Cholesky decompositions
+        self.n_means = n_parameters['means']
+        self.n_covariances = n_parameters['covariances']
+        self.n_covariances_chol = np.zeros_like(self.n_covariances)
+        for t in np.arange(self.T):
+            self.n_covariances_chol[t] = np.linalg.cholesky(self.n_covariances[t])
+        
+        # Get the current activation of the network, sum populations out. N x M
+        features_combined = self.random_network.get_network_features_combined(self.Z)
+        
+        self.Y_N = np.zeros((self.N, self.T, self.M))
+        
+        # Fill in the correct initialisation, based on the original tc
+        for t in np.arange(self.T-1):
+            if t == self.tc:
+                # This is y_tc
+                
+                # Initialise just like before, with sum of the previous noise process and current activation
+                self.Y_N[:,t,:] = self.time_weights[1,t]*features_combined + np.sqrt(self.sigma2y)*np.random.randn(self.N, self.M)
+                if t>0:
+                    self.Y_N[:,t,:] += self.time_weights[0, t]*self.Y_N[:, t-1, :]
+                
+            else:
+                # These are background noise variables
+                
+                # Those uses given "current" means and variances.
+                # TODO They could depend on t_c or the current assignment of the variables, but that's quite hard to measure reliably
+                
+                self.Y_N[:,t,:] = np.tile(self.time_weights[1, t]*self.n_means[t], (self.N, 1)) + np.dot(np.random.randn(self.N, self.M), self.n_covariances_chol[t].T)
+                
+                if t>0:
+                    self.Y_N[:,t,:] += self.time_weights[0, t]*self.Y_N[:, t-1, :]
+                
+        # t= T is fixed
+        self.Y_N[:, self.T-1, :] = self.YT
+        
+    
+    def init_n(self):
+        '''
+            Initialise the background noise variables n.
+            
             the last t index is observed, and will not be modified
             
             network_representations: R x K x M
             Y:                    N x T x M
             Z:                    N x T x R
-        '''
-        
-        # TODO Convert
-        
-        features_combined = self.random_network.get_network_features_combined(self.Z)
-        
-        self.Y = np.zeros((self.N, self.T, self.M))
-        
-        # t=0 is different
-        self.Y[:,0,:] = self.time_weights[1,0]*features_combined[:,0,:] + np.sqrt(self.sigma2y)*np.random.randn(self.N, self.M)
-        
-        # t < T
-        for t in np.arange(1, self.T-1):
-            self.Y[:, t, :] = self.time_weights[0, t]*self.Y[:, t-1, :] + self.time_weights[1, t]*features_combined[:, t, :] + np.sqrt(self.sigma2y)*np.random.randn(self.N, self.M)
-        
-        # t= T is fixed
-        self.Y[:, self.T-1, :] = self.YT
-    
-    def init_n(self):
-        '''
-            Initialise the background noise variables n.
         '''
         pass
     
@@ -573,10 +625,20 @@ def do_simple_run(args):
     R = args.R
     nb_samples = args.nb_samples
     
-    random_network = RandomNetwork.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[0.1, 0.5], sigma=0.2, gamma=0.005, rho=0.005)
+    sigma_y = 0.02
     
-    data_gen = DataGeneratorContinuous(N, T, random_network, sigma_y = 0.02, time_weights_parameters = dict(weighting_alpha=0.85, weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='recency'))
-    sampler = Sampler(data_gen, theta_kappa=0.1, sigma_to_sample=False, sigma_alpha=3, sigma_beta=0.5)
+    
+    # Initialise/Load the noise parameters
+    # n_parameters:         {means: T x M, covariances: T x M x M}
+    n_parameters = {}
+    n_parameters['means'] = np.zeros( (T, M) )
+    n_parameters['covariances'] = np.tile( sigma_y*np.eye(M), (T, 1, 1) )
+    
+    random_network = RandomNetworkContinuous.create_instance_uniform(K, M, D=D, R=R, W_type='identity', W_parameters=[0.1, 0.5], sigma=0.2, gamma=0.005, rho=0.005)
+    
+    data_gen = DataGeneratorContinuous(N, T, random_network, sigma_y = sigma_y, time_weights_parameters = dict(weighting_alpha=0.85, weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='recency'))
+        
+    sampler = Sampler(data_gen, theta_kappa=0.1, sigma_to_sample=False, sigma_alpha=3, sigma_beta=0.5, n_parameters=n_parameters)
     
     if False:
         t = time.time()
@@ -710,6 +772,9 @@ def do_search_alphat(args):
 
 ####################################
 if __name__ == '__main__':
+    
+    raise NotImplementedError('SAMPLER IS NOT FINISHED. THIS IS THE FULL NOISE PROCESSES ONE, DO THE COLLAPSED INSTEAD.')
+    
     # Switch on different actions
     actions = [do_simple_run, do_search_dirichlet_alpha, do_search_alphat]
     
@@ -724,7 +789,7 @@ if __name__ == '__main__':
     parser.add_argument('--T', default=3, help='Number of times')
     parser.add_argument('--K', default=25, help='Number of representated features')
     parser.add_argument('--D', default=50, help='Dimensionality of features')
-    parser.add_argument('--M', default=400, help='Dimensionality of data/memory')
+    parser.add_argument('--M', default=200, help='Dimensionality of data/memory')
     parser.add_argument('--R', default=2, help='Number of population codes')
     
     args = parser.parse_args()

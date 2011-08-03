@@ -106,6 +106,7 @@ class DataGeneratorBinary(DataGenerator):
             time_weights:   [alpha_t ; beta_t] for all t=1:T
                  sigma_y:   Noise on the memory markov chain
         '''
+        
         DataGenerator.__init__(self, N, T, random_network, sigma_y = sigma_y, time_weights = time_weights, time_weights_parameters = time_weights_parameters)
         
         # Build the dataset
@@ -159,6 +160,7 @@ class DataGeneratorBinary(DataGenerator):
             
         
     
+
 
 class DataGeneratorDiscrete(DataGenerator):
     '''
@@ -239,6 +241,9 @@ class DataGeneratorDiscrete(DataGenerator):
 class DataGeneratorContinuous(DataGenerator):
     
     def __init__(self, N, T, random_network, sigma_y = 0.05, time_weights=None, time_weights_parameters = dict(weighting_alpha=0.3, weighting_beta = 1.0, specific_weighting = 0.3, weight_prior='uniform')):
+        
+        assert isinstance(random_network, RandomNetworkContinuous), "Use a RandomNetworkContinuous with this DataGeneratorContinuous"
+        
         DataGenerator.__init__(self, N, T, random_network, sigma_y = sigma_y, time_weights = time_weights, time_weights_parameters = time_weights_parameters)
         
         # Build the dataset
@@ -246,20 +251,7 @@ class DataGeneratorContinuous(DataGenerator):
     
     
     
-    def build_dataset(self):
-        '''
-        Creates the dataset
-        For each datapoint, choose T possible orientations ('discrete' Z=k),
-        then combine them together, with time decay
-        
-        Z_true:             N x T x R
-        Y :                 N x M
-        all_Y:              N x T x M
-        chosen_orientation: N x T x R
-        '''
-    
-    
-    def build_dataset(self):
+    def build_dataset(self, input_orientations = None):
         '''
             Creates the dataset
                 For each datapoint, choose T possible orientations ('discrete' Z=k),
@@ -270,10 +262,14 @@ class DataGeneratorContinuous(DataGenerator):
             all_Y:              N x T x M
             chosen_orientation: N x T x R
         '''
+        
         ## Create Z, assigning a feature to each time for each datapoint
         self.Z_true = np.zeros((self.N, self.T, self.R), dtype='float')
         
-        self.chosen_orientations = np.zeros((self.N, self.T, self.R), dtype='float')
+        if input_orientations is None:
+            self.chosen_orientations = np.zeros((self.N, self.T, self.R), dtype='float')
+        else:
+            self.chosen_orientations = input_orientations
         
         # Initialise Y (keep intermediate y_t as well)
         self.all_Y = np.zeros((self.N, self.T, self.random_network.M))
@@ -283,8 +279,9 @@ class DataGeneratorContinuous(DataGenerator):
         
         for i in np.arange(self.N):
             
-            # Choose T random orientations, uniformly
-            self.chosen_orientations[i] = np.random.permutation(self.random_network.possible_objects)[:self.T]
+            if input_orientations is None:
+                # Choose T random orientations, uniformly
+                self.chosen_orientations[i] = np.random.permutation(self.random_network.possible_objects)[:self.T]
             
             self.Z_true[i] = self.chosen_orientations[i]
             

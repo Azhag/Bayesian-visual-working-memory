@@ -8,6 +8,8 @@ Copyright (c) 2011 Gatsby Unit. All rights reserved.
 """
 
 import pylab as plt
+import numpy as np
+import matplotlib.ticker as plttic
 
 def cross(*args):
     ans = [[]]
@@ -39,6 +41,55 @@ def array2string(array):
         return '  |  '.join([' '.join(str(k) for k in item) for item in array])
     elif array.ndim == 3:
         return '  |  '.join([', '.join([' '.join([str(it) for it in obj]) for obj in item]) for item in array])
+
+def plot_square_grid(x, y, nb_to_plot=-1):
+    '''
+        Construct a square grid of plots
+        
+        Uses the first dimension as number of subplots.
+    '''
+    if nb_to_plot < 0:
+        nb_to_plot = y.shape[0]
+    
+    nb_plots_sqrt = np.sqrt(nb_to_plot).astype(np.int32)
+    f, subaxes = plt.subplots(nb_plots_sqrt, nb_plots_sqrt)
+    
+    for i in np.arange(nb_plots_sqrt):
+        for j in np.arange(nb_plots_sqrt):
+            try:
+                subaxes[i,j].plot(x[nb_plots_sqrt*i+j], y[nb_plots_sqrt*i+j])
+                subaxes[i,j].xaxis.set_major_locator(plttic.NullLocator())
+                subaxes[i,j].yaxis.set_major_locator(plttic.NullLocator())
+            except IndexError:
+                subaxes[i,j].set_visible(False)
+    
+    return (f, subaxes)    
+
+
+def pcolor_square_grid(data, nb_to_plot=-1):
+    '''
+        Construct a square grid of pcolor
+        
+        Uses the first dimension as number of subplots.
+    '''
+    if nb_to_plot < 0:
+        nb_to_plot = data.shape[0]
+    
+    nb_plots_sqrt = np.ceil(np.sqrt(nb_to_plot)).astype(int)
+    f, subaxes = plt.subplots(nb_plots_sqrt, nb_plots_sqrt)
+    
+    for i in np.arange(nb_plots_sqrt):
+        for j in np.arange(nb_plots_sqrt):
+            try:
+                subaxes[i,j].pcolor(data[nb_plots_sqrt*i+j])
+                subaxes[i,j].xaxis.set_major_locator(plttic.NullLocator())
+                subaxes[i,j].yaxis.set_major_locator(plttic.NullLocator())
+            except IndexError:
+                subaxes[i,j].set_visible(False)
+                
+    return (f, subaxes)
+    
+
 
 
 if __name__ == '__main__':
