@@ -11,12 +11,16 @@ import numpy as np
 import scipy.special as scsp
 from scipy.stats import vonmises as vm
 import time
-from datagenerator import *
-from randomnetwork import *
-from utils import *
 import sys
 import os.path
 import argparse
+
+
+from datagenerator import *
+from randomnetwork import *
+from statisticsmeasurer import *
+from slicesampler import *
+from utils import *
 
 class Sampler:
     '''
@@ -25,7 +29,7 @@ class Sampler:
         y_t | x_t, y_{t-1} ~ Normal
         
     '''
-    def __init__(self, data_gen, tc=-1, theta_kappa=0.1, sigma_to_sample=True, sigma_alpha=1.0, sigma_beta=2.0, n_parameters = dict()):
+    def __init__(self, data_gen, tc=-1, theta_kappa=0.1, n_parameters = dict()):
         '''
             Initialise the sampler
             
@@ -40,7 +44,6 @@ class Sampler:
         # Get sizes
         (self.N, self.M) = self.YT.shape
         self.T = data_gen.T
-        self.K = data_gen.random_network.K
         self.R = data_gen.random_network.R
         
         # Time weights
@@ -50,23 +53,11 @@ class Sampler:
         self.init_tc(tc=tc)
         
         # Initialise latent angles
-        self.init_z(theta_kappa)
+        self.init_theta(theta_kappa=theta_kappa)
         
-        # Initial sigma_y
-        self.init_sigma2y(sigma_alpha, sigma_beta)
-        self.sigma_to_sample = sigma_to_sample
+        # Initialise n_T
+        self.init_n(n_parameters)
         
-        # Initialise the X
-        self.init_x()
-        
-        # Initialise y_tc
-        self.init_y_n(n_parameters)
-        
-        # Initialise all the n
-        # self.init_n()
-        
-        # Maximum exponent in current precision
-        self.__maxexp__ = np.finfo('float').maxexp
     
     
     def init_tc(self, tc=-1):
@@ -78,106 +69,74 @@ class Sampler:
         
         if tc < 0 or tc is None:
             # Start with last one.
-            tc = self.T
+            tc = self.T-1
+            # tc = np.random.randint(self.T)
         
         self.tc = tc
+        
+        # Initialise A^{T-tc} as well
+        self.ATmtc = np.power(self.time_weights[0, self.tc], self.T-self.tc)
     
     
-    def init_z(self, theta_gamma=0.0, theta_kappa = 2.0):
+    def init_theta(self, theta_gamma=0.0, theta_kappa = 2.0):
         '''
             Sample initial angles. Use a Von Mises prior, low concentration (~flat)
             
-            Z:          N x R
+            Theta:          N x R
         '''
         
         self.theta_gamma = theta_gamma
         self.theta_kappa = theta_kappa
-        self.Z = np.random.vonmises(theta_gamma, theta_kappa, size=(self.N, self.R))
+        self.theta = np.random.vonmises(theta_gamma, theta_kappa, size=(self.N, self.R))
         
-        self.lprob_zntrk = np.zeros(self.K)
         
+    # 
+    # def init_x(self):
+    #     '''
+    #         Initialise the R 'x' variables
+    #         They come from a projected Gaussian, in the RandomNetwork class.
+    #         
+    #         X:          N x R x M
+    #     '''
+    #     self.x = self.random_network.sample_network_response(self.Z.T).transpose(1,0,2)
+    # 
     
     
-    def init_sigma2y(self, sigmay_alpha, sigmay_beta):
+    def init_n(self, n_parameters):
         '''
-            Sample initial sigma. Use an Inverse Gamma prior
-        '''
-        self.sigmay_alpha = sigmay_alpha
-        self.sigmay_beta = sigmay_beta
-        self.sigma2y = self.sample_invgamma(sigmay_alpha, sigmay_beta)
-        # self.sigma2y = 0.01
-    
-    
-    def init_x(self):
-        '''
-            Initialise the R 'x' variables
-            They come from a projected Gaussian, in the RandomNetwork class.
+            Initialise the background noise n_T. It actually is observed, so nothing really interesting there.
             
-            X:          N x R x M
-        '''
-        self.x = self.random_network.sample_network_response(self.Z.T).transpose(1,0,2)
-    
-    
-    def init_y_n(self, n_parameters):
-        '''
-            Initialise y_tc and the background noise variables n. To simplify the indexing, they all live in the same array Y_N
-            
-            the last t index is observed, and will not be modified
-            
-            Y_N:                  N x T x M
-            Z:                    N x R
+            N:                    N x M
             
             n_parameters:         {means: T x M, covariances: T x M x M}
         '''
         
         # Store the parameters and precompute the Cholesky decompositions
-        self.n_means = n_parameters['means']
-        self.n_covariances = n_parameters['covariances']
-        self.n_covariances_chol = np.zeros_like(self.n_covariances)
+        self.n_means_start = n_parameters['means'][0]
+        self.n_means_end = n_parameters['means'][1]
+        self.n_covariances_start = n_parameters['covariances'][0]
+        self.n_covariances_end = n_parameters['covariances'][1]
+        self.n_covariances_start_chol = np.zeros_like(self.n_covariances_start)
+        self.n_covariances_end_chol = np.zeros_like(self.n_covariances_end)
+        
         for t in np.arange(self.T):
-            self.n_covariances_chol[t] = np.linalg.cholesky(self.n_covariances[t])
-        
-        # Get the current activation of the network, sum populations out. N x M
-        features_combined = self.random_network.get_network_features_combined(self.Z)
-        
-        self.Y_N = np.zeros((self.N, self.T, self.M))
-        
-        # Fill in the correct initialisation, based on the original tc
-        for t in np.arange(self.T-1):
-            if t == self.tc:
-                # This is y_tc
-                
-                # Initialise just like before, with sum of the previous noise process and current activation
-                self.Y_N[:,t,:] = self.time_weights[1,t]*features_combined + np.sqrt(self.sigma2y)*np.random.randn(self.N, self.M)
-                if t>0:
-                    self.Y_N[:,t,:] += self.time_weights[0, t]*self.Y_N[:, t-1, :]
-                
-            else:
-                # These are background noise variables
-                
-                # Those uses given "current" means and variances.
-                # TODO They could depend on t_c or the current assignment of the variables, but that's quite hard to measure reliably
-                
-                self.Y_N[:,t,:] = np.tile(self.time_weights[1, t]*self.n_means[t], (self.N, 1)) + np.dot(np.random.randn(self.N, self.M), self.n_covariances_chol[t].T)
-                
-                if t>0:
-                    self.Y_N[:,t,:] += self.time_weights[0, t]*self.Y_N[:, t-1, :]
-                
-        # t= T is fixed
-        self.Y_N[:, self.T-1, :] = self.YT
-        
-    
-    def init_n(self):
-        '''
-            Initialise the background noise variables n.
+            try:
+                self.n_covariances_start_chol[t] = np.linalg.cholesky(self.n_covariances_start[t])
+            except np.linalg.linalg.LinAlgError:
+                # Not positive definite, most likely only zeros, don't care, leave the zeros.
+                pass
             
-            the last t index is observed, and will not be modified
+            try:
+                self.n_covariances_end_chol[t] = np.linalg.cholesky(self.n_covariances_end[t])
+            except np.linalg.linalg.LinAlgError:
+                # Not positive definite, most likely only zeros, don't care, leave the zeros.
+                pass
             
-            network_representations: R x K x M
-            Y:                    N x T x M
-            Z:                    N x T x R
-        '''
-        pass
+        
+        # Initialise N
+        self.NT = np.zeros((self.N, self.M))
+        self.NT = self.YT
+        
     
     ########
     
@@ -224,74 +183,26 @@ class Sampler:
         '''
         
         # t = time.time()
-        self.sample_z()
+        self.sample_theta()
         # print "Sample_z time: %.3f" % (time.time()-t)
         
-        # t = time.time()
-        self.sample_y()
-        # print "Sample_y time: %.3f" % (time.time()-t)
-        
-        if self.sigma_to_sample:
-            # t = time.time()
-            self.sample_sigmay()
-            # print "Sample_sigmay time: %.3f" % (time.time()-t)
+        #self.sample_tc()
         
     
-    def sample_z(self):
-        '''
-            Main method, get the new Z by Collapsed Gibbs sampling.
-            Discrete variable, with Dirichlet prior, integrated over.
-            
-            Do everything in log-domain, to avoid numerical errors
-            
-        '''
-        
-        # Iterate over whole matrix
-        permuted_datapoints = np.random.permutation(np.arange(self.N))
-        
-        for n in permuted_datapoints:
-            # For each datapoint, need to resample the new z_ikt's
-            
-            permuted_time = np.random.permutation(np.arange(self.T))
-            
-            for t in permuted_time:
-                
-                permuted_population = np.random.permutation(np.arange(self.R))
-                
-                for r in permuted_population:
-                    
-                    # Update the counts
-                    self.Akr[self.Z[n,t,r], r] -= 1
-                    
-                    for k in np.arange(self.K):
-                        # Get the prior prob of z_n_t_k
-                        self.lprob_zntrk[k] = np.log(self.dir_alpha + self.Akr[k,r]) - np.log(self.K*self.dir_alpha + self.N - 1.)
-                        
-                        # Get the likelihood of ynt using z_n_t = k
-                        self.Z[n, t, r] = k
-                        lik_ynt = self.compute_loglikelihood_ynt(n, t)
-                        
-                        self.lprob_zntrk[k] += lik_ynt
-                        
-                        # print "%d,%d,%d,%d, lik_ynt: %.3f" % (n,t,r,k, lik_ynt)
-                    
-                    
-                    # Get the new sample
-                    new_zntr = self.sample_discrete_logp(self.lprob_zntrk)
-                    
-                    # Increment the counts
-                    self.Akr[new_zntr, r] += 1
-                    
-                    self.Z[n,t, r] = new_zntr
-                
     
-    
-    def sample_y(self):
+    def sample_theta(self):
         '''
-            Sample a new y_t, from posterior normal: P(y_t | y_{t-1}, x_t) P(y_{t+1} | y_t, x_{t+1})
+            Sample a theta
+            Need to use a slice sampler, as we do not know the normalization constant.
         '''
         
-        features_combined = self.random_network.get_network_features_combined(self.Z)
+        # Precompute the mean and covariance contributions.
+        mean_fixed_contrib = self.n_means_end[self.tc] + np.dot(self.ATmtc, self.n_means_start[self.tc])
+        
+        ATtcB = np.dot(self.ATmtc, self.time_weights[1, self.tc])
+        covariance_fixed_contrib = self.n_covariances_end[self.tc] + np.dot(self.ATmtc, self.n_covariances_start[self.tc]) + \
+                                        np.dot(ATtcB, np.dot(self.random_network.get_network_covariance_combined(), ATtcB.T))
+        
         
         # Iterate over whole datapoints
         permuted_datapoints = np.random.permutation(np.arange(self.N))
@@ -299,53 +210,77 @@ class Sampler:
         # Do everything in log-domain, to avoid numerical errors
         for n in permuted_datapoints:
             
-            # Y[n,T] is not sampled, it's observed, don't touch it
-            permuted_time = np.random.permutation(np.arange(self.T-1))
+            # Build loglikelihood function
+            def loglike_theta_fct(x, (datapoint, random_network, theta_mu, theta_kappa, Atmtc, thetas, theta_sampled_index, mean_fixed_contrib, covariance_fixed_contrib)):
+                # Put the new proposed point correctly
+                thetas[theta_sampled_index] = x
+                
+                like_mean = datapoint - mean_fixed_contrib - \
+                            np.dot(Atmtc, random_network.get_network_features_combined(thetas))
+                
+                return theta_kappa*np.cos(x - theta_mu) - 0.5*np.dot(like_mean, np.linalg.solve(covariance_fixed_contrib, like_mean))
             
-            for t in permuted_time:
-                
-                # Posterior covariance
-                delta = self.sigma2y/(1. + self.time_weights[0, t+1]**2.)
-                
-                # Posterior mean
-                mu = self.time_weights[0, t+1]*(self.Y[n,t+1] - self.time_weights[1, t+1]*features_combined[n, t+1])
-                mu += self.time_weights[1, t]*features_combined[n,t]
-                if t>0:
-                    mu += self.time_weights[0, t]*self.Y[n, t-1]
-                mu /= (1. + self.time_weights[0, t+1]**2)
-                
-                # Sample the new Y[n,t]
-                self.Y[n,t] = mu + np.sqrt(delta)*np.random.randn(self.M)
+            # TODO Find a way to put cued item properly. Check that it works.
+            params = (self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATmtc, self.theta[n].copy(), theta_sampled_index, mean_fixed_contrib, covariance_fixed_contrib)
+            
+            # Sample the new theta
+            
+            
             
         
         
-    
-    def sample_sigmay(self):
+    def sample_tc(self):
         '''
-            Sample a new sigmay, assuming an inverse-gamma prior
+            Sample a new t_c. As t_c is discrete, this merely requires a few likelihood evaluations.
+            
+            Do everything in log-domain, to avoid numerical errors
+            
         '''
         
-        features_combined = self.random_network.get_network_features_combined(self.Z)
+        # TODO CHANGE THIS
         
-        # Computes \sum_t \sum_n (y_n_t - beta_t y_n_{t-1} - alpha_t WP z_n_t), with tensor also
-        Ytminus = np.zeros_like(self.Y)
-        Ytminus[:, 1:, :] = self.Y[:, :-1, :]
-        Y_proj = self.Y - (features_combined.transpose(0,2,1)*self.time_weights[1]).transpose(0,2,1) - (Ytminus.transpose(0,2,1)*self.time_weights[0]).transpose(0,2,1)
+        # Update A^{T-tc}
+        # self.ATmtc = np.power(self.time_weights[0, self.tc], self.T-self.tc)
         
-        self.sigma2y = self.sample_invgamma(self.sigmay_alpha + self.T*self.N*self.M/2., self.sigmay_beta + 0.5*np.tensordot(Y_proj, Y_proj, axes=3))
-    
-    
-    # def compute_likelihood_ynt(self, znt, n, t):
-    #         '''
-    #             Compute the log-likelihood of one datapoint under the current parameters.
-    #         '''
-    #         
-    #         ynt_proj = self.Y[n,t] - self.time_weights[1, t]*self.random_network.network_orientations[:,znt]
-    #         if t>0:
-    #             ynt_proj -= self.time_weights[0, t]*self.Y[n, t-1]
-    #         
-    #         return (2*np.pi*self.sigma2y)**(-self.M/2.)*np.exp((-0.5/self.sigma2y)*np.dot(ynt_proj, ynt_proj))
-    #     
+        pass
+        # # Iterate over whole matrix
+        #         permuted_datapoints = np.random.permutation(np.arange(self.N))
+        #         
+        #         for n in permuted_datapoints:
+        #             # For each datapoint, need to resample the new z_ikt's
+        #             
+        #             permuted_time = np.random.permutation(np.arange(self.T))
+        #             
+        #             for t in permuted_time:
+        #                 
+        #                 permuted_population = np.random.permutation(np.arange(self.R))
+        #                 
+        #                 for r in permuted_population:
+        #                     
+        #                     # Update the counts
+        #                     self.Akr[self.Z[n,t,r], r] -= 1
+        #                     
+        #                     for k in np.arange(self.K):
+        #                         # Get the prior prob of z_n_t_k
+        #                         self.lprob_zntrk[k] = np.log(self.dir_alpha + self.Akr[k,r]) - np.log(self.K*self.dir_alpha + self.N - 1.)
+        #                         
+        #                         # Get the likelihood of ynt using z_n_t = k
+        #                         self.Z[n, t, r] = k
+        #                         lik_ynt = self.compute_loglikelihood_ynt(n, t)
+        #                         
+        #                         self.lprob_zntrk[k] += lik_ynt
+        #                         
+        #                         # print "%d,%d,%d,%d, lik_ynt: %.3f" % (n,t,r,k, lik_ynt)
+        #                     
+        #                     
+        #                     # Get the new sample
+        #                     new_zntr = self.sample_discrete_logp(self.lprob_zntrk)
+        #                     
+        #                     # Increment the counts
+        #                     self.Akr[new_zntr, r] += 1
+        #                     
+        #                     self.Z[n,t, r] = new_zntr
+                
     
     def compute_loglikelihood_ynt(self, n, t):
         '''
@@ -626,19 +561,21 @@ def do_simple_run(args):
     nb_samples = args.nb_samples
     
     sigma_y = 0.02
-    
-    
-    # Initialise/Load the noise parameters
-    # n_parameters:         {means: T x M, covariances: T x M x M}
-    n_parameters = {}
-    n_parameters['means'] = np.zeros( (T, M) )
-    n_parameters['covariances'] = np.tile( sigma_y*np.eye(M), (T, 1, 1) )
+    time_weights_parameters = dict(weighting_alpha=0.85, weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='recency')
     
     random_network = RandomNetworkContinuous.create_instance_uniform(K, M, D=D, R=R, W_type='identity', W_parameters=[0.1, 0.5], sigma=0.2, gamma=0.005, rho=0.005)
     
-    data_gen = DataGeneratorContinuous(N, T, random_network, sigma_y = sigma_y, time_weights_parameters = dict(weighting_alpha=0.85, weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='recency'))
-        
-    sampler = Sampler(data_gen, theta_kappa=0.1, sigma_to_sample=False, sigma_alpha=3, sigma_beta=0.5, n_parameters=n_parameters)
+    # Measure the noise structure
+    print "Measuring noise structure"
+    data_gen_noise = DataGeneratorContinuous(1000, T, random_network, sigma_y = sigma_y, time_weights_parameters=time_weights_parameters)
+    stat_meas = StatisticsMeasurer(data_gen_noise)
+    
+    # Now construct the real dataset
+    print "Building the database"
+    data_gen = DataGeneratorContinuous(N, T, random_network, sigma_y = sigma_y, time_weights_parameters = time_weights_parameters)
+    
+    print "Sampling..."
+    sampler = Sampler(data_gen, tc=-1, theta_kappa=0.1, n_parameters = stat_meas.model_parameters)
     
     if False:
         t = time.time()
@@ -772,9 +709,7 @@ def do_search_alphat(args):
 
 ####################################
 if __name__ == '__main__':
-    
-    raise NotImplementedError('SAMPLER IS NOT FINISHED. THIS IS THE FULL NOISE PROCESSES ONE, DO THE COLLAPSED INSTEAD.')
-    
+        
     # Switch on different actions
     actions = [do_simple_run, do_search_dirichlet_alpha, do_search_alphat]
     
@@ -808,6 +743,8 @@ if __name__ == '__main__':
         log_joint = all_vars['log_joint']
     if 'log_z' in all_vars:
         log_z = all_vars['log_z']
+    if 'stat_meas' in all_vars:
+        stat_meas = all_vars['stat_meas']
     
     # Save the results
     if should_save:

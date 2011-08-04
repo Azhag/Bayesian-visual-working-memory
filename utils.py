@@ -11,6 +11,8 @@ import pylab as plt
 import numpy as np
 import matplotlib.ticker as plttic
 
+__maxexp__ = np.finfo('float').maxexp
+
 def cross(*args):
     ans = [[]]
     for arg in args:

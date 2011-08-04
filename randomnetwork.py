@@ -38,6 +38,9 @@ class RandomNetwork:
         
         self.build_W(W_type=W_type, W_parameters=W_parameters)
         
+        
+        print "RandomNetwork initialised"
+        
     
     
     def assign_possible_orientations(self, possible_angles):
@@ -327,6 +330,8 @@ class RandomNetworkContinuous(RandomNetwork):
         
         RandomNetwork.__init__(self, M, D=D, R=R, sigma_pop=sigma_pop, rho_pop = rho_pop, gamma_pop =gamma_pop, W_type = W_type, W_parameters = W_parameters, percentage_population_connections = percentage_population_connections, max_angle = max_angle)
         
+        self.covariance_network_combined = None
+        
     
     
     def sample_network_response(self, chosen_orientations):
@@ -355,7 +360,7 @@ class RandomNetworkContinuous(RandomNetwork):
     
     def get_network_features_combined(self, Z):
         '''
-            
+            Compute \sum_r W_r mu(theta_r)
         '''
         if Z.ndim == 1:
             # Hopefully still fast enough...
@@ -378,6 +383,26 @@ class RandomNetworkContinuous(RandomNetwork):
         '''
         return np.dot(self.popcodes[r].mean_response(Z), self.W[r].T)
     
+    def get_network_covariance_combined(self):
+        '''
+            Compute (and cache) the combined transformed covariance of the population codes
+            i.e.:
+                \sum_r W_r \Sigma_r W_r^T
+        '''
+        if self.covariance_network_combined is not None:
+            return self.covariance_network_combined
+        else:
+            # First call, compute it.
+            if self.R == 2:
+                self.covariance_network_combined = np.dot(self.W[0], np.dot(self.popcodes[0].covariance, self.W[0].T)) + \
+                                                np.dot(self.W[1], np.dot(self.popcodes[1].covariance, self.W[1].T))
+            else:
+                self.covariance_network_combined = np.zeros((self.M, self.M))
+                for r in np.arange(self.R):
+                    self.covariance_network_combined += np.dot(self.W[r], np.dot(self.popcodes[r].covariance, self.W[r].T))
+                
+            return self.covariance_network_combined
+        
     
     def sample_network_response_indices(self, chosen_orientations):
         raise NotImplementedError()
