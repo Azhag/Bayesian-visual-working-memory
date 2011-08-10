@@ -257,19 +257,20 @@ class DataGeneratorContinuous(DataGenerator):
                 For each datapoint, choose T possible orientations ('discrete' Z=k),
                 then combine them together, with time decay
             
-            Z_true:             N x T x R
             Y :                 N x M
             all_Y:              N x T x M
             chosen_orientation: N x T x R
+            cued_features:      N x 2 (r_c, t_c)
         '''
         
-        ## Create Z, assigning a feature to each time for each datapoint
-        self.Z_true = np.zeros((self.N, self.T, self.R), dtype='float')
-        
+        # Assign the correct orientations (i.e. orientation/color for each object)
         if input_orientations is None:
             self.chosen_orientations = np.zeros((self.N, self.T, self.R), dtype='float')
         else:
             self.chosen_orientations = input_orientations
+        # Select which item should be recalled (and thus cue one/multiple of the other feature)
+        
+        self.cued_features = np.zeros((self.N, 2), dtype='int')
         
         # Initialise Y (keep intermediate y_t as well)
         self.all_Y = np.zeros((self.N, self.T, self.random_network.M))
@@ -283,7 +284,12 @@ class DataGeneratorContinuous(DataGenerator):
                 # Choose T random orientations, uniformly
                 self.chosen_orientations[i] = np.random.permutation(self.random_network.possible_objects)[:self.T]
             
-            self.Z_true[i] = self.chosen_orientations[i]
+            # For now, always cued the second code (i.e. color) and retrieve the first code (i.e. orientation)
+            self.cued_features[i, 0] = 1
+            
+            # Randomly recall one of the times
+            # self.cued_features[i, 1] = np.random.randint(self.T)
+            self.cued_features[i, 1] = self.T-1
             
             # Get the 'x' samples (here from the population code, with correlated covariance, but whatever)
             x_samples = self.random_network.sample_network_response(self.chosen_orientations[i].T)
@@ -303,7 +309,7 @@ class DataGeneratorContinuous(DataGenerator):
 
 if __name__ == '__main__':
     N = 100
-    T = 2
+    T = 3
     K = 6
     M = 30
     D = 30
