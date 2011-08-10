@@ -58,24 +58,29 @@ class Sampler:
         # Initialise n_T
         self.init_n(n_parameters)
         
+        # Initialise a Slice Sampler for theta
+        self.slicesampler = SliceSampler()
+        
     
     
     def init_tc(self, tc=-1):
         '''
             Initialise the time of recall
             
+            tc = N x 1
+            
             Could be sampled later, for now just fix it.
         '''
         
         if tc < 0 or tc is None:
             # Start with last one.
-            tc = self.T-1
+            tc = (self.T-1)*np.ones(self.N, dtype='int')
             # tc = np.random.randint(self.T)
         
         self.tc = tc
         
         # Initialise A^{T-tc} as well
-        self.ATmtc = np.power(self.time_weights[0, self.tc], self.T-self.tc)
+        self.ATmtc = np.power(self.time_weights[0, self.tc], self.T - self.tc - 1.)
     
     
     def init_theta(self, theta_gamma=0.0, theta_kappa = 2.0):
@@ -89,17 +94,15 @@ class Sampler:
         self.theta_kappa = theta_kappa
         self.theta = np.random.vonmises(theta_gamma, theta_kappa, size=(self.N, self.R))
         
+        # Assign the cued ones now
+        #   chosen_orientation: N x T x R
+        #   cued_features:      N x (recall_feature, recall_time)
+        self.theta[np.arange(self.N), self.data_gen.cued_features[:,0]] =  \
+            self.data_gen.chosen_orientations[np.arange(self.N), self.data_gen.cued_features[:,1], self.data_gen.cued_features[:,0]]
         
-    # 
-    # def init_x(self):
-    #     '''
-    #         Initialise the R 'x' variables
-    #         They come from a projected Gaussian, in the RandomNetwork class.
-    #         
-    #         X:          N x R x M
-    #     '''
-    #     self.x = self.random_network.sample_network_response(self.Z.T).transpose(1,0,2)
-    # 
+        # Construct the list of uncued features, which should be sampled
+        self.theta_to_sample = np.array([[r for r in np.arange(self.R) if r != self.data_gen.cued_features[n,0]] for n in np.arange(self.N)], dtype='int')
+        
     
     
     def init_n(self, n_parameters):
@@ -194,37 +197,60 @@ class Sampler:
         '''
             Sample a theta
             Need to use a slice sampler, as we do not know the normalization constant.
+            
+            ASSUMES A_t = A for all t. Same for B.
         '''
-        
-        # Precompute the mean and covariance contributions.
-        mean_fixed_contrib = self.n_means_end[self.tc] + np.dot(self.ATmtc, self.n_means_start[self.tc])
-        
-        ATtcB = np.dot(self.ATmtc, self.time_weights[1, self.tc])
-        covariance_fixed_contrib = self.n_covariances_end[self.tc] + np.dot(self.ATmtc, self.n_covariances_start[self.tc]) + \
-                                        np.dot(ATtcB, np.dot(self.random_network.get_network_covariance_combined(), ATtcB.T))
+        # Build loglikelihood function
+        def loglike_theta_fct(x, (datapoint, rn, theta_mu, theta_kappa, Atmtc, thetas, sampled_feature_index, mean_fixed_contrib, covariance_fixed_contrib)):
+            '''
+                Compute the loglikelihood of: theta_r | n_t theta_r'
+            '''
+            # Put the new proposed point correctly
+            thetas[sampled_feature_index] = x
+            
+            like_mean = datapoint - mean_fixed_contrib - \
+                        np.dot(Atmtc, rn.get_network_features_combined(thetas))
+            
+            return theta_kappa*np.cos(x - theta_mu) - 0.5*np.dot(like_mean, np.linalg.solve(covariance_fixed_contrib, like_mean))
         
         
         # Iterate over whole datapoints
-        permuted_datapoints = np.random.permutation(np.arange(self.N))
+        permuted_datapoints = np.random.permutation(np.arange(1))
         
         # Do everything in log-domain, to avoid numerical errors
         for n in permuted_datapoints:
             
-            # Build loglikelihood function
-            def loglike_theta_fct(x, (datapoint, random_network, theta_mu, theta_kappa, Atmtc, thetas, theta_sampled_index, mean_fixed_contrib, covariance_fixed_contrib)):
-                # Put the new proposed point correctly
-                thetas[theta_sampled_index] = x
+            # Precompute the mean and covariance contributions.
+            mean_fixed_contrib = self.n_means_end[self.tc[n]] + np.dot(self.ATmtc[n], self.n_means_start[self.tc[n]])
+            
+            ATtcB = np.dot(self.ATmtc[n], self.time_weights[1, self.tc[n]])
+            
+            covariance_fixed_contrib = self.n_covariances_end[self.tc[n]] + np.dot(self.ATmtc[n], self.n_covariances_start[self.tc[n]]) + np.dot(ATtcB, np.dot(self.random_network.get_network_covariance_combined(), ATtcB.T))
+            
+            # Sample all the non-cued features
+            permuted_features = np.random.permutation(self.theta_to_sample[n])
+            
+            for sampled_feature_index in permuted_features:
+                print "%d, %d" % (n, sampled_feature_index)
                 
-                like_mean = datapoint - mean_fixed_contrib - \
-                            np.dot(Atmtc, random_network.get_network_features_combined(thetas))
+                params = (self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATmtc[n], self.theta[n].copy(), sampled_feature_index, mean_fixed_contrib, covariance_fixed_contrib)
                 
-                return theta_kappa*np.cos(x - theta_mu) - 0.5*np.dot(like_mean, np.linalg.solve(covariance_fixed_contrib, like_mean))
-            
-            # TODO Find a way to put cued item properly. Check that it works.
-            params = (self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATmtc, self.theta[n].copy(), theta_sampled_index, mean_fixed_contrib, covariance_fixed_contrib)
-            
-            # Sample the new theta
-            
+                # Sample the new theta
+                # samples, llh = self.slicesampler.sample_1D_circular(1000, self.theta[n, sampled_feature_index], loglike_theta_fct, burn=500, widths=np.pi/3.0, loglike_fct_params=params, thinning=2, debug=True, step_out=True)
+                samples, llh = self.slicesampler.sample_1D_circular(10000, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct, burn=500, widths=np.pi/2., loglike_fct_params=params, thinning=2, debug=True, step_out=True)
+                
+                # Plot some stuff
+                x = np.linspace(-np.pi, np.pi, 1000)
+                plt.figure()
+                ll_x = np.array([np.exp(loglike_theta_fct(a, params)) for a in x])
+                ll_x /= np.abs(np.max(ll_x))
+                plt.plot(x, ll_x-np.mean(ll_x))
+                sample_h, left_x = np.histogram(samples, bins=x)
+                if np.sum(sample_h) == 0:
+                    print samples
+                plt.bar(x[:-1], sample_h/np.sum(sample_h).astype('float'), facecolor='green', alpha=0.75, width=np.diff(x)[0])
+                
+                print "Correct angle: %.3f" % self.data_gen.chosen_orientations[n, self.data_gen.cued_features[n, 1], 0]
             
             
         
@@ -561,13 +587,13 @@ def do_simple_run(args):
     nb_samples = args.nb_samples
     
     sigma_y = 0.02
-    time_weights_parameters = dict(weighting_alpha=0.85, weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='recency')
+    time_weights_parameters = dict(weighting_alpha=0.7, weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='recency')
     
-    random_network = RandomNetworkContinuous.create_instance_uniform(K, M, D=D, R=R, W_type='identity', W_parameters=[0.1, 0.5], sigma=0.2, gamma=0.005, rho=0.005)
+    random_network = RandomNetworkContinuous.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[0.1, 0.3], sigma=0.2, gamma=0.005, rho=0.005)
     
     # Measure the noise structure
     print "Measuring noise structure"
-    data_gen_noise = DataGeneratorContinuous(1000, T, random_network, sigma_y = sigma_y, time_weights_parameters=time_weights_parameters)
+    data_gen_noise = DataGeneratorContinuous(3000, T, random_network, sigma_y = sigma_y, time_weights_parameters=time_weights_parameters)
     stat_meas = StatisticsMeasurer(data_gen_noise)
     
     # Now construct the real dataset
@@ -575,7 +601,9 @@ def do_simple_run(args):
     data_gen = DataGeneratorContinuous(N, T, random_network, sigma_y = sigma_y, time_weights_parameters = time_weights_parameters)
     
     print "Sampling..."
-    sampler = Sampler(data_gen, tc=-1, theta_kappa=0.1, n_parameters = stat_meas.model_parameters)
+    sampler = Sampler(data_gen, tc=-1, theta_kappa=0.01, n_parameters = stat_meas.model_parameters)
+    
+    sampler.sample_theta()
     
     if False:
         t = time.time()
@@ -724,7 +752,7 @@ if __name__ == '__main__':
     parser.add_argument('--T', default=3, help='Number of times')
     parser.add_argument('--K', default=25, help='Number of representated features')
     parser.add_argument('--D', default=50, help='Dimensionality of features')
-    parser.add_argument('--M', default=200, help='Dimensionality of data/memory')
+    parser.add_argument('--M', default=100, help='Dimensionality of data/memory')
     parser.add_argument('--R', default=2, help='Number of population codes')
     
     args = parser.parse_args()

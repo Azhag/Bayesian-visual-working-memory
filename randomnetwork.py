@@ -424,7 +424,7 @@ class RandomNetworkContinuous(RandomNetwork):
         
         # Used only for compatibility and data generation. Generate a few possible objects.
         #   Even though now during sampling, any angle is possible.
-        possible_angles = np.linspace(0., max_angle, K, endpoint=False)
+        possible_angles = np.linspace(-np.pi, np.pi, K, endpoint=False)
         rn.assign_possible_orientations(possible_angles)
         
         return rn
