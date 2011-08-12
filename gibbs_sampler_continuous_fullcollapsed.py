@@ -15,11 +15,13 @@ import sys
 import os.path
 import argparse
 
+import pyximport; pyximport.install();
+import slicesampler_c
 
 from datagenerator import *
 from randomnetwork import *
 from statisticsmeasurer import *
-from slicesampler import *
+# from slicesampler import *
 from utils import *
 
 class Sampler:
@@ -59,7 +61,7 @@ class Sampler:
         self.init_n(n_parameters)
         
         # Initialise a Slice Sampler for theta
-        self.slicesampler = SliceSampler()
+        # self.slicesampler = SliceSampler()
         
     
     
@@ -200,32 +202,36 @@ class Sampler:
             
             ASSUMES A_t = A for all t. Same for B.
         '''
-        # Build loglikelihood function
-        def loglike_theta_fct(x, (datapoint, rn, theta_mu, theta_kappa, Atmtc, thetas, sampled_feature_index, mean_fixed_contrib, covariance_fixed_contrib)):
-            '''
-                Compute the loglikelihood of: theta_r | n_t theta_r'
-            '''
-            # Put the new proposed point correctly
-            thetas[sampled_feature_index] = x
-            
-            like_mean = datapoint - mean_fixed_contrib - \
-                        np.dot(Atmtc, rn.get_network_features_combined(thetas))
-            
-            return theta_kappa*np.cos(x - theta_mu) - 0.5*np.dot(like_mean, np.linalg.solve(covariance_fixed_contrib, like_mean))
-        
+        # # Build loglikelihood function
+        #         def loglike_theta_fct(x, (datapoint, rn, sampled_feature_index, theta_mu, theta_kappa, Atmtc, mean_fixed_contrib, covariance_fixed_contrib, thetas)):
+        #            '''
+        #                Compute the loglikelihood of: theta_r | n_t theta_r'
+        #            '''
+        #            # Put the new proposed point correctly
+        #            thetas[sampled_feature_index] = x
+        #             
+        #            like_mean = datapoint - mean_fixed_contrib - \
+        #                        np.dot(Atmtc, rn.get_network_features_combined(thetas))
+        #             
+        #            return theta_kappa*np.cos(x - theta_mu) - 0.5*np.dot(like_mean, np.linalg.solve(covariance_fixed_contrib, like_mean))
+        #         
         
         # Iterate over whole datapoints
-        permuted_datapoints = np.random.permutation(np.arange(1))
+        permuted_datapoints = np.random.permutation(np.arange(self.N))
+        errors = np.zeros_like(permuted_datapoints)
         
         # Do everything in log-domain, to avoid numerical errors
         for n in permuted_datapoints:
             
             # Precompute the mean and covariance contributions.
-            mean_fixed_contrib = self.n_means_end[self.tc[n]] + np.dot(self.ATmtc[n], self.n_means_start[self.tc[n]])
+            # Fixed "other features" for now, try to speed-up sampling
             
-            ATtcB = np.dot(self.ATmtc[n], self.time_weights[1, self.tc[n]])
+            ATtcB = self.ATmtc[n]*self.time_weights[1, self.tc[n]]
             
-            covariance_fixed_contrib = self.n_covariances_end[self.tc[n]] + np.dot(self.ATmtc[n], self.n_covariances_start[self.tc[n]]) + np.dot(ATtcB, np.dot(self.random_network.get_network_covariance_combined(), ATtcB.T))
+            mean_fixed_contrib = self.n_means_end[self.tc[n]] + self.ATmtc[n]*self.n_means_start[self.tc[n]] +  ATtcB*self.random_network.get_popcode_response(self.theta[n, 1], 1)
+            # mean_fixed_contrib = self.n_means_end[self.tc[n]] + self.ATmtc[n]*self.n_means_start[self.tc[n]]
+            
+            covariance_fixed_contrib = self.n_covariances_end[self.tc[n]] + self.ATmtc[n]*self.n_covariances_start[self.tc[n]] + ATtcB*ATtcB*self.random_network.get_network_covariance_combined()
             
             # Sample all the non-cued features
             permuted_features = np.random.permutation(self.theta_to_sample[n])
@@ -233,28 +239,40 @@ class Sampler:
             for sampled_feature_index in permuted_features:
                 print "%d, %d" % (n, sampled_feature_index)
                 
-                params = (self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATmtc[n], self.theta[n].copy(), sampled_feature_index, mean_fixed_contrib, covariance_fixed_contrib)
+                # params = [self.NT[n], self.random_network, sampled_feature_index, self.theta_gamma, self.theta_kappa, ATtcB, mean_fixed_contrib, covariance_fixed_contrib, self.theta[n].copy()]
+                params = [self.NT[n], self.random_network, sampled_feature_index, self.theta_gamma, self.theta_kappa, ATtcB, mean_fixed_contrib, covariance_fixed_contrib]
                 
                 # Sample the new theta
                 # samples, llh = self.slicesampler.sample_1D_circular(1000, self.theta[n, sampled_feature_index], loglike_theta_fct, burn=500, widths=np.pi/3.0, loglike_fct_params=params, thinning=2, debug=True, step_out=True)
-                samples, llh = self.slicesampler.sample_1D_circular(10000, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct, burn=500, widths=np.pi/2., loglike_fct_params=params, thinning=2, debug=True, step_out=True)
+                # samples, llh = self.slicesampler.sample_1D_circular(1, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct, burn=300, widths=np.pi/2., loglike_fct_params=params, debug=False, step_out=True)
+                samples = slicesampler_c.sample_1D_circular(1, np.random.rand()*2.*np.pi-np.pi, 300, np.pi/2., params, 1, 1, 0)
                 
                 # Plot some stuff
-                x = np.linspace(-np.pi, np.pi, 1000)
-                plt.figure()
-                ll_x = np.array([np.exp(loglike_theta_fct(a, params)) for a in x])
-                ll_x /= np.abs(np.max(ll_x))
-                plt.plot(x, ll_x-np.mean(ll_x))
-                sample_h, left_x = np.histogram(samples, bins=x)
-                if np.sum(sample_h) == 0:
-                    print samples
-                plt.bar(x[:-1], sample_h/np.sum(sample_h).astype('float'), facecolor='green', alpha=0.75, width=np.diff(x)[0])
+                if False:
+                    x = np.linspace(-np.pi, np.pi, 1000)
+                    plt.figure()
+                    ll_x = np.array([(slicesampler_c.loglike_collapsed(a, params[0], params[1], params[2], params[3], params[4], params[5], params[6], params[7])) for a in x])
+                    # ll_x = np.array([(loglike_theta_fct(a, params)) for a in x])
+                    ll_x /= np.abs(np.max(ll_x))
+                    plt.plot(x, ll_x-np.mean(ll_x))
+                    sample_h, left_x = np.histogram(samples, bins=x)
+                    if np.sum(sample_h) == 0:
+                        print samples
+                    plt.bar(x[:-1], sample_h/np.max(sample_h).astype('float'), facecolor='green', alpha=0.75, width=np.diff(x)[0])
+                    plt.axvline(x=self.data_gen.chosen_orientations[n, self.data_gen.cued_features[n, 1], 0], color='r')
+            
+            errors[n] = self.data_gen.chosen_orientations[n, self.data_gen.cued_features[n, 1], 0] - samples[-1]
+            # print "Correct angle: %.3f, sampled: %.3f" % (self.data_gen.chosen_orientations[n, self.data_gen.cued_features[n, 1], 0], samples[-1])
                 
-                print "Correct angle: %.3f" % self.data_gen.chosen_orientations[n, self.data_gen.cued_features[n, 1], 0]
-            
+            # break
             
         
+        errors = self.smallest_angle_vectors(errors)
+        print np.mean(errors)
+        print np.std(errors)
         
+    
+    
     def sample_tc(self):
         '''
             Sample a new t_c. As t_c is discrete, this merely requires a few likelihood evaluations.
@@ -543,7 +561,9 @@ class Sampler:
 
 ####################################
 
-def profile_me():
+def profile_me(args):
+    print "-------- Profiling ----------"
+    
     import cProfile
     import pstats
     
@@ -552,22 +572,43 @@ def profile_me():
     stat = pstats.Stats('profile_sampler.stats')
     stat.strip_dirs().sort_stats('cumulative').print_stats()
     
+    return locals()
 
 
 def profiling_run():
     
     N = 100
-    T = 3
-    K = 30
-    D = 30
+    T = 2
+    K = 25
+    D = 50
     M = 200
     R = 2
     
-    random_network = RandomNetwork.create_instance_uniform(K, M, D=D, R=R, W_type='identity', W_parameters=[0.2, 0.7])
-    data_gen = DataGenerator(N, T, random_network, type_Z='discrete', weighting_alpha=0.6, weight_prior='recency', sigma_y = 0.02)
-    sampler = Sampler(data_gen, dirichlet_alpha=0.5/K, sigma_to_sample=True, sigma_alpha=3, sigma_beta=0.5)
+    # random_network = RandomNetwork.create_instance_uniform(K, M, D=D, R=R, W_type='identity', W_parameters=[0.2, 0.7])
+    #     data_gen = DataGenerator(N, T, random_network, type_Z='discrete', weighting_alpha=0.6, weight_prior='recency', sigma_y = 0.02)
+    #     sampler = Sampler(data_gen, dirichlet_alpha=0.5/K, sigma_to_sample=True, sigma_alpha=3, sigma_beta=0.5)
+    #     
+    #     (log_y, log_z, log_joint) = sampler.run(10, verbose=True)
     
-    (log_y, log_z, log_joint) = sampler.run(10, verbose=True)
+    sigma_y = 0.02
+    time_weights_parameters = dict(weighting_alpha=0.7, weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='recency')
+    
+    random_network = RandomNetworkContinuous.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[0.1, 0.3], sigma=0.2, gamma=0.005, rho=0.005)
+    
+    # Measure the noise structure
+    print "Measuring noise structure"
+    data_gen_noise = DataGeneratorContinuous(3000, T, random_network, sigma_y = sigma_y, time_weights_parameters=time_weights_parameters)
+    stat_meas = StatisticsMeasurer(data_gen_noise)
+    
+    # Now construct the real dataset
+    print "Building the database"
+    data_gen = DataGeneratorContinuous(N, T, random_network, sigma_y = sigma_y, time_weights_parameters = time_weights_parameters)
+    
+    print "Sampling..."
+    sampler = Sampler(data_gen, tc=-1, theta_kappa=0.01, n_parameters = stat_meas.model_parameters)
+    
+    sampler.sample_theta()
+    
     
 
 
@@ -739,7 +780,7 @@ def do_search_alphat(args):
 if __name__ == '__main__':
         
     # Switch on different actions
-    actions = [do_simple_run, do_search_dirichlet_alpha, do_search_alphat]
+    actions = [do_simple_run, do_search_dirichlet_alpha, do_search_alphat, profile_me]
     
     print sys.argv[1:]
     
@@ -749,7 +790,7 @@ if __name__ == '__main__':
     parser.add_argument('--action_to_do', choices=np.arange(len(actions)), default=0)
     parser.add_argument('--nb_samples', default=100)
     parser.add_argument('--N', default=100, help='Number of datapoints')
-    parser.add_argument('--T', default=3, help='Number of times')
+    parser.add_argument('--T', default=4, help='Number of times')
     parser.add_argument('--K', default=25, help='Number of representated features')
     parser.add_argument('--D', default=50, help='Dimensionality of features')
     parser.add_argument('--M', default=100, help='Dimensionality of data/memory')

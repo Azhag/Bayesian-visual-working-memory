@@ -64,7 +64,7 @@ class SliceSampler:
             xprime = x_new.copy()
             
             # Loop over dimensions
-            for d in perm:
+            for d in all_D_permuted:
                 
                 # Create a horizontal interval (x_l, x_r) enclosing x_new
                 rr     = np.random.rand()
@@ -283,6 +283,18 @@ class SliceSampler:
                 j += 1
         
         return samples, last_loglikehood
+
+
+def test_sample():
+    
+    loglike_theta_fct = lambda x, (mu, kappa): kappa*np.cos(x - mu) - np.log(2.*np.pi) - np.log(scsp.i0(kappa))
+    loglike_fct_params = np.array([0.0, 0.1])
+    
+    # Get samples
+    slicesampler = SliceSampler()
+    samples, last_llh = slicesampler.sample_1D_circular(5000, np.random.rand(), loglike_theta_fct, burn=500, widths=np.pi/2., thinning=1, loglike_fct_params=loglike_fct_params, step_out=True, debug=False)
+    
+    # print samples
 
 
 
