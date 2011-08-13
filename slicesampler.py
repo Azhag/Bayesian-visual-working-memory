@@ -188,7 +188,7 @@ class SliceSampler:
         return samples, last_loglikehood
     
     
-    def sample_1D_circular(self, N, x_initial, loglike_fct, burn=100, widths=1., last_loglikehood=None, loglike_fct_params=None, step_out = True, thinning=1, debug=False, loglike_min=-np.inf):
+    def sample_1D_circular(self, N, x_initial, loglike_fct, burn=100, widths=1., last_loglikehood=None, loglike_fct_params=None, step_out = True, thinning=1, debug=False, loglike_min=-np.inf, jump=True, jump_probability=0.1):
         
         '''
             Simple implementation of slice sampling for 1D variable
@@ -219,61 +219,80 @@ class SliceSampler:
         
         x_new  = x_initial
         j = 0
+        tot_accepted = 0
+        tot_rejected = 0
         
         # N samples
         for i in np.arange(thinning*N+burn, dtype='int32'):
-            log_uprime  = last_loglikehood + np.log(np.random.rand())
-            # print "log_uprime: %.3f, lastllh: %.3f" % (log_uprime, last_loglikehood)
             
-            # Create a horizontal interval (x_l, x_r) enclosing x_new. Place it randomly.
-            rr     = np.random.rand()
-            x_l    = x_new -  rr*widths
-            x_r    = x_new + (1.-rr)*widths
-            
-            # Grow the interval to get an unbiased slice
-            if step_out:
-                if log_uprime < loglike_min:
-                    # The current slice is too small for the likelihood, step_out will just hit the bounds.
-                    x_l = -np.pi
-                    x_r = np.pi
-                else:
-                    llh_l = loglike_fct(x_l, loglike_fct_params)
-                    # s = 0
-                    while llh_l > log_uprime:
-                        # print "stepping out left: [%.3f < %.3f < %.3f] %.3f %.3f" % (x_l, x_new, x_r, log_uprime, llh_l)
-                        x_l     -= widths
-                        llh_l   = loglike_fct(x_l, loglike_fct_params)
-                        if x_l <= -np.pi:
-                            x_l = -np.pi
-                            break
-                        
-                        # s+=1
-                    # print s
-                    
-                    llh_r = loglike_fct(x_r, loglike_fct_params)
-                    while llh_r > log_uprime:
-                        x_r     += widths
-                        llh_r   = loglike_fct(x_r, loglike_fct_params)
-                        if x_r >= np.pi:
-                            x_r = np.pi
-                            break
+             # Add a probabilistic jump with Metropolis-Hasting
+            if jump and np.random.rand() < jump_probability:
+                # print "Jump!"
+                xprime = np.random.rand()*2.*np.pi - np.pi
                 
-            
-            # Sample a new point, shrinking the interval
-            while True:
-                xprime = np.random.rand()*(x_r - x_l) + x_l
-                
-                last_loglikehood = loglike_fct(xprime, loglike_fct_params)
-                if last_loglikehood > log_uprime:
-                    # Accept this sample
+                # MH ratio
+                llh_x_prime = loglike_fct(xprime, loglike_fct_params)
+                if np.log(np.random.rand()) <  llh_x_prime - last_loglikehood:
+                    # Accepted!
                     x_new = xprime
-                    break
-                elif xprime > x_new:
-                    x_r  = x_new
-                elif xprime < x_new:
-                    x_l = x_new
+                    last_loglikehood = llh_x_prime
+                    tot_accepted += 1
                 else:
-                    raise RuntimeError("Slice sampler shrank too far.")
+                    # rejected, keep x_new
+                    tot_rejected += 1
+            else:
+                log_uprime  = last_loglikehood + np.log(np.random.rand())
+                # print "log_uprime: %.3f, lastllh: %.3f" % (log_uprime, last_loglikehood)
+                
+                # Create a horizontal interval (x_l, x_r) enclosing x_new. Place it randomly.
+                rr     = np.random.rand()
+                x_l    = x_new -  rr*widths
+                x_r    = x_new + (1.-rr)*widths
+                
+                # Grow the interval to get an unbiased slice
+                if step_out:
+                    if log_uprime < loglike_min:
+                        # The current slice is too small for the likelihood, step_out will just hit the bounds.
+                        x_l = -np.pi
+                        x_r = np.pi
+                    else:
+                        llh_l = loglike_fct(x_l, loglike_fct_params)
+                        # s = 0
+                        while llh_l > log_uprime:
+                            # print "stepping out left: [%.3f < %.3f < %.3f] %.3f %.3f" % (x_l, x_new, x_r, log_uprime, llh_l)
+                            x_l     -= widths
+                            llh_l   = loglike_fct(x_l, loglike_fct_params)
+                            if x_l <= -np.pi:
+                                x_l = -np.pi
+                                break
+                        
+                            # s+=1
+                        # print s
+                    
+                        llh_r = loglike_fct(x_r, loglike_fct_params)
+                        while llh_r > log_uprime:
+                            x_r     += widths
+                            llh_r   = loglike_fct(x_r, loglike_fct_params)
+                            if x_r >= np.pi:
+                                x_r = np.pi
+                                break
+                
+                
+                # Sample a new point, shrinking the interval
+                while True:
+                    xprime = np.random.rand()*(x_r - x_l) + x_l
+                    
+                    last_loglikehood = loglike_fct(xprime, loglike_fct_params)
+                    if last_loglikehood > log_uprime:
+                        # Accept this sample
+                        x_new = xprime
+                        break
+                    elif xprime > x_new:
+                        x_r  = x_new
+                    elif xprime < x_new:
+                        x_l = x_new
+                    else:
+                        raise RuntimeError("Slice sampler shrank too far.")
             
             # Store this sample
             if i >= burn and (i % thinning == 0):
@@ -281,6 +300,8 @@ class SliceSampler:
                     print "Sample %d: %.3f" % (j+1, x_new)
                 samples[j] = x_new
                 j += 1
+        
+        print "%d, %d" % (tot_accepted, tot_rejected)
         
         return samples, last_loglikehood
 

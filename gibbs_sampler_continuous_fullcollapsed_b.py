@@ -193,7 +193,7 @@ class Sampler:
         
     
     
-    def sample_theta(self):
+    def sample_theta(self, amplify_diag=1.0):
         '''
             Sample a theta
             Need to use a slice sampler, as we do not know the normalization constant.
@@ -215,9 +215,10 @@ class Sampler:
         
         
         # Iterate over whole datapoints
-        permuted_datapoints = np.random.permutation(np.arange(self.N))
+        # permuted_datapoints = np.random.permutation(np.arange(self.N))
+        permuted_datapoints = np.arange(self.N)
         
-        errors = np.zeros_like(permuted_datapoints)
+        errors = np.zeros(permuted_datapoints.shape, dtype=float)
         
         # Do everything in log-domain, to avoid numerical errors
         for n in permuted_datapoints:
@@ -227,7 +228,9 @@ class Sampler:
             
             ATtcB = np.dot(self.ATmtc[n], self.time_weights[1, self.tc[n]])
             
-            covariance_fixed_contrib = self.n_covariances_end[self.tc[n]] + np.dot(self.ATmtc[n], self.n_covariances_start[self.tc[n]]) + np.dot(ATtcB, np.dot(self.random_network.get_network_covariance_combined(), ATtcB.T))
+            covariance_fixed_contrib = self.n_covariances_end[self.tc[n]] + np.dot(self.ATmtc[n], np.dot(self.n_covariances_start[self.tc[n]], self.ATmtc[n])) #+ np.dot(ATtcB, np.dot(self.random_network.get_network_covariance_combined(), ATtcB.T))
+            
+            covariance_fixed_contrib[np.arange(self.M), np.arange(self.M)] *= amplify_diag
             
             # Sample all the non-cued features
             permuted_features = np.random.permutation(self.theta_to_sample[n])
@@ -239,13 +242,13 @@ class Sampler:
                 
                 # Sample the new theta
                 # samples, llh = self.slicesampler.sample_1D_circular(1000, self.theta[n, sampled_feature_index], loglike_theta_fct, burn=500, widths=np.pi/3.0, loglike_fct_params=params, thinning=2, debug=True, step_out=True)
-                samples, llh = self.slicesampler.sample_1D_circular(1, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct, burn=300, widths=np.pi/2., loglike_fct_params=params, debug=False, step_out=True)
+                samples, llh = self.slicesampler.sample_1D_circular(500, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct, burn=500, widths=np.pi/3., loglike_fct_params=params, debug=False, step_out=True)
                 
                 # Plot some stuff
                 if False:
                     x = np.linspace(-np.pi, np.pi, 1000)
                     plt.figure()
-                    ll_x = np.array([np.exp(loglike_theta_fct(a, params)) for a in x])
+                    ll_x = np.array([(loglike_theta_fct(a, params)) for a in x])
                     ll_x /= np.abs(np.max(ll_x))
                     plt.plot(x, ll_x-np.mean(ll_x))
                     sample_h, left_x = np.histogram(samples, bins=x)
@@ -254,14 +257,88 @@ class Sampler:
                     plt.bar(x[:-1], sample_h/np.max(sample_h).astype('float'), facecolor='green', alpha=0.75, width=np.diff(x)[0])
                     plt.axvline(x=self.data_gen.chosen_orientations[n, self.data_gen.cued_features[n, 1], 0], color='r')
                 
-                errors[n] = self.data_gen.chosen_orientations[n, self.data_gen.cued_features[n, 1], 0] - samples[-1]
-                # print "Correct angle: %.3f, sampled: %.3f" % (self.data_gen.chosen_orientations[n, self.data_gen.cued_features[n, 1], 0], samples[0])
+                sampled_orientation = np.median(samples[-100:])
+                
+                errors[n] = self.data_gen.chosen_orientations[n, self.data_gen.cued_features[n, 1], 0] - sampled_orientation
+                print "Correct angle: %.3f, sampled: %.3f" % (self.data_gen.chosen_orientations[n, self.data_gen.cued_features[n, 1], 0], sampled_orientation)
+                
             
         
         errors = self.smallest_angle_vectors(errors)
         print np.mean(errors)
         print np.std(errors)
         
+        return errors
+        
+    
+    
+    def plot_likelihood(self, n=0, amplify_diag = 1.0, sample=False, nb_samples=2000):
+        def loglike_theta_fct(x, (datapoint, rn, theta_mu, theta_kappa, Atmtc, thetas, sampled_feature_index, mean_fixed_contrib, covariance_fixed_contrib)):
+            '''
+                Compute the loglikelihood of: theta_r | n_t theta_r'
+            '''
+            # Put the new proposed point correctly
+            thetas[sampled_feature_index] = x
+            
+            like_mean = datapoint - mean_fixed_contrib - \
+                        np.dot(Atmtc, rn.get_network_features_combined(thetas))
+            
+            return theta_kappa*np.cos(x - theta_mu) - 0.5*np.dot(like_mean, np.linalg.solve(covariance_fixed_contrib, like_mean))
+        
+        
+        # Precompute the mean and covariance contributions.
+        mean_fixed_contrib = self.n_means_end[self.tc[n]] + np.dot(self.ATmtc[n], self.n_means_start[self.tc[n]])
+        
+        ATtcB = np.dot(self.ATmtc[n], self.time_weights[1, self.tc[n]])
+        
+        covariance_fixed_contrib = self.n_covariances_end[self.tc[n]] + np.dot(self.ATmtc[n], np.dot(self.n_covariances_start[self.tc[n]], self.ATmtc[n]))  #+ \
+            # np.dot(ATtcB, np.dot(self.random_network.get_network_covariance_combined(), ATtcB.T))
+        
+        covariance_fixed_contrib[np.arange(self.M), np.arange(self.M)] *= amplify_diag
+        
+        sampled_feature_index = 0
+        
+        params = (self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATmtc[n], self.theta[n].copy(), sampled_feature_index, mean_fixed_contrib, covariance_fixed_contrib)
+        
+        x = np.linspace(-np.pi, np.pi, 1000)
+        plt.figure()
+        ll_x = np.array([(loglike_theta_fct(a, params)) for a in x])
+        ll_x -= np.mean(ll_x)
+        ll_x /= np.abs(np.max(ll_x))
+        plt.plot(x, ll_x)
+        plt.axvline(x=self.data_gen.chosen_orientations[n, self.data_gen.cued_features[n, 1], 0], color='r')
+        
+        if sample:
+            samples, llh = self.slicesampler.sample_1D_circular(nb_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct, burn=0, widths=np.pi/3., loglike_fct_params=params, debug=False, step_out=True)
+            sample_h, left_x = np.histogram(samples, bins=x)
+            plt.bar(x[:-1], sample_h/np.max(sample_h).astype('float'), facecolor='green', alpha=0.75, width=np.diff(x)[0])
+        
+        return (ll_x, x)
+    
+    
+    
+    def plot_mean_fit(self, theta_target=0.0, n=0, amplify_diag=1.):
+        thetas = self.theta[n].copy()
+        thetas[0] = theta_target
+        
+        mean_fixed_contrib = self.n_means_end[self.tc[n]] + np.dot(self.ATmtc[n], self.n_means_start[self.tc[n]])
+        
+        ATtcB = np.dot(self.ATmtc[n], self.time_weights[1, self.tc[n]])
+        
+        covariance_fixed_contrib = self.n_covariances_end[self.tc[n]] + np.dot(self.ATmtc[n], np.dot(self.n_covariances_start[self.tc[n]], self.ATmtc[n])) #+ np.dot(ATtcB, np.dot(self.random_network.get_network_covariance_combined(), ATtcB.T))
+        
+        covariance_fixed_contrib[np.arange(self.M), np.arange(self.M)] *= amplify_diag
+        
+        sampled_feature_index = 0
+        
+        like_mean = self.NT[n] - mean_fixed_contrib - \
+                        np.dot(ATtcB, self.random_network.get_network_features_combined(thetas))
+        
+        output = -0.5*np.dot(like_mean, np.linalg.solve(covariance_fixed_contrib, like_mean))
+        # output = -0.5*np.dot(like_mean, np.linalg.solve(cc, like_mean))
+        # output = -0.5*np.dot(like_mean, like_mean)
+        
+        return output
     
     
     
@@ -318,6 +395,7 @@ class Sampler:
         #                     self.Z[n,t, r] = new_zntr
                 
     
+    
     def compute_loglikelihood_ynt(self, n, t):
         '''
             Compute the log-likelihood of one datapoint under the current parameters.
@@ -346,6 +424,7 @@ class Sampler:
         
         return l
         
+    
     
     def compute_all_loglike(self):
         '''
@@ -428,14 +507,17 @@ class Sampler:
         '''
         return (np.sum(self.data_gen.Z_true == self.Z).astype(float)/self.Z.size)
     
+    
     def plot_datapoint_approximation(self, t, n):
         pass
+    
     
     def compute_errors(self, Z):
         '''
             Similar to above, but with arbitrary matrices
         '''
         return (np.sum(self.data_gen.Z_true != Z).astype(float)/self.Z.size)
+    
     
     def print_z_comparison(self):
         '''
@@ -619,10 +701,10 @@ def do_simple_run(args):
     R = args.R
     nb_samples = args.nb_samples
     
-    sigma_y = 0.02
+    sigma_y = 0.05
     time_weights_parameters = dict(weighting_alpha=0.7, weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='recency')
     
-    random_network = RandomNetworkContinuous.create_instance_uniform(K, M, D=D, R=R, W_type='identity', W_parameters=[0.1, 0.3], sigma=0.2, gamma=0.005, rho=0.005)
+    random_network = RandomNetworkContinuous.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[0.1, 0.5], sigma=0.2, gamma=0.005, rho=0.005)
     
     # Measure the noise structure
     print "Measuring noise structure"
@@ -636,7 +718,7 @@ def do_simple_run(args):
     print "Sampling..."
     sampler = Sampler(data_gen, tc=-1, theta_kappa=0.01, n_parameters = stat_meas.model_parameters)
     
-    sampler.sample_theta()
+    # sampler.sample_theta()
     
     if False:
         t = time.time()

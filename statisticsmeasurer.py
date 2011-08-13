@@ -65,16 +65,18 @@ class StatisticsMeasurer:
         model_means = np.zeros((2, self.T, self.M))
         model_covariances = np.zeros((2, self.T, self.M, self.M))
         
-        # Mean and covariance of the starting noise is easy, just take the measured marginals
-        model_means[0, 1:] = self.means[:self.T-1]
+        # Mean and covariance of the starting noise is easy, just take the measured marginals of the previous time, transform them once.
+        for t in np.arange(1, self.T):
+            model_means[0, t] = np.dot(self.data_gen.time_weights[0][t], self.means[t-1])
+            
+            model_covariances[0, t] = np.dot(self.data_gen.time_weights[0][t], np.dot(self.covariances[t-1], self.data_gen.time_weights[0][t].T))
         
-        # Covariance of ending noise is also easy
-        model_covariances[0, 1:] = self.covariances[:self.T-1]
+        ATmtc = np.power(self.data_gen.time_weights[0][t], self.T-1-t)
         
         # Mean and covariance of the ending noise requires a small mapping
         for t in np.arange(self.T-1):
-            model_means[1, t] = self.means[self.T-1] - np.dot( np.power(self.data_gen.time_weights[0][t], self.T-t),  self.means[t])
-            model_covariances[1, t] = self.covariances[self.T-1] - np.dot( np.power(self.data_gen.time_weights[0][t], self.T-t),  self.covariances[t])
+            model_means[1, t] = self.means[self.T-1] - np.dot(ATmtc,  self.means[t])
+            model_covariances[1, t] = self.covariances[self.T-1] - np.dot(ATmtc,  np.dot(self.covariances[t], ATmtc.T))
         
         
         self.model_parameters = dict(means=model_means, covariances=model_covariances)
