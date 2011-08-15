@@ -71,10 +71,10 @@ class StatisticsMeasurer:
             
             model_covariances[0, t] = np.dot(self.data_gen.time_weights[0][t], np.dot(self.covariances[t-1], self.data_gen.time_weights[0][t].T))
         
-        ATmtc = np.power(self.data_gen.time_weights[0][t], self.T-1-t)
         
         # Mean and covariance of the ending noise requires a small mapping
         for t in np.arange(self.T-1):
+            ATmtc = np.power(self.data_gen.time_weights[0][t], self.T-1-t)
             model_means[1, t] = self.means[self.T-1] - np.dot(ATmtc,  self.means[t])
             model_covariances[1, t] = self.covariances[self.T-1] - np.dot(ATmtc,  np.dot(self.covariances[t], ATmtc.T))
         
@@ -87,15 +87,15 @@ if __name__ == '__main__':
     D = 20
     M = 50
     R = 2
-    T = 8
+    T = 3
     N = 1000
     
     sigma_y = 0.02
     
-    random_network = RandomNetworkContinuous.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[0.1, 0.01], sigma=0.2, gamma=0.005, rho=0.005)
+    random_network = RandomNetworkContinuous.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[0.1, 0.5], sigma=0.1, gamma=0.002, rho=0.002)
     
-    data_gen = DataGeneratorContinuous(N, T, random_network, sigma_y = sigma_y, time_weights_parameters = dict(weighting_alpha=0.85, weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='recency'))
+    data_gen = DataGeneratorContinuous(N, T, random_network, sigma_y = sigma_y, time_weights_parameters = dict(weighting_alpha=1., weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='uniform'))
     
     stat_meas = StatisticsMeasurer(data_gen)
-    # stat_meas.plot_moments()
+    stat_meas.plot_moments()
     
