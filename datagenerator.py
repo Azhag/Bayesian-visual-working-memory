@@ -71,6 +71,9 @@ class DataGenerator:
         elif weight_prior =='recency':
             self.time_weights[0] = weighting_alpha*np.ones(self.T)
             self.time_weights[1] = weighting_beta*(np.ones(self.T) + specific_weighting*np.arange(self.T))
+        elif weight_prior == 'normalised':
+            self.time_weights[0] = weighting_alpha*np.ones(self.T)
+            self.time_weights[1] = np.power(weighting_alpha, np.arange(self.T))
         else:
             raise ValueError('Prior for time weights unknown')
     
@@ -240,18 +243,18 @@ class DataGeneratorDiscrete(DataGenerator):
 
 class DataGeneratorContinuous(DataGenerator):
     
-    def __init__(self, N, T, random_network, sigma_y = 0.05, time_weights=None, time_weights_parameters = dict(weighting_alpha=0.3, weighting_beta = 1.0, specific_weighting = 0.3, weight_prior='uniform')):
+    def __init__(self, N, T, random_network, sigma_y = 0.05, time_weights=None, time_weights_parameters = dict(weighting_alpha=0.3, weighting_beta = 1.0, specific_weighting = 0.3, weight_prior='uniform'), cued_feature_time=0):
         
         assert isinstance(random_network, RandomNetworkContinuous), "Use a RandomNetworkContinuous with this DataGeneratorContinuous"
         
         DataGenerator.__init__(self, N, T, random_network, sigma_y = sigma_y, time_weights = time_weights, time_weights_parameters = time_weights_parameters)
         
         # Build the dataset
-        self.build_dataset()
+        self.build_dataset(cued_feature_time=cued_feature_time)
     
     
     
-    def build_dataset(self, input_orientations = None):
+    def build_dataset(self, input_orientations = None, cued_feature_time=0):
         '''
             Creates the dataset
                 For each datapoint, choose T possible orientations ('discrete' Z=k),
@@ -275,6 +278,7 @@ class DataGeneratorContinuous(DataGenerator):
         # Initialise Y (keep intermediate y_t as well)
         self.all_Y = np.zeros((self.N, self.T, self.random_network.M))
         self.Y = np.zeros((self.N, self.random_network.M))
+        self.all_X = np.zeros((self.N, self.T, self.random_network.M))
         
         assert self.T <= self.random_network.possible_objects_indices.size, "Unique objects needed"
         
@@ -289,7 +293,7 @@ class DataGeneratorContinuous(DataGenerator):
             
             # Randomly recall one of the times
             # self.cued_features[i, 1] = np.random.randint(self.T)
-            self.cued_features[i, 1] = self.T-1
+            self.cued_features[i, 1] = cued_feature_time
             
             # Get the 'x' samples (here from the population code, with correlated covariance, but whatever)
             x_samples = self.random_network.sample_network_response(self.chosen_orientations[i].T)
@@ -298,7 +302,10 @@ class DataGeneratorContinuous(DataGenerator):
             # Combine them together
             for t in np.arange(self.T):
                 self.Y[i] = self.time_weights[0, t]*self.Y[i].copy() + self.time_weights[1, t]*x_samples_sum[t] + self.sigma_y*np.random.randn(self.random_network.M)
+                # self.Y[i] /= np.sum(np.abs(self.Y[i]))
+                # self.Y[i] /= fast_1d_norm(self.Y[i])
                 self.all_Y[i, t] = self.Y[i]
+                self.all_X[i, t] = x_samples_sum[t]
             
         
     
@@ -310,23 +317,26 @@ class DataGeneratorContinuous(DataGenerator):
 if __name__ == '__main__':
     N = 100
     T = 3
-    K = 6
-    M = 30
-    D = 30
+    K = 25
+    M = 200
+    D = 50
     R = 2
     
     # random_network = RandomNetwork.create_instance_uniform(K, M, D=D, R=R, W_type='identity', W_parameters=[0.1, 0.5])
-    random_network = RandomNetworkContinuous.create_instance_uniform(K, M, D=D, R=R, W_type='identity', W_parameters=[0.1, 0.5])
+    random_network = RandomNetworkContinuous.create_instance_uniform(K, M, D=D, R=R, W_type='identity', W_parameters=[0.1, 0.5], sigma=0.1, gamma=0.002, rho=0.002)
     
     # data_gen = DataGeneratorDiscrete(N, T, random_network, time_weights_parameters = dict(weighting_alpha=0.8, weighting_beta = 1.0, specific_weighting = 0.2, weight_prior='recency'))
-    data_gen = DataGeneratorContinuous(N, T, random_network, time_weights_parameters = dict(weighting_alpha=0.8, weighting_beta = 1.0, specific_weighting = 0.2, weight_prior='recency'))
+    data_gen = DataGeneratorContinuous(N, T, random_network, time_weights_parameters = dict(weighting_alpha=1.0, weighting_beta = 1.0, specific_weighting = 0.2, weight_prior='uniform'))
     
-    data_gen.plot_data(16)
+    # data_gen.plot_data(16)
     
     #print data_gen.X.shape
     
     #data_gen.view_data()
     
     #data_gen.view_features()
+    
+    plt.figure()
+    plt.plot(np.mean(np.apply_along_axis(fast_1d_norm, 2, data_gen.all_Y), axis=0))
     
     plt.show()
