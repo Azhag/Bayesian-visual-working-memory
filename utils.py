@@ -23,6 +23,8 @@ def cross(*args):
             ans = [x+[y] for x in ans for y in arg]
     return ans
 
+def fast_1d_norm(x):
+    return np.sqrt(np.dot(x,x.conj()))
 
 def plot_std_area(x, y, std, ax_handle=None):
     if ax_handle is None:
