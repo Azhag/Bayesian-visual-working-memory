@@ -29,7 +29,7 @@ class Sampler:
         y_t | x_t, y_{t-1} ~ Normal
         
     '''
-    def __init__(self, data_gen, tc=-1, theta_kappa=0.1, n_parameters = dict()):
+    def __init__(self, data_gen, tc=None, theta_kappa=0.1, n_parameters = dict()):
         '''
             Initialise the sampler
             
@@ -63,7 +63,7 @@ class Sampler:
         
     
     
-    def init_tc(self, tc=-1):
+    def init_tc(self, tc=None):
         '''
             Initialise the time of recall
             
@@ -72,10 +72,12 @@ class Sampler:
             Could be sampled later, for now just fix it.
         '''
         
-        if tc < 0 or tc is None:
+        if tc is None:
             # Start with last one.
             tc = (self.T-1)*np.ones(self.N, dtype='int')
             # tc = np.random.randint(self.T)
+        elif np.isscalar(tc):
+            tc = tc*np.ones(self.N, dtype='int')
         
         self.tc = tc
         
@@ -201,7 +203,7 @@ class Sampler:
             ASSUMES A_t = A for all t. Same for B.
         '''
         # Build loglikelihood function
-        def loglike_theta_fct(x, (datapoint, rn, theta_mu, theta_kappa, Atmtc, thetas, sampled_feature_index, mean_fixed_contrib, covariance_fixed_contrib)):
+        def loglike_theta_fct(x, (datapoint, rn, theta_mu, theta_kappa, ATtcB, thetas, sampled_feature_index, mean_fixed_contrib, covariance_fixed_contrib)):
             '''
                 Compute the loglikelihood of: theta_r | n_t theta_r'
             '''
@@ -209,7 +211,7 @@ class Sampler:
             thetas[sampled_feature_index] = x
             
             like_mean = datapoint - mean_fixed_contrib - \
-                        np.dot(Atmtc, rn.get_network_features_combined(thetas))
+                        np.dot(ATtcB, rn.get_network_features_combined(thetas))
             
             return theta_kappa*np.cos(x - theta_mu) - 0.5*np.dot(like_mean, np.linalg.solve(covariance_fixed_contrib, like_mean))
         
@@ -220,8 +222,11 @@ class Sampler:
         
         errors = np.zeros(permuted_datapoints.shape, dtype=float)
         
+        curr_theta = np.zeros(self.R)
+        
         # Do everything in log-domain, to avoid numerical errors
         for n in permuted_datapoints:
+            curr_theta = self.theta[n].copy()
             
             # Precompute the mean and covariance contributions.
             mean_fixed_contrib = self.n_means_end[self.tc[n]] + np.dot(self.ATmtc[n], self.n_means_start[self.tc[n]])
@@ -230,7 +235,7 @@ class Sampler:
             
             covariance_fixed_contrib = self.n_covariances_end[self.tc[n]] + np.dot(self.ATmtc[n], np.dot(self.n_covariances_start[self.tc[n]], self.ATmtc[n])) #+ np.dot(ATtcB, np.dot(self.random_network.get_network_covariance_combined(), ATtcB.T))
             
-            covariance_fixed_contrib[np.arange(self.M), np.arange(self.M)] *= amplify_diag
+            # covariance_fixed_contrib[np.arange(self.M), np.arange(self.M)] *= amplify_diag
             
             # Sample all the non-cued features
             permuted_features = np.random.permutation(self.theta_to_sample[n])
@@ -238,11 +243,12 @@ class Sampler:
             for sampled_feature_index in permuted_features:
                 print "%d, %d" % (n, sampled_feature_index)
                 
-                params = (self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATmtc[n], self.theta[n].copy(), sampled_feature_index, mean_fixed_contrib, covariance_fixed_contrib)
+                params = (self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, ATtcB, curr_theta, sampled_feature_index, mean_fixed_contrib, covariance_fixed_contrib)
                 
                 # Sample the new theta
                 # samples, llh = self.slicesampler.sample_1D_circular(1000, self.theta[n, sampled_feature_index], loglike_theta_fct, burn=500, widths=np.pi/3.0, loglike_fct_params=params, thinning=2, debug=True, step_out=True)
-                samples, llh = self.slicesampler.sample_1D_circular(500, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct, burn=500, widths=np.pi/3., loglike_fct_params=params, debug=False, step_out=True)
+                samples, llh = self.slicesampler.sample_1D_circular(500, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct, burn=500, widths=np.pi/3., loglike_fct_params=params, debug=False, step_outlast_loglikehood=True)
+                # samples, llh = self.slicesampler.sample_1D_circular(1, self.theta[n, sampled_feature_index], loglike_theta_fct, burn=100, widths=np.pi/3., loglike_fct_params=params, debug=False, step_out=True)
                 
                 # Plot some stuff
                 if False:
@@ -262,6 +268,8 @@ class Sampler:
                 errors[n] = self.data_gen.chosen_orientations[n, self.data_gen.cued_features[n, 1], 0] - sampled_orientation
                 print "Correct angle: %.3f, sampled: %.3f" % (self.data_gen.chosen_orientations[n, self.data_gen.cued_features[n, 1], 0], sampled_orientation)
                 
+                # Save the orientation
+                self.theta[n, sampled_feature_index] = sampled_orientation
             
         
         errors = self.smallest_angle_vectors(errors)
@@ -272,8 +280,8 @@ class Sampler:
         
     
     
-    def plot_likelihood(self, n=0, amplify_diag = 1.0, sample=False, nb_samples=2000):
-        def loglike_theta_fct(x, (datapoint, rn, theta_mu, theta_kappa, Atmtc, thetas, sampled_feature_index, mean_fixed_contrib, covariance_fixed_contrib)):
+    def plot_likelihood(self, n=0, amplify_diag = 1.0, sample=False, nb_samples=2000, return_output=False):
+        def loglike_theta_fct(x, (datapoint, rn, theta_mu, theta_kappa, ATtcB, thetas, sampled_feature_index, mean_fixed_contrib, covariance_fixed_contrib)):
             '''
                 Compute the loglikelihood of: theta_r | n_t theta_r'
             '''
@@ -281,7 +289,7 @@ class Sampler:
             thetas[sampled_feature_index] = x
             
             like_mean = datapoint - mean_fixed_contrib - \
-                        np.dot(Atmtc, rn.get_network_features_combined(thetas))
+                        np.dot(ATtcB, rn.get_network_features_combined(thetas))
             
             return theta_kappa*np.cos(x - theta_mu) - 0.5*np.dot(like_mean, np.linalg.solve(covariance_fixed_contrib, like_mean))
         
@@ -291,15 +299,13 @@ class Sampler:
         
         ATtcB = np.dot(self.ATmtc[n], self.time_weights[1, self.tc[n]])
         
-        covariance_fixed_contrib = self.n_covariances_end[self.tc[n]] + np.dot(self.ATmtc[n], np.dot(self.n_covariances_start[self.tc[n]], self.ATmtc[n]))  #+ \
-            # np.dot(ATtcB, np.dot(self.random_network.get_network_covariance_combined(), ATtcB.T))
+        covariance_fixed_contrib = self.n_covariances_end[self.tc[n]] + np.dot(self.ATmtc[n], np.dot(self.n_covariances_start[self.tc[n]], self.ATmtc[n]))  #+ np.dot(ATtcB, np.dot(self.random_network.get_network_covariance_combined(), ATtcB.T))
         
         covariance_fixed_contrib[np.arange(self.M), np.arange(self.M)] *= amplify_diag
         
         sampled_feature_index = 0
         
-        params = (self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATmtc[n], self.theta[n].copy(), sampled_feature_index, mean_fixed_contrib, covariance_fixed_contrib)
-        
+        params = (self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, ATtcB, self.theta[n].copy(), sampled_feature_index, mean_fixed_contrib, covariance_fixed_contrib)
         x = np.linspace(-np.pi, np.pi, 1000)
         plt.figure()
         ll_x = np.array([(loglike_theta_fct(a, params)) for a in x])
@@ -313,11 +319,12 @@ class Sampler:
             sample_h, left_x = np.histogram(samples, bins=x)
             plt.bar(x[:-1], sample_h/np.max(sample_h).astype('float'), facecolor='green', alpha=0.75, width=np.diff(x)[0])
         
-        return (ll_x, x)
+        if return_output:
+            return (ll_x, x)
     
     
     
-    def plot_mean_fit(self, theta_target=0.0, n=0, amplify_diag=1.):
+    def compute_mean_fit(self, theta_target=0.0, n=0, amplify_diag=1.):
         thetas = self.theta[n].copy()
         thetas[0] = theta_target
         
@@ -337,6 +344,7 @@ class Sampler:
         output = -0.5*np.dot(like_mean, np.linalg.solve(covariance_fixed_contrib, like_mean))
         # output = -0.5*np.dot(like_mean, np.linalg.solve(cc, like_mean))
         # output = -0.5*np.dot(like_mean, like_mean)
+        # output = like_mean
         
         return output
     
@@ -701,24 +709,26 @@ def do_simple_run(args):
     R = args.R
     nb_samples = args.nb_samples
     
-    sigma_y = 0.05
-    time_weights_parameters = dict(weighting_alpha=0.7, weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='recency')
+    sigma_y = 0.02
+    time_weights_parameters = dict(weighting_alpha=0.7, weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='normalised')
+    cued_feature_time = T-1
     
-    random_network = RandomNetworkContinuous.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[0.1, 0.5], sigma=0.2, gamma=0.005, rho=0.005)
+    random_network = RandomNetworkContinuous.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[0.1, 5.], sigma=0.2, gamma=0.002, rho=0.002)
     
     # Measure the noise structure
     print "Measuring noise structure"
-    data_gen_noise = DataGeneratorContinuous(3000, T, random_network, sigma_y = sigma_y, time_weights_parameters=time_weights_parameters)
+    data_gen_noise = DataGeneratorContinuous(3000, T, random_network, sigma_y = sigma_y, time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time)
     stat_meas = StatisticsMeasurer(data_gen_noise)
     
     # Now construct the real dataset
     print "Building the database"
-    data_gen = DataGeneratorContinuous(N, T, random_network, sigma_y = sigma_y, time_weights_parameters = time_weights_parameters)
+    data_gen = DataGeneratorContinuous(N, T, random_network, sigma_y = sigma_y, time_weights_parameters = time_weights_parameters, cued_feature_time=cued_feature_time)
     
     print "Sampling..."
-    sampler = Sampler(data_gen, tc=-1, theta_kappa=0.01, n_parameters = stat_meas.model_parameters)
+    sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters = stat_meas.model_parameters, tc=cued_feature_time)
     
-    # sampler.sample_theta()
+    # errors = sampler.sample_theta()
+    # print sampler.compute_mean_std_circular_data(errors)
     
     if False:
         t = time.time()
@@ -864,10 +874,10 @@ if __name__ == '__main__':
     parser.add_argument('--action_to_do', choices=np.arange(len(actions)), default=0)
     parser.add_argument('--nb_samples', default=100)
     parser.add_argument('--N', default=100, help='Number of datapoints')
-    parser.add_argument('--T', default=2, help='Number of times')
-    parser.add_argument('--K', default=25, help='Number of representated features')
+    parser.add_argument('--T', default=3, help='Number of times')
+    parser.add_argument('--K', default=50, help='Number of representated features')
     parser.add_argument('--D', default=50, help='Dimensionality of features')
-    parser.add_argument('--M', default=100, help='Dimensionality of data/memory')
+    parser.add_argument('--M', default=200, help='Dimensionality of data/memory')
     parser.add_argument('--R', default=2, help='Number of population codes')
     
     args = parser.parse_args()
