@@ -15,14 +15,16 @@ import sys
 import os.path
 import argparse
 
-import pyximport; pyximport.install();
-import slicesampler_c
-
 from datagenerator import *
 from randomnetwork import *
 from statisticsmeasurer import *
 # from slicesampler import *
 from utils import *
+
+import pyximport
+pyximport.install()
+import slicesampler_c
+
 
 class Sampler:
     '''
@@ -124,19 +126,20 @@ class Sampler:
         self.n_covariances_start_chol = np.zeros_like(self.n_covariances_start)
         self.n_covariances_end_chol = np.zeros_like(self.n_covariances_end)
         
-        for t in np.arange(self.T):
-            try:
-                self.n_covariances_start_chol[t] = np.linalg.cholesky(self.n_covariances_start[t])
-            except np.linalg.linalg.LinAlgError:
-                # Not positive definite, most likely only zeros, don't care, leave the zeros.
-                pass
-            
-            try:
-                self.n_covariances_end_chol[t] = np.linalg.cholesky(self.n_covariances_end[t])
-            except np.linalg.linalg.LinAlgError:
-                # Not positive definite, most likely only zeros, don't care, leave the zeros.
-                pass
-            
+        # for t in np.arange(self.T):
+        #             try:
+        #                 self.n_covariances_start_chol[t] = np.linalg.cholesky(self.n_covariances_start[t])
+        #             except np.linalg.linalg.LinAlgError:
+        #                 # Not positive definite, most likely only zeros, don't care, leave the zeros.
+        #                 pass
+        #             
+        #             try:
+        #                 self.n_covariances_end_chol[t] = np.linalg.cholesky(self.n_covariances_end[t])
+        #             except np.linalg.linalg.LinAlgError:
+        #                 # Not positive definite, most likely only zeros, don't care, leave the zeros.
+        #                 pass
+        #             
+        #         
         
         # Initialise N
         self.NT = np.zeros((self.N, self.M))
@@ -217,7 +220,7 @@ class Sampler:
         #         
         
         # Iterate over whole datapoints
-        permuted_datapoints = np.random.permutation(np.arange(self.N))
+        permuted_datapoints = np.arange(self.N)
         errors = np.zeros_like(permuted_datapoints)
         
         # Do everything in log-domain, to avoid numerical errors
@@ -234,7 +237,8 @@ class Sampler:
             covariance_fixed_contrib = self.n_covariances_end[self.tc[n]] + self.ATmtc[n]*self.n_covariances_start[self.tc[n]] + ATtcB*ATtcB*self.random_network.get_network_covariance_combined()
             
             # Sample all the non-cued features
-            permuted_features = np.random.permutation(self.theta_to_sample[n])
+            # permuted_features = np.random.permutation(self.theta_to_sample[n])
+            permuted_features = self.theta_to_sample[n]
             
             for sampled_feature_index in permuted_features:
                 print "%d, %d" % (n, sampled_feature_index)
@@ -245,7 +249,7 @@ class Sampler:
                 # Sample the new theta
                 # samples, llh = self.slicesampler.sample_1D_circular(1000, self.theta[n, sampled_feature_index], loglike_theta_fct, burn=500, widths=np.pi/3.0, loglike_fct_params=params, thinning=2, debug=True, step_out=True)
                 # samples, llh = self.slicesampler.sample_1D_circular(1, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct, burn=300, widths=np.pi/2., loglike_fct_params=params, debug=False, step_out=True)
-                samples = slicesampler_c.sample_1D_circular(1, np.random.rand()*2.*np.pi-np.pi, 300, np.pi/2., params, 1, 1, 0)
+                samples = slicesampler_c.sample_1D_circular(1, np.random.rand()*2.*np.pi-np.pi, 300, np.pi/3., params, 1, 1, 0)
                 
                 # Plot some stuff
                 if False:
@@ -580,8 +584,8 @@ def profiling_run():
     N = 100
     T = 2
     K = 25
-    D = 50
-    M = 200
+    D = 64
+    M = 128
     R = 2
     
     # random_network = RandomNetwork.create_instance_uniform(K, M, D=D, R=R, W_type='identity', W_parameters=[0.2, 0.7])
@@ -589,6 +593,7 @@ def profiling_run():
     #     sampler = Sampler(data_gen, dirichlet_alpha=0.5/K, sigma_to_sample=True, sigma_alpha=3, sigma_beta=0.5)
     #     
     #     (log_y, log_z, log_joint) = sampler.run(10, verbose=True)
+    
     
     sigma_y = 0.02
     time_weights_parameters = dict(weighting_alpha=0.7, weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='recency')
@@ -608,7 +613,6 @@ def profiling_run():
     sampler = Sampler(data_gen, tc=-1, theta_kappa=0.01, n_parameters = stat_meas.model_parameters)
     
     sampler.sample_theta()
-    
     
 
 
@@ -787,18 +791,18 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Sample a model of Visual working memory.')
     parser.add_argument('--label', help='label added to output files', default='')
     parser.add_argument('--output_directory', nargs='?', default='Data')
-    parser.add_argument('--action_to_do', choices=np.arange(len(actions)), default=0)
+    parser.add_argument('--action_to_do', choices=np.arange(len(actions)), default=3)
     parser.add_argument('--nb_samples', default=100)
     parser.add_argument('--N', default=100, help='Number of datapoints')
     parser.add_argument('--T', default=4, help='Number of times')
     parser.add_argument('--K', default=25, help='Number of representated features')
-    parser.add_argument('--D', default=50, help='Dimensionality of features')
-    parser.add_argument('--M', default=100, help='Dimensionality of data/memory')
+    parser.add_argument('--D', default=64, help='Dimensionality of features')
+    parser.add_argument('--M', default=128, help='Dimensionality of data/memory')
     parser.add_argument('--R', default=2, help='Number of population codes')
     
     args = parser.parse_args()
     
-    should_save = True
+    should_save = False
     output_dir = os.path.join(args.output_directory, args.label)
     
     # Run it

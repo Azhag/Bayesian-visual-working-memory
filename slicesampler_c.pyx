@@ -1,4 +1,7 @@
 # encoding: utf-8
+# cython: infer_types=True
+# cython: boundscheck=False
+# cython: wraparound=False
 
 """
 CYTHON VERSION
@@ -150,21 +153,19 @@ cpdef np.ndarray sample_1D_circular(DINT_t N, DFLOAT_t x_initial, DINT_t burn, D
     
     return samples
 
-@cython.boundscheck(False)
-cpdef DFLOAT_t loglike_collapsed(DFLOAT_t x, np.ndarray[DFLOAT_t, ndim=1] datapoint, object rn, DINT_t sampled_feature_index, DFLOAT_t theta_mu, DFLOAT_t theta_kappa, DFLOAT_t ATtcB, np.ndarray[DFLOAT_t, ndim=1] mean_fixed_contrib, np.ndarray[DFLOAT_t, ndim=2] covariance_fixed_contrib):
+cdef DFLOAT_t loglike_collapsed(DFLOAT_t x, np.ndarray[DFLOAT_t, ndim=1] datapoint, object rn, DINT_t sampled_feature_index, DFLOAT_t theta_mu, DFLOAT_t theta_kappa, DFLOAT_t ATtcB, np.ndarray[DFLOAT_t, ndim=1] mean_fixed_contrib, np.ndarray[DFLOAT_t, ndim=2] covariance_fixed_contrib):
     '''
         Logposterior of the fullcollapsed model
     '''
     
     cdef np.ndarray[DFLOAT_t, ndim=1] like_mean
-    cdef np.ndarray[DFLOAT_t, ndim=1] tmp_mean
     cdef DFLOAT_t output
     
     like_mean = datapoint - mean_fixed_contrib - ATtcB*np.dot(rn.popcodes[sampled_feature_index].mean_response(x), rn.W[sampled_feature_index].T)
     
     output = theta_kappa*cos(x - theta_mu)
-    tmp_mean = np.linalg.solve(covariance_fixed_contrib, like_mean)
-    output -= 0.5*np.dot(like_mean, tmp_mean)
+    output -= 0.5*np.dot(like_mean, np.linalg.solve(covariance_fixed_contrib, like_mean))
+    # output -= 0.5*np.dot(like_mean, like_mean)
     
     return output
 
