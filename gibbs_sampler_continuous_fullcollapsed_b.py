@@ -14,7 +14,8 @@ import time
 import sys
 import os.path
 import argparse
-
+import matplotlib.patches as plt_patches
+import matplotlib.collections as plt_collections
 
 from datagenerator import *
 from randomnetwork import *
@@ -99,8 +100,7 @@ class Sampler:
         # Assign the cued ones now
         #   chosen_orientation: N x T x R
         #   cued_features:      N x (recall_feature, recall_time)
-        self.theta[np.arange(self.N), self.data_gen.cued_features[:,0]] =  \
-            self.data_gen.chosen_orientations[np.arange(self.N), self.data_gen.cued_features[:,1], self.data_gen.cued_features[:,0]]
+        self.theta[np.arange(self.N), self.data_gen.cued_features[:,0]] = self.data_gen.chosen_orientations[np.arange(self.N), self.data_gen.cued_features[:,1], self.data_gen.cued_features[:,0]]
         
         # Construct the list of uncued features, which should be sampled
         self.theta_to_sample = np.array([[r for r in np.arange(self.R) if r != self.data_gen.cued_features[n,0]] for n in np.arange(self.N)], dtype='int')
@@ -247,7 +247,7 @@ class Sampler:
                 
                 # Sample the new theta
                 # samples, llh = self.slicesampler.sample_1D_circular(1000, self.theta[n, sampled_feature_index], loglike_theta_fct, burn=500, widths=np.pi/3.0, loglike_fct_params=params, thinning=2, debug=True, step_out=True)
-                samples, llh = self.slicesampler.sample_1D_circular(500, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct, burn=500, widths=np.pi/3., loglike_fct_params=params, debug=False, step_outlast_loglikehood=True)
+                samples, llh = self.slicesampler.sample_1D_circular(500, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct, burn=500, widths=np.pi/3., loglike_fct_params=params, debug=False, step_out=True)
                 # samples, llh = self.slicesampler.sample_1D_circular(1, self.theta[n, sampled_feature_index], loglike_theta_fct, burn=100, widths=np.pi/3., loglike_fct_params=params, debug=False, step_out=True)
                 
                 # Plot some stuff
@@ -323,10 +323,80 @@ class Sampler:
             return (ll_x, x)
     
     
+    def plot_likelihood_variation_twoangles(self, num_points=100, should_plot=True, should_return=False, n=0):
+        '''
+            Compute the likelihood, varying two angles around.
+            Plot the result
+        '''
+        
+        def loglike_theta_fct(thetas, (datapoint, rn, theta_mu, theta_kappa, ATtcB, sampled_feature_index, mean_fixed_contrib, covariance_fixed_contrib)):
+            '''
+                Compute the loglikelihood of: theta_r | n_t theta_r'
+            '''
+            
+            like_mean = datapoint - mean_fixed_contrib - \
+                        np.dot(ATtcB, rn.get_network_features_combined(thetas))
+            
+            return theta_kappa*np.cos(thetas[sampled_feature_index] - theta_mu) - 0.5*np.dot(like_mean, np.linalg.solve(covariance_fixed_contrib, like_mean))
+        
+        
+        # Precompute the mean and covariance contributions.
+        mean_fixed_contrib = self.n_means_end[self.tc[n]] + np.dot(self.ATmtc[n], self.n_means_start[self.tc[n]])
+        ATtcB = np.dot(self.ATmtc[n], self.time_weights[1, self.tc[n]])
+        covariance_fixed_contrib = self.n_covariances_end[self.tc[n]] + np.dot(self.ATmtc[n], np.dot(self.n_covariances_start[self.tc[n]], self.ATmtc[n]))  #+ np.dot(ATtcB, np.dot(self.random_network.get_network_covariance_combined(), ATtcB.T))
+        sampled_feature_index = 0
+        params = (self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, ATtcB, sampled_feature_index, mean_fixed_contrib, covariance_fixed_contrib)
+        
+        all_angles = np.linspace(-np.pi, np.pi, num_points)
+        llh_2angles = np.zeros((num_points, num_points))
+        
+        # Compute the array
+        for i in np.arange(num_points):
+            print "%d%%" % (i/float(num_points)*100)
+            for j in np.arange(num_points):
+                llh_2angles[i, j] = loglike_theta_fct(np.array([all_angles[i], all_angles[j]]), params)
+        
+        if should_plot:
+            # Plot the obtained landscape
+            f = plt.figure()
+            ax = f.add_subplot(111)
+            im= ax.imshow(llh_2angles.T, origin='lower')
+            im.set_extent((-np.pi, np.pi, -np.pi, np.pi))
+            im.set_interpolation('nearest')
+            f.colorbar(im)
+            
+            def report_pixel(x, y): 
+                # get the pixel value 
+                x_i = (np.abs(all_angles-x)).argmin()
+                y_i = (np.abs(all_angles-y)).argmin()
+                v = llh_2angles[x_i,y_i] 
+                return "x=%f y=%f value=%f" % (x, y, v) 
+            
+            ax.format_coord = report_pixel 
+            
+            # Indicate the correct solutions
+            # green circle: first item
+            # blue circle: last item
+            correct_angles = self.data_gen.chosen_orientations[n]
+            
+            w1 = plt_patches.Wedge((correct_angles[0,0],correct_angles[0,1]), 0.25, 0, 360, 0.03, color='green', alpha=0.7)
+            w2 = plt_patches.Wedge((correct_angles[1,0],correct_angles[1,1]), 0.25, 0, 360, 0.03, color='blue', alpha=0.7)
+            ax.add_patch(w1)
+            ax.add_patch(w2)
+            # plt.annotate('O', (correct_angles[1,0],correct_angles[1,1]), color='blue', fontweight='bold', fontsize=30, horizontalalignment='center', verticalalignment='center')
+        
+        
+        if should_return:
+            return llh_2angles
+    
+    
     
     def compute_mean_fit(self, theta_target=0.0, n=0, amplify_diag=1.):
-        thetas = self.theta[n].copy()
-        thetas[0] = theta_target
+        if np.isscalar(theta_target):
+            thetas = self.theta[n].copy()
+            thetas[0] = theta_target
+        else:
+            thetas = theta_target
         
         mean_fixed_contrib = self.n_means_end[self.tc[n]] + np.dot(self.ATmtc[n], self.n_means_start[self.tc[n]])
         
@@ -516,10 +586,6 @@ class Sampler:
         return (np.sum(self.data_gen.Z_true == self.Z).astype(float)/self.Z.size)
     
     
-    def plot_datapoint_approximation(self, t, n):
-        pass
-    
-    
     def compute_errors(self, Z):
         '''
             Similar to above, but with arbitrary matrices
@@ -561,7 +627,6 @@ class Sampler:
             return (angle_errors_stats, (angle_mean_error_nomisbind, angle_std_dev_error_nomisbind, angle_mean_vector_nomisbind, avg_error_nomisbind, misbound_datapoints))
         
         return [angle_errors_stats, angle_errors]
-    
     
     
     def compute_angle_error(self):
@@ -662,8 +727,8 @@ def profiling_run():
     N = 100
     T = 2
     K = 25
-    D = 50
-    M = 200
+    D = 64
+    M = 128
     R = 2
     
     # random_network = RandomNetwork.create_instance_uniform(K, M, D=D, R=R, W_type='identity', W_parameters=[0.2, 0.7])
@@ -710,14 +775,14 @@ def do_simple_run(args):
     nb_samples = args.nb_samples
     
     sigma_y = 0.02
-    time_weights_parameters = dict(weighting_alpha=0.7, weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='normalised')
+    time_weights_parameters = dict(weighting_alpha=0.7, weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='recency')
     cued_feature_time = T-1
     
-    random_network = RandomNetworkContinuous.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[0.1, 5.], sigma=0.2, gamma=0.002, rho=0.002)
+    random_network = RandomNetworkContinuous.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[0.1, 0.3], sigma=0.2, gamma=0.003, rho=0.003)
     
     # Measure the noise structure
     print "Measuring noise structure"
-    data_gen_noise = DataGeneratorContinuous(3000, T, random_network, sigma_y = sigma_y, time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time)
+    data_gen_noise = DataGeneratorContinuous(1500, T, random_network, sigma_y = sigma_y, time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time)
     stat_meas = StatisticsMeasurer(data_gen_noise)
     
     # Now construct the real dataset
@@ -864,7 +929,7 @@ def do_search_alphat(args):
 if __name__ == '__main__':
         
     # Switch on different actions
-    actions = [do_simple_run, do_search_dirichlet_alpha, do_search_alphat,profile_me]
+    actions = [do_simple_run, do_search_dirichlet_alpha, do_search_alphat, profile_me]
     
     print sys.argv[1:]
     
@@ -874,10 +939,10 @@ if __name__ == '__main__':
     parser.add_argument('--action_to_do', choices=np.arange(len(actions)), default=0)
     parser.add_argument('--nb_samples', default=100)
     parser.add_argument('--N', default=100, help='Number of datapoints')
-    parser.add_argument('--T', default=3, help='Number of times')
+    parser.add_argument('--T', default=2, help='Number of times')
     parser.add_argument('--K', default=50, help='Number of representated features')
-    parser.add_argument('--D', default=50, help='Dimensionality of features')
-    parser.add_argument('--M', default=200, help='Dimensionality of data/memory')
+    parser.add_argument('--D', default=32, help='Dimensionality of features')
+    parser.add_argument('--M', default=128, help='Dimensionality of data/memory')
     parser.add_argument('--R', default=2, help='Number of population codes')
     
     args = parser.parse_args()
