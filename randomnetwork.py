@@ -16,7 +16,7 @@ from utils import *
 
 class RandomNetwork:
     
-    def __init__(self, M, D=50, R=1, sigma_pop=0.6, rho_pop=0.5, gamma_pop=0.1, W_type='identity', W_parameters=[0.5], percentage_population_connections = 0.4, max_angle=np.pi):
+    def __init__(self, M, D=50, R=1, sigma_pop=0.6, rho_pop=0.5, gamma_pop=0.1, W_type='identity', W_parameters=[0.5], percentage_population_connections = 0.4, max_angle=2.*np.pi):
         '''
             M: number of random neurons
             D: number of population neurons
@@ -86,6 +86,8 @@ class RandomNetwork:
             self.build_W_random(W_parameters)
         elif W_type == 'dirichlet':
             self.build_W_dirichlet(W_parameters)
+        elif W_type == 'none':
+            pass
         else:
             raise ValueError('Type of connectivity unknown')
     
@@ -173,7 +175,7 @@ class RandomNetwork:
         
         return net_samples
     
-    def sample_network_response(self, chosen_orientations):
+    def sample_network_response(self, chosen_orientations, summed=False):
         '''
             Get a random response for a/multiple orientation(s) from the population code,
             transform it through W and return that
@@ -195,7 +197,11 @@ class RandomNetwork:
             else:
                 net_samples[r] = np.dot(self.popcodes[r].sample_random_response(chosen_orientations), self.W[r].T)
         
-        return net_samples
+        if summed:
+            return np.sum(net_samples, axis=0)
+        else:
+            return net_samples
+        
     
     
     def get_network_features_combined(self, Z):
@@ -215,6 +221,7 @@ class RandomNetwork:
         
         return sum_features
     
+    
     def get_network_features_combined_binary(self, Z):
         
         if Z.ndim == 2:
@@ -231,6 +238,13 @@ class RandomNetwork:
         return sum_features
     
     
+    def get_popcode_response(self, theta, r):
+        '''
+            Return the output of one population code
+        '''
+        return np.dot(self.popcodes[r].mean_response(theta), self.W[r].T)
+    
+    
     
     ############
     
@@ -242,6 +256,7 @@ class RandomNetwork:
         for r in np.arange(self.R):
             self.popcodes[r].plot_population_representation(self.possible_angles)
         
+    
     
     def plot_spread_full_representation(self):
         '''
@@ -325,22 +340,159 @@ class RandomNetwork:
     
     
 
+
+class RandomNetworkFactorialCode(RandomNetwork):
+    def __init__(self, M=1, D=50, R=1, sigma_pop=0.01, rho_pop=0.5, gamma_pop=0.1, W_type='identity', W_parameters=[0.5], percentage_population_connections = 0.4, max_angle=2.*np.pi):
+        
+        RandomNetwork.__init__(self, M, D=D, R=R, sigma_pop=sigma_pop, rho_pop = rho_pop, gamma_pop =gamma_pop, W_type = W_type, W_parameters = W_parameters, percentage_population_connections = percentage_population_connections, max_angle = max_angle)
+        
+        self.sigma = sigma_pop
+        
+        # Here, M is not really important, as it's inferred from the given possible orientations for the full code
+        self.M = 0
+    
+    def assign_possible_orientations(self, possible_angles):
+        '''
+            Assign all the possible factorial representations
+            
+            network_representations:    R x K x M
+        '''
+        self.K = possible_angles.size
+        self.possible_angles = possible_angles
+        
+        
+        # Define the possible objects
+        self.possible_objects_indices = np.array(cross([[x for x in np.arange(self.K)]]*self.R))
+        self.possible_objects = np.array(cross([[x for x in self.possible_angles]]*self.R))
+        
+        # Each representation is a (K)^R matrix. From the outside though, it will be flattened
+        self.M = int(self.K**self.R)
+        
+        # Construct the network representations
+        # K x K x ... x M
+        self.network_representations = np.zeros(flatten_list([[self.K]*self.R, [self.M]]))
+        
+        # Weights to convert the KxKx... indices into a flattened vector.
+        # flattening_converter = (self.K*np.ones(self.R))**np.arange(self.R)[::-1]
+        
+        # Hard to get something valid for all R (would need to imbricate for loops further...), so just do it for R=2 and R=3
+        cnt = 0
+        for obj_ind in self.possible_objects_indices:
+            # Build an automated index, from the obj_ind, and put a 1 in the flattened version.
+            # self.network_representations[tuple(flatten_list([obj_ind, [np.dot(obj_ind, flattening_converter).astype(int)]]))] = 1
+            
+            # .... Now being less stupid and using a counter...
+            self.network_representations[tuple(flatten_list([obj_ind, [cnt]]))] = 1
+            
+            cnt += 1
+        
+        self.network_initialised = True
+    
+    
+    def sample_network_response_indices(self, chosen_orientations):
+        raise NotImplementedError()
+    
+    
+    def sample_network_response(self, chosen_orientations, summed=False):
+        '''
+            Return the correct factorial code, corrupt it with some independent noise
+        '''
+        
+        dims = chosen_orientations.ndim
+        
+        if dims == 1:
+            # Assumes only a tuple of orientations, i.e. for different features
+            assert chosen_orientations.size == self.R, 'Wrong number of features'
+            
+            # Search the closest factorial code to the given angles
+            closest_object = np.argmin(np.abs(chosen_orientations - self.possible_angles[:, np.newaxis]), axis=0)
+            
+            # Return it with a big of noise on top
+            response = self.network_representations[tuple(closest_object)] + self.sigma*np.random.randn(self.M)
+        else:
+            T = chosen_orientations.shape[0]
+            response = np.zeros((T, self.M))
+            
+            # Find all the closest objects as well
+            closest_objects = np.argmin(np.abs(chosen_orientations - self.possible_angles[:, np.newaxis, np.newaxis]), axis=0)
+            
+            for orientations_i in np.arange(T):
+                response[orientations_i] = self.network_representations[tuple(closest_objects[orientations_i])] + self.sigma*np.random.randn(self.M)
+            
+        
+        return response
+        
+    
+    
+    def get_network_features_combined(self, Z):
+        '''
+            Return the true object representation
+        '''
+        
+        if Z.ndim == 1:
+            closest_object = np.argmin(np.abs(Z - self.possible_angles[:, np.newaxis]), axis=0)
+            
+            # Return it with a big of noise on top
+            sum_features = self.network_representations[tuple(closest_object)]
+            
+        elif Z.ndim == 2:
+            (N, R) = Z.shape
+            sum_features = np.zeros((N, self.M))
+            
+            closest_objects = np.argmin(np.abs(Z - self.possible_angles[:, np.newaxis, np.newaxis]), axis=0)
+            
+            for orientations_i in np.arange(N):
+                sum_features[orientations_i] = self.network_representations[tuple(closest_objects[orientations_i])]
+            
+        else:
+            raise ValueError('Wrong dimensionality for Z')
+        
+        return sum_features
+        
+    
+    
+    def get_network_features_combined_binary(self, Z):
+        raise NotImplementedError()
+    
+    
+    def get_popcode_response(self, theta, r):
+        raise NotImplementedError()
+    
+    
+    @classmethod
+    def create_instance_uniform(cls, K, D=50, R=1, sigma=0.2, max_angle=2.*np.pi):
+        '''
+            Create a RandomNetwork instance, and fill-in the K possible orientations, uniformly in [0, 2pi]
+                If multiple features (R>1), uses the same parameters for everybody (wait till location needed)
+        '''
+        rn = RandomNetworkFactorialCode(M=1, D=D, R=R, sigma_pop=sigma, W_type='none', max_angle=max_angle)
+        
+        # Assign the angles
+        # For this type of Network, will actually compute all the factorial encodings as well.
+        possible_angles = np.linspace(-np.pi, np.pi, K, endpoint=False)
+        rn.assign_possible_orientations(possible_angles)
+        
+        return rn
+    
+
+
 class RandomNetworkContinuous(RandomNetwork):
     def __init__(self, M, D=50, R=1, sigma_pop=0.6, rho_pop=0.5, gamma_pop=0.1, W_type='identity', W_parameters=[0.5], percentage_population_connections = 0.4, max_angle=2.*np.pi):
         
         RandomNetwork.__init__(self, M, D=D, R=R, sigma_pop=sigma_pop, rho_pop = rho_pop, gamma_pop =gamma_pop, W_type = W_type, W_parameters = W_parameters, percentage_population_connections = percentage_population_connections, max_angle = max_angle)
         
         self.covariance_network_combined = None
-        
     
     
-    def sample_network_response(self, chosen_orientations):
+    def sample_network_response(self, chosen_orientations, summed=False):
         '''
             Get a random response for a/multiple orientation(s) from the population code,
             transform it through W and return that
             
             return: R x number_input_orientations x M
         '''
+        
+        chosen_orientations = chosen_orientations.T
         
         dim = chosen_orientations.shape
         
@@ -356,7 +508,12 @@ class RandomNetworkContinuous(RandomNetwork):
             else:
                 net_samples[r] = np.dot(self.popcodes[r].sample_random_response(chosen_orientations), self.W[r].T)
         
-        return net_samples
+        if summed:
+            return np.sum(net_samples, axis=0)
+        else:
+            return net_samples
+        
+        
     
     def get_network_features_combined(self, Z):
         '''
@@ -364,7 +521,6 @@ class RandomNetworkContinuous(RandomNetwork):
         '''
         if Z.ndim == 1:
             # Hopefully still fast enough...
-            
             sum_features = np.dot(self.popcodes[0].mean_response(Z[0]), self.W[0].T) + np.dot(self.popcodes[1].mean_response(Z[1]), self.W[1].T)
         elif Z.ndim == 2:
             (N, R) = Z.shape
@@ -376,12 +532,6 @@ class RandomNetworkContinuous(RandomNetwork):
         
         return sum_features
     
-    
-    def get_popcode_response(self, Z, r):
-        '''
-            Return the output of one population code
-        '''
-        return np.dot(self.popcodes[r].mean_response(Z), self.W[r].T)
     
     def get_network_covariance_combined(self):
         '''
@@ -431,20 +581,23 @@ class RandomNetworkContinuous(RandomNetwork):
     
     
 
+
+
 if __name__ == '__main__':
     K = 10
     M = 200
     D = 100
     R = 2
     
-    rn = RandomNetwork.create_instance_uniform(K, M, D=D, R=2, W_type='identity', W_parameters=[0.1, 0.5], sigma=0.6)
+    # rn = RandomNetwork.create_instance_uniform(K, M, D=D, R=2, W_type='identity', W_parameters=[0.1, 0.5], sigma=0.6)
     # rn = RandomNetwork.create_instance_uniform(K, M, D=D, R=2, W_type='identity', W_param=0.2)
+    rn = RandomNetworkFactorialCode.create_instance_uniform(K, D=D, R=R, sigma=0.1)
     
-    net_samples = rn.sample_network_response_indices(np.array([[5], [2]]))
-    plt.figure()
-    for r in np.arange(1):
-        plt.plot(np.linspace(0, np.pi, M), net_samples[r].T, 'g')
-    plt.autoscale(tight=True)
+    # net_samples = rn.sample_network_response_indices(np.array([[5], [2]]))
+    # plt.figure()
+    # for r in np.arange(1):
+        # plt.plot(np.linspace(0, np.pi, M), net_samples[r].T, 'g')
+    # plt.autoscale(tight=True)
     #     
     # 
     # 
@@ -458,6 +611,9 @@ if __name__ == '__main__':
     # plt.figure()
     # plt.plot(rn.network_orientations)
     # #hinton(rn.W)
-    # 
+    
+    net_samples = rn.sample_network_response(np.array([0.0, 2.0]))
+    plt.plot(net_samples)
+    
     plt.show()
     # 
