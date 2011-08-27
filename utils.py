@@ -23,6 +23,15 @@ def cross(*args):
             ans = [x+[y] for x in ans for y in arg]
     return ans
 
+def flatten_list(ll):
+    return [item for sublist in ll for item in sublist]
+
+def fast_dot_1D(x, y):
+    out = 0
+    for i in np.arange(x.size):
+        out += x[i]*y[i]
+    return out
+
 def fast_1d_norm(x):
     return np.sqrt(np.dot(x,x.conj()))
 
@@ -85,7 +94,7 @@ def pcolor_square_grid(data, nb_to_plot=-1):
     for i in np.arange(nb_plots_sqrt):
         for j in np.arange(nb_plots_sqrt):
             try:
-                subaxes[i,j].pcolor(data[nb_plots_sqrt*i+j])
+                subaxes[i,j].imshow(data[nb_plots_sqrt*i+j], interpolation='nearest')
                 subaxes[i,j].xaxis.set_major_locator(plttic.NullLocator())
                 subaxes[i,j].yaxis.set_major_locator(plttic.NullLocator())
             except IndexError:
