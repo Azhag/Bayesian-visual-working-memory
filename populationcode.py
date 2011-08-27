@@ -123,8 +123,7 @@ class PopulationCodeAngle(PopulationCode):
         
         if np.isscalar(theta_s):
             ax.plot(self.neurons_angles, mean)
-            ax.fill_between(self.neurons_angles, mean_minus_std, mean_plus_std, facecolor='blue', alpha=0.4,
-                        label='1 sigma range')
+            ax.fill_between(self.neurons_angles, mean_minus_std, mean_plus_std, facecolor='blue', alpha=0.4, label='1 sigma range')
         else:
             for mean_i in np.arange(mean.shape[0]):
                 l = ax.plot(self.neurons_angles, mean[mean_i])

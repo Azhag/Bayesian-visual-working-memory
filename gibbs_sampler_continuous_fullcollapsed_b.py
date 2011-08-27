@@ -84,6 +84,8 @@ class Sampler:
         
         # Initialise A^{T-tc} as well
         self.ATmtc = np.power(self.time_weights[0, self.tc], self.T - self.tc - 1.)
+        
+        # self.time_contribution = self.data_gen.time_contribution
     
     
     def init_theta(self, theta_gamma=0.0, theta_kappa = 2.0):
@@ -190,8 +192,7 @@ class Sampler:
         # t = time.time()
         self.sample_theta()
         # print "Sample_z time: %.3f" % (time.time()-t)
-        
-        #self.sample_tc()
+        # self.sample_tc()
         
     
     
@@ -218,7 +219,7 @@ class Sampler:
         
         # Iterate over whole datapoints
         # permuted_datapoints = np.random.permutation(np.arange(self.N))
-        permuted_datapoints = np.arange(self.N)
+        permuted_datapoints = np.arange(1)
         
         errors = np.zeros(permuted_datapoints.shape, dtype=float)
         
@@ -323,7 +324,7 @@ class Sampler:
             return (ll_x, x)
     
     
-    def plot_likelihood_variation_twoangles(self, num_points=100, should_plot=True, should_return=False, n=0):
+    def plot_likelihood_variation_twoangles(self, num_points=100, should_plot=True, should_return=False, n=0, t=0):
         '''
             Compute the likelihood, varying two angles around.
             Plot the result
@@ -337,13 +338,22 @@ class Sampler:
             like_mean = datapoint - mean_fixed_contrib - \
                         np.dot(ATtcB, rn.get_network_features_combined(thetas))
             
-            return theta_kappa*np.cos(thetas[sampled_feature_index] - theta_mu) - 0.5*np.dot(like_mean, np.linalg.solve(covariance_fixed_contrib, like_mean))
+            # return theta_kappa*np.cos(thetas[sampled_feature_index] - theta_mu) - 0.5*np.dot(like_mean, np.linalg.solve(covariance_fixed_contrib, like_mean))
+            
+            # Using inverse covariance as param
+            return theta_kappa*np.cos(thetas[sampled_feature_index] - theta_mu) - 0.5*np.dot(like_mean, np.dot(covariance_fixed_contrib, like_mean))
         
         
         # Precompute the mean and covariance contributions.
-        mean_fixed_contrib = self.n_means_end[self.tc[n]] + np.dot(self.ATmtc[n], self.n_means_start[self.tc[n]])
-        ATtcB = np.dot(self.ATmtc[n], self.time_weights[1, self.tc[n]])
-        covariance_fixed_contrib = self.n_covariances_end[self.tc[n]] + np.dot(self.ATmtc[n], np.dot(self.n_covariances_start[self.tc[n]], self.ATmtc[n]))  #+ np.dot(ATtcB, np.dot(self.random_network.get_network_covariance_combined(), ATtcB.T))
+        ATmtc = np.power(self.time_weights[0, t], self.T - t - 1.)
+        mean_fixed_contrib = self.n_means_end[t] + np.dot(ATmtc, self.n_means_start[t])
+        ATtcB = np.dot(ATmtc, self.time_weights[1, t])
+        covariance_fixed_contrib = self.n_covariances_end[t] + np.dot(ATmtc, np.dot(self.n_covariances_start[t], ATmtc))  #+ np.dot(ATtcB, np.dot(self.random_network.get_network_covariance_combined(), ATtcB.T))
+        
+        # Precompute the inverse, should speedup quite nicely
+        covariance_fixed_contrib = np.linalg.inv(covariance_fixed_contrib)
+        
+        
         sampled_feature_index = 0
         params = (self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, ATtcB, sampled_feature_index, mean_fixed_contrib, covariance_fixed_contrib)
         
@@ -390,6 +400,57 @@ class Sampler:
             return llh_2angles
     
     
+    def plot_likelihood_correctlycuedtimes(self, num_points=500, should_plot=True, should_return=False, n=0):
+        
+        def loglike_theta_fct(thetas, (datapoint, rn, theta_mu, theta_kappa, ATtcB, sampled_feature_index, mean_fixed_contrib, covariance_fixed_contrib)):
+            '''
+                Compute the loglikelihood of: theta_r | n_t theta_r'
+            '''
+            
+            like_mean = datapoint - mean_fixed_contrib - \
+                        np.dot(ATtcB, rn.get_network_features_combined(thetas))
+            
+            # return theta_kappa*np.cos(thetas[sampled_feature_index] - theta_mu) - 0.5*np.dot(like_mean, np.linalg.solve(covariance_fixed_contrib, like_mean))
+            
+            # Using inverse covariance as param
+            return theta_kappa*np.cos(thetas[sampled_feature_index] - theta_mu) - 0.5*np.dot(like_mean, np.dot(covariance_fixed_contrib, like_mean))
+        
+        all_angles = np.linspace(-np.pi, np.pi, num_points)
+        llh_2angles = np.zeros((self.T, num_points))
+        
+        # Compute the array
+        for t in np.arange(self.T):
+            # Precompute the mean and covariance contributions.
+            ATmtc = np.power(self.time_weights[0, t], self.T - t - 1.)
+            mean_fixed_contrib = self.n_means_end[t] + np.dot(ATmtc, self.n_means_start[t])
+            ATtcB = np.dot(ATmtc, self.time_weights[1, t])
+            covariance_fixed_contrib = self.n_covariances_end[t] + np.dot(ATmtc, np.dot(self.n_covariances_start[t], ATmtc))  #+ np.dot(ATtcB, np.dot(self.random_network.get_network_covariance_combined(), ATtcB.T))
+            
+            # Precompute the inverse, should speedup quite nicely
+            covariance_fixed_contrib = np.linalg.inv(covariance_fixed_contrib)
+            
+            sampled_feature_index = 0
+            params = (self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, ATtcB, sampled_feature_index, mean_fixed_contrib, covariance_fixed_contrib)
+            
+            for i in np.arange(num_points):
+                # Give the correct cued second angle
+                llh_2angles[t, i] = loglike_theta_fct(np.array([all_angles[i], self.data_gen.chosen_orientations[n, t, 1]]), params)
+        
+        llh_2angles = llh_2angles.T
+        
+        llh_2angles -= np.mean(llh_2angles, axis=0)
+        llh_2angles /= np.abs(np.max(llh_2angles, axis=0))
+        
+        # Move them a bit apart
+        llh_2angles += 1.2*np.arange(self.T)*np.abs(np.max(llh_2angles, axis=0)-np.mean(llh_2angles, axis=0))
+        
+        # Plot the result
+        plt.figure()
+        plt.plot(all_angles, llh_2angles)
+        plt.axvline(x=self.data_gen.chosen_orientations[n, 0, 0], color='b')
+        plt.axvline(x=self.data_gen.chosen_orientations[n, 1, 0], color='g')
+        plt.legend(('First', 'Second'), loc='best')
+    
     
     def compute_mean_fit(self, theta_target=0.0, n=0, amplify_diag=1.):
         if np.isscalar(theta_target):
@@ -432,8 +493,6 @@ class Sampler:
         
         # Update A^{T-tc}
         # self.ATmtc = np.power(self.time_weights[0, self.tc], self.T-self.tc)
-        
-        pass
         # # Iterate over whole matrix
         #         permuted_datapoints = np.random.permutation(np.arange(self.N))
         #         
@@ -471,6 +530,7 @@ class Sampler:
         #                     self.Akr[new_zntr, r] += 1
         #                     
         #                     self.Z[n,t, r] = new_zntr
+        pass
                 
     
     
@@ -645,8 +705,7 @@ class Sampler:
     
     def compute_misbinds(self, angles_errors):
         # TODO Convert this
-        
-        ## Now check if misbinding could have occured
+        # Now check if misbinding could have occured
         # TODO Only for T=2 now
         if self.T == 2:
             # Possible swaps
@@ -775,7 +834,7 @@ def do_simple_run(args):
     nb_samples = args.nb_samples
     
     sigma_y = 0.02
-    time_weights_parameters = dict(weighting_alpha=0.7, weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='recency')
+    time_weights_parameters = dict(weighting_alpha=0.85, weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='normalised')
     cued_feature_time = T-1
     
     random_network = RandomNetworkContinuous.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[0.1, 0.3], sigma=0.2, gamma=0.003, rho=0.003)
