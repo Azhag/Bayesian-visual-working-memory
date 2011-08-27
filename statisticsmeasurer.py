@@ -25,7 +25,7 @@ class StatisticsMeasurer:
         
         self.compute_collapsed_model_parameters()
         
-        print "StatisticMeasurer executed successfully"
+        print "StatisticMeasurer has measured"
     
     
     def measure_moments(self):
@@ -62,8 +62,8 @@ class StatisticsMeasurer:
                 and their covariances
         '''
         
-        model_means = np.zeros((2, self.T, self.M))
-        model_covariances = np.zeros((2, self.T, self.M, self.M))
+        model_means = np.zeros((3, self.T, self.M))
+        model_covariances = np.zeros((3, self.T, self.M, self.M))
         
         # Mean and covariance of the starting noise is easy, just take the measured marginals of the previous time, transform them once.
         for t in np.arange(1, self.T):
@@ -78,6 +78,9 @@ class StatisticsMeasurer:
             model_means[1, t] = self.means[self.T-1] - np.dot(ATmtc,  self.means[t])
             model_covariances[1, t] = self.covariances[self.T-1] - np.dot(ATmtc,  np.dot(self.covariances[t], ATmtc.T))
         
+        # Measured means and covariances
+        model_means[2] = self.means
+        model_covariances[2] = self.covariances
         
         self.model_parameters = dict(means=model_means, covariances=model_covariances)
 
@@ -92,10 +95,13 @@ if __name__ == '__main__':
     
     sigma_y = 0.02
     
-    random_network = RandomNetworkContinuous.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[0.1, 0.5], sigma=0.1, gamma=0.002, rho=0.002)
+    # random_network = RandomNetworkContinuous.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[0.1, 0.5], sigma=0.1, gamma=0.002, rho=0.002)
+    random_network = RandomNetworkFactorialCode.create_instance_uniform(K, D=D, R=R, sigma=0.05)
     
     data_gen = DataGeneratorContinuous(N, T, random_network, sigma_y = sigma_y, time_weights_parameters = dict(weighting_alpha=1., weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='uniform'))
     
     stat_meas = StatisticsMeasurer(data_gen)
     stat_meas.plot_moments()
+    
+    plt.show()
     
