@@ -125,6 +125,8 @@ class Sampler:
         self.n_covariances_end = n_parameters['covariances'][1]
         self.n_covariances_start_chol = np.zeros_like(self.n_covariances_start)
         self.n_covariances_end_chol = np.zeros_like(self.n_covariances_end)
+        self.n_means_measured = n_parameters['means'][2]
+        self.n_covariances_measured = n_parameters['covariances'][2]
         
         for t in np.arange(self.T):
             try:
@@ -300,7 +302,8 @@ class Sampler:
         
         ATtcB = np.dot(self.ATmtc[n], self.time_weights[1, self.tc[n]])
         
-        covariance_fixed_contrib = self.n_covariances_end[self.tc[n]] + np.dot(self.ATmtc[n], np.dot(self.n_covariances_start[self.tc[n]], self.ATmtc[n]))  #+ np.dot(ATtcB, np.dot(self.random_network.get_network_covariance_combined(), ATtcB.T))
+        # covariance_fixed_contrib = self.n_covariances_end[self.tc[n]] + np.dot(self.ATmtc[n], np.dot(self.n_covariances_start[self.tc[n]], self.ATmtc[n]))  #+ np.dot(ATtcB, np.dot(self.random_network.get_network_covariance_combined(), ATtcB.T))
+        covariance_fixed_contrib = self.n_covariances_measured[-1]
         
         covariance_fixed_contrib[np.arange(self.M), np.arange(self.M)] *= amplify_diag
         
@@ -348,11 +351,11 @@ class Sampler:
         ATmtc = np.power(self.time_weights[0, t], self.T - t - 1.)
         mean_fixed_contrib = self.n_means_end[t] + np.dot(ATmtc, self.n_means_start[t])
         ATtcB = np.dot(ATmtc, self.time_weights[1, t])
-        covariance_fixed_contrib = self.n_covariances_end[t] + np.dot(ATmtc, np.dot(self.n_covariances_start[t], ATmtc))  #+ np.dot(ATtcB, np.dot(self.random_network.get_network_covariance_combined(), ATtcB.T))
+        # covariance_fixed_contrib = self.n_covariances_end[t] + np.dot(ATmtc, np.dot(self.n_covariances_start[t], ATmtc))  #+ np.dot(ATtcB, np.dot(self.random_network.get_network_covariance_combined(), ATtcB.T))
+        covariance_fixed_contrib = self.n_covariances_measured[-1]
         
         # Precompute the inverse, should speedup quite nicely
         covariance_fixed_contrib = np.linalg.inv(covariance_fixed_contrib)
-        
         
         sampled_feature_index = 0
         params = (self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, ATtcB, sampled_feature_index, mean_fixed_contrib, covariance_fixed_contrib)
@@ -400,7 +403,7 @@ class Sampler:
             return llh_2angles
     
     
-    def plot_likelihood_correctlycuedtimes(self, num_points=500, should_plot=True, should_return=False, n=0):
+    def plot_likelihood_correctlycuedtimes(self, n=0, amplify_diag=1.0, num_points=500, should_plot=True, should_return=False):
         
         def loglike_theta_fct(thetas, (datapoint, rn, theta_mu, theta_kappa, ATtcB, sampled_feature_index, mean_fixed_contrib, covariance_fixed_contrib)):
             '''
@@ -424,7 +427,11 @@ class Sampler:
             ATmtc = np.power(self.time_weights[0, t], self.T - t - 1.)
             mean_fixed_contrib = self.n_means_end[t] + np.dot(ATmtc, self.n_means_start[t])
             ATtcB = np.dot(ATmtc, self.time_weights[1, t])
-            covariance_fixed_contrib = self.n_covariances_end[t] + np.dot(ATmtc, np.dot(self.n_covariances_start[t], ATmtc))  #+ np.dot(ATtcB, np.dot(self.random_network.get_network_covariance_combined(), ATtcB.T))
+            # covariance_fixed_contrib = self.n_covariances_end[t] + np.dot(ATmtc, np.dot(self.n_covariances_start[t], ATmtc)) # + np.dot(ATtcB, np.dot(self.random_network.get_network_covariance_combined(), ATtcB.T))
+            covariance_fixed_contrib = self.n_covariances_measured[-1]
+            
+            # Measured covariance is wrong...
+            covariance_fixed_contrib[np.arange(self.M), np.arange(self.M)] *= amplify_diag
             
             # Precompute the inverse, should speedup quite nicely
             covariance_fixed_contrib = np.linalg.inv(covariance_fixed_contrib)
@@ -444,12 +451,16 @@ class Sampler:
         # Move them a bit apart
         llh_2angles += 1.2*np.arange(self.T)*np.abs(np.max(llh_2angles, axis=0)-np.mean(llh_2angles, axis=0))
         
+        opt_angles = np.argmax(llh_2angles, axis=0)
+        
         # Plot the result
         plt.figure()
         plt.plot(all_angles, llh_2angles)
         plt.axvline(x=self.data_gen.chosen_orientations[n, 0, 0], color='b')
         plt.axvline(x=self.data_gen.chosen_orientations[n, 1, 0], color='g')
         plt.legend(('First', 'Second'), loc='best')
+        
+        print "True angles: %.3f | %.3f >> Inferred: %.3f | %.3f" % (self.data_gen.chosen_orientations[n, 0, 0], self.data_gen.chosen_orientations[n, 1, 0], all_angles[opt_angles[0]], all_angles[opt_angles[1]])
     
     
     def compute_mean_fit(self, theta_target=0.0, n=0, amplify_diag=1.):
@@ -478,7 +489,6 @@ class Sampler:
         # output = like_mean
         
         return output
-    
     
     
     def sample_tc(self):
@@ -833,18 +843,18 @@ def do_simple_run(args):
     R = args.R
     nb_samples = args.nb_samples
     
+    # Build the random network
     sigma_y = 0.02
-    time_weights_parameters = dict(weighting_alpha=0.85, weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='normalised')
+    time_weights_parameters = dict(weighting_alpha=0.7, weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='uniform')
     cued_feature_time = T-1
-    
-    random_network = RandomNetworkContinuous.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[0.1, 0.3], sigma=0.2, gamma=0.003, rho=0.003)
+    random_network = RandomNetworkContinuous.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[5./(R*D), 10.0], sigma=0.2, gamma=0.005, rho=0.005)
     
     # Measure the noise structure
     print "Measuring noise structure"
-    data_gen_noise = DataGeneratorContinuous(1500, T, random_network, sigma_y = sigma_y, time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time)
+    data_gen_noise = DataGeneratorContinuous(2000, T, random_network, sigma_y = sigma_y, time_weights_parameters=time_weights_parameters)
     stat_meas = StatisticsMeasurer(data_gen_noise)
     
-    # Now construct the real dataset
+    # Construct the real dataset
     print "Building the database"
     data_gen = DataGeneratorContinuous(N, T, random_network, sigma_y = sigma_y, time_weights_parameters = time_weights_parameters, cued_feature_time=cued_feature_time)
     
@@ -999,7 +1009,7 @@ if __name__ == '__main__':
     parser.add_argument('--nb_samples', default=100)
     parser.add_argument('--N', default=100, help='Number of datapoints')
     parser.add_argument('--T', default=2, help='Number of times')
-    parser.add_argument('--K', default=50, help='Number of representated features')
+    parser.add_argument('--K', default=25, help='Number of representated features')
     parser.add_argument('--D', default=32, help='Dimensionality of features')
     parser.add_argument('--M', default=128, help='Dimensionality of data/memory')
     parser.add_argument('--R', default=2, help='Number of population codes')
