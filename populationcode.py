@@ -61,7 +61,6 @@ class PopulationCodeAngle(PopulationCode):
         
         if np.isscalar(theta_input):
             mean = bias+np.exp(1./self.sigma2*np.cos(correction_wrapup*(self.neurons_angles - theta_input)))
-        
         else:
             mean = bias+np.exp(1./self.sigma2*np.cos(correction_wrapup*(np.tile(self.neurons_angles, (theta_input.size, 1)).T - theta_input))).T
         

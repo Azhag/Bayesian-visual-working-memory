@@ -68,7 +68,6 @@ class StatisticsMeasurer:
         # Mean and covariance of the starting noise is easy, just take the measured marginals of the previous time, transform them once.
         for t in np.arange(1, self.T):
             model_means[0, t] = np.dot(self.data_gen.time_weights[0][t], self.means[t-1])
-            
             model_covariances[0, t] = np.dot(self.data_gen.time_weights[0][t], np.dot(self.covariances[t-1], self.data_gen.time_weights[0][t].T))
         
         
@@ -81,27 +80,32 @@ class StatisticsMeasurer:
         # Measured means and covariances
         model_means[2] = self.means
         model_covariances[2] = self.covariances
-        
+            
         self.model_parameters = dict(means=model_means, covariances=model_covariances)
 
 
 if __name__ == '__main__':
     K = 20
-    D = 20
-    M = 50
+    D = 32
+    M = 128
     R = 2
     T = 3
     N = 1000
     
     sigma_y = 0.02
     
-    # random_network = RandomNetworkContinuous.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[0.1, 0.5], sigma=0.1, gamma=0.002, rho=0.002)
-    random_network = RandomNetworkFactorialCode.create_instance_uniform(K, D=D, R=R, sigma=0.05)
+    random_network = RandomNetworkContinuous.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[0.1, 0.5], sigma=0.2, gamma=0.002, rho=0.002)
+    # random_network = RandomNetworkFactorialCode.create_instance_uniform(K, D=D, R=R, sigma=0.05)
     
-    data_gen = DataGeneratorContinuous(N, T, random_network, sigma_y = sigma_y, time_weights_parameters = dict(weighting_alpha=1., weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='uniform'))
+    data_gen = DataGeneratorContinuous(N, T, random_network, sigma_y = sigma_y, time_weights_parameters = dict(weighting_alpha=0.8, weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='uniform'))
     
     stat_meas = StatisticsMeasurer(data_gen)
     stat_meas.plot_moments()
+    
+    plt.figure()
+    for t in np.arange(T)[::-1]:
+        plt.hist(np.mean(stat_meas.Y[:,t,:] - np.mean(stat_meas.Y[:,t, :], axis=0), axis=1), bins=50)
+    
     
     plt.show()
     
