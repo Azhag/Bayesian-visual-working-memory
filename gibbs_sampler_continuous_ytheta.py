@@ -392,10 +392,13 @@ class Sampler:
             ATmtc = np.power(sampler.time_weights[0, t], sampler.T - t - 1.)
             B_Wmu = rn.get_network_features_combined(thetas)*B
             Y_mean = sampler.n_means_start[t] + B_Wmu
-            Y_mean_b = (sampler.NT[n] - sampler.n_means_end[t] - Y_mean*ATmtc)
-            Y_mean += np.dot(sampler.P[t]*ATmtc, np.linalg.solve(sampler.APA_Sigtcp, Y_mean_b))
-            
-            like_mean = datapoint - Y_mean
+            if t < (sampler.T - 1):
+                Y_mean_b = (sampler.NT[n] - sampler.n_means_end[t] - Y_mean.copy()*ATmtc)
+                Y_mean += np.dot(sampler.P[t]*ATmtc, np.linalg.solve(sampler.APA_Sigtcp, Y_mean_b))
+                
+                like_mean = datapoint - Y_mean
+            else:
+                like_mean = sampler.NT[n] - Y_mean
             
             # print theta_kappa*np.cos(thetas[sampled_feature_index] - theta_mu) - 0.5*np.dot(like_mean, np.dot(covariance_fixed_contrib_inv, like_mean))
             
@@ -842,9 +845,9 @@ def do_simple_run(args):
     
     sigma_y = 0.02
     time_weights_parameters = dict(weighting_alpha=0.7, weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='uniform')
-    cued_feature_time = T-1
+    cued_feature_time = T-2
     
-    random_network = RandomNetworkContinuous.create_instance_uniform(K, M, D=D, R=R, W_type='identity', W_parameters=[0.1, 0.3], sigma=0.2, gamma=0.003, rho=0.003)
+    random_network = RandomNetworkContinuous.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[0.1, 0.3], sigma=0.2, gamma=0.003, rho=0.003)
     
     # Measure the noise structure
     print "Measuring noise structure"
