@@ -91,12 +91,14 @@ class RandomNetwork:
         else:
             raise ValueError('Type of connectivity unknown')
     
+    
     def build_W_identity(self):
         if self.M >= 2*self.D:
             for r in np.arange(self.R):
                 self.W[r, self.D*r:self.D*(r+1), :self.D] = np.eye(self.D)
         else:
             self.W[:, :self.D, :self.D] = np.tile(np.eye(self.D), (self.R, 1, 1))
+    
     
     def build_W_random(self, W_parameters):
         # Unpack parameters
@@ -139,14 +141,16 @@ class RandomNetwork:
         mean_number_connections = self.R*self.D*percentage_population_connections
         
         # Get the actual random number of connections for each neuron
-        self.number_connections = np.ceil(self.ratio_connections*mean_number_connections).astype(int)
+        self.number_connections = np.round(self.ratio_connections*mean_number_connections).astype(int)
         
         # Now connect neurons to features accordingly. Choose K_i_n features uniformly.
         for m in np.arange(self.M):
             for r in np.arange(self.R):
                 indices = np.random.permutation(np.arange(self.D))[:self.number_connections[m, r]]
-                self.W[r, m, indices] = sigma_W*np.random.randn(np.min((self.D, self.number_connections[m, r])))
+                # self.W[r, m, indices] = sigma_W*np.random.randn(np.min((self.D, self.number_connections[m, r])))
+                self.W[r, m, indices] = sigma_W
         
+        # self.W = np.abs(self.W)
     
     
     ###
@@ -174,6 +178,7 @@ class RandomNetwork:
                 net_samples[r] = np.dot(self.popcodes[r].sample_random_response(self.possible_angles[chosen_orientations]), self.W[r].T)
         
         return net_samples
+    
     
     def sample_network_response(self, chosen_orientations, summed=False):
         '''
@@ -291,7 +296,13 @@ class RandomNetwork:
         ax.set_ylabel('PC 2')
         ax.set_zlabel('PC 3')
         
-        return explained_variance
+        # Compute some statistics
+        U, s, V = np.linalg.svd(all_objects_repr)
+        rank_representation = np.sum(s > 1e-6)
+        
+        print "Rank: %d (%d max)" % (int(rank_representation), all_objects_repr.shape[0])
+        
+        return (explained_variance, rank_representation, all_objects_repr)
         
     
     
@@ -357,9 +368,10 @@ class RandomNetworkFactorialCode(RandomNetwork):
             
             network_representations:    R x K x M
         '''
+        weight_representation = 1.0
+        
         self.K = possible_angles.size
         self.possible_angles = possible_angles
-        
         
         # Define the possible objects
         self.possible_objects_indices = np.array(cross([[x for x in np.arange(self.K)]]*self.R))
@@ -382,10 +394,14 @@ class RandomNetworkFactorialCode(RandomNetwork):
             # self.network_representations[tuple(flatten_list([obj_ind, [np.dot(obj_ind, flattening_converter).astype(int)]]))] = 1
             
             # .... Now being less stupid and using a counter...
-            self.network_representations[tuple(flatten_list([obj_ind, [cnt]]))] = 1
+            # self.network_representations[tuple(flatten_list([obj_ind, [cnt]]))] = weight_representation
+            
+            # Version 2, put a random sample instead...
+            self.network_representations[tuple(obj_ind)] = weight_representation*np.random.randn(self.M)
             
             cnt += 1
         
+        self.W = None
         self.network_initialised = True
     
     
@@ -457,6 +473,45 @@ class RandomNetworkFactorialCode(RandomNetwork):
     
     def get_popcode_response(self, theta, r):
         raise NotImplementedError()
+    
+    
+    def plot_spread_full_representation(self):
+        '''
+            Compute all possibles "objects" (features combinations) representations, and plot them.
+            Use PCA to reduce the dimensionality
+        '''
+        
+        
+        # Retrieve the representations
+        all_objects_repr = np.reshape(self.network_representations, (self.K**self.R, self.M))
+        
+        # Plot them
+        import mdp
+        pca_node = mdp.nodes.PCANode(output_dim=0.9)
+        all_objects_pc = pca_node(all_objects_repr)
+        explained_variance = pca_node.get_explained_variance()
+        
+        import mpl_toolkits.mplot3d as p3d
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        
+        colors_groups = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
+        for k in np.arange(self.K):
+            ax.scatter(all_objects_pc[k*self.K:(k+1)*self.K, 0], all_objects_pc[k*self.K:(k+1)*self.K,1], all_objects_pc[k*self.K:(k+1)*self.K,2], c=colors_groups[k%len(colors_groups)])
+        
+        ax.set_xlabel('PC 1')
+        ax.set_ylabel('PC 2')
+        ax.set_zlabel('PC 3')
+        
+        # Compute some statistics
+        U, s, V = np.linalg.svd(all_objects_repr)
+        rank_representation = np.sum(s > 1e-6)
+        
+        print "Rank: %d (%d max)" % (int(rank_representation), all_objects_repr.shape[0])
+        
+        
+        return (explained_variance, rank_representation, all_objects_repr)
+        
     
     
     @classmethod
@@ -584,14 +639,13 @@ class RandomNetworkContinuous(RandomNetwork):
 
 
 if __name__ == '__main__':
-    K = 10
+    K = 5
     M = 200
     D = 100
     R = 2
     
-    # rn = RandomNetwork.create_instance_uniform(K, M, D=D, R=2, W_type='identity', W_parameters=[0.1, 0.5], sigma=0.6)
-    # rn = RandomNetwork.create_instance_uniform(K, M, D=D, R=2, W_type='identity', W_param=0.2)
-    rn = RandomNetworkFactorialCode.create_instance_uniform(K, D=D, R=R, sigma=0.1)
+    rn = RandomNetwork.create_instance_uniform(K, M, D=D, R=2, W_type='dirichlet', W_parameters=[2./(R*D), 10.0], sigma=0.2, gamma=0.005, rho=0.005)
+    # rn = RandomNetworkFactorialCode.create_instance_uniform(K, D=D, R=R, sigma=0.1)
     
     # net_samples = rn.sample_network_response_indices(np.array([[5], [2]]))
     # plt.figure()
@@ -603,8 +657,8 @@ if __name__ == '__main__':
     # 
     # rn.plot_population_representation()
     # rn.plot_network_representation()
-    # explained_variance = rn.plot_spread_full_representation()
-    
+    (explained_variance, rank_objects, all_objects_repr) = rn.plot_spread_full_representation()
+    # plt.close('all')
     # print explained_variance
     
     # 
@@ -612,8 +666,10 @@ if __name__ == '__main__':
     # plt.plot(rn.network_orientations)
     # #hinton(rn.W)
     
-    net_samples = rn.sample_network_response(np.array([0.0, 2.0]))
-    plt.plot(net_samples)
+    # net_samples = rn.sample_network_response(np.array([0.0, 2.0]))
+    # plt.plot(net_samples)
     
     plt.show()
+    # plt.close('all')
     # 
+
