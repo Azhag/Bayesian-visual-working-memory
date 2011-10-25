@@ -79,7 +79,7 @@ class PopulationCodeAngle(PopulationCode):
         correction_wrapup = 2.*np.pi/self.max_angle
         
         self.covariance = self.rho*np.exp(self.a*np.cos(correction_wrapup*diff_angles))
-        np.fill_diagonal(self.covariance,  self.gamma)
+        self.covariance[np.arange(self.N), np.arange(self.N)] *= self.gamma
         
         
     
