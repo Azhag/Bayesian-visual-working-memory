@@ -460,9 +460,16 @@ class Sampler:
         plt.plot(all_angles, llh_2angles)
         plt.axvline(x=self.data_gen.chosen_orientations[n, 0, 0], color='b')
         plt.axvline(x=self.data_gen.chosen_orientations[n, 1, 0], color='g')
-        plt.legend(('First', 'Second'), loc='best')
         
-        print "True angles: %.3f | %.3f >> Inferred: %.3f | %.3f" % (self.data_gen.chosen_orientations[n, 0, 0], self.data_gen.chosen_orientations[n, 1, 0], all_angles[opt_angles[0]], all_angles[opt_angles[1]])
+        if sampler.T == 2:
+            plt.legend(('First', 'Second'), loc='best')
+            print "True angles: %.3f | %.3f >> Inferred: %.3f | %.3f" % (self.data_gen.chosen_orientations[n, 0, 0], self.data_gen.chosen_orientations[n, 1, 0], all_angles[opt_angles[0]], all_angles[opt_angles[1]])
+        elif sampler.T == 3:
+            plt.axvline(x=self.data_gen.chosen_orientations[n, 2, 0], color='r')
+            plt.legend(('First', 'Second', 'Third'), loc='best')
+            print "True angles: %.3f | %.3f | %.3f >> Inferred: %.3f | %.3f | %.3f" % (self.data_gen.chosen_orientations[n, 0, 0], self.data_gen.chosen_orientations[n, 1, 0], self.data_gen.chosen_orientations[n, 2, 0], all_angles[opt_angles[0]], all_angles[opt_angles[1]], all_angles[opt_angles[2]])
+        
+        plt.show()
     
     
     def compute_mean_fit(self, theta_target=0.0, n=0, amplify_diag=1.):
@@ -1012,8 +1019,8 @@ if __name__ == '__main__':
     parser.add_argument('--action_to_do', choices=np.arange(len(actions)), default=0)
     parser.add_argument('--nb_samples', default=100)
     parser.add_argument('--N', default=100, help='Number of datapoints')
-    parser.add_argument('--T', default=2, help='Number of times')
-    parser.add_argument('--K', default=25, help='Number of representated features')
+    parser.add_argument('--T', default=3, help='Number of times')
+    parser.add_argument('--K', default=30, help='Number of representated features')  # Warning: Need more data for bigger matrix
     parser.add_argument('--D', default=32, help='Dimensionality of features')
     parser.add_argument('--M', default=128, help='Dimensionality of data/memory')
     parser.add_argument('--R', default=2, help='Number of population codes')
