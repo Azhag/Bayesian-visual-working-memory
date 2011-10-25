@@ -177,7 +177,9 @@ class Sampler:
         Y_mean_b = (self.NT - self.n_means_end[self.tc] - (Y_mean.T*self.ATmtc).T)
         
         for n in np.arange(self.N):
-            Y_mean[n] += np.dot(self.P[self.tc[n]]*self.ATmtc[n], np.dot(self.APA_Sigtcp_inv, Y_mean_b[n]))
+            if self.tc[n] != (self.T-1):
+                Y_mean[n] += np.dot(self.P[self.tc[n]]*self.ATmtc[n], np.dot(self.APA_Sigtcp_inv, Y_mean_b[n]))
+            
         
         # Compute the covariance
         # WRONG, don't know why... cov = P - P (A^{T-tc})^T (A^{T-tc}PA^{T-tc}^T + \sigma_tc_plus)^{-1} (A^{T-tc}) P
@@ -185,10 +187,16 @@ class Sampler:
         self.Y_covariance = np.zeros((self.T, self.M, self.M))
         self.Y_covariance_chol = np.zeros((self.T, self.M, self.M))
         
-        for t in np.arange(self.T):
+        for t in np.arange(self.T-1):
+            # Different versions of the covariance. Checked now, they work.
             # covariance[n] = P[n] - np.dot(P[n]*self.ATmtc[n], np.dot(APA_Sigtcp_inv, P[n]*self.ATmtc[n]))
-            self.Y_covariance[t] = np.linalg.inv(self.P_inv[t] + self.ATmtc_t[t]*self.APA_Sigtcp_inv*self.ATmtc_t[t])
+            # self.Y_covariance[t] = np.linalg.inv(self.P_inv[t] + self.ATmtc_t[t]*np.linalg.inv(self.n_covariances_end[t])*self.ATmtc_t[t])
+            self.Y_covariance[t] = self.P[t] - np.dot(np.dot(self.P[t]*self.ATmtc_t[t], self.APA_Sigtcp_inv), self.ATmtc_t[t]*self.P[t])
             self.Y_covariance_chol[t] = np.linalg.cholesky(self.Y_covariance[t])
+        
+        # For t=T, no contribution from the future, easier
+        self.Y_covariance[-1] = self.P[-1]
+        self.Y_covariance_chol[-1] = np.linalg.cholesky(self.Y_covariance[-1])
         
         # Sample new Y now
         self.Y = np.zeros((self.N, self.M))
