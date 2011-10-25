@@ -66,8 +66,7 @@ class DataGenerator:
             self.time_weights[1] = weighting_beta*np.ones(self.T)
         elif weight_prior == 'primacy':
             self.time_weights[0] = weighting_alpha*np.ones(self.T)
-            self.time_weights[1] = weighting_beta*np.ones(self.T)
-            self.time_weights[1,0] *= specific_weighting
+            self.time_weights[1] = weighting_beta*(np.ones(self.T) + specific_weighting*np.arange(self.T)[::-1])
         elif weight_prior =='recency':
             self.time_weights[0] = weighting_alpha*np.ones(self.T)
             self.time_weights[1] = weighting_beta*(np.ones(self.T) + specific_weighting*np.arange(self.T))
@@ -153,8 +152,7 @@ class DataGeneratorBinary(DataGenerator):
                 self.Z_true[i, np.arange(self.T), r, self.chosen_orientations[i][:,r]] = 1.0
             
             # Get the 'x' samples (here from the population code, with correlated covariance, but whatever)
-            x_samples = self.random_network.sample_network_response_indices(self.chosen_orientations[i].T)
-            x_samples_sum = np.sum(x_samples, axis=0)
+            x_samples_sum = self.random_network.sample_network_response_indices(self.chosen_orientations[i].T)
             
             # Combine them together
             for t in np.arange(self.T):
@@ -217,8 +215,7 @@ class DataGeneratorDiscrete(DataGenerator):
             self.Z_true[i] = self.chosen_orientations[i]
             
             # Get the 'x' samples (here from the population code, with correlated covariance, but whatever)
-            x_samples = self.random_network.sample_network_response_indices(self.chosen_orientations[i].T)
-            x_samples_sum = np.sum(x_samples, axis=0)
+            x_samples_sum = self.random_network.sample_network_response_indices(self.chosen_orientations[i].T)
             
             # Combine them together
             for t in np.arange(self.T):
@@ -251,7 +248,6 @@ class DataGeneratorContinuous(DataGenerator):
         
         # Build the dataset
         self.build_dataset(cued_feature_time=cued_feature_time)
-    
     
     
     def build_dataset(self, input_orientations = None, cued_feature_time=0):
@@ -299,7 +295,7 @@ class DataGeneratorContinuous(DataGenerator):
             self.cued_features[i, 1] = cued_feature_time
             
             # Get the 'x' samples (here from the population code, with correlated covariance, but whatever)
-            x_samples_sum = self.random_network.sample_network_response(self.chosen_orientations[i], summed=True)
+            x_samples_sum = self.random_network.sample_network_response(self.chosen_orientations[i])
             
             # Combine them together
             for t in np.arange(self.T):
@@ -310,8 +306,6 @@ class DataGeneratorContinuous(DataGenerator):
                 self.all_X[i, t] = x_samples_sum[t]
             
         
-    
-    
     
 
 
