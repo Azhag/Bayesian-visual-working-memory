@@ -352,7 +352,8 @@ class Sampler:
         mean_fixed_contrib = self.n_means_end[t] + np.dot(ATmtc, self.n_means_start[t])
         ATtcB = np.dot(ATmtc, self.time_weights[1, t])
         # covariance_fixed_contrib = self.n_covariances_end[t] + np.dot(ATmtc, np.dot(self.n_covariances_start[t], ATmtc))  #+ np.dot(ATtcB, np.dot(self.random_network.get_network_covariance_combined(), ATtcB.T))
-        covariance_fixed_contrib = self.n_covariances_measured[-1]
+        covariance_fixed_contrib = self.n_covariances_end[t] + ATmtc*ATmtc*(self.n_covariances_start[t] + self.data_gen.sigma_y**2.*np.eye(self.M)) + ATtcB*ATtcB*(self.random_network.get_network_covariance_combined())
+        # covariance_fixed_contrib = self.n_covariances_measured[-1]
         
         # Precompute the inverse, should speedup quite nicely
         covariance_fixed_contrib = np.linalg.inv(covariance_fixed_contrib)
@@ -427,7 +428,7 @@ class Sampler:
             ATmtc = np.power(self.time_weights[0, t], self.T - t - 1.)
             mean_fixed_contrib = self.n_means_end[t] + np.dot(ATmtc, self.n_means_start[t])
             ATtcB = np.dot(ATmtc, self.time_weights[1, t])
-            # covariance_fixed_contrib = self.n_covariances_end[t] + np.dot(ATmtc, np.dot(self.n_covariances_start[t], ATmtc)) # + np.dot(ATtcB, np.dot(self.random_network.get_network_covariance_combined(), ATtcB.T))
+            # covariance_fixed_contrib = self.n_covariances_end[t] + ATmtc*ATmtc*(self.n_covariances_start[t] + self.data_gen.sigma_y**2.*np.eye(self.M)) + ATtcB*ATtcB*(self.random_network.get_network_covariance_combined())
             covariance_fixed_contrib = self.n_covariances_measured[-1]
             
             # Measured covariance is wrong...
@@ -847,7 +848,7 @@ def do_simple_run(args):
     sigma_y = 0.02
     time_weights_parameters = dict(weighting_alpha=0.7, weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='uniform')
     cued_feature_time = T-1
-    random_network = RandomNetworkContinuous.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[5./(R*D), 10.0], sigma=0.2, gamma=0.005, rho=0.005)
+    random_network = RandomNetworkContinuous.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[5./(R*D), 10.0], sigma=0.2, gamma=0.003, rho=0.002)
     
     # Measure the noise structure
     print "Measuring noise structure"
@@ -1009,7 +1010,7 @@ if __name__ == '__main__':
     parser.add_argument('--nb_samples', default=100)
     parser.add_argument('--N', default=100, help='Number of datapoints')
     parser.add_argument('--T', default=2, help='Number of times')
-    parser.add_argument('--K', default=25, help='Number of representated features')
+    parser.add_argument('--K', default=30, help='Number of representated features')
     parser.add_argument('--D', default=32, help='Dimensionality of features')
     parser.add_argument('--M', default=128, help='Dimensionality of data/memory')
     parser.add_argument('--R', default=2, help='Number of population codes')
