@@ -35,7 +35,7 @@ def fast_dot_1D(x, y):
 def fast_1d_norm(x):
     return np.sqrt(np.dot(x,x.conj()))
 
-def plot_std_area(x, y, std, ax_handle=None):
+def plot_mean_std_area(x, y, std, ax_handle=None):
     if ax_handle is None:
         f = plt.figure()
         ax_handle = f.add_subplot(111)
@@ -47,6 +47,7 @@ def plot_std_area(x, y, std, ax_handle=None):
                         label='1 sigma range')
     
     return ax_handle
+
 
 def array2string(array):
     # return np.array2string(array, suppress_small=True)
