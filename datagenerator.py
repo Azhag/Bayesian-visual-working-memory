@@ -278,7 +278,7 @@ class DataGeneratorContinuous(DataGenerator):
         
         assert self.T <= self.random_network.possible_objects_indices.size, "Unique objects needed"
         
-        # TODO Hack for now, add the time contribution
+      # TODO Hack for now, add the time contribution
         # self.time_contribution = 0.06*np.random.randn(self.T, self.random_network.M)
         
         for i in np.arange(self.N):
@@ -306,7 +306,100 @@ class DataGeneratorContinuous(DataGenerator):
                 self.all_X[i, t] = x_samples_sum[t]
             
         
+class DataGeneratorRFN(DataGenerator):
+    '''
+        DataGenerator for a RandomFactorialNetwork
+    '''
+    def __init__(self, N, T, random_network, sigma_y = 0.05, sigma_x = 0.02, time_weights=None, time_weights_parameters = dict(weighting_alpha=0.3, weighting_beta = 1.0, specific_weighting = 0.3, weight_prior='uniform'), cued_feature_time=0):
+        
+        assert isinstance(random_network, RandomFactorialNetwork), "Use a RandomFactorialNetwork with this DataGeneratorRFN"
+        
+        DataGenerator.__init__(self, N, T, random_network, sigma_y = sigma_y, time_weights = time_weights, time_weights_parameters = time_weights_parameters)
+        
+        # This is the noise on specific memories. Belongs here.
+        self.sigma_x = sigma_x
+
+        # Build the correct stimuli
+        # TODO build a load_stimuli(), etc
+        self.generate_stimuli()
+
+        # Build the dataset
+        self.build_dataset(cued_feature_time=cued_feature_time)
     
+    def generate_stimuli(self):
+        '''
+            Choose N stimuli for this dataset.
+            
+            init:
+                self.stimuli_correct:   N x T x R    
+        '''
+
+        # This gives all the true stimuli
+        self.stimuli_correct = np.zeros((self.N, self.T, self.R), dtype='float')
+        
+        # Sample them randomly, without repetition
+        raise NotImplementedError()
+        
+    
+
+    def build_dataset(self, cued_feature_time=0):
+        '''
+            Creates the dataset
+                For each datapoint, choose T possible orientations ('discrete' Z=k),
+                then combine them together, with time decay
+            
+            input:
+                [input_stimuli]:    Set of N x T x R values of the stimuli
+                [cued_feature_time: The time of the cue. (Should be random)]
+
+
+
+            output:
+                Y :                 N x M
+                all_Y:              N x T x M
+                correct_stimuli:    N x T x R
+                cued_features:      N x 2       (r_c, t_c)
+        '''
+        
+        
+        # Select which item should be recalled (and thus cue one/multiple of the other feature)
+        self.cued_features = np.zeros((self.N, 2), dtype='int')
+        
+        # Initialise Y (keep intermediate y_t as well)
+        self.all_Y = np.zeros((self.N, self.T, self.random_network.M))
+        self.Y = np.zeros((self.N, self.random_network.M))
+        self.all_X = np.zeros((self.N, self.T, self.random_network.M))
+        
+        assert self.T <= self.random_network.possible_objects_indices.size, "Unique objects needed"
+        
+      # TODO Hack for now, add the time contribution
+        # self.time_contribution = 0.06*np.random.randn(self.T, self.random_network.M)
+        
+        for i in np.arange(self.N):
+            
+            if input_orientations is None:
+                # Choose T random orientations, uniformly
+                self.chosen_orientations[i] = np.random.permutation(self.random_network.possible_objects)[:self.T]
+            
+            # For now, always cued the second code (i.e. color) and retrieve the first code (i.e. orientation)
+            self.cued_features[i, 0] = 1
+            
+            # Randomly recall one of the times
+            # self.cued_features[i, 1] = np.random.randint(self.T)
+            self.cued_features[i, 1] = cued_feature_time
+            
+            # Get the 'x' samples (here from the population code, with correlated covariance, but whatever)
+            x_samples_sum = self.random_network.sample_network_response(self.chosen_orientations[i])
+            
+            # Combine them together
+            for t in np.arange(self.T):
+                self.Y[i] = self.time_weights[0, t]*self.Y[i].copy() + self.time_weights[1, t]*x_samples_sum[t] + self.sigma_y*np.random.randn(self.random_network.M)
+                # self.Y[i] /= np.sum(np.abs(self.Y[i]))
+                # self.Y[i] /= fast_1d_norm(self.Y[i])
+                self.all_Y[i, t] = self.Y[i]
+                self.all_X[i, t] = x_samples_sum[t]
+            
+      
 
 
 
