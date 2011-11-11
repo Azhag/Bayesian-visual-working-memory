@@ -198,12 +198,18 @@ if __name__ == '__main__':
     
     sigma_y = 0.05
     
-    if False:
+    if True:
         
-        random_network = RandomNetworkContinuous.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[0.1, 0.5], sigma=0.2, gamma=0.003, rho=0.002)
+        # random_network = RandomNetworkContinuous.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[0.1, 0.5], sigma=0.2, gamma=0.003, rho=0.002)
         # random_network = RandomNetworkFactorialCode.create_instance_uniform(K, D=D, R=R, sigma=0.05)
-        
-        data_gen = DataGeneratorContinuous(N, T, random_network, sigma_y = sigma_y, time_weights_parameters = dict(weighting_alpha=0.9, weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='uniform'))
+        random_network = RandomFactorialNetwork(M, R=R, sigma=0.1)
+        ratio_concentration = 2.
+        random_network.assign_random_eigenvectors(scale_parameters=(10., 1/150.), ratio_parameters=(ratio_concentration, 4./(3.*ratio_concentration)), reset=True)
+    
+
+        # data_gen = DataGeneratorContinuous(N, T, random_network, sigma_y = sigma_y, time_weights_parameters = dict(weighting_alpha=0.9, weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='uniform'))
+        data_gen = DataGeneratorRFN(N, T, random_network, sigma_y = 0.02, sigma_x = 0.02, time_weights_parameters = dict(weighting_alpha=0.6, weighting_beta = 1.0, specific_weighting = 0.2, weight_prior='uniform'))
+
         
         stat_meas = StatisticsMeasurer(data_gen)
         
@@ -231,7 +237,7 @@ if __name__ == '__main__':
                 print "Mean squared error, correct covariance: %.5f" % np.mean(np.abs(covariance_fixed_contrib_correct - n_covariances_measured[-1]))
                 print "Mean squared error, wrong covariance: %.5f" % np.mean(np.abs(covariance_fixed_contrib_wrong - n_covariances_measured[-1]))
         
-        stat_meas.compute_plot_information_different_times()
+        # stat_meas.compute_plot_information_different_times()
         
         # stat_meas.plot_moments()
         #     
@@ -305,7 +311,7 @@ if __name__ == '__main__':
         
         plt.imshow(mut_inf, origin='lower', interpolation='nearest')
     
-    if True:
+    if False:
         alpha = 0.7
         beta = 1.
         sigma_y = 0.05

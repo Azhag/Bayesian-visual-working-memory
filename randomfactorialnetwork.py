@@ -37,7 +37,7 @@ class RandomFactorialNetwork():
         self.assign_prefered_stimuli(tiling_type='conjunctive')
         self.assign_random_eigenvectors()
 
-        self.random_network.network_initialised = True
+        self.network_initialised = True
     
     
     def assign_prefered_stimuli(self, tiling_type='conjunctive', specified_neurons=None, reset=False):
@@ -130,7 +130,7 @@ class RandomFactorialNetwork():
         # Sample eigenvectors (only need to sample a rotation matrix)
         # TODO only for R=2 for now, should find a better way.
         # self.neurons_angle[specified_neurons] = np.random.random_integers(0,1, size=specified_neurons.size)*np.pi/2.
-        self.neurons_angle[specified_neurons] = np.pi/6. #np.pi*np.random.random(size=specified_neurons.size)
+        self.neurons_angle[specified_neurons] = np.pi*np.random.random(size=specified_neurons.size)
         
         self.compute_2d_parameters(specified_neurons=specified_neurons)
         
@@ -192,6 +192,7 @@ class RandomFactorialNetwork():
             return: M
         '''
         
+        np.random.randn()
         return self.get_network_response(stimulus_input) + sigma*np.random.randn(self.M)
     
 
@@ -204,6 +205,8 @@ class RandomFactorialNetwork():
         
         nb_samples = stimuli_input.shape[0]
         net_samples = np.zeros((nb_samples, self.M))
+
+
 
         for i in np.arange(nb_samples):
             net_samples[i] = self.sample_network_response(stimuli_input[i], sigma=sigma)
@@ -315,6 +318,83 @@ class RandomFactorialNetwork():
         e.set_transform(ax.transData)        
         
         plt.show()
+    
+    @classmethod
+    def create_full_conjunctive(cls, M, R=2, sigma=0.2, scale_parameters = None, ratio_parameters = None):
+        '''
+            Create a RandomFactorialNetwork instance, using a pure conjunctive code
+        '''
+        if scale_parameters is None or ratio_parameters is None:
+            ratio_concentration = 2.
+            scale_parameters = (10., 1/150.)
+            ratio_parameters = (ratio_concentration, 4./(3.*ratio_concentration))
+        
+        rn = RandomFactorialNetwork(M, R=R, sigma=sigma)
+
+        rn.assign_random_eigenvectors(scale_parameters=scale_parameters, ratio_parameters=ratio_parameters, reset=True)
+        
+        return rn
+
+    @classmethod
+    def create_full_features(cls, M, R=2, sigma=0.2, scale=0.3, ratio=20.):
+        '''
+            Create a RandomFactorialNetwork instance, using a pure conjunctive code
+        '''
+        
+        rn = RandomFactorialNetwork(M, R=R, sigma=sigma)
+
+        rn.assign_prefered_stimuli(tiling_type='2_features', reset=True)
+        rn.assign_aligned_eigenvectors(scale=scale, ratio=ratio, specified_neurons = np.arange(M/2), reset=True)
+        rn.assign_aligned_eigenvectors(scale=scale, ratio=-ratio, specified_neurons = np.arange(M/2, M))
+
+        return rn
+    
+    @classmethod
+    def create_mixed(cls, M, R=2, sigma=0.2, ratio_feature_conjunctive = 0.5, conjunctive_parameters=None, feature_parameters=None):
+        '''
+            Create a RandomFactorialNetwork instance, using a pure conjunctive code
+        '''
+        
+        if conjunctive_parameters is None:
+            ratio_concentration = 2.
+            conj_scale_parameters = (10., 1/150.)
+            conj_ratio_parameters = (ratio_concentration, 4./(3.*ratio_concentration))
+        else:
+            conj_scale_parameters = conjunctive_parameters['scale_parameters']
+            conj_ratio_parameters = conjunctive_parameters['ratio_parameters']
+        
+        if feature_parameters is None:
+            feat_scale = 0.3
+            feat_ratio = 20.0
+        else:
+            feat_scale = feature_parameters['scale']
+            feat_ratio = feature_parameters['ratio']
+        
+        conj_subpop_size = int(M*ratio_feature_conjunctive)
+        feat_subpop_size = M - conj_subpop_size
+
+        print "Population sizes: %d %d" % (conj_subpop_size, feat_subpop_size)
+        
+        rn = RandomFactorialNetwork(M, R=R, sigma=sigma)
+
+        # Create the conjunctive subpopulation
+        rn.assign_prefered_stimuli(tiling_type='conjunctive', reset=True, specified_neurons = np.arange(conj_subpop_size))
+        rn.assign_random_eigenvectors(scale_parameters=conj_scale_parameters, ratio_parameters=conj_ratio_parameters, specified_neurons = np.arange(conj_subpop_size), reset=True)
+
+
+        # Create the feature subpopulation        
+        rn.assign_prefered_stimuli(tiling_type='2_features', specified_neurons = np.arange(conj_subpop_size, M))
+        rn.assign_aligned_eigenvectors(scale=feat_scale, ratio=feat_ratio, specified_neurons = np.arange(conj_subpop_size, int(feat_subpop_size/2.+conj_subpop_size)))
+        rn.assign_aligned_eigenvectors(scale=feat_scale, ratio=-feat_ratio, specified_neurons = np.arange(int(feat_subpop_size/2.+conj_subpop_size), M))
+        
+        return rn
+
+    
+        
+    
+
+    
+
         
         
     
@@ -326,9 +406,9 @@ if __name__ == '__main__':
     M = int(20**R)
     
     rn = RandomFactorialNetwork(M, R=R, sigma=0.1)
-    
+
     # Pure conjunctive code
-    if False:
+    if True:
         ratio_concentration = 2.
         rn.assign_random_eigenvectors(scale_parameters=(10., 1/150.), ratio_parameters=(ratio_concentration, 4./(3.*ratio_concentration)), reset=True)
         rn.plot_coverage_feature_space()
@@ -346,7 +426,7 @@ if __name__ == '__main__':
         rn.plot_mean_activity(specified_neurons=np.arange(M/4))
     
     # Mix of two population
-    if True:
+    if False:
         ratio_concentration= 2.0
         rn.assign_prefered_stimuli(tiling_type='conjunctive', reset=True, specified_neurons = np.arange(M/2))
         rn.assign_random_eigenvectors(scale_parameters=(5., 1/150.), ratio_parameters=(ratio_concentration, 4./(3.*ratio_concentration)), specified_neurons = np.arange(M/2), reset=True)
@@ -359,4 +439,5 @@ if __name__ == '__main__':
         
         rn.plot_mean_activity()
     
+
     

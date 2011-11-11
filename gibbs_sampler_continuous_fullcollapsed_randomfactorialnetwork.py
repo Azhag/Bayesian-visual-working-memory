@@ -19,6 +19,7 @@ import matplotlib.collections as plt_collections
 
 from datagenerator import *
 from randomnetwork import *
+from randomfactorialnetwork import *
 from statisticsmeasurer import *
 from slicesampler import *
 from utils import *
@@ -100,9 +101,9 @@ class Sampler:
         self.theta = np.random.vonmises(theta_gamma, theta_kappa, size=(self.N, self.R))
         
         # Assign the cued ones now
-        #   chosen_orientation: N x T x R
+        #   stimuli_correct: N x T x R
         #   cued_features:      N x (recall_feature, recall_time)
-        self.theta[np.arange(self.N), self.data_gen.cued_features[:,0]] = self.data_gen.chosen_orientations[np.arange(self.N), self.data_gen.cued_features[:,1], self.data_gen.cued_features[:,0]]
+        self.theta[np.arange(self.N), self.data_gen.cued_features[:,0]] = self.data_gen.stimuli_correct[np.arange(self.N), self.data_gen.cued_features[:,1], self.data_gen.cued_features[:,0]]
         
         # Construct the list of uncued features, which should be sampled
         self.theta_to_sample = np.array([[r for r in np.arange(self.R) if r != self.data_gen.cued_features[n,0]] for n in np.arange(self.N)], dtype='int')
@@ -205,6 +206,9 @@ class Sampler:
             
             ASSUMES A_t = A for all t. Same for B.
         '''
+
+        raise NotImplementedError('Sample theta')
+
         # Build loglikelihood function
         def loglike_theta_fct(x, (datapoint, rn, theta_mu, theta_kappa, ATtcB, thetas, sampled_feature_index, mean_fixed_contrib, covariance_fixed_contrib)):
             '''
@@ -264,12 +268,12 @@ class Sampler:
                     if np.sum(sample_h) == 0:
                         print samples
                     plt.bar(x[:-1], sample_h/np.max(sample_h).astype('float'), facecolor='green', alpha=0.75, width=np.diff(x)[0])
-                    plt.axvline(x=self.data_gen.chosen_orientations[n, self.data_gen.cued_features[n, 1], 0], color='r')
+                    plt.axvline(x=self.data_gen.stimuli_correct[n, self.data_gen.cued_features[n, 1], 0], color='r')
                 
                 sampled_orientation = np.median(samples[-100:])
                 
-                errors[n] = self.data_gen.chosen_orientations[n, self.data_gen.cued_features[n, 1], 0] - sampled_orientation
-                print "Correct angle: %.3f, sampled: %.3f" % (self.data_gen.chosen_orientations[n, self.data_gen.cued_features[n, 1], 0], sampled_orientation)
+                errors[n] = self.data_gen.stimuli_correct[n, self.data_gen.cued_features[n, 1], 0] - sampled_orientation
+                print "Correct angle: %.3f, sampled: %.3f" % (self.data_gen.stimuli_correct[n, self.data_gen.cued_features[n, 1], 0], sampled_orientation)
                 
                 # Save the orientation
                 self.theta[n, sampled_feature_index] = sampled_orientation
@@ -315,7 +319,7 @@ class Sampler:
         ll_x -= np.mean(ll_x)
         ll_x /= np.abs(np.max(ll_x))
         plt.plot(x, ll_x)
-        plt.axvline(x=self.data_gen.chosen_orientations[n, self.data_gen.cued_features[n, 1], 0], color='r')
+        plt.axvline(x=self.data_gen.stimuli_correct[n, self.data_gen.cued_features[n, 1], 0], color='r')
         
         if sample:
             samples, llh = self.slicesampler.sample_1D_circular(nb_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct, burn=0, widths=np.pi/3., loglike_fct_params=params, debug=False, step_out=True)
@@ -392,7 +396,7 @@ class Sampler:
             # Indicate the correct solutions
             # green circle: first item
             # blue circle: last item
-            correct_angles = self.data_gen.chosen_orientations[n]
+            correct_angles = self.data_gen.stimuli_correct[n]
             
             w1 = plt_patches.Wedge((correct_angles[0,0],correct_angles[0,1]), 0.25, 0, 360, 0.03, color='green', alpha=0.7)
             w2 = plt_patches.Wedge((correct_angles[1,0],correct_angles[1,1]), 0.25, 0, 360, 0.03, color='blue', alpha=0.7)
@@ -413,7 +417,7 @@ class Sampler:
             '''
             
             like_mean = datapoint - mean_fixed_contrib - \
-                        np.dot(ATtcB, rn.get_network_features_combined(thetas))
+                        np.dot(ATtcB, rn.get_network_response(thetas))
             
             # return theta_kappa*np.cos(thetas[sampled_feature_index] - theta_mu) - 0.5*np.dot(like_mean, np.linalg.solve(covariance_fixed_contrib, like_mean))
             
@@ -442,9 +446,10 @@ class Sampler:
             sampled_feature_index = 0
             params = (self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, ATtcB, sampled_feature_index, mean_fixed_contrib, covariance_fixed_contrib)
             
+            # Compute the loglikelihood for all possible first feature
             for i in np.arange(num_points):
-                # Give the correct cued second angle
-                llh_2angles[t, i] = loglike_theta_fct(np.array([all_angles[i], self.data_gen.chosen_orientations[n, t, 1]]), params)
+                # Give the correct cued second feature
+                llh_2angles[t, i] = loglike_theta_fct(np.array([all_angles[i], self.data_gen.stimuli_correct[n, t, 1]]), params)
         
         llh_2angles = llh_2angles.T
         
@@ -459,16 +464,16 @@ class Sampler:
         # Plot the result
         plt.figure()
         plt.plot(all_angles, llh_2angles)
-        plt.axvline(x=self.data_gen.chosen_orientations[n, 0, 0], color='b')
-        plt.axvline(x=self.data_gen.chosen_orientations[n, 1, 0], color='g')
+        plt.axvline(x=self.data_gen.stimuli_correct[n, 0, 0], color='b')
+        plt.axvline(x=self.data_gen.stimuli_correct[n, 1, 0], color='g')
         
         if sampler.T == 2:
             plt.legend(('First', 'Second'), loc='best')
-            print "True angles: %.3f | %.3f >> Inferred: %.3f | %.3f" % (self.data_gen.chosen_orientations[n, 0, 0], self.data_gen.chosen_orientations[n, 1, 0], all_angles[opt_angles[0]], all_angles[opt_angles[1]])
+            print "True angles: %.3f | %.3f >> Inferred: %.3f | %.3f" % (self.data_gen.stimuli_correct[n, 0, 0], self.data_gen.stimuli_correct[n, 1, 0], all_angles[opt_angles[0]], all_angles[opt_angles[1]])
         elif sampler.T == 3:
-            plt.axvline(x=self.data_gen.chosen_orientations[n, 2, 0], color='r')
+            plt.axvline(x=self.data_gen.stimuli_correct[n, 2, 0], color='r')
             plt.legend(('First', 'Second', 'Third'), loc='best')
-            print "True angles: %.3f | %.3f | %.3f >> Inferred: %.3f | %.3f | %.3f" % (self.data_gen.chosen_orientations[n, 0, 0], self.data_gen.chosen_orientations[n, 1, 0], self.data_gen.chosen_orientations[n, 2, 0], all_angles[opt_angles[0]], all_angles[opt_angles[1]], all_angles[opt_angles[2]])
+            print "True angles: %.3f | %.3f | %.3f >> Inferred: %.3f | %.3f | %.3f" % (self.data_gen.stimuli_correct[n, 0, 0], self.data_gen.stimuli_correct[n, 1, 0], self.data_gen.stimuli_correct[n, 2, 0], all_angles[opt_angles[0]], all_angles[opt_angles[1]], all_angles[opt_angles[2]])
         
         plt.show()
     
@@ -856,17 +861,22 @@ def do_simple_run(args):
     
     # Build the random network
     sigma_y = 0.02
+    sigma_x = 0.05
+    ratio_concentration = 2.
     time_weights_parameters = dict(weighting_alpha=0.8, weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='uniform')
     cued_feature_time = T-1
-    random_network = RandomNetworkFactorialCode.create_instance_uniform(K, D=D, R=R, sigma=0.02)
+
+    # random_network = RandomFactorialNetwork.create_full_conjunctive(M, R=R, sigma=sigma_x)
+    # random_network = RandomFactorialNetwork.create_full_features(M, R=R, sigma=sigma_x)
+    random_network = RandomFactorialNetwork.create_mixed(M, R=R, sigma=sigma_x, ratio_feature_conjunctive=0.2)
     
     # Construct the real dataset
     print "Building the database"
-    data_gen = DataGeneratorContinuous(N, T, random_network, sigma_y = sigma_y, time_weights_parameters = time_weights_parameters, cued_feature_time=cued_feature_time)
+    data_gen = DataGeneratorRFN(N, T, random_network, sigma_y = sigma_y, time_weights_parameters = time_weights_parameters, cued_feature_time=cued_feature_time)
     
     # Measure the noise structure
     print "Measuring noise structure"
-    data_gen_noise = DataGeneratorContinuous(3000, T, random_network, sigma_y = sigma_y, time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time)
+    data_gen_noise = DataGeneratorRFN(3000, T, random_network, sigma_y = sigma_y, time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time)
     stat_meas = StatisticsMeasurer(data_gen_noise)
     # stat_meas = StatisticsMeasurer(data_gen)
     
@@ -1023,7 +1033,7 @@ if __name__ == '__main__':
     parser.add_argument('--T', default=2, help='Number of times')
     parser.add_argument('--K', default=30, help='Number of representated features')  # Warning: Need more data for bigger matrix
     parser.add_argument('--D', default=32, help='Dimensionality of features')
-    parser.add_argument('--M', default=128, help='Dimensionality of data/memory')
+    parser.add_argument('--M', default=200, help='Dimensionality of data/memory')
     parser.add_argument('--R', default=2, help='Number of population codes')
     
     args = parser.parse_args()

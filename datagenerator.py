@@ -14,6 +14,7 @@ import numpy as np
 
 from populationcode import *
 from randomnetwork import *
+from randomfactorialnetwork import *
 
 class DataGenerator:
     def __init__(self, N, T, random_network, sigma_y = 0.05, time_weights=None, time_weights_parameters = {}):
@@ -88,12 +89,13 @@ class DataGenerator:
         N_sqrt = np.sqrt(nb_to_plot).astype(np.int32)
         for i in np.arange(N_sqrt):
             for j in np.arange(N_sqrt):
-                subax = f.add_subplot(N_sqrt, N_sqrt, N_sqrt*i+j)
+                print "Plotting %d" % (N_sqrt*i+j+1)
+                subax = f.add_subplot(N_sqrt, N_sqrt, N_sqrt*i+j+1)
                 subax.plot(np.linspace(0., np.pi, self.random_network.M, endpoint=False), self.Y[N_sqrt*i+j])
                 subax.xaxis.set_major_locator(plttic.NullLocator())
                 subax.yaxis.set_major_locator(plttic.NullLocator())
-        
     
+
     
 
 
@@ -326,7 +328,8 @@ class DataGeneratorRFN(DataGenerator):
         # Build the dataset
         self.build_dataset(cued_feature_time=cued_feature_time)
     
-    def generate_stimuli(self):
+
+    def generate_stimuli(self, nb_stimulus_per_feature=20):
         '''
             Choose N stimuli for this dataset.
             
@@ -337,21 +340,37 @@ class DataGeneratorRFN(DataGenerator):
         # This gives all the true stimuli
         self.stimuli_correct = np.zeros((self.N, self.T, self.R), dtype='float')
         
-        # Sample them randomly, without repetition
-        raise NotImplementedError()
+        ## Sample them randomly, without repetition
         
+        # Get all possible stimuli
+        coverage_1D = np.linspace(-np.pi, np.pi, num=nb_stimulus_per_feature, endpoint=False)
+        all_stim = np.array(cross(self.R*[coverage_1D.tolist()]))
+
+        # Need to get T different objects, N times.
+        # do that slightly strangely:
+        #   - Get N x L random indices, L > T
+        #   - We need N x T different indices, but random_integers can have dupes
+        #   - Just keep the T first indices out of L, taking care of dupes.
+        rnd_stim_ind = np.random.random_integers(0, all_stim.shape[0]-1, size=(self.N,20))
+        
+        for i in np.arange(self.N):
+            # Get indirection index to rnd_stim_ind, giving finally indirection through all_stim
+            [_, rnd_stim_ind_unique] = np.unique(rnd_stim_ind[i,:], return_index= True) 
+            self.stimuli_correct[i]  = all_stim[rnd_stim_ind[i,np.sort(rnd_stim_ind_unique)[:self.T]], :]
+            
+        
+
+
     
 
     def build_dataset(self, cued_feature_time=0):
         '''
             Creates the dataset
-                For each datapoint, choose T possible orientations ('discrete' Z=k),
-                then combine them together, with time decay
+                For each datapoint, use the already sampled stimuli_correct, get the network response,
+                and then combine them together, with time decay
             
             input:
-                [input_stimuli]:    Set of N x T x R values of the stimuli
                 [cued_feature_time: The time of the cue. (Should be random)]
-
 
 
             output:
@@ -370,34 +389,29 @@ class DataGeneratorRFN(DataGenerator):
         self.Y = np.zeros((self.N, self.random_network.M))
         self.all_X = np.zeros((self.N, self.T, self.random_network.M))
         
-        assert self.T <= self.random_network.possible_objects_indices.size, "Unique objects needed"
         
-      # TODO Hack for now, add the time contribution
+        # TODO Hack for now, add the time contribution
         # self.time_contribution = 0.06*np.random.randn(self.T, self.random_network.M)
         
         for i in np.arange(self.N):
             
-            if input_orientations is None:
-                # Choose T random orientations, uniformly
-                self.chosen_orientations[i] = np.random.permutation(self.random_network.possible_objects)[:self.T]
-            
-            # For now, always cued the second code (i.e. color) and retrieve the first code (i.e. orientation)
+            # For now, always cued the second feature (i.e. color) and retrieve the first feature (i.e. orientation)
             self.cued_features[i, 0] = 1
             
             # Randomly recall one of the times
             # self.cued_features[i, 1] = np.random.randint(self.T)
             self.cued_features[i, 1] = cued_feature_time
             
-            # Get the 'x' samples (here from the population code, with correlated covariance, but whatever)
-            x_samples_sum = self.random_network.sample_network_response(self.chosen_orientations[i])
-            
-            # Combine them together
+            # Create the memory
             for t in np.arange(self.T):
-                self.Y[i] = self.time_weights[0, t]*self.Y[i].copy() + self.time_weights[1, t]*x_samples_sum[t] + self.sigma_y*np.random.randn(self.random_network.M)
+                # Get the 'x' sample (here from the population code)
+                x_sample = self.random_network.sample_network_response(self.stimuli_correct[i, t], sigma=self.sigma_x)
+            
+                self.Y[i] = self.time_weights[0, t]*self.Y[i].copy() + self.time_weights[1, t]*x_sample + self.sigma_y*np.random.randn(self.random_network.M)
                 # self.Y[i] /= np.sum(np.abs(self.Y[i]))
                 # self.Y[i] /= fast_1d_norm(self.Y[i])
                 self.all_Y[i, t] = self.Y[i]
-                self.all_X[i, t] = x_samples_sum[t]
+                self.all_X[i, t] = x_sample
             
       
 
@@ -405,7 +419,7 @@ class DataGeneratorRFN(DataGenerator):
 
 if __name__ == '__main__':
     N = 100
-    T = 3
+    T = 2
     K = 25
     M = 200
     D = 50
@@ -413,10 +427,17 @@ if __name__ == '__main__':
     
     # random_network = RandomNetwork.create_instance_uniform(K, M, D=D, R=R, W_type='identity', W_parameters=[0.1, 0.5])
     # random_network = RandomNetworkContinuous.create_instance_uniform(K, M, D=D, R=R, W_type='identity', W_parameters=[0.1, 0.5], sigma=0.1, gamma=0.002, rho=0.002)
-    random_network = RandomNetworkFactorialCode.create_instance_uniform(K, D=D, R=R, sigma=0.02)
-    
+    # random_network = RandomNetworkFactorialCode.create_instance_uniform(K, D=D, R=R, sigma=0.02)
+    random_network = RandomFactorialNetwork(M, R=R, sigma=0.1)
+    ratio_concentration = 2.
+    random_network.assign_random_eigenvectors(scale_parameters=(10., 1/150.), ratio_parameters=(ratio_concentration, 4./(3.*ratio_concentration)), reset=True)
+    random_network.plot_coverage_feature_space()
+        
+
     # data_gen = DataGeneratorDiscrete(N, T, random_network, time_weights_parameters = dict(weighting_alpha=0.8, weighting_beta = 1.0, specific_weighting = 0.2, weight_prior='recency'))
-    data_gen = DataGeneratorContinuous(N, T, random_network, sigma_y = 0.02, time_weights_parameters = dict(weighting_alpha=0.7, weighting_beta = 1.0, specific_weighting = 0.2, weight_prior='uniform'))
+    # data_gen = DataGeneratorContinuous(N, T, random_network, sigma_y = 0.02, time_weights_parameters = dict(weighting_alpha=0.7, weighting_beta = 1.0, specific_weighting = 0.2, weight_prior='uniform'))
+    data_gen = DataGeneratorRFN(N, T, random_network, sigma_y = 0.02, sigma_x = 0.02, time_weights_parameters = dict(weighting_alpha=0.6, weighting_beta = 1.0, specific_weighting = 0.2, weight_prior='uniform'))
+
     
     data_gen.plot_data(16)
     
