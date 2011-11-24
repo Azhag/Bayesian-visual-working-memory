@@ -96,8 +96,6 @@ class DataGenerator:
                 subax.yaxis.set_major_locator(plttic.NullLocator())
     
 
-    
-
 
 class DataGeneratorBinary(DataGenerator):
     '''
@@ -162,8 +160,6 @@ class DataGeneratorBinary(DataGenerator):
                 self.all_Y[i, t] = self.Y[i]
             
         
-    
-
 
 class DataGeneratorDiscrete(DataGenerator):
     '''
@@ -239,7 +235,6 @@ class DataGeneratorDiscrete(DataGenerator):
     
     
 
-
 class DataGeneratorContinuous(DataGenerator):
     
     def __init__(self, N, T, random_network, sigma_y = 0.05, time_weights=None, time_weights_parameters = dict(weighting_alpha=0.3, weighting_beta = 1.0, specific_weighting = 0.3, weight_prior='uniform'), cued_feature_time=0):
@@ -280,7 +275,7 @@ class DataGeneratorContinuous(DataGenerator):
         
         assert self.T <= self.random_network.possible_objects_indices.size, "Unique objects needed"
         
-      # TODO Hack for now, add the time contribution
+        # TODO Hack for now, add the time contribution
         # self.time_contribution = 0.06*np.random.randn(self.T, self.random_network.M)
         
         for i in np.arange(self.N):
@@ -308,11 +303,12 @@ class DataGeneratorContinuous(DataGenerator):
                 self.all_X[i, t] = x_samples_sum[t]
             
         
+
 class DataGeneratorRFN(DataGenerator):
     '''
         DataGenerator for a RandomFactorialNetwork
     '''
-    def __init__(self, N, T, random_network, sigma_y = 0.05, sigma_x = 0.02, time_weights=None, time_weights_parameters = dict(weighting_alpha=0.3, weighting_beta = 1.0, specific_weighting = 0.3, weight_prior='uniform'), cued_feature_time=0):
+    def __init__(self, N, T, random_network, sigma_y = 0.05, sigma_x = 0.02, time_weights=None, time_weights_parameters = dict(weighting_alpha=0.3, weighting_beta = 1.0, specific_weighting = 0.3, weight_prior='uniform'), cued_feature_time=0, nb_stimulus_per_feature=30, enforce_min_distance=-1):
         
         assert isinstance(random_network, RandomFactorialNetwork), "Use a RandomFactorialNetwork with this DataGeneratorRFN"
         
@@ -323,13 +319,13 @@ class DataGeneratorRFN(DataGenerator):
 
         # Build the correct stimuli
         # TODO build a load_stimuli(), etc
-        self.generate_stimuli()
+        self.generate_stimuli(nb_stimulus_per_feature=nb_stimulus_per_feature, enforce_min_distance=enforce_min_distance)
 
         # Build the dataset
         self.build_dataset(cued_feature_time=cued_feature_time)
     
 
-    def generate_stimuli(self, nb_stimulus_per_feature=20):
+    def generate_stimuli(self, nb_stimulus_per_feature=20, enforce_min_distance=-1):
         '''
             Choose N stimuli for this dataset.
             
@@ -337,6 +333,8 @@ class DataGeneratorRFN(DataGenerator):
                 self.stimuli_correct:   N x T x R    
         '''
 
+        self.enforce_min_distance = enforce_min_distance
+        
         # This gives all the true stimuli
         self.stimuli_correct = np.zeros((self.N, self.T, self.R), dtype='float')
         
@@ -344,22 +342,29 @@ class DataGeneratorRFN(DataGenerator):
         
         # Get all possible stimuli
         coverage_1D = np.linspace(-np.pi, np.pi, num=nb_stimulus_per_feature, endpoint=False)
-        all_stim = np.array(cross(self.R*[coverage_1D.tolist()]))
-
-        # Need to get T different objects, N times.
-        # do that slightly strangely:
-        #   - Get N x L random indices, L > T
-        #   - We need N x T different indices, but random_integers can have dupes
-        #   - Just keep the T first indices out of L, taking care of dupes.
-        rnd_stim_ind = np.random.random_integers(0, all_stim.shape[0]-1, size=(self.N,20))
+        # all_stim = np.array(cross(self.R*[coverage_1D.tolist()]))
         
-        for i in np.arange(self.N):
-            # Get indirection index to rnd_stim_ind, giving finally indirection through all_stim
-            [_, rnd_stim_ind_unique] = np.unique(rnd_stim_ind[i,:], return_index= True) 
-            self.stimuli_correct[i]  = all_stim[rnd_stim_ind[i,np.sort(rnd_stim_ind_unique)[:self.T]], :]
-            
+        # # Need to get T different objects, N times.
+        # # do that slightly strangely:
+        # #   - Get N x L random indices, L > T
+        # #   - We need N x T different indices, but random_integers can have dupes
+        # #   - Just keep the T first indices out of L, taking care of dupes.
+        # rnd_stim_ind = np.random.random_integers(0, all_stim.shape[0]-1, size=(self.N,20))
+        # # rnd_stim_ind = np.random.random_integers(all_stim.shape[0]/2, all_stim.shape[0]/2, size=(self.N,20))
         
+        # for i in np.arange(self.N):
+        #     # Get indirection index to rnd_stim_ind, giving finally indirection through all_stim
+        #     [_, rnd_stim_ind_unique] = np.unique(rnd_stim_ind[i,:], return_index= True) 
+        #     self.stimuli_correct[i]  = all_stim[rnd_stim_ind[i,np.sort(rnd_stim_ind_unique)[:self.T]], :]
 
+        ### Do it differently, avoid two possible cued features similar
+        # First sample last feature, then the one before that, etc... Assume here that we cue the 'late' features
+        rnd_ind = np.zeros((self.N, self.T, self.R), dtype='int')
+        for n in np.arange(self.N):
+            for r in np.arange(self.R):
+                rnd_ind[n, :, r] = np.random.permutation(np.arange(nb_stimulus_per_feature))[:self.T]
+        
+        self.stimuli_correct = coverage_1D[rnd_ind]
 
     
 
@@ -377,7 +382,7 @@ class DataGeneratorRFN(DataGenerator):
                 Y :                 N x M
                 all_Y:              N x T x M
                 correct_stimuli:    N x T x R
-                cued_features:      N x 2       (r_c, t_c)
+                cued_features:      N x 2       (feature_cued, time_cued)
         '''
         
         
@@ -412,7 +417,27 @@ class DataGeneratorRFN(DataGenerator):
                 # self.Y[i] /= fast_1d_norm(self.Y[i])
                 self.all_Y[i, t] = self.Y[i]
                 self.all_X[i, t] = x_sample
-            
+
+    
+    def show_datapoint(self, n=0):
+        '''
+            Show a datapoint, as a 2D plot (for now, assumes R==2)
+        '''
+        M = self.random_network.M
+        M_sqrt = np.floor(M**0.5)
+        
+        print M_sqrt
+        print M
+
+        f = plt.figure()
+        ax = f.add_subplot(111)
+        im = ax.imshow(np.reshape(self.Y[n][:M_sqrt*M_sqrt], (M_sqrt, M_sqrt)).T, origin='lower', aspect='equal', interpolation='nearest')
+        im.set_extent((-np.pi, np.pi, -np.pi, np.pi))
+        ax.set_xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
+        ax.set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'))
+        ax.set_yticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
+        ax.set_yticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'))
+
       
 
 
@@ -428,10 +453,12 @@ if __name__ == '__main__':
     # random_network = RandomNetwork.create_instance_uniform(K, M, D=D, R=R, W_type='identity', W_parameters=[0.1, 0.5])
     # random_network = RandomNetworkContinuous.create_instance_uniform(K, M, D=D, R=R, W_type='identity', W_parameters=[0.1, 0.5], sigma=0.1, gamma=0.002, rho=0.002)
     # random_network = RandomNetworkFactorialCode.create_instance_uniform(K, D=D, R=R, sigma=0.02)
-    random_network = RandomFactorialNetwork(M, R=R, sigma=0.1)
-    ratio_concentration = 2.
-    random_network.assign_random_eigenvectors(scale_parameters=(10., 1/150.), ratio_parameters=(ratio_concentration, 4./(3.*ratio_concentration)), reset=True)
-    random_network.plot_coverage_feature_space()
+    # random_network = RandomFactorialNetwork(M, R=R)
+    # ratio_concentration = 2.
+    # random_network.assign_random_eigenvectors(scale_parameters=(10., 1/150.), ratio_parameters=(ratio_concentration, 4./(3.*ratio_concentration)), reset=True)
+    # random_network.plot_coverage_feature_space()
+    
+    random_network = RandomFactorialNetwork.create_full_conjunctive(M, R=R, scale_moments=(0.5, 0.01), ratio_moments=(1.0, 0.05))
         
 
     # data_gen = DataGeneratorDiscrete(N, T, random_network, time_weights_parameters = dict(weighting_alpha=0.8, weighting_beta = 1.0, specific_weighting = 0.2, weight_prior='recency'))
