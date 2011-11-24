@@ -84,7 +84,7 @@ class SliceSampler:
                 
                 # Sample a new point, shrinking the interval
                 while True:
-                    xprime[d] = np.random.rand()*(x_r[d] - x_l[d]) + x_l[d]
+                    xprime[d] = np.random.random_sample()*(x_r[d] - x_l[d]) + x_l[d]
                     last_loglikehood = loglike_fct(xprime, loglike_fct_params)
                     if last_loglikehood > log_uprime:
                         # Accept this sample
@@ -165,7 +165,7 @@ class SliceSampler:
             
             # Sample a new point, shrinking the interval
             while True:
-                xprime = np.random.rand()*(x_r - x_l) + x_l
+                xprime = np.random.random_sample()*(x_r - x_l) + x_l
                 last_loglikehood = loglike_fct(xprime, loglike_fct_params)
                 if last_loglikehood > log_uprime:
                     # Accept this sample
@@ -228,7 +228,7 @@ class SliceSampler:
              # Add a probabilistic jump with Metropolis-Hasting
             if jump and np.random.rand() < jump_probability:
                 # print "Jump!"
-                xprime = np.random.rand()*2.*np.pi - np.pi
+                xprime = np.random.random_sample()*2.*np.pi - np.pi
                 
                 # MH ratio
                 llh_x_prime = loglike_fct(xprime, loglike_fct_params)
@@ -280,7 +280,7 @@ class SliceSampler:
                 
                 # Sample a new point, shrinking the interval
                 while True:
-                    xprime = np.random.rand()*(x_r - x_l) + x_l
+                    xprime = np.random.random_sample()*(x_r - x_l) + x_l
                     
                     last_loglikehood = loglike_fct(xprime, loglike_fct_params)
                     if last_loglikehood > log_uprime:
@@ -301,7 +301,7 @@ class SliceSampler:
                 samples[j] = x_new
                 j += 1
         
-        print "%d, %d" % (tot_accepted, tot_rejected)
+        # print "%d, %d" % (tot_accepted, tot_rejected)
         
         return samples, last_loglikehood
 
