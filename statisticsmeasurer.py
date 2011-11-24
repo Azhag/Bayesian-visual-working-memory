@@ -25,7 +25,7 @@ class StatisticsMeasurer:
         
         self.compute_collapsed_model_parameters()
         
-        print "StatisticMeasurer has measured"
+        # print "StatisticMeasurer has measured"
     
     
     def measure_moments(self):
