@@ -335,7 +335,7 @@ class RandomFactorialNetwork():
 
     ######################## PLOTS ######################################
 
-    def plot_coverage_feature_space(self, nb_stddev=1., specified_neurons=None, alpha_ellipses=0.5, facecolor=None, ax=None):
+    def plot_coverage_feature_space(self, nb_stddev=1., specified_neurons=None, alpha_ellipses=0.5, facecolor='rand', ax=None):
         '''
             Show the features (R=2 only)
         '''
@@ -354,9 +354,9 @@ class RandomFactorialNetwork():
             ax.add_artist(e)
             e.set_clip_box(ax.bbox)
             e.set_alpha(alpha_ellipses)
-            if facecolor is None:
+            if facecolor is 'rand':
                 e.set_facecolor(np.random.rand(3))
-            elif facecolor==False or facecolor == 'none' or facecolor == 'None':
+            elif facecolor is False or facecolor is None or facecolor == 'none' or facecolor == 'None':
                 e.set_facecolor('none')
             else:
                 e.set_facecolor(facecolor)

@@ -843,6 +843,7 @@ class Sampler:
     def compute_angle_error(self, return_errors=False, return_groundtruth=False):
         '''
             Compute the mean angle error for the current assignment of Z
+            output: (mean_std_)
         '''
         
         # Get the target angles
@@ -869,6 +870,7 @@ class Sampler:
     
     def compute_misbinds(self, angles_errors):
         raise NotImplementedError()
+        
     
     def smallest_angle_vectors(self, angles):
         '''
@@ -1015,7 +1017,8 @@ def do_simple_run(args):
     ratio_conj = args.ratio_conj
     
     # Build the random network
-    sigma_y = 0.02
+    # sigma_y = 0.02
+    sigma_y = 0.1
     sigma_x = 0.1
     time_weights_parameters = dict(weighting_alpha=0.9, weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='uniform')
     cued_feature_time = T-1
@@ -1047,9 +1050,8 @@ def do_simple_run(args):
     sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters = stat_meas.model_parameters, tc=cued_feature_time)
     
     print "Inferring optimal angles, for t=%d" % sampler.tc[0]
-
-    # sampler.set_theta_max_likelihood(num_points=500)
-    # sampler.print_comparison_inferred_groundtruth()
+    sampler.set_theta_max_likelihood(num_points=500)
+    sampler.print_comparison_inferred_groundtruth()
     
     if False:
         t = time.time()
