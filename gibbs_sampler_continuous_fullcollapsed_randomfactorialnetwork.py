@@ -12,6 +12,7 @@ import scipy.special as scsp
 from scipy.stats import vonmises as vm
 import scipy.optimize as spopt
 import scipy.interpolate as spint
+import scipy.io as sio
 import time
 import sys
 import os.path
@@ -26,9 +27,10 @@ from statisticsmeasurer import *
 from slicesampler import *
 from utils import *
 
+
 def loglike_theta_fct_vect(thetas, (datapoint, rn, theta_mu, theta_kappa, ATtcB, sampled_feature_index, mean_fixed_contrib, covariance_fixed_contrib)):
     '''
-        Compute the loglikelihood of: theta_r | n_t theta_r'
+        Compute the loglikelihood of: theta_r | n_tc theta_r' tc
     '''
 
     like_mean = datapoint - mean_fixed_contrib - \
@@ -38,9 +40,10 @@ def loglike_theta_fct_vect(thetas, (datapoint, rn, theta_mu, theta_kappa, ATtcB,
     return theta_kappa*np.cos(thetas[sampled_feature_index] - theta_mu) - 0.5*np.dot(like_mean, np.dot(covariance_fixed_contrib, like_mean))
     # return -0.5*np.dot(like_mean, np.dot(covariance_fixed_contrib, like_mean))
 
+
 def loglike_theta_fct_single(new_theta, (thetas, datapoint, rn, theta_mu, theta_kappa, ATtcB, sampled_feature_index, mean_fixed_contrib, covariance_fixed_contrib)):
     '''
-        Compute the loglikelihood of: theta_r | n_t theta_r'
+        Compute the loglikelihood of: theta_r | n_tc theta_r' tc
     '''
     # Put the new proposed point correctly
     thetas[sampled_feature_index] = new_theta
@@ -135,10 +138,10 @@ class Sampler:
         # Assign the cued ones now
         #   stimuli_correct: N x T x R
         #   cued_features:      N x (recall_feature, recall_time)
-        self.theta[np.arange(self.N), self.data_gen.cued_features[:,0]] = self.data_gen.stimuli_correct[np.arange(self.N), self.data_gen.cued_features[:,1], self.data_gen.cued_features[:,0]]
+        self.theta[np.arange(self.N), self.data_gen.cued_features[:, 0]] = self.data_gen.stimuli_correct[np.arange(self.N), self.data_gen.cued_features[:, 1], self.data_gen.cued_features[:, 0]]
         
         # Construct the list of uncued features, which should be sampled
-        self.theta_to_sample = np.array([[r for r in np.arange(self.R) if r != self.data_gen.cued_features[n,0]] for n in np.arange(self.N)], dtype='int')
+        self.theta_to_sample = np.array([[r for r in np.arange(self.R) if r != self.data_gen.cued_features[n, 0]] for n in np.arange(self.N)], dtype='int')
         
         if self.R == 2:
             # Just for convenience (in compute_angle_error), flatten the theta_to_sample
@@ -260,7 +263,7 @@ class Sampler:
         prob = np.exp(log_prob+b)/np.sum(np.exp(log_prob+b))
         cum_prob = np.cumsum(prob)
         
-        return np.where(np.random.rand() < cum_prob)[0][0] # Slightly faster than np.find
+        return np.where(np.random.rand() < cum_prob)[0][0]  # Slightly faster than np.find
     
     
     
@@ -278,7 +281,7 @@ class Sampler:
         
     
     
-    def sample_theta(self, num_samples=500, return_samples=False):
+    def sample_theta(self, num_samples=500, return_samples=False, burn_samples=100, integrate_tc_out = True, selection_method='median', selection_num_samples=10, debug=True):
         '''
             Sample the thetas
             Need to use a slice sampler, as we do not know the normalization constant.
@@ -287,7 +290,8 @@ class Sampler:
         '''
         
         # Iterate over whole datapoints
-        permuted_datapoints = np.random.permutation(np.arange(self.N))
+        # permuted_datapoints = np.random.permutation(np.arange(self.N))
+        permuted_datapoints = np.arange(self.N)
         # permuted_datapoints = np.arange(1)
         
         errors = np.zeros(permuted_datapoints.shape, dtype=float)
@@ -305,48 +309,63 @@ class Sampler:
             permuted_features = np.random.permutation(self.theta_to_sample[n, np.newaxis])
             
             for sampled_feature_index in permuted_features:
-                print "%d, %d" % (n, sampled_feature_index)
+                if debug:
+                    print "%d, %d" % (n, sampled_feature_index)
                 
-                # Pack the parameters for the likelihood function.
-                #   Here, as the loglike_function only varies one of the input, need to give the rest of the theta vector.
-                params = (curr_theta, self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[self.tc[n]], sampled_feature_index, self.mean_fixed_contrib[self.tc[n]], self.covariance_fixed_contrib)
+                # Get samples from the current distribution
+                if integrate_tc_out:
+                    samples = self.get_samples_theta_tc_integratedout(n, num_samples=num_samples, sampled_feature_index=sampled_feature_index, burn_samples=burn_samples)
+                else:
+                    (samples, _) = self.get_samples_theta_current_tc(n, num_samples=num_samples, sampled_feature_index=sampled_feature_index, burn_samples=burn_samples)
                 
-                # Sample the new theta
-                # samples, llh = self.slicesampler.sample_1D_circular(1000, self.theta[n, sampled_feature_index], loglike_theta_fct, burn=500, widths=np.pi/3.0, loglike_fct_params=params, thinning=2, debug=True, step_out=True)
-                samples, llh = self.slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=200, widths=np.pi/5., loglike_fct_params=params, debug=False, step_out=True)
-                # samples, llh = self.slicesampler.sample_1D_circular(1, self.theta[n, sampled_feature_index], loglike_theta_fct, burn=100, widths=np.pi/3., loglike_fct_params=params, debug=False, step_out=True)
-                
-                # Plot some stuff
-                if False:
-                    x = np.linspace(-np.pi, np.pi, 1000)
-                    plt.figure()
-                    ll_x = np.array([(loglike_theta_fct_single(a, params)) for a in x])
-                    if should_exponentiate:
-                        ll_x = np.exp(ll_x)
-                    ll_x -= np.mean(ll_x)
-                    ll_x /= np.abs(np.max(ll_x))
-                    plt.plot(x, ll_x)
-                    plt.axvline(x=self.data_gen.stimuli_correct[n, self.data_gen.cued_features[n, 1], sampled_feature_index], color='r')
-                    
-                    sample_h, left_x = np.histogram(samples, bins=x)
-                    plt.bar(x[:-1], sample_h/np.max(sample_h).astype('float'), facecolor='green', alpha=0.75, width=np.diff(x)[0])
-                    
-                # Select the new orientation
-                sampled_orientation = np.median(samples[-100:])
-                
+
                 # Keep all samples if desired
                 if return_samples:
                     all_samples[n] = samples
                 
+                # Select the new orientation
+                if selection_method == 'median':
+                    sampled_orientation = np.median(samples[-selection_num_samples:], overwrite_input=True)
+                elif selection_method == 'last':
+                    sampled_orientation = samples[-1]
+                
                 # Save the orientation
-                self.theta[n, sampled_feature_index] = sampled_orientation
+                self.theta[n, sampled_feature_index] = wrap_angles(sampled_orientation)
+                
+                # # Plot some stuff
+                # if False:
+                #     x = np.linspace(-np.pi, np.pi, 1000)
+                #     plt.figure()
+                #     ll_x = np.array([(loglike_theta_fct_single(a, params)) for a in x])
+                #     if should_exponentiate:
+                #         ll_x = np.exp(ll_x)
+                #     ll_x -= np.mean(ll_x)
+                #     ll_x /= np.abs(np.max(ll_x))
+                #     plt.plot(x, ll_x)
+                #     plt.axvline(x=self.data_gen.stimuli_correct[n, self.data_gen.cued_features[n, 1], sampled_feature_index], color='r')
+                    
+                #     sample_h, left_x = np.histogram(samples, bins=x)
+                #     plt.bar(x[:-1], sample_h/np.max(sample_h).astype('float'), facecolor='green', alpha=0.75, width=np.diff(x)[0])
             
         
         if return_samples:
             return all_samples
     
+    def get_samples_theta_current_tc(self, n, num_samples=2000, sampled_feature_index=0, burn_samples=100):
 
-    def sample_theta_tc_integratedout(self, n, num_samples=2000, sampled_feature_index=0):
+        # Pack the parameters for the likelihood function.
+        #   Here, as the loglike_function only varies one of the input, need to give the rest of the theta vector.
+        params = (self.theta[n], self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[self.tc[n]], sampled_feature_index, self.mean_fixed_contrib[self.tc[n]], self.covariance_fixed_contrib)
+                
+        # Sample the new theta
+        samples, llh = self.slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=np.pi/5., loglike_fct_params=params, debug=False, step_out=True)
+        # samples, llh = self.slicesampler.sample_1D_circular(1, self.theta[n, sampled_feature_index], loglike_theta_fct, burn=100, widths=np.pi/3., thinning=2, loglike_fct_params=params, debug=False, step_out=True)
+
+        return (samples, llh)
+                
+
+
+    def get_samples_theta_tc_integratedout(self, n, num_samples=2000, sampled_feature_index=0, burn_samples=100):
         '''
             Sample theta, with tc integrated out.
             Use rejection sampling (or something), discarding some samples.
@@ -358,7 +377,8 @@ class Sampler:
         for tc in np.arange(self.T):
             params = (self.theta[n], self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[tc], sampled_feature_index, self.mean_fixed_contrib[tc], self.covariance_fixed_contrib)
             
-            samples, _ = self.slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=500, widths=np.pi/4., loglike_fct_params=params, debug=False, step_out=True)
+            # TODO> Should be starting from the previous sample here.
+            samples, _ = self.slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=np.pi/4., loglike_fct_params=params, debug=False, step_out=True)
 
             # Now keep only some of them, following p(tc)
             #   for now, p(tc) = 1/T
@@ -391,13 +411,14 @@ class Sampler:
             
             # opt_angles[n] = spopt.fminbound(loglike_theta_fct_single_min, -np.pi, np.pi, params, disp=3)
             # opt_angles[n] = spopt.brent(loglike_theta_fct_single_min, params)
-            # opt_angles[n] = self.smallest_angle_vectors(np.array([np.mod(spopt.anneal(loglike_theta_fct_single_min, np.random.random_sample()*np.pi*2. - np.pi, args=params)[0], 2.*np.pi)]))
+            # opt_angles[n] = wrap_angles(np.array([np.mod(spopt.anneal(loglike_theta_fct_single_min, np.random.random_sample()*np.pi*2. - np.pi, args=params)[0], 2.*np.pi)]))
             
             if post_optimise:
                 self.theta[n, sampled_feature_index] = spopt.fmin(loglike_theta_fct_single_min, all_angles[np.argmax(llh)], args=params, disp=False)[0]
             else:
                 self.theta[n, sampled_feature_index] = all_angles[np.argmax(llh)]
     
+
     def set_theta_max_likelihood_tc_integratedout(self, num_points=100, post_optimise=True, sampled_feature_index=0):
         '''
             Update theta to their Max Likelihood values.
@@ -423,7 +444,7 @@ class Sampler:
                 
                 # opt_angles[n] = spopt.fminbound(loglike_theta_fct_single_min, -np.pi, np.pi, params, disp=3)
                 # opt_angles[n] = spopt.brent(loglike_theta_fct_single_min, params)
-                # opt_angles[n] = self.smallest_angle_vectors(np.array([np.mod(spopt.anneal(loglike_theta_fct_single_min, np.random.random_sample()*np.pi*2. - np.pi, args=params)[0], 2.*np.pi)]))
+                # opt_angles[n] = wrap_angles(np.array([np.mod(spopt.anneal(loglike_theta_fct_single_min, np.random.random_sample()*np.pi*2. - np.pi, args=params)[0], 2.*np.pi)]))
                 
                 if post_optimise:
                     # Use a simple simplex method to converge closer to the solution and avoid aliasing effects.
@@ -442,10 +463,10 @@ class Sampler:
         '''
 
         # The time of the cued feature
-        self.data_gen.cued_features[:,1] = t_cued
+        self.data_gen.cued_features[:, 1]= t_cued
 
         # Reset the cued theta
-        self.theta[np.arange(self.N), self.data_gen.cued_features[:,0]] = self.data_gen.stimuli_correct[np.arange(self.N), self.data_gen.cued_features[:,1], self.data_gen.cued_features[:,0]]
+        self.theta[np.arange(self.N), self.data_gen.cued_features[:, 0]] = self.data_gen.stimuli_correct[np.arange(self.N), self.data_gen.cued_features[:, 1], self.data_gen.cued_features[:, 0]]
         
     
     def sample_tc(self):
@@ -475,11 +496,11 @@ class Sampler:
         #                 for r in permuted_population:
         #                     
         #                     # Update the counts
-        #                     self.Akr[self.Z[n,t,r], r] -= 1
+        #                     self.Akr[self.Z[n, t, r], r] -= 1
         #                     
         #                     for k in np.arange(self.K):
         #                         # Get the prior prob of z_n_t_k
-        #                         self.lprob_zntrk[k] = np.log(self.dir_alpha + self.Akr[k,r]) - np.log(self.K*self.dir_alpha + self.N - 1.)
+        #                         self.lprob_zntrk[k] = np.log(self.dir_alpha + self.Akr[k, r]) - np.log(self.K*self.dir_alpha + self.N - 1.)
         #                         
         #                         # Get the likelihood of ynt using z_n_t = k
         #                         self.Z[n, t, r] = k
@@ -487,7 +508,7 @@ class Sampler:
         #                         
         #                         self.lprob_zntrk[k] += lik_ynt
         #                         
-        #                         # print "%d,%d,%d,%d, lik_ynt: %.3f" % (n,t,r,k, lik_ynt)
+        #                         # print "%d,%d,%d,%d, lik_ynt: %.3f" % (n, t, r, k, lik_ynt)
         #                     
         #                     
         #                     # Get the new sample
@@ -496,10 +517,9 @@ class Sampler:
         #                     # Increment the counts
         #                     self.Akr[new_zntr, r] += 1
         #                     
-        #                     self.Z[n,t, r] = new_zntr
+        #                     self.Z[n, t, r] = new_zntr
         pass
                 
-    
     
     def compute_loglikelihood_ynt(self, n, t):
         '''
@@ -508,9 +528,9 @@ class Sampler:
 
         raise NotImplementedError()
         
-        features_combined = self.random_network.get_network_response(self.Z[n,t])
+        features_combined = self.random_network.get_network_response(self.Z[n, t])
         
-        ynt_proj = self.Y[n,t] - self.time_weights[1, t]*features_combined
+        ynt_proj = self.Y[n, t] - self.time_weights[1, t]*features_combined
         if t>0:
             ynt_proj -= self.time_weights[0, t]*self.Y[n, t-1]
             
@@ -555,7 +575,7 @@ class Sampler:
         
         Ytminus = np.zeros_like(self.Y)
         Ytminus[:, 1:, :] = self.Y[:, :-1, :]
-        Y_proj = self.Y.transpose(0,2,1) - (features_combined.transpose(0,2,1)*self.time_weights[1]) - (Ytminus.transpose(0,2,1)*self.time_weights[0])
+        Y_proj = self.Y.transpose(0, 2, 1) - (features_combined.transpose(0, 2, 1)*self.time_weights[1]) - (Ytminus.transpose(0, 2, 1)*self.time_weights[0])
         
         l = -0.5*self.N*self.M*self.T*np.log(2.*np.pi*self.sigma2y)
         l -= 0.5/self.sigma2y*np.tensordot(Y_proj, Y_proj, axes=3)
@@ -580,7 +600,7 @@ class Sampler:
 
     ######################
 
-    def plot_likelihood(self, n=0, t=0, amplify_diag = 1.0, should_sample=False, num_samples=2000,return_output=False, should_exponentiate = False, num_points=1000, sampled_feature_index = 0):
+    def plot_likelihood(self, n=0, t=0, amplify_diag = 1.0, should_sample=False, num_samples=2000, return_output=False, should_exponentiate = False, num_points=1000, sampled_feature_index = 0):
         
 
         # Pack the parameters for the likelihood function.
@@ -612,7 +632,7 @@ class Sampler:
                 return (ll_x, x)
     
     
-    def plot_likelihood_variation_twoangles(self, num_points=100, amplify_diag=1.0, should_plot=True, should_return=False, n=0, t=0, sampled_feature_index = 0):
+    def plot_likelihood_variation_twoangles(self, num_points=100, amplify_diag=1.0, should_plot=True, should_return=False, should_exponentiate = False, n=0, t=0, sampled_feature_index = 0):
         '''
             Compute the likelihood, varying two angles around.
             Plot the result
@@ -631,6 +651,9 @@ class Sampler:
             for j in np.arange(num_points):
                 llh_2angles[i, j] = loglike_theta_fct_vect(np.array([all_angles[i], all_angles[j]]), params)
         
+        if should_exponentiate:
+            llh_2angles = np.exp(llh_2angles)
+        
         if should_plot:
             # Plot the obtained landscape
             f = plt.figure()
@@ -639,13 +662,17 @@ class Sampler:
             im.set_extent((-np.pi, np.pi, -np.pi, np.pi))
             im.set_interpolation('nearest')
             f.colorbar(im)
+            ax.set_xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
+            ax.set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=15)
+            ax.set_yticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
+            ax.set_yticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=15)
             
             # Callback function when moving mouse around figure.
             def report_pixel(x, y): 
                 # Extract loglik at that position
                 x_i = (np.abs(all_angles-x)).argmin()
                 y_i = (np.abs(all_angles-y)).argmin()
-                v = llh_2angles[x_i,y_i] 
+                v = llh_2angles[x_i, y_i] 
                 return "x=%f y=%f value=%f" % (x, y, v) 
             
             ax.format_coord = report_pixel 
@@ -654,13 +681,13 @@ class Sampler:
             correct_angles = self.data_gen.stimuli_correct[n]
             
             colmap = plt.get_cmap('gist_rainbow')
-            color_gen = [colmap(1.*i/self.T) for i in range(self.T)] # use 22 colors
+            color_gen = [colmap(1.*(i)/self.T) for i in range(self.T)]  # use 22 colors
 
             for t in np.arange(self.T):
-                w = plt_patches.Wedge((correct_angles[t,0],correct_angles[t,1]), 0.25, 0, 360, 0.03, color=color_gen[t], alpha=0.7)
+                w = plt_patches.Wedge((correct_angles[t, 0], correct_angles[t, 1]), 0.25, 0, 360, 0.03, color=color_gen[t], alpha=0.7)
                 ax.add_patch(w)
 
-            # plt.annotate('O', (correct_angles[1,0],correct_angles[1,1]), color='blue', fontweight='bold', fontsize=30, horizontalalignment='center', verticalalignment='center')
+            # plt.annotate('O', (correct_angles[1, 0], correct_angles[1, 1]), color='blue', fontweight='bold', fontsize=30, horizontalalignment='center', verticalalignment='center')
         
         
         if should_return:
@@ -717,7 +744,7 @@ class Sampler:
             ax.legend(lines, legends, loc='upper center', bbox_to_anchor=(0.5, 1.1), ncol=self.T, fancybox=True, shadow=True)
 
             # Put a vertical line at the true answer
-            ax.axvline(x=self.data_gen.stimuli_correct[n, t, 0], color=lines[t].get_c()) # ax[t] returns the plotted line
+            ax.axvline(x=self.data_gen.stimuli_correct[n, t, 0], color=lines[t].get_c())  # ax[t] returns the plotted line
 
         # Print the answers
         print "True angles: %s >> Inferred: %s" % (' | '.join(['%.3f' % x for x in self.data_gen.stimuli_correct[n, :, 0]]),  ' | '.join(['%.3f' % x for x in all_angles[opt_angles]]))
@@ -757,13 +784,13 @@ class Sampler:
             
         # Sample if desired.
         if should_sample:
-            posterior_samples = self.sample_theta_tc_integratedout(n)
+            posterior_samples = self.get_samples_theta_tc_integratedout(n)
 
         if should_plot:
             plt.figure()
             
             # Center and 'normalize'
-            ll_x -= np.mean(ll_x, axis=1)[:,np.newaxis]
+            ll_x -= np.mean(ll_x, axis=1)[:, np.newaxis]
             ll_x /= np.abs(np.max(ll_x, axis=1))[:, np.newaxis]
 
             # Plot
@@ -784,7 +811,6 @@ class Sampler:
                 return (ll_x, x)
     
     
-        
     #################
     
     def run(self, iterations=10, verbose=True):
@@ -847,13 +873,13 @@ class Sampler:
         '''
         
         # Get the target angles
-        true_angles = self.data_gen.stimuli_correct[np.arange(self.N), self.data_gen.cued_features[:,1], self.theta_to_sample]
+        true_angles = self.data_gen.stimuli_correct[np.arange(self.N), self.data_gen.cued_features[:, 1], self.theta_to_sample]
 
         # Compute the angle difference error between predicted and ground truth
-        angle_errors = true_angles - self.theta[np.arange(self.N),self.theta_to_sample]
+        angle_errors = true_angles - self.theta[np.arange(self.N), self.theta_to_sample]
         
         # Correct for obtuse angles
-        angle_errors = self.smallest_angle_vectors(angle_errors)
+        angle_errors = wrap_angles(angle_errors)
         
         # Compute the statistics. Uses the spherical formulation of standard deviation
         if return_errors:
@@ -870,18 +896,6 @@ class Sampler:
     
     def compute_misbinds(self, angles_errors):
         raise NotImplementedError()
-        
-    
-    def smallest_angle_vectors(self, angles):
-        '''
-            Get the smallest angle between the two responses
-        '''
-
-        while np.any(angles < -np.pi):
-            angles[angles < -np.pi] += 2.*np.pi
-        while np.any(angles > np.pi):
-            angles[angles > np.pi] -= 2.*np.pi
-        return angles
     
     
     def compute_mean_std_circular_data(self, angles):
@@ -913,7 +927,7 @@ class Sampler:
         return 1./self.compute_angle_error()[1]
     
 
-    def print_comparison_inferred_groundtruth(self):
+    def print_comparison_inferred_groundtruth(self, show_nontargets=True):
         '''
             Print the list of all inferred angles vs true angles, and some stats
         '''
@@ -922,13 +936,89 @@ class Sampler:
         (stats, angle_errors, groundtruth) = self.compute_angle_error(return_groundtruth=True, return_errors=True)
 
         print "======================================="
-        print "Groundtruth \t Inferred \t Error"
-        for i in np.arange(self.N):
-            print "% 4.3f \t\t % 4.3f \t % 4.3f" % (self.theta[i,0], groundtruth[i], angle_errors[i])
+
+        if show_nontargets:
+
+            # Get the non-target/distractor angles.
+            nontargets = self.data_gen.stimuli_correct[np.arange(self.N), self.data_gen.nontargets_indices.T, self.theta_to_sample].T
+
+            print "Target " + ''.join(["\t NT %d " % x for x in (np.arange(nontargets.shape[1])+1)]) + "\t Inferred \t Error"
+
+            for i in np.arange(self.N):
+                print "% 4.3f" % (groundtruth[i]) + ''.join(["\t\t% 4.3f" % x for x in nontargets[i]]) + "\t\t % 4.3f \t % 4.3f" % (self.theta[i, 0], angle_errors[i])
+        else:
+            print "Target \t Inferred \t Error"
+            for i in np.arange(self.N):
+                print "% 4.3f \t\t % 4.3f \t % 4.3f" % (self.theta[i, 0], groundtruth[i], angle_errors[i])           
+
         print "======================================="
         print "  Precision:\t %.3f" % (1./stats[1])
         print "======================================="
+    
 
+    def plot_histogram_errors(self, bins=20, in_degrees=False, norm='max'):
+        '''
+            Compute the errors and plot a histogram.
+
+            Should see a Gaussian + background.
+        '''
+
+        (precision, errors) = self.compute_angle_error(return_errors=True)
+
+
+        if in_degrees:
+            bound_x = 180.
+            errors *= 180./np.pi
+        else:
+            bound_x = np.pi
+        
+        x = np.linspace(-bound_x, bound_x, bins)
+        x_edges = x - bound_x/bins  # np.histogram wants the left-right boundaries...
+        x_edges = np.r_[x_edges, -x_edges[0]]  # the rightmost boundary is the mirror of the leftmost one
+        
+        sample_h, left_x = np.histogram(errors, bins=x_edges)
+        
+        if norm == 'max':
+            sample_h = sample_h/np.max(sample_h).astype('float')
+        elif norm == 'sum':
+            sample_h = sample_h/np.sum(sample_h).astype('float')
+        
+        plt.rcParams['font.size'] = 17
+
+        plt.figure()
+        plt.bar(x, sample_h, facecolor='blue', alpha=0.75, width=2.*bound_x/(bins-1), align='center')
+        # plt.hist(errors, bins=bins)
+        # plt.xlim((-1.1*bound_x, 1.1*bound_x))
+        plt.xticks((-180, -90, 0, 90, 180))
+        plt.axis('tight')
+        plt.show()
+    
+    def collect_responses(self):
+        '''
+            Gather and return the responses, target angles and non-target angles
+
+            return (responses, target, nontargets)
+        '''
+        # Current inferred responses
+        responses = self.theta[np.arange(self.N), self.theta_to_sample]
+        # Target angles. Funny indexing, maybe not the best place for t_r
+        target    =  self.data_gen.stimuli_correct[np.arange(self.N), self.data_gen.cued_features[:, 1], self.theta_to_sample]
+        # Non-target angles
+        nontargets = self.data_gen.stimuli_correct[np.arange(self.N), self.data_gen.nontargets_indices.T, self.theta_to_sample].T
+
+        return (responses, target, nontargets)
+    
+
+    def save_responses_tomatlab(self, filename='output_angles_formatlab'):
+        '''
+            Save the responses, target and nontarget angles, to be fitted with P. Bays' model in Matlab.
+        '''
+
+        (responses, target, nontargets) = self.collect_responses()
+
+        # Save to .mat
+        sio.savemat(filename, {'response': responses, 'target': target, 'nontargets': nontargets}, appendmat=True)
+    
     
 
 ####################################
@@ -1015,24 +1105,29 @@ def do_simple_run(args):
     rc_scale = args.rc_scale
     rc_scale2 = args.rc_scale2
     ratio_conj = args.ratio_conj
-    
+    sigma_x = args.sigmax
+    sigma_y = args.sigmay
+
+
     # Build the random network
     # sigma_y = 0.02
-    sigma_y = 0.1
-    sigma_x = 0.1
-    time_weights_parameters = dict(weighting_alpha=0.9, weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='uniform')
+    # sigma_y = 0.2
+    # sigma_x = 0.1
+    time_weights_parameters = dict(weighting_alpha=weighting_alpha, weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='uniform')
     cued_feature_time = T-1
 
     # 'conj', 'feat', 'mixed'
     if code_type == 'conj':
         random_network = RandomFactorialNetwork.create_full_conjunctive(M, R=R, scale_moments=(rc_scale, 0.0001), ratio_moments=(1.0, 0.0001))
     elif code_type == 'feat':
-        random_network = RandomFactorialNetwork.create_full_features(M, R=R, scale=rc_scale, ratio=30.)
+        random_network = RandomFactorialNetwork.create_full_features(M, R=R, scale=rc_scale, ratio=40.)
     elif code_type == 'mixed':
         conj_params = dict(scale_moments=(rc_scale, 0.001), ratio_moments=(1.0, 0.0001))
         feat_params = dict(scale=rc_scale2, ratio=40.)
 
         random_network = RandomFactorialNetwork.create_mixed(M, R=R, ratio_feature_conjunctive=ratio_conj, conjunctive_parameters=conj_params, feature_parameters=feat_params)
+    elif code_type == 'wavelet':
+        random_network = RandomFactorialNetwork.create_wavelet(M, R=R, scales_number=5)
     else:
         raise ValueError('Code_type is wrong!')
     
@@ -1050,9 +1145,10 @@ def do_simple_run(args):
     sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters = stat_meas.model_parameters, tc=cued_feature_time)
     
     print "Inferring optimal angles, for t=%d" % sampler.tc[0]
-    sampler.set_theta_max_likelihood(num_points=500)
-    sampler.print_comparison_inferred_groundtruth()
+    # sampler.set_theta_max_likelihood(num_points=500, post_optimise=True)
+    # sampler.print_comparison_inferred_groundtruth()
     
+
     if False:
         t = time.time()
         
@@ -1077,7 +1173,7 @@ def do_simple_run(args):
             plt.show()
         precisions = 1./stats_original[1] - precision_guessing
         
-        mean_last_precision = np.mean(precisions[:,-1])
+        mean_last_precision = np.mean(precisions[:, -1])
         avg_precision = np.mean(precisions)
         
         plt.show()
@@ -1114,7 +1210,7 @@ def do_neuron_number_precision(args):
     # Build the random network
     sigma_y = 0.02
     sigma_x = 0.2
-    time_weights_parameters = dict(weighting_alpha=0.8, weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='uniform')
+    time_weights_parameters = dict(weighting_alpha=weighting_alpha, weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='uniform')  # alpha 0.8
     cued_feature_time = T-1
 
     print "Doing do_neuron_number_precision"
@@ -1143,7 +1239,7 @@ def do_neuron_number_precision(args):
             data_gen = DataGeneratorRFN(N, T, random_network, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters = time_weights_parameters, cued_feature_time=cued_feature_time)
             
             # Measure the noise structure
-            data_gen_noise = DataGeneratorRFN(3000, T, random_network, sigma_y = sigma_y, sigma_x=sigma_x,time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time)
+            data_gen_noise = DataGeneratorRFN(3000, T, random_network, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time)
             stat_meas = StatisticsMeasurer(data_gen_noise)
             # stat_meas = StatisticsMeasurer(data_gen)
             
@@ -1159,12 +1255,12 @@ def do_neuron_number_precision(args):
             print "-> %.5f" % all_precisions[param1_i, repet_i]
         
         # Save to disk, unique filename
-        np.save(output_string, {'all_precisions': all_precisions, 'param1_space':param1_space, 'args':args, 'num_repetitions':num_repetitions, 'fitted_scale_space':fitted_scale_space})
+        np.save(output_string, {'all_precisions': all_precisions, 'param1_space': param1_space, 'args': args, 'num_repetitions': num_repetitions, 'fitted_scale_space': fitted_scale_space})
             
     # Plot
     f = plt.figure()
     ax = f.add_subplot(111)
-    plot_mean_std_area(param1_space, np.mean(1./all_precisions,1), np.std(1./all_precisions,1), ax_handle=ax)
+    plot_mean_std_area(param1_space, np.mean(1./all_precisions, 1), np.std(1./all_precisions, 1), ax_handle=ax)
     ax.set_xlabel('Number of neurons in population')
     ax.set_ylabel('Precision [rad]')
     
@@ -1173,6 +1269,7 @@ def do_neuron_number_precision(args):
     print "Done: %s" % output_string
 
     return locals()
+
 
 def plot_neuron_number_precision(args):
     '''
@@ -1195,10 +1292,10 @@ def plot_neuron_number_precision(args):
     f = plt.figure()
     ax = f.add_subplot(111)
     if np.any(np.std(all_precisions, 1) == 0.0):
-        plot_mean_std_area(param1_space, np.mean(all_precisions,1), np.std(all_precisions,1), ax_handle=ax)
+        plot_mean_std_area(param1_space, np.mean(all_precisions, 1), np.std(all_precisions, 1), ax_handle=ax)
         ax.set_ylabel('Std dev [rad]')
     else:
-        plot_mean_std_area(param1_space, np.mean(1./all_precisions,1), np.std(1./all_precisions,1), ax_handle=ax)
+        plot_mean_std_area(param1_space, np.mean(1./all_precisions, 1), np.std(1./all_precisions, 1), ax_handle=ax)
         ax.set_ylabel('Precision [rad]^-1')
     ax.set_xlabel('Number of neurons in population')
     
@@ -1210,9 +1307,10 @@ def plot_neuron_number_precision(args):
     # all_precisions1 = all_vars['all_precisions']
     # all_precisions2 = all_vars['all_precisions']
     #
-    # ax = semilogy_mean_std_area(param1_space1, np.mean(all_precisions1,1), np.std(all_precisions1,1))
-    # ax = semilogy_mean_std_area(param1_space1, np.mean(all_precisions2,1), np.std(all_precisions2,1), ax_handle=ax)
+    # ax = semilogy_mean_std_area(param1_space1, np.mean(all_precisions1, 1), np.std(all_precisions1, 1))
+    # ax = semilogy_mean_std_area(param1_space1, np.mean(all_precisions2, 1), np.std(all_precisions2, 1), ax_handle=ax)
     # legend(['Features', 'Conjunctive'])
+
 
 def plot_multiple_neuron_number_precision(args):
     input_filenames = ['Data/Used/feat_new_neuron_number_precision-5067b28c-0fd1-4586-a1be-1a5ab0a820f4.npy', 'Data/Used/conj_good_neuron_number_precision-4da143e7-bbd4-432d-8603-195348dd7afa.npy']
@@ -1257,7 +1355,7 @@ def do_size_receptive_field(args):
     # Build the random network
     sigma_y = 0.02
     sigma_x = 0.2
-    time_weights_parameters = dict(weighting_alpha=0.5, weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='uniform')
+    time_weights_parameters = dict(weighting_alpha=weighting_alpha, weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='uniform')  # alpha 0.5
     cued_feature_time = T-1
 
     print "Doing do_size_receptive_field"
@@ -1275,10 +1373,10 @@ def do_size_receptive_field(args):
             # random_network = RandomFactorialNetwork.create_mixed(M_space[param1_i], R=R, ratio_feature_conjunctive=0.2)
             
             # Construct the real dataset
-            data_gen = DataGeneratorRFN(N, T, random_network, sigma_y = sigma_y, sigma_x=sigma_x,time_weights_parameters = time_weights_parameters, cued_feature_time=cued_feature_time)
+            data_gen = DataGeneratorRFN(N, T, random_network, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters = time_weights_parameters, cued_feature_time=cued_feature_time)
             
             # Measure the noise structure
-            data_gen_noise = DataGeneratorRFN(3000, T, random_network, sigma_y = sigma_y, sigma_x=sigma_x,time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time)
+            data_gen_noise = DataGeneratorRFN(3000, T, random_network, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time)
             stat_meas = StatisticsMeasurer(data_gen_noise)
             # stat_meas = StatisticsMeasurer(data_gen)
             
@@ -1294,19 +1392,20 @@ def do_size_receptive_field(args):
             print "-> %.5f" % all_precisions[param1_i, repet_i]
         
         # Save to disk, unique filename
-        np.save(output_string, {'all_precisions': all_precisions, 'param1_space':param1_space, 'args':args, 'num_repetitions':num_repetitions})
+        np.save(output_string, {'all_precisions': all_precisions, 'param1_space': param1_space, 'args': args, 'num_repetitions': num_repetitions})
 
     print all_precisions
 
     f = plt.figure()
     ax = f.add_subplot(111)
-    plot_mean_std_area(param1_space, np.mean(all_precisions,1), np.std(all_precisions,1), ax_handle=ax)
+    plot_mean_std_area(param1_space, np.mean(all_precisions, 1), np.std(all_precisions, 1), ax_handle=ax)
     ax.set_xlabel('Size of receptive fields')
     ax.set_ylabel('Precision [rad]')
     
     print "Done: %s" % output_string
 
     return locals()
+
 
 def plot_size_receptive_field(args):
     '''
@@ -1325,7 +1424,7 @@ def plot_size_receptive_field(args):
     # Do the plot(s)
     f = plt.figure()
     ax = f.add_subplot(111)
-    plot_mean_std_area(param1_space, np.mean(all_precisions,1), np.std(all_precisions,1), ax_handle=ax)
+    plot_mean_std_area(param1_space, np.mean(all_precisions, 1), np.std(all_precisions, 1), ax_handle=ax)
     ax.set_xlabel('Number of neurons in population')
     ax.set_ylabel('Precision [rad]^-1')
 
@@ -1336,8 +1435,8 @@ def plot_size_receptive_field(args):
     # all_precisions1 = all_vars['all_precisions']
     # all_precisions2 = all_vars['all_precisions']
     #
-    # ax = semilogy_mean_std_area(M_space1, np.mean(all_precisions1,1), np.std(all_precisions1,1))
-    # ax = semilogy_mean_std_area(M_space1, np.mean(all_precisions2,1), np.std(all_precisions2,1), ax_handle=ax)
+    # ax = semilogy_mean_std_area(M_space1, np.mean(all_precisions1, 1), np.std(all_precisions1, 1))
+    # ax = semilogy_mean_std_area(M_space1, np.mean(all_precisions2, 1), np.std(all_precisions2, 1), ax_handle=ax)
     # legend(['Features', 'Conjunctive'])
 
 
@@ -1411,7 +1510,7 @@ def do_size_receptive_field_number_neurons(args):
                 print "-> %.5f" % all_precisions[param1_i, param2_i, repet_i]
 
             # Save to disk, unique filename
-            np.save(output_string, {'all_precisions': all_precisions, 'param1_space':param1_space, 'param2_space':param2_space, 'args':args, 'num_repetitions':num_repetitions})
+            np.save(output_string, {'all_precisions': all_precisions, 'param1_space': param1_space, 'param2_space': param2_space, 'args': args, 'num_repetitions': num_repetitions})
 
             
     
@@ -1433,7 +1532,7 @@ def do_size_receptive_field_number_neurons(args):
 
     # f = plt.figure()
     # ax = f.add_subplot(111)
-    # plot_mean_std_area(param1_space, np.mean(1./all_precisions,1), np.std(1./all_precisions,1), ax_handle=ax)
+    # plot_mean_std_area(param1_space, np.mean(1./all_precisions, 1), np.std(1./all_precisions, 1), ax_handle=ax)
     # ax.set_xlabel('Number of neurons in population')
     # ax.set_ylabel('Precision [rad]')
     
@@ -1475,15 +1574,15 @@ def plot_size_receptive_field_number_neurons(args):
     all_points = np.array(cross(param1_space, param2_space))
     all_precisions_flat = 1./np.mean(all_precisions, 2).flatten()
 
-    all_precisions_int = spint.griddata(all_points, all_precisions_flat, (param1_space_int[None,:], param2_space_int[:,None]), method='nearest')
+    all_precisions_int = spint.griddata(all_points, all_precisions_flat, (param1_space_int[None, :], param2_space_int[:, None]), method='nearest')
 
     f1 = plt.figure()
     ax1 = f1.add_subplot(111)
-    cs = ax1.contourf(param1_space_int, param2_space_int, all_precisions_int, 20) #, cmap=plt.cm.jet
+    cs = ax1.contourf(param1_space_int, param2_space_int, all_precisions_int, 20)   # cmap=plt.cm.jet
     ax1.set_xlabel('Number of neurons')
     ax1.set_ylabel('Scale of receptive field')
     ax1.set_title('Precision wrt scale/number of neurons')
-    ax1.scatter(all_points[:,0], all_points[:,1], marker='o', c='b', s=5)
+    ax1.scatter(all_points[:, 0], all_points[:, 1], marker='o', c='b', s=5)
     ax1.set_xlim(param1_space_int.min(), param1_space_int.max())
     ax1.set_ylim(param2_space_int.min(), param2_space_int.max())
     f1.colorbar(cs)
@@ -1493,7 +1592,7 @@ def plot_size_receptive_field_number_neurons(args):
     for i in np.arange(param1_space.size):
         f = plt.figure()
         ax = f.add_subplot(111)
-        plot_mean_std_area(param2_space, np.mean(1./all_precisions[i],1), np.std(1./all_precisions[i],1), ax_handle=ax)
+        plot_mean_std_area(param2_space, np.mean(1./all_precisions[i], 1), np.std(1./all_precisions[i], 1), ax_handle=ax)
         ax.set_xlabel('Scale of filter')
         ax.set_ylabel('Precision [rad]^-1')
         ax.set_title('Optim scale for N=%d' % param1_space[i])
@@ -1555,7 +1654,7 @@ def do_memory_curve(args):
 
         
         # Construct the real dataset
-        data_gen = DataGeneratorRFN(N, T, random_network, sigma_y = sigma_y, sigma_x=sigma_x,time_weights_parameters = time_weights_parameters)
+        data_gen = DataGeneratorRFN(N, T, random_network, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters = time_weights_parameters)
         
         # Measure the noise structure
         data_gen_noise = DataGeneratorRFN(3000, T, random_network, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters)
@@ -1581,13 +1680,13 @@ def do_memory_curve(args):
             print "-> %.5f" % all_precisions[t, repet_i]
     
         # Save to disk, unique filename
-        np.save(output_string, {'all_precisions': all_precisions, 'args':args, 'num_repetitions':num_repetitions})
+        np.save(output_string, {'all_precisions': all_precisions, 'args': args, 'num_repetitions': num_repetitions})
 
     print all_precisions
 
     f = plt.figure()
     ax = f.add_subplot(111)
-    plot_mean_std_area(np.arange(T), np.mean(1./all_precisions,1), np.std(1./all_precisions,1), ax_handle=ax)
+    plot_mean_std_area(np.arange(T), np.mean(1./all_precisions, 1), np.std(1./all_precisions, 1), ax_handle=ax)
     ax.set_xlabel('Recall time')
     ax.set_ylabel('Precision [rad]')
     
@@ -1610,6 +1709,7 @@ def do_multiple_memory_curve(args):
     rc_scale = args.rc_scale
     code_type = args.code_type
     sigma_x = args.sigmax
+    sigma_y = args.sigmay
 
     R = 2
 
@@ -1618,7 +1718,6 @@ def do_multiple_memory_curve(args):
     output_string = unique_filename(prefix=strcat(output_dir, 'multiple_memory_curve'))
 
     # Build the random network
-    sigma_y = 0.02
     time_weights_parameters = dict(weighting_alpha=weighting_alpha, weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='uniform')
 
     print "Doing do_multiple_memory_curve"
@@ -1644,7 +1743,7 @@ def do_multiple_memory_curve(args):
 
             
             # Construct the real dataset
-            data_gen = DataGeneratorRFN(N, t+1, random_network, sigma_y = sigma_y, sigma_x=sigma_x,time_weights_parameters = time_weights_parameters)
+            data_gen = DataGeneratorRFN(N, t+1, random_network, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters = time_weights_parameters)
             
             # Measure the noise structure
             data_gen_noise = DataGeneratorRFN(3000, t+1, random_network, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters)
@@ -1660,17 +1759,18 @@ def do_multiple_memory_curve(args):
                 sampler.change_cued_features(tc)
 
                 # Cheat here, just use the ML value for the theta
-                sampler.set_theta_max_likelihood(num_points=200, post_optimise=True)
+                # sampler.set_theta_max_likelihood(num_points=200, post_optimise=True)
                 # sampler.set_theta_max_likelihood_tc_integratedout(num_points=200, post_optimise=True)
-                
+                sampler.sample_theta(num_samples=args.num_samples, burn_samples=20, selection_method='median', selection_num_samples=args.num_samples, integrate_tc_out=False, debug=False)
+
                 # Save the precision
                 # all_precisions[param1_i, repet_i] = sampler.get_precision()
                 all_precisions[t, tc, repet_i] = sampler.compute_angle_error()[1]
 
                 print "-> %.5f" % all_precisions[t, tc, repet_i]
-        
+            
             # Save to disk, unique filename
-            np.save(output_string, {'all_precisions': all_precisions, 'args':args, 'num_repetitions':num_repetitions})
+            np.save(output_string, {'all_precisions': all_precisions, 'args': args, 'num_repetitions': num_repetitions})
 
     print all_precisions
 
@@ -1678,7 +1778,7 @@ def do_multiple_memory_curve(args):
     ax = f.add_subplot(111)
     for t in np.arange(T):
         t_space_aligned_right = (T - np.arange(t+1))[::-1]
-        semilogy_mean_std_area(t_space_aligned_right, np.mean(1./all_precisions[t],1)[:t+1], np.std(1./all_precisions[t],1)[:t+1], ax_handle=ax)
+        semilogy_mean_std_area(t_space_aligned_right, np.mean(1./all_precisions[t], 1)[:t+1], np.std(1./all_precisions[t], 1)[:t+1], ax_handle=ax)
     ax.set_xlabel('Recall time')
     ax.set_ylabel('Precision [rad]')
     
@@ -1701,10 +1801,10 @@ def plot_multiple_memory_curve(args):
     ax = f.add_subplot(111)
     for t in np.arange(T):
         t_space_aligned_right = (T - np.arange(t+1))[::-1]
-        # plot_mean_std_area(t_space_aligned_right, np.mean(1./all_precisions[t],1)[:t+1], np.std(1./all_precisions[t],1)[:t+1], ax_handle=ax)
-        # semilogy_mean_std_area(t_space_aligned_right, np.mean(1./all_precisions[t],1)[:t+1], np.std(1./all_precisions[t],1)[:t+1], ax_handle=ax)
-        plt.semilogy(t_space_aligned_right, np.mean(1./all_precisions[t],1)[:t+1], 'o-', linewidth=2, markersize=8)
-        # plt.plot(t_space_aligned_right, np.mean(1./all_precisions[t],1)[:t+1], 'o-')
+        # plot_mean_std_area(t_space_aligned_right, np.mean(1./all_precisions[t], 1)[:t+1], np.std(1./all_precisions[t], 1)[:t+1], ax_handle=ax)
+        # semilogy_mean_std_area(t_space_aligned_right, np.mean(1./all_precisions[t], 1)[:t+1], np.std(1./all_precisions[t], 1)[:t+1], ax_handle=ax)
+        # plt.semilogy(t_space_aligned_right, np.mean(1./all_precisions[t], 1)[:t+1], 'o-', linewidth=2, markersize=8)
+        plt.plot(t_space_aligned_right, np.mean(1./all_precisions[t], 1)[:t+1], 'o-')
     x_labels = ['-%d' % x for x in np.arange(T)[::-1]]
     x_labels[-1] = 'Last'
 
@@ -1740,20 +1840,21 @@ def plot_multiple_memory_curve_simult(args):
 
     f = plt.figure()
     ax = f.add_subplot(111)
-    plt.semilogy(np.arange(1,T+1), 1./mean_precision, 'o-')
-    plt.xticks(np.arange(1,T+1))
+    plt.semilogy(np.arange(1, T+1), 1./mean_precision, 'o-')
+    plt.xticks(np.arange(1, T+1))
     plt.xlim((0.9, T+0.1))
     ax.set_xlabel('Number of stored items')
     ax.set_ylabel('Precision [rad]')
 
     f = plt.figure()
     ax = f.add_subplot(111)
-    plt.bar(np.arange(1,T+1), 1./mean_precision, align='center', log=False)
+    plt.bar(np.arange(1, T+1), 1./mean_precision, align='center', log=False)
     ax.set_xlabel('Number of stored items')
     ax.set_ylabel('Precision [rad]')
 
 
     return locals()
+
 
 def do_mixed_ratioconj(args):
     '''
@@ -1805,7 +1906,7 @@ def do_mixed_ratioconj(args):
             data_gen = DataGeneratorRFN(N, T, random_network, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters = time_weights_parameters, cued_feature_time=cued_feature_time)
             
             # Measure the noise structure
-            data_gen_noise = DataGeneratorRFN(3000, T, random_network, sigma_y = sigma_y, sigma_x=sigma_x,time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time)
+            data_gen_noise = DataGeneratorRFN(3000, T, random_network, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time)
             stat_meas = StatisticsMeasurer(data_gen_noise)
             # stat_meas = StatisticsMeasurer(data_gen)
             
@@ -1821,12 +1922,12 @@ def do_mixed_ratioconj(args):
             print "-> %.5f" % all_precisions[param1_i, repet_i]
         
         # Save to disk, unique filename
-        np.save(output_string, {'all_precisions': all_precisions, 'param1_space':param1_space, 'args':args, 'num_repetitions':num_repetitions})
+        np.save(output_string, {'all_precisions': all_precisions, 'param1_space': param1_space, 'args': args, 'num_repetitions': num_repetitions})
             
     # Plot
     f = plt.figure()
     ax = f.add_subplot(111)
-    plot_mean_std_area(param1_space, np.mean(1./all_precisions,1), np.std(1./all_precisions,1), ax_handle=ax)
+    plot_mean_std_area(param1_space, np.mean(1./all_precisions, 1), np.std(1./all_precisions, 1), ax_handle=ax)
     ax.set_xlabel('Number of neurons in population')
     ax.set_ylabel('Precision [rad]')
     
@@ -1892,7 +1993,7 @@ def do_mixed_two_scales(args):
                 data_gen = DataGeneratorRFN(N, T, random_network, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters = time_weights_parameters, cued_feature_time=cued_feature_time, nb_stimulus_per_feature=30)
                 
                 # Measure the noise structure
-                data_gen_noise = DataGeneratorRFN(3000, T, random_network, sigma_y = sigma_y, sigma_x=sigma_x,time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time,nb_stimulus_per_feature=30)
+                data_gen_noise = DataGeneratorRFN(3000, T, random_network, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time, nb_stimulus_per_feature=30)
                 stat_meas = StatisticsMeasurer(data_gen_noise)
                 # stat_meas = StatisticsMeasurer(data_gen)
                 
@@ -1908,7 +2009,7 @@ def do_mixed_two_scales(args):
                 print "-> %.5f" % all_precisions[param1_i, param2_i, repet_i]
             
             # Save to disk, unique filename
-            np.save(output_string, {'all_precisions': all_precisions, 'param1_space':param1_space, 'param2_space':param2_space, 'args':args, 'num_repetitions':num_repetitions})
+            np.save(output_string, {'all_precisions': all_precisions, 'param1_space': param1_space, 'param2_space': param2_space, 'args': args, 'num_repetitions': num_repetitions, 'output_string': output_string})
           
     print all_precisions
 
@@ -1927,6 +2028,95 @@ def do_mixed_two_scales(args):
     
     print "Done: %s" % output_string
 
+    return locals()
+
+
+def do_save_responses_simultaneous(args):
+    '''
+        Simulate simultaneous presentations, with 1...T objects.
+        Outputs the responses and target/non-targets, to be fitted in Matlab (TODO: convert EM fit in Python code)
+    '''
+
+    output_dir = os.path.join(args.output_directory, args.label)
+    output_string = unique_filename(prefix=strcat(output_dir, 'save_responses_simultaneous'))
+
+    # Build the random network
+    time_weights_parameters = dict(weighting_alpha=args.alpha, weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='uniform')
+
+    print "Doing do_save_responses_simultaneous"
+    print "max_T: %s" % args.T
+    print "File: %s" % output_string
+
+    all_precisions = np.zeros((args.T, args.T, args.num_repetitions))
+    all_responses = np.zeros((args.T, args.T, args.num_repetitions, args.N))
+    all_targets = np.zeros((args.T, args.T, args.num_repetitions, args.N))
+    all_nontargets = np.zeros((args.T, args.T, args.num_repetitions, args.N, args.T-1))
+    
+    for repet_i in np.arange(args.num_repetitions):
+        
+        # Construct different datasets, with t objects
+        for t in np.arange(args.T):
+            
+            if args.code_type == 'conj':
+                random_network = RandomFactorialNetwork.create_full_conjunctive(args.M, R=args.R, scale_moments=(args.rc_scale, 0.0001), ratio_moments=(1.0, 0.001))
+            elif args.code_type == 'feat':
+                random_network = RandomFactorialNetwork.create_full_features(args.M, R=args.R, scale=args.rc_scale, ratio=40.)
+            elif args.code_type == 'mixed':
+                conj_params = dict(scale_moments=(args.rc_scale, 0.001), ratio_moments=(1.0, 0.0001))
+                feat_params = dict(scale=args.rc_scale2, ratio=40.)
+
+                random_network = RandomFactorialNetwork.create_mixed(args.M, R=args.R, ratio_feature_conjunctive=args.ratio_conj, conjunctive_parameters=conj_params, feature_parameters=feat_params)
+            else:
+                raise ValueError('Code_type is wrong!')
+
+            
+            # Construct the real dataset
+            data_gen = DataGeneratorRFN(args.N, t+1, random_network, sigma_y = args.sigmay, sigma_x = args.sigmax, time_weights_parameters = time_weights_parameters)
+            
+            # Measure the noise structure
+            data_gen_noise = DataGeneratorRFN(3000, t+1, random_network, sigma_y = args.sigmay, sigma_x = args.sigmax, time_weights_parameters=time_weights_parameters)
+            stat_meas = StatisticsMeasurer(data_gen_noise)
+            # stat_meas = StatisticsMeasurer(data_gen)
+            
+            sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters = stat_meas.model_parameters)
+            
+            for tc in np.arange(t+1):
+                print "Doing T=%d, Tc=%d,  %d/%d" % (t+1, tc, repet_i+1, args.num_repetitions)
+
+                # Change the cued feature
+                sampler.change_cued_features(tc)
+
+                # Sample the new theta
+                sampler.sample_theta(num_samples=args.num_samples, burn_samples=20, selection_method='median', selection_num_samples=args.selection_num_samples, integrate_tc_out=False, debug=False)
+
+                # Save the precision
+                # all_precisions[param1_i, repet_i] = sampler.get_precision()
+                all_precisions[t, tc, repet_i] = sampler.compute_angle_error()[1]
+
+                print "-> %.5f" % all_precisions[t, tc, repet_i]
+
+                # Save the responses, targets and nontargets
+                print t
+                print tc
+                (all_responses[t, tc, repet_i], all_targets[t, tc, repet_i], all_nontargets[t, tc, repet_i, :, :t]) = sampler.collect_responses()
+
+        
+            # Save to disk, unique filename
+            np.save(output_string, {'all_precisions': all_precisions, 'all_responses': all_responses, 'all_targets': all_targets, 'all_nontargets': all_nontargets, 'args': args, 'num_repetitions': args.num_repetitions, 'T': args.T})
+            sio.savemat(output_string, {'all_precisions': all_precisions, 'all_responses': all_responses, 'all_targets': all_targets, 'all_nontargets': all_nontargets, 'args': args, 'num_repetitions': args.num_repetitions, 'T': args.T})
+
+    
+    print all_precisions
+
+    f = plt.figure()
+    ax = f.add_subplot(111)
+    for t in np.arange(args.T):
+        t_space_aligned_right = (args.T - np.arange(t+1))[::-1]
+        semilogy_mean_std_area(t_space_aligned_right, np.mean(1./all_precisions[t], 1)[:t+1], np.std(1./all_precisions[t], 1)[:t+1], ax_handle=ax)
+    ax.set_xlabel('Recall time')
+    ax.set_ylabel('Precision [rad]')
+    
+    print "Done: %s" % output_string
     return locals()
 
 
@@ -1950,29 +2140,32 @@ if __name__ == '__main__':
             plot_multiple_memory_curve,
             plot_multiple_memory_curve_simult,
             do_mixed_ratioconj,
-            do_mixed_two_scales
+            do_mixed_two_scales,
+            do_save_responses_simultaneous
             ]}
     
     print sys.argv[1:]
     
     parser = argparse.ArgumentParser(description='Sample a model of Visual working memory.')
     parser.add_argument('--label', help='label added to output files', default='')
-    parser.add_argument('--output_directory', nargs='?', default='Data')
+    parser.add_argument('--output_directory', nargs='?', default='Data/')
     parser.add_argument('--action_to_do', choices=actions.keys(), default='do_simple_run')
-    parser.add_argument('--num_samples', type=int, default=3)
+    parser.add_argument('--input_filename', default='', help='Some input file, depending on context')
+    parser.add_argument('--num_repetitions', type=int, default=1, help='For search actions, number of repetitions to average on')
     parser.add_argument('--N', default=100, type=int, help='Number of datapoints')
     parser.add_argument('--T', default=1, type=int, help='Number of times')
-    parser.add_argument('--K', default=30, type=int, help='Number of representated features')  # Warning: Need more data for bigger matrix
+    parser.add_argument('--K', default=2, type=int, help='Number of representated features')  # Warning: Need more data for bigger matrix
     parser.add_argument('--D', default=32, type=int, help='Dimensionality of features')
     parser.add_argument('--M', default=300, type=int, help='Dimensionality of data/memory')
     parser.add_argument('--R', default=2, type=int, help='Number of population codes')
+    parser.add_argument('--num_samples', type=int, default=20, help='Number of samples to use')
+    parser.add_argument('--selection_num_samples', type=int, default=1, help='While selecting the new sample from a set of samples, consider the P last samples only. (if =1, return last sample)')
     parser.add_argument('--alpha', default=0.999, type=float, help='Weighting of the decay through time')
-    parser.add_argument('--input_filename', default='', help='Some input file, depending on context')
-    parser.add_argument('--num_repetitions', type=int, default=1, help='For search actions, number of repetitions to average on')
-    parser.add_argument('--code_type', choices=['conj', 'feat', 'mixed'], default='conj', help='Select the type of code used by the Network')
+    parser.add_argument('--code_type', choices=['conj', 'feat', 'mixed', 'wavelet'], default='conj', help='Select the type of code used by the Network')
     parser.add_argument('--rc_scale', type=float, default=0.4, help='Scale of receptive fields')
     parser.add_argument('--rc_scale2', type=float, default=0.4, help='Scale of receptive fields, second population')
-    parser.add_argument('--sigmax', type=float, default=0.1, help='Noise per object')
+    parser.add_argument('--sigmax', type=float, default=0.2, help='Noise per object')
+    parser.add_argument('--sigmay', type=float, default=0.02, help='Noise along time')
     parser.add_argument('--ratio_conj', type=float, default=0.2, help='Ratio of conjunctive/field subpopulations for mixed network')
 
 
