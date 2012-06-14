@@ -12,6 +12,10 @@ import numpy as np
 import matplotlib.ticker as plttic
 import scipy.io as sio
 import uuid
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib import cm
+from matplotlib.ticker import LinearLocator
+
 
 __maxexp__ = np.finfo('float').maxexp
 
@@ -77,6 +81,41 @@ def dist_sphere_mat(points1, points2):
 
     return np.arccos((p12[:,1]*(p12[:,0]+p3) + p12[:,0]-p3)/2.)
 
+def spherical_to_vect(angles):
+    output_vect = np.zeros(3)
+    output_vect[0] = np.cos(angles[0])*np.sin(angles[1])
+    output_vect[1] = np.sin(angles[0])*np.sin(angles[1])
+    output_vect[2] = np.cos(angles[1])
+
+    return output_vect
+
+def spherical_to_vect_array(angles):
+    output_vect = np.zeros((angles.shape[0], angles.shape[1]+1))
+
+    output_vect[:, 0] = np.cos(angles[:, 0])*np.sin(angles[:, 1])
+    output_vect[:, 1] = np.sin(angles[:, 0])*np.sin(angles[:, 1])
+    output_vect[:, 2] = np.cos(angles[:, 1])
+
+    return output_vect
+
+def create_2D_rotation_matrix(angle):
+    return np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
+
+def create_3D_rotation_around_vector(vector, angle):
+    '''
+        Performs a rotation around the given vector.
+        From Wikipedia.
+    '''
+
+    return np.sin(angle)*np.array([[0, -vector[2], vector[1]], \
+              [ vector[2], 0., -vector[0]], \
+              [ -vector[1], vector[0], 0.]]) + \
+           np.cos(angle)*np.eye(3) + \
+           (1. - np.cos(angle))*np.outer(vector, vector)
+
+def gs_ortho(input_vect, ortho_target):
+    output = input_vect - np.dot(ortho_target, input_vect)*ortho_target
+    return output/np.linalg.norm(output)
 
 def flatten_list(ll):
     return [item for sublist in ll for item in sublist]
@@ -88,7 +127,7 @@ def fast_dot_1D(x, y):
     return out
 
 def fast_1d_norm(x):
-    return np.sqrt(np.dot(x,x.conj()))
+    return np.sqrt(np.dot(x, x.conj()))
 
 def plot_mean_std_area(x, y, std, ax_handle=None):
     if ax_handle is None:
@@ -179,14 +218,128 @@ def pcolor_square_grid(data, nb_to_plot=-1):
                 
     return (f, subaxes)
     
+def plot_sphere(theta, gamma, Z, weight_deform=0.5, sphere_radius=1., try_mayavi=True):
+    '''
+        Plot a sphere, with the color set by Z.
+            Also possible to deform the sphere according to Z, by putting a nonzero weight_deform.
+    
+        Need theta \in [0, 2pi] and gamma \in [0, pi]
+    '''
+
+    Z_norm = Z/Z.max()
+
+    x = sphere_radius * np.outer(np.cos(theta), np.sin(gamma))*(1.+weight_deform*Z_norm)
+    y = sphere_radius * np.outer(np.sin(theta), np.sin(gamma))*(1.+weight_deform*Z_norm)
+    z = sphere_radius * np.outer(np.ones(np.size(theta)), np.cos(gamma))*(1.+weight_deform*Z_norm)
+
+    # Have fun and try Mayavi for 3D plotting instead. Super faaaast.
+    use_mayavi = False
+    if try_mayavi:
+        try:
+            import mayavi.mlab as mplt
+
+            use_mayavi = True
+        except:
+            pass
+        
+    if use_mayavi:
+        mplt.figure()
+        mplt.mesh(x,y,z, scalars=Z_norm)
+        mplt.show()
+
+    else:
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+
+        ax.plot_surface(x, y, z, facecolors=cm.jet(Z_norm), rstride=1, cstride=1, linewidth=0, antialiased=True, shade=False)
+        
+        # Colorbar
+        m = cm.ScalarMappable(cmap=cm.jet)
+        m.set_array(Z_norm)
+        plt.colorbar(m)
+
+        plt.show()
+
+def plot_torus(theta, gamma, Z, weight_deform=0., torus_radius=5., tube_radius=3.0, try_mayavi=True, draw_colorbar=True):
+    '''
+        Plot a torus, with the color set by Z.
+            Also possible to deform the sphere according to Z, by putting a nonzero weight_deform.
+    
+        Need theta \in [0, 2pi] and gamma \in [0, pi]
+    '''
+
+    
+    Z_norm = Z/Z.max()
+
+    X, Y = np.meshgrid(theta, gamma)
+    x = (torus_radius+ tube_radius*np.cos(X)*(1.+weight_deform*Z_norm))*np.cos(Y)
+    y = (torus_radius+ tube_radius*np.cos(X)*(1.+weight_deform*Z_norm))*np.sin(Y)
+    z = tube_radius*np.sin(X)*(1.+weight_deform*Z_norm)
+    
+    use_mayavi = False
+    if try_mayavi:
+        try:
+            import mayavi.mlab as mplt
+
+            use_mayavi = True
+        except:
+            pass
+        
+    if use_mayavi:
+        # mplt.figure(bgcolor=(0.7,0.7,0.7))
+        mplt.figure(bgcolor=(1.0, 1.0, 1.0))
+        mplt.mesh(x,y,z, scalars=Z_norm, vmin=0.0)
+        
+        if draw_colorbar:
+            cb = mplt.colorbar(title='', orientation='vertical', label_fmt='%.2f', nb_labels=5)
+        
+        mplt.outline(color=(0.,0.,0.))
+        mplt.show()
+
+    else:
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+
+        ax.plot_surface(x, y, z, facecolors=cm.jet(Z_norm), rstride=1, cstride=1, linewidth=0, antialiased=True, shade=False)
+        
+        # Colorbar
+        m = cm.ScalarMappable(cmap=cm.jet)
+        m.set_array(Z_norm)
+
+        if draw_colorbar:
+            plt.colorbar(m)
+
+        plt.show()
+
+
 def argmin_indices(array):
-    return np.unravel_index(np.argmin(array), array.shape)
+    return np.unravel_index(np.nanargmin(array), array.shape)
 
 def argmax_indices(array):
-    return np.unravel_index(np.argmax(array), array.shape)
+    return np.unravel_index(np.nanargmax(array), array.shape)
 
 def mean_angles(angles):
     return np.angle(np.mean(np.exp(1j*angles), axis=0))
+
+def wrap_angles(angles, bound=np.pi):
+    '''
+        Wrap angles in a [-bound, bound] space.
+
+        For us: get the smallest angle between two responses
+    '''
+
+    if np.isscalar(angles):
+        while angles < -bound:
+            angles += 2.*bound
+        while angles > bound:
+            angles -= 2.*bound
+    else:
+        while np.any(angles < -bound):
+            angles[angles < -bound] += 2.*bound
+        while np.any(angles > bound):
+            angles[angles > bound] -= 2.*bound
+            
+    return angles
 
 def unique_filename(prefix=None, suffix=None, unique_id=None, return_id=False):
     """
