@@ -11,6 +11,7 @@ Copyright (c) 2011 Gatsby Unit. All rights reserved.
 import pylab as plt
 import matplotlib.ticker as plttic
 import numpy as np
+from scipy.spatial.distance import pdist
 
 from populationcode import *
 from randomnetwork import *
@@ -308,10 +309,11 @@ class DataGeneratorRFN(DataGenerator):
     '''
         DataGenerator for a RandomFactorialNetwork
     '''
-    def __init__(self, N, T, random_network, sigma_y = 0.05, sigma_x = 0.02, time_weights=None, time_weights_parameters = dict(weighting_alpha=0.3, weighting_beta = 1.0, specific_weighting = 0.3, weight_prior='uniform'), cued_feature_time=0, nb_stimulus_per_feature=30, enforce_min_distance=-1):
+    def __init__(self, N, T, random_network, sigma_y = 0.05, sigma_x = 0.02, time_weights=None, time_weights_parameters = dict(weighting_alpha=0.3, weighting_beta = 1.0, specific_weighting = 0.3, weight_prior='uniform'), cued_feature_time=0, nb_stimulus_per_feature=30, enforce_min_distance=0.17):
+
+        # assert isinstance(random_network, RandomFactorialNetwork), "Use a RandomFactorialNetwork with this DataGeneratorRFN"
         
-        assert isinstance(random_network, RandomFactorialNetwork), "Use a RandomFactorialNetwork with this DataGeneratorRFN"
-        
+
         DataGenerator.__init__(self, N, T, random_network, sigma_y = sigma_y, time_weights = time_weights, time_weights_parameters = time_weights_parameters)
         
         # This is the noise on specific memories. Belongs here.
@@ -325,7 +327,7 @@ class DataGeneratorRFN(DataGenerator):
         self.build_dataset(cued_feature_time=cued_feature_time)
     
 
-    def generate_stimuli(self, nb_stimulus_per_feature=20, enforce_min_distance=-1):
+    def generate_stimuli(self, nb_stimulus_per_feature=20, enforce_min_distance=0.17):
         '''
             Choose N stimuli for this dataset.
             
@@ -341,7 +343,7 @@ class DataGeneratorRFN(DataGenerator):
         ## Sample them randomly, without repetition
         
         # Get all possible stimuli
-        coverage_1D = np.linspace(-np.pi, np.pi, num=nb_stimulus_per_feature, endpoint=False)
+        # coverage_1D = np.linspace(-np.pi, np.pi, num=nb_stimulus_per_feature, endpoint=False)
         # all_stim = np.array(cross(self.R*[coverage_1D.tolist()]))
         
         # # Need to get T different objects, N times.
@@ -357,16 +359,29 @@ class DataGeneratorRFN(DataGenerator):
         #     [_, rnd_stim_ind_unique] = np.unique(rnd_stim_ind[i,:], return_index= True) 
         #     self.stimuli_correct[i]  = all_stim[rnd_stim_ind[i,np.sort(rnd_stim_ind_unique)[:self.T]], :]
 
-        ### Do it differently, avoid two possible cued features similar
-        # First sample last feature, then the one before that, etc... Assume here that we cue the 'late' features
-        rnd_ind = np.zeros((self.N, self.T, self.R), dtype='int')
+        # Get a big array of indices, doing permutations over T to avoid same objects
+        # rnd_ind = np.zeros((self.N, self.T, self.R), dtype='int')
+        # for n in np.arange(self.N):
+        #     for r in np.arange(self.R):
+        #         rnd_ind[n, :, r] = np.random.permutation(np.arange(nb_stimulus_per_feature))[:self.T]
+        # self.stimuli_correct = coverage_1D[rnd_ind]
+
+        ## Get stimuli with a minimum enforced distance. 
+        # Enforce differences on all dimensions (P. Bays: 10° for orientations).
         for n in np.arange(self.N):
             for r in np.arange(self.R):
-                rnd_ind[n, :, r] = np.random.permutation(np.arange(nb_stimulus_per_feature))[:self.T]
-        
-        self.stimuli_correct = coverage_1D[rnd_ind]
+                self.stimuli_correct[n, :, r] = (np.random.rand(self.T)-0.5)*2.*np.pi
 
-    
+                # Enforce minimal distance
+                while np.any(pdist(self.stimuli_correct[n, :, r][:, np.newaxis], 'chebyshev') < self.enforce_min_distance):
+                    # Some are too close, resample
+                    self.stimuli_correct[n, :, r] = (np.random.rand(self.T)-0.5)*2.*np.pi
+        
+        # Force first stimuli to be something specific
+        forced_stimuli = np.array([[-0.4, 0.4], [-0.9, 0.9], [np.pi/2., -np.pi+0.05]])
+        self.stimuli_correct[0, :np.min((self.T, 3))] = forced_stimuli[:np.min((self.T, 3))]
+
+        
 
     def build_dataset(self, cued_feature_time=0):
         '''
@@ -381,7 +396,7 @@ class DataGeneratorRFN(DataGenerator):
             output:
                 Y :                 N x M
                 all_Y:              N x T x M
-                correct_stimuli:    N x T x R
+                stimuli_correct:    N x T x R
                 cued_features:      N x 2       (feature_cued, time_cued)
         '''
         
@@ -406,7 +421,7 @@ class DataGeneratorRFN(DataGenerator):
             # Randomly recall one of the times
             # self.cued_features[i, 1] = np.random.randint(self.T)
             self.cued_features[i, 1] = cued_feature_time
-            
+
             # Create the memory
             for t in np.arange(self.T):
                 # Get the 'x' sample (here from the population code)
@@ -417,11 +432,37 @@ class DataGeneratorRFN(DataGenerator):
                 # self.Y[i] /= fast_1d_norm(self.Y[i])
                 self.all_Y[i, t] = self.Y[i]
                 self.all_X[i, t] = x_sample
+        
+        # For convenience, store the list of nontargets objects.
+        self.nontargets_indices = np.array([[t for t in np.arange(self.T) if t != self.cued_features[n, 1]] for n in np.arange(self.N)], dtype='int')
+            
 
     
     def show_datapoint(self, n=0):
         '''
-            Show a datapoint, as a 2D plot (for now, assumes R==2)
+            Show a datapoint.
+
+            Call other routines, depending on their network population_code_type.
+        '''
+        
+        display_type = self.random_network.population_code_type
+        
+        if display_type == 'conjunctive':
+            self.show_datapoint_conjunctive(n=n)
+        elif display_type == 'features':
+            self.show_datapoint_features(n=n)
+        elif display_type == 'wavelet':
+            self.show_datapoint_wavelet(n=n)
+        elif display_type == 'mixed':
+            # TODO mixed population datapoint method.
+            raise NotImplementedError('show_datapoint for mixed network, not done.')
+    
+
+    def show_datapoint_conjunctive(self, n=0):
+        '''
+            Show a datapoint, as a 2D grid plot (for now, assumes R==2).
+
+            Works for conjunctive only, as we do not have a nice spatial mapping for other codes.
         '''
         M = self.random_network.M
         M_sqrt = np.floor(M**0.5)
@@ -438,15 +479,98 @@ class DataGeneratorRFN(DataGenerator):
         ax.set_yticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
         ax.set_yticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'))
 
+        # Show ellipses at the stimuli positions
+        for t in xrange(self.T):
+            e = Ellipse(xy=self.stimuli_correct[n, t], width=0.4, height=0.4)
+            
+            ax.add_artist(e)
+            e.set_clip_box(ax.bbox)
+            e.set_alpha(0.5)
+            e.set_facecolor('white')
+            e.set_transform(ax.transData)        
+    
+
+    def show_datapoint_features(self, n=0):
+        '''
+            Show a datapoint for a features code.
+            Will show 2 "lines", with the output of horizontal/vertical neurons.
+        '''
+
+        M = self.random_network.M
+
+        # When there are multiple centers per feature, we can reduce the space.
+        
+        horiz_cells = np.arange(M/2/self.random_network.nb_feature_centers)
+        vert_cells = np.arange(M/2,(M/2+M/2/self.random_network.nb_feature_centers))
+        
+        f = plt.figure()
+        ax = f.add_subplot(111)
+
+        ax.plot(np.arange(horiz_cells.size), self.Y[n, horiz_cells], linewidth=2)
+        ax.plot(np.arange(vert_cells.size), self.Y[n, vert_cells] + 1.2*self.Y[n, horiz_cells].max(), linewidth=2)
+
+        ax.set_xticks(())
+        ax.set_yticks(())
+        ax.legend(['Horizontal cells', 'Vertical cells'], fancybox=True, borderpad=0.3, columnspacing=0.5, borderaxespad=0.7, handletextpad=0, handlelength=1.5)
+
+
+        # im = ax.imshow(np.reshape(self.Y[n], (2, M/2)).T, origin='lower', aspect='equal', interpolation='nearest')
+        # im.set_extent((-np.pi, np.pi, -np.pi, np.pi))
+        # ax.set_xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
+        # ax.set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'))
+        # ax.set_yticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
+        # ax.set_yticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'))
+    
+
+    def show_datapoint_wavelet(self, n=0, single_figure=True):
+        '''
+            Show a datapoint for wavelet code.
+            Will print several 2D grid plots (for now, assumes R==2).
+
+            Do several or an unique figure, depending on single_figure
+        '''
+
+        # Get all existing scales
+        all_scales = np.unique(self.random_network.neurons_scales)
+        all_scales = all_scales[all_scales > 0]
+
+        if single_figure:
+            nb_subplots_sqrt = int(np.floor(all_scales.size**0.5))
+            f, axes = plt.subplots(nb_subplots_sqrt, nb_subplots_sqrt)
+            axes = axes.flatten()
+
+        for curr_scale_i in np.arange(all_scales.size):
+            # Use this as grid side
+            scale_sqrt = np.floor(np.sum(self.random_network.neurons_scales == all_scales[curr_scale_i])**0.5)
+
+            # Find the desired neurons
+            filter_neurons = np.nonzero(self.random_network.neurons_scales == all_scales[curr_scale_i])[0]
+
+            # Now do a "normal" conjunctive grid plot
+            if single_figure:
+                ax = axes[curr_scale_i]
+            else:
+                f = plt.figure()
+                ax = f.add_subplot(111)
+            
+            im = ax.imshow(np.reshape(self.Y[n, filter_neurons], (scale_sqrt, scale_sqrt)).T, origin='lower', aspect='equal', interpolation='nearest')
+            im.set_extent((-np.pi, np.pi, -np.pi, np.pi))
+            ax.set_xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
+            ax.set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'))
+            ax.set_yticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
+            ax.set_yticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'))
+
+        
+        plt.show()
       
 
 
 
 if __name__ == '__main__':
-    N = 100
+    N = 1000
     T = 2
     K = 25
-    M = 200
+    M = int(14**2.)
     D = 50
     R = 2
     
@@ -458,15 +582,16 @@ if __name__ == '__main__':
     # random_network.assign_random_eigenvectors(scale_parameters=(10., 1/150.), ratio_parameters=(ratio_concentration, 4./(3.*ratio_concentration)), reset=True)
     # random_network.plot_coverage_feature_space()
     
-    random_network = RandomFactorialNetwork.create_full_conjunctive(M, R=R, scale_moments=(0.5, 0.01), ratio_moments=(1.0, 0.05))
+    random_network = RandomFactorialNetwork.create_full_conjunctive(M, R=R, scale_moments=(2.0, 0.01), ratio_moments=(1.0, 0.05))
+    # random_network = RandomFactorialNetwork.create_full_features(M, R=R, scale=0.8, ratio=40., nb_feature_centers=1)
         
 
     # data_gen = DataGeneratorDiscrete(N, T, random_network, time_weights_parameters = dict(weighting_alpha=0.8, weighting_beta = 1.0, specific_weighting = 0.2, weight_prior='recency'))
     # data_gen = DataGeneratorContinuous(N, T, random_network, sigma_y = 0.02, time_weights_parameters = dict(weighting_alpha=0.7, weighting_beta = 1.0, specific_weighting = 0.2, weight_prior='uniform'))
-    data_gen = DataGeneratorRFN(N, T, random_network, sigma_y = 0.02, sigma_x = 0.02, time_weights_parameters = dict(weighting_alpha=0.6, weighting_beta = 1.0, specific_weighting = 0.2, weight_prior='uniform'))
+    data_gen = DataGeneratorRFN(N, T, random_network, sigma_y = 0.02, sigma_x = 0.1, time_weights_parameters = dict(weighting_alpha=1.0, weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='uniform'), enforce_min_distance=0.1)
 
     
-    data_gen.plot_data(16)
+    # data_gen.plot_data(16)
     
     #print data_gen.X.shape
     
@@ -474,3 +599,5 @@ if __name__ == '__main__':
     # plt.plot(np.mean(np.apply_along_axis(fast_1d_norm, 2, data_gen.all_Y), axis=0))
     
     plt.show()
+
+
