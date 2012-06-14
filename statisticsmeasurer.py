@@ -37,8 +37,8 @@ class StatisticsMeasurer:
         self.covariances = np.zeros((self.T, self.M, self.M))
         
         for t in np.arange(self.T):
-            self.means[t] = np.mean(self.Y[:,t,:], axis=0)
-            self.covariances[t] = np.cov(self.Y[:,t,:].T)
+            self.means[t] = np.mean(self.Y[:, t, :], axis=0)
+            self.covariances[t] = np.cov(self.Y[:, t, :].T)
         
     
     def plot_moments(self):
@@ -198,7 +198,7 @@ if __name__ == '__main__':
     
     sigma_y = 0.05
     
-    if True:
+    if False:
         
         # random_network = RandomNetworkContinuous.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[0.1, 0.5], sigma=0.2, gamma=0.003, rho=0.002)
         # random_network = RandomNetworkFactorialCode.create_instance_uniform(K, D=D, R=R, sigma=0.05)
@@ -283,7 +283,7 @@ if __name__ == '__main__':
         #         f.colorbar(im)
         #         
         
-        K_inv = np.zeros((2,2))
+        K_inv = np.zeros((2, 2))
         
         mut_inf = np.zeros((T, T))
         
@@ -299,19 +299,21 @@ if __name__ == '__main__':
                 
                 sigma_xtp = sigma_x**-2. + E*E*sigma_xtc_yT
                                 
-                K_inv[0,0] = sigma_xtc_yT_inv
-                K_inv[1,0] = E
-                K_inv[0,1] = E
-                K_inv[1,1] = sigma_xtp
+                K_inv[0, 0] = sigma_xtc_yT_inv
+                K_inv[1, 0] = E
+                K_inv[0, 1] = E
+                K_inv[1, 1] = sigma_xtp
                 
                 K = np.linalg.inv(K_inv)
                 
-                mut_inf[tp, tc] = 0.5*(np.log(K[0,0]) + np.log(K[1,1]) - np.linalg.slogdet(K)[1])
+                mut_inf[tp, tc] = 0.5*(np.log(K[0, 0]) + np.log(K[1, 1]) - np.linalg.slogdet(K)[1])
         
         
         plt.imshow(mut_inf, origin='lower', interpolation='nearest')
     
     if False:
+        # Test on different likelihoods, not important...
+
         alpha = 0.7
         beta = 1.
         sigma_y = 0.05
@@ -388,7 +390,43 @@ if __name__ == '__main__':
         # TODO ERROR HERE, we add a contribution when we shouldn't => this biases everything towards the "end magnitude"
         # TODO Actually not the problem...
     
+    if True:
+        # See how much of background noise is still present as a function of number of samples
+
+        sample_sizes = np.logspace(1, 4.7, num=20).astype(int)
+        background_std_observed = np.zeros_like(sample_sizes).astype(float)
+
+        alpha = 0.9
+        N_sqrt = 20.
+        N = int(N_sqrt**2.)
+        T = 1
+        sigma_x = 2.0
+        sigma_y = 0.2
+
+        time_weights_parameters = dict(weighting_alpha=alpha, weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='uniform')
+        rn = RandomFactorialNetwork.create_full_conjunctive(N, R=2, sigma=sigma_x, scale_moments=(2.0, 0.01), ratio_moments=(1.0, 0.01))
+        
+        print "Measuring background std dev as function of number of samples"
+        print sample_sizes
+
+        for i, num_samples in enumerate(sample_sizes):
+            print "%d samples" % num_samples
+            data_gen_noise = DataGeneratorRFN(num_samples, T, rn, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=T-1, enforce_min_distance=0.0)
+            stat_meas = StatisticsMeasurer(data_gen_noise)
+            measured_cov = stat_meas.model_parameters['covariances'][-1][-1]
+
+            background_std_observed[i] = np.std(measured_cov - np.diag(np.diag(measured_cov)))
+
+        plt.figure()
+        plt.plot(sample_sizes, background_std_observed)
+        plt.xlabel('number of samples n')
+        plt.ylabel('Std dev of non-diagonal elements of noise covariance matrix')
+
+        plt.figure()
+        plt.plot(1./np.sqrt(sample_sizes), background_std_observed, '.-')
+        plt.xlabel('1/sqrt(n)')
+        plt.ylabel('Std dev')
+        plt.title('Std Dev goes as 1/sqrt(n)')
     
     plt.show()
 
-     
