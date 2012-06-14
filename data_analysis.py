@@ -196,8 +196,14 @@ def combine_mixed_two_scales(data_to_use = 0, should_plot=True):
     # params = dict(label='T1', files='Data/mixed_ratio_2scales_search/T1_N100/ratioconj_2scales*.npy*', regexp='^[a-zA-Z_\/0-9]*-ratioconj([0-9.]*)T[0-9]*alpha[0-9.]*N[0-9.]*numsamples[0-9]*nbrepeats([0-9.]*)nbexperiments([0-9.]*)mixed_two_scales-([0-9a-z\-]*).npy')
     if data_to_use == 0:
         # params = dict(label='T1_used_figures_collated_bis_2311_midnight', files='Data/mixed_ratio_2scales_search/T1_N300_K50/ratioconj_2scales*.npy*', regexp='^[a-zA-Z_\/0-9]*-ratioconj([0-9.]*)T[0-9]*alpha[0-9.]*N[0-9.]*K[0-9]*numsamples[0-9]*nbrepeats([0-9.]*)nbexperiments([0-9.]*)mixed_two_scales-([0-9a-z\-]*).npy')
-        params = dict(label='T1_inabstract', files='Data/mixed_ratio_2scales_search/T1_N300_K100/ratioconj_2scales*.npy*', regexp='^[a-zA-Z_\/0-9]*-ratioconj([0-9.]*)T[0-9]*alpha[0-9.]*N[0-9.]*K[0-9]*numsamples[0-9]*nbrepeats([0-9.]*)nbexperiments([0-9.]*)mixed_two_scales-([0-9a-z\-]*).npy')
+        # params = dict(label='T1_inabstract', files='Data/mixed_ratio_2scales_search/T1_N300_K100/ratioconj_2scales*.npy*', regexp='^[a-zA-Z_\/0-9]*-ratioconj([0-9.]*)T[0-9]*alpha[0-9.]*N[0-9.]*K[0-9]*numsamples[0-9]*nbrepeats([0-9.]*)nbexperiments([0-9.]*)mixed_two_scales-([0-9a-z\-]*).npy')
         # params = dict(label='T1', files='Data/mixed_ratio_2scales_search/K300/T1/ratioconj_2scales*.npy*', regexp='^[a-zA-Z_\/0-9]*-ratioconj([0-9.]*)T[0-9]*alpha[0-9.]*N[0-9.]*K[0-9]*numsamples[0-9]*nbrepeats([0-9.]*)nbexperiments([0-9.]*)mixed_two_scales-([0-9a-z\-]*).npy')
+
+        # New datagen, N300
+        # params = dict(label='T1_newdata_n300', files='Data/mixed_ratio_2scales_search/new_datagen/N300/T1/ratioconj_2scales*.npy*', regexp='^[a-zA-Z_\/0-9]*-ratioconj([0-9.]*)T[0-9]*alpha[0-9.]*N[0-9.]*numsamples[0-9]*nbrepeats([0-9.]*)nbexperiments([0-9.]*)mixed_two_scales-([0-9a-z\-]*).npy')
+
+        # New datagen, N500
+        params = dict(label='T1_newdata_n500', files='Data/mixed_ratio_2scales_search/new_datagen/N500/T1/ratioconj_2scales*.npy*', regexp='^[a-zA-Z_\/0-9]*-ratioconj([0-9.]*)T[0-9]*alpha[0-9.]*N[0-9.]*numsamples[0-9]*nbrepeats([0-9.]*)nbexperiments([0-9.]*)mixed_two_scales-([0-9a-z\-]*).npy')
 
     # T2
     # params = dict(label='T2', files='Data/mixed_ratio_2scales_search/T2_N300_K100/ratioconj_2scales*.npy*', regexp='^[a-zA-Z_\/0-9]*-ratioconj([0-9.]*)T[0-9]*alpha[0-9.]*N[0-9.]*K[0-9]*numsamples[0-9]*nbrepeats([0-9.]*)nbexperiments([0-9.]*)mixed_two_scales-([0-9a-z\-]*).npy')
@@ -205,16 +211,34 @@ def combine_mixed_two_scales(data_to_use = 0, should_plot=True):
         # params = dict(label='T2_used_figures_collated_bis_2311_midnight', files='Data/mixed_ratio_2scales_search/T2_N300_K100/less_data/ratioconj_2scales*.npy*', regexp='^[a-zA-Z_\/0-9]*-ratioconj([0-9.]*)T[0-9]*alpha[0-9.]*N[0-9.]*K[0-9]*numsamples[0-9]*nbrepeats([0-9.]*)nbexperiments([0-9.]*)mixed_two_scales-([0-9a-z\-]*).npy')
         params = dict(label='T2_inabstract', files='Data/mixed_ratio_2scales_search/T2_N300_K100/ratioconj_2scales*.npy*', regexp='^[a-zA-Z_\/0-9]*-ratioconj([0-9.]*)T[0-9]*alpha[0-9.]*N[0-9.]*K[0-9]*numsamples[0-9]*nbrepeats([0-9.]*)nbexperiments([0-9.]*)mixed_two_scales-([0-9a-z\-]*).npy')
         # params = dict(label='T2', files='Data/mixed_ratio_2scales_search/K300/T2/ratioconj_2scales*.npy*', regexp='^[a-zA-Z_\/0-9]*-ratioconj([0-9.]*)T[0-9]*alpha[0-9.]*N[0-9.]*K[0-9]*numsamples[0-9]*nbrepeats([0-9.]*)nbexperiments([0-9.]*)mixed_two_scales-([0-9a-z\-]*).npy')
+
+        # New datagen, N300
+        # params = dict(label='T2_newdata_n300', files='Data/mixed_ratio_2scales_search/new_datagen/N300/T2/ratioconj_2scales*.npy*', regexp='^[a-zA-Z_\/0-9]*-ratioconj([0-9.]*)T[0-9]*alpha[0-9.]*N[0-9.]*numsamples[0-9]*nbrepeats([0-9.]*)nbexperiments([0-9.]*)mixed_two_scales-([0-9a-z\-]*).npy')
+
+        # New datagen, N500
+        params = dict(label='T2_newdata_n500', files='Data/mixed_ratio_2scales_search/new_datagen/N500/T2/ratioconj_2scales*.npy*', regexp='^[a-zA-Z_\/0-9]*-ratioconj([0-9.]*)T[0-9]*alpha[0-9.]*N[0-9.]*numsamples[0-9]*nbrepeats([0-9.]*)nbexperiments([0-9.]*)mixed_two_scales-([0-9a-z\-]*).npy')
     
     # T3
     if data_to_use == 2:
         # params = dict(label='T3_used_figures_collated_bis_2311_midnight', files='Data/mixed_ratio_2scales_search/T3/less_data/ratioconj_2scales*.npy*', regexp='^[a-zA-Z_\/0-9]*-ratioconj([0-9.]*)T[0-9]*alpha[0-9.]*N[0-9.]*K[0-9]*numsamples[0-9]*nbrepeats([0-9.]*)nbexperiments([0-9.]*)mixed_two_scales-([0-9a-z\-]*).npy')
-        params = dict(label='T3_inabstract', files='Data/mixed_ratio_2scales_search/T3/ratioconj_2scales*.npy*', regexp='^[a-zA-Z_\/0-9]*-ratioconj([0-9.]*)T[0-9]*alpha[0-9.]*N[0-9.]*K[0-9]*numsamples[0-9]*nbrepeats([0-9.]*)nbexperiments([0-9.]*)mixed_two_scales-([0-9a-z\-]*).npy')
+        # params = dict(label='T3_inabstract', files='Data/mixed_ratio_2scales_search/T3/ratioconj_2scales*.npy*', regexp='^[a-zA-Z_\/0-9]*-ratioconj([0-9.]*)T[0-9]*alpha[0-9.]*N[0-9.]*K[0-9]*numsamples[0-9]*nbrepeats([0-9.]*)nbexperiments([0-9.]*)mixed_two_scales-([0-9a-z\-]*).npy')
         # params = dict(label='T3', files='Data/mixed_ratio_2scales_search/K300/T3/ratioconj_2scales*.npy*', regexp='^[a-zA-Z_\/0-9]*-ratioconj([0-9.]*)T[0-9]*alpha[0-9.]*N[0-9.]*K[0-9]*numsamples[0-9]*nbrepeats([0-9.]*)nbexperiments([0-9.]*)mixed_two_scales-([0-9a-z\-]*).npy')
+
+        # New datagen, N300
+        # params = dict(label='T3_newdata_n300', files='Data/mixed_ratio_2scales_search/new_datagen/N300/T3/ratioconj_2scales*.npy*', regexp='^[a-zA-Z_\/0-9]*-ratioconj([0-9.]*)T[0-9]*alpha[0-9.]*N[0-9.]*numsamples[0-9]*nbrepeats([0-9.]*)nbexperiments([0-9.]*)mixed_two_scales-([0-9a-z\-]*).npy')
+
+        # New datagen, N500
+        params = dict(label='T3_newdata_n500', files='Data/mixed_ratio_2scales_search/new_datagen/N500/T3/ratioconj_2scales*.npy*', regexp='^[a-zA-Z_\/0-9]*-ratioconj([0-9.]*)T[0-9]*alpha[0-9.]*N[0-9.]*numsamples[0-9]*nbrepeats([0-9.]*)nbexperiments([0-9.]*)mixed_two_scales-([0-9a-z\-]*).npy')
     
     # T4
     if data_to_use == 3:
-        params = dict(label='T4_inabstract', files='Data/mixed_ratio_2scales_search/T4/ratioconj_2scales*.npy*', regexp='^[a-zA-Z_\/0-9]*-ratioconj([0-9.]*)T[0-9]*alpha[0-9.]*N[0-9.]*K[0-9]*numsamples[0-9]*nbrepeats([0-9.]*)nbexperiments([0-9.]*)mixed_two_scales-([0-9a-z\-]*).npy')
+        # params = dict(label='T4_inabstract', files='Data/mixed_ratio_2scales_search/T4/ratioconj_2scales*.npy*', regexp='^[a-zA-Z_\/0-9]*-ratioconj([0-9.]*)T[0-9]*alpha[0-9.]*N[0-9.]*K[0-9]*numsamples[0-9]*nbrepeats([0-9.]*)nbexperiments([0-9.]*)mixed_two_scales-([0-9a-z\-]*).npy')
+
+        # New datagen, K300
+        params = dict(label='T4_newdata_n300', files='Data/mixed_ratio_2scales_search/new_datagen/N300/T4/ratioconj_2scales*.npy*', regexp='^[a-zA-Z_\/0-9]*-ratioconj([0-9.]*)T[0-9]*alpha[0-9.]*N[0-9.]*numsamples[0-9]*nbrepeats([0-9.]*)nbexperiments([0-9.]*)mixed_two_scales-([0-9a-z\-]*).npy')
+
+        # New datagen, N500
+        # params = dict(label='T4_newdata_n500', files='Data/mixed_ratio_2scales_search/new_datagen/N500/T4/ratioconj_2scales*.npy*', regexp='^[a-zA-Z_\/0-9]*-ratioconj([0-9.]*)T[0-9]*alpha[0-9.]*N[0-9.]*numsamples[0-9]*nbrepeats([0-9.]*)nbexperiments([0-9.]*)mixed_two_scales-([0-9a-z\-]*).npy')
     
 
     # Get all output files
@@ -284,20 +308,20 @@ def combine_mixed_two_scales(data_to_use = 0, should_plot=True):
     mean_invprecisions = np.mean(results_array, 3)
     mean_precisions = np.mean(1./results_array, 3)
     var_invprecisions = np.std(results_array, 3)
-    # var_precisions = np.std(1./results_array, 3)
+    var_precisions = np.std(1./results_array, 3)
 
     # Some quick/dirty plots
     if False:
         for ratioconj_i in np.arange(all_ratioconj.size):
             f = plt.figure()
             ax = f.add_subplot(111)
-            im = ax.imshow(mean_precisions[ratioconj_i, :, 4:].T, origin='lower', aspect='auto')
+            im = ax.imshow(mean_precisions[ratioconj_i, :, 0:].T, origin='lower', aspect='auto')
             # im.set_extent((param1_space.min(), param1_space.max(), param2_space.min(), param2_space.max()))
             im.set_interpolation('nearest')
             # ax.xaxis.set_major_locator(plttic.NullLocator())
             # ax.yaxis.set_major_locator(plttic.NullLocator())
             plt.xticks(np.arange(param1_space.size), np.around(param1_space, 2), rotation=20)
-            plt.yticks(np.arange((param2_space[4:]).size), np.around(param2_space[4:], 2))
+            plt.yticks(np.arange((param2_space[0:]).size), np.around(param2_space[0:], 2))
             ax.set_xlabel('Scale of conjunctive cells')
             ax.set_ylabel('Scale of feature cells')
             f.colorbar(im)
@@ -406,25 +430,30 @@ def combine_mixed_two_scales(data_to_use = 0, should_plot=True):
         #     optcurve = np.max(np.max(mean_precisions[:,:,4:-1],1),1) # works
         # stdcurve = np.zeros(all_ratioconj.size)
 
-        optcurve = np.max(np.max(1./mean_invprecisions[:,:,4:],1),1)
+        optcurve = np.max(np.max(1./mean_invprecisions[:,:,0:],1),1)
         
         # # plot_mean_std_area(np.arange(nb_ratios), optcurve, np.std(np.std(mean_precisions - optcurve[:,np.newaxis, np.newaxis] ,1),1))
         # plt.title('mean mean precision, full')
 
         # optcurve = np.zeros(all_ratioconj.size)
-        # stdcurve = np.zeros(all_ratioconj.size)
-        # for r in np.arange(all_ratioconj.size):
+        stdcurve = np.zeros(all_ratioconj.size)
+
+        for r in np.arange(all_ratioconj.size):
         #     # indmax = argmax_indices(mean_precisions[r])
-        #     indmax = argmax_indices(1./mean_invprecisions[r])
-        #     optcurve[r] = 1./mean_invprecisions[r, indmax[0], indmax[1]]
-        #     # stdcurve[r] = var_precisions[r, indmax[0], indmax[1]]
+            indmax = argmax_indices(mean_precisions[r])
+            # indmax = argmin_indices(mean_invprecisions[r])
+            # optcurve[r] = mean_invprecisions[r, indmax[0], indmax[1]]
+            # stdcurve[r] = var_invprecisions[r, indmax[0], indmax[1]]
+
+            # optcurve[r] = mean_precisions[r, indmax[0], indmax[1]]
+            # stdcurve[r] = var_precisions[r, indmax[0], indmax[1]]
 
         # optcurve = np.max(np.max(mean_precisions,1),1)
         # optcurve = np.max(np.max(1./mean_invprecisions,1),1)
         # stdcurve = np.std(np.std(mean_precisions - optcurve[:,np.newaxis, np.newaxis] ,1),1)
 
-        stdcurve /= np.max(optcurve)
-        optcurve /= np.max(optcurve)
+        # stdcurve /= np.max(optcurve)
+        # optcurve /= np.max(optcurve)
 
         if should_plot:
             plot_mean_std_area(np.arange(nb_ratios), optcurve, stdcurve)
@@ -472,9 +501,10 @@ def plot_effect_ratioconj():
 
 def combine_multiple_memory_curve():
 
-
     # all_output_files = glob.glob('Data/memory_curves/feat/feat_multiple_memories-*.npy*')
-    all_output_files = glob.glob('Data/memory_curves/conj/conj_multiple_memories-*.npy*')
+    # all_output_files = glob.glob('Data/memory_curves/conj/conj_multiple_memories-*.npy*')
+    all_output_files = glob.glob('Data/memory_curves/cosyne_poster/conj_multiple_memories-*alpha0.89N*.npy*')
+    # all_output_files = glob.glob('Data/memory_curves/cosyne_poster/sigmay0_1/conj_multiple_memories-*alpha0.92N*.npy*')
     
     assert len(all_output_files) > 0, "Wrong regular expression"
 
@@ -484,7 +514,9 @@ def combine_multiple_memory_curve():
     for curr_file in all_output_files:
         
         # Do a nice regular expression to catch the parameters and remove the useless random unique string
-        matched = re.search('^[a-zA-Z_\/0-9]*-T([0-9]*)alpha[0-9.]*M[0-9]*N[0-9.]*rcscale[0-9.]*sigmax[0-9.]*nbrepeats([0-9.]*)nbexperiments([0-9.]*)multiple_memory_curve-([0-9a-z\-]*).npy', curr_file)
+        # matched = re.search('^[a-zA-Z_\/0-9]*-T([0-9]*)alpha[0-9.]*M[0-9]*N[0-9.]*rcscale[0-9.]*sigmax[0-9.]*nbrepeats([0-9.]*)nbexperiments([0-9.]*)multiple_memory_curve-([0-9a-z\-]*).npy', curr_file)
+        matched = re.search('^[a-zA-Z_\/0-9]*-T([0-9]*)alpha[0-9.]*N[0-9.]*rcscale[0-9.]*sigmax[0-9.]*nbrepeats([0-9.]*)nbexperiments([0-9.]*)multiple_memory_curve-([0-9a-z\-]*).npy', curr_file)
+        # matched = re.search('^[a-zA-Z_\/0-9]*-T([0-9]*)alpha[0-9.]*N[0-9.]*rcscale[0-9.]*sigmax[0-9.]*sigmay[0-9.]*nbrepeats([0-9.]*)nbexperiments([0-9.]*)multiple_memory_curve-([0-9a-z\-]*).npy', curr_file)
 
         # Get T
         T = int(matched.groups()[0])
@@ -518,22 +550,46 @@ def combine_multiple_memory_curve():
 
     print "Size of results: %s" % results_array.shape.__str__()
 
+    mean_precision = np.zeros((T,T))
+    std_precision = np.zeros((T,T))
+    for t1 in np.arange(T):
+        for t2 in np.arange(T):
+            precisions = 1./results_array[t1, t2]
+            precisions[np.isinf(precisions)] = np.nan
+            mean_precision[t1, t2]  = np.mean(precisions[~np.isnan(precisions)])
+            std_precision[t1, t2]   = np.std(precisions[~np.isnan(precisions)])
+
+    # Do a nanmean
+    mean_results = 1./results_array
+    mean_results[np.isinf(mean_results)] = np.nan
+
+    tot_nonan= (mean_results.shape[2] - np.sum(np.isnan(mean_results), 2))
+    mean_results = np.nansum(mean_results, axis=2)/tot_nonan
+
+
+    plt.rcParams['font.size'] = 17
+    
     f = plt.figure()
     ax = f.add_subplot(111)
     for t in np.arange(T):
         t_space_aligned_right = (T - np.arange(t+1))[::-1]
         # plot_mean_std_area(t_space_aligned_right, np.mean(1./all_precisions[t],1)[:t+1], np.std(1./all_precisions[t],1)[:t+1], ax_handle=ax)
         # semilogy_mean_std_area(t_space_aligned_right, np.mean(1./all_precisions[t],1)[:t+1], np.std(1./all_precisions[t],1)[:t+1], ax_handle=ax)
-        plt.semilogy(t_space_aligned_right, np.mean(1./results_array[t],1)[:t+1], 'o-')
+        # plt.semilogy(t_space_aligned_right, np.mean(1./results_array[t],1)[:t+1], 'o-')
+        
         # plt.plot(t_space_aligned_right, np.mean(1./results_array[t],1)[:t+1], 'o-')
+        plt.plot(t_space_aligned_right, mean_results[t, :t+1], 'o-', markersize=8, linewidth=2)
+        # plot_mean_std_area(t_space_aligned_right, mean_precision[t, :t+1], std_precision[t, :t+1], ax_handle=ax)
+
     x_labels = ['-%d' % x for x in np.arange(T)[::-1]]
     x_labels[-1] = 'Last'
 
     ax.set_xticks(t_space_aligned_right)
     ax.set_xticklabels(x_labels)
     ax.set_xlim((0.8, T+0.2))
-    ax.set_xlabel('Recall time')
-    ax.set_ylabel('Precision [rad]')
+    ax.set_yticks((1, 2,3, 4,5))
+    # ax.set_xlabel('Recall time')
+    # ax.set_ylabel('Precision [rad]')
     plt.legend(['%d items' % (x+1) for x in np.arange(T)], loc='best', numpoints=1)
 
     return locals()
@@ -544,6 +600,8 @@ def combine_multiple_memory_curve():
 if __name__ == '__main__':
     # combine_plot_size_receptive_field_number_neurons()
     # all_vars = combine_mixed_two_scales(1)
+    # all_vars = combine_mixed_two_scales(2)
+    # all_vars = combine_mixed_two_scales(3)
     all_vars = combine_multiple_memory_curve()
     # plot_effect_ratioconj()
 
