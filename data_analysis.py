@@ -604,8 +604,6 @@ if __name__ == '__main__':
     # all_vars = combine_mixed_two_scales(3)
     all_vars = combine_multiple_memory_curve()
     # plot_effect_ratioconj()
-
-    
     
 
     plt.show()
