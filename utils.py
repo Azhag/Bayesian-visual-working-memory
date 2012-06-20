@@ -11,6 +11,7 @@ import pylab as plt
 import numpy as np
 import matplotlib.ticker as plttic
 import scipy.io as sio
+import scipy.optimize as spopt
 import uuid
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
@@ -384,6 +385,79 @@ def reinstantiate_variables_dict(var_dict):
         vars()[k] = x
     
 
+def fit_powerlaw(xdata, ydata, should_plot=False, debug=False):
+    '''
+        Fit a power law to the provided data
+    '''
+    
+    powerlaw = lambda x, amp, index: amp * (x**index)
+
+    ##########
+    # Fitting the data -- Least Squares Method
+    ##########
+
+    # Power-law fitting is best done by first converting
+    # to a linear equation and then fitting to a straight line.
+    #
+    #  y = a * x^b
+    #  log(y) = log(a) + b*log(x)
+    #
+
+    logx = np.log(xdata)
+    logy = np.log(ydata)
+
+    # define our (line) fitting function
+    fitfunc = lambda p, x: p[0] + p[1] * x
+    errfunc = lambda p, x, y: (y - fitfunc(p, x))
+    # errfunc_mse = lambda p, x, y: np.mean((y - fitfunc(p, x))**2.)
+
+    # Initial parameters
+    pinit = [1.0, -1.0]
+    out = spopt.leastsq(errfunc, pinit, args=(logx, logy), full_output=1)
+    # out = spopt.fmin(errfunc_mse, pinit, args=(logx, logy))
+
+    pfinal = out[0]
+    covar = out[1]
+
+    if debug:
+        print pfinal
+        print covar
+
+    index = pfinal[1]
+    amp = np.exp(pfinal[0])
+
+    indexErr = np.sqrt( covar[0][0] )
+    ampErr = np.sqrt( covar[1][1] ) * amp
+
+    ##########
+    # Plotting data
+    ##########
+    if should_plot:
+        plt.figure()
+        plt.subplot(2, 1, 1)
+        plt.plot(xdata, powerlaw(xdata, amp, index))     # Fit
+        plt.plot(xdata, ydata, 'k.')  # Data
+        # plt.text(0.0, 0.0, 'Ampli = %5.2f +/- %5.2f' % (amp, ampErr))
+        # plt.text(0.0, 0.0, 'Index = %5.2f +/- %5.2f' % (index, indexErr))
+        if debug:
+            print 'Ampli = %5.2f +/- %5.2f' % (amp, ampErr)
+            print 'Index = %5.2f +/- %5.2f' % (index, indexErr)
+        plt.title('Best Fit Power Law')
+        plt.xlabel('X')
+        plt.ylabel('Y')
+
+        plt.subplot(2, 1, 2)
+        plt.loglog(xdata, powerlaw(xdata, amp, index))
+        plt.plot(xdata, ydata, 'k.')  # Data
+        plt.xlabel('X (log scale)')
+        plt.ylabel('Y (log scale)')
+
+    return np.array([index, amp])
+        
+
+
+
 
 if __name__ == '__main__':
     pass
+
