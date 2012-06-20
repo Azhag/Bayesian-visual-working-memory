@@ -430,7 +430,7 @@ def combine_mixed_two_scales(data_to_use = 0, should_plot=True):
         #     optcurve = np.max(np.max(mean_precisions[:,:,4:-1],1),1) # works
         # stdcurve = np.zeros(all_ratioconj.size)
 
-        optcurve = np.max(np.max(1./mean_invprecisions[:,:,0:],1),1)
+        optcurve = np.max(np.max(1./mean_invprecisions[:, :, 0:], 1), 1)
         
         # # plot_mean_std_area(np.arange(nb_ratios), optcurve, np.std(np.std(mean_precisions - optcurve[:,np.newaxis, np.newaxis] ,1),1))
         # plt.title('mean mean precision, full')
