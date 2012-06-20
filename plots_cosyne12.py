@@ -254,7 +254,7 @@ def plot_probabilities_mixtures():
         rcscale_space          = data['rcscale_space'].flatten()
         sigmax_space           = data['sigmax_space'].flatten()
         
-        median_fitted_models   = np.median(all_fitted_models, axis=5)
+        median_fitted_models   = np.median(all_fitted_models, axis=5)  # Take the median between repeats.
         median_precisions      = np.median(all_precisions, axis=5)
 
         # prob_results_conj_bad = median_fitted_models[4, 3, 2, 2, :, 1:]
@@ -262,8 +262,22 @@ def plot_probabilities_mixtures():
         # target_experimental_precisions  = np.array([5.0391, 3.4834, 2.9056, 2.2412, 1.7729])/2.
         target_experimental_precisions  = np.array([5.0391, 3.4834, 2.9056, 2.2412, 1.7729])
 
-        mse_precisions = np.sum((1./median_precisions[:, :, :, :, :5] - target_experimental_precisions)**2., axis=4)
+        ### OPTION1> Take the mean square error of the precisions.
+        #  (Sum/avg for all objects)
+        mse_precisions = np.sum((1./median_precisions[:, :, :, :, :5] - target_experimental_precisions)**2., axis=-1)
         # mse_precisions = np.sum(np.abs(1./median_precisions[:,:,:,:,:5] - target_experimental_precisions), axis=4)
+
+        ### OPTION 2> Fit a power law, compare the two parameters
+        # experimental_powerlaw_fits = fit_powerlaw(np.arange(1, 6), target_experimental_precisions)
+        # model_precisions_flat = 1./median_precisions[:, :, :, :, :5].reshape(5*5*5*4, 5)
+        # model_powerlaw_fits = np.zeros((model_precisions_flat.shape[0], 2))
+        # for i in xrange(model_precisions_flat.shape[0]):
+        #     try:
+        #         model_powerlaw_fits[i] = np.array(fit_powerlaw(np.arange(1, 6), model_precisions_flat[i]))
+        #     except:
+        #         model_powerlaw_fits[i] = np.nan
+        # model_powerlaw_fits.shape = (5, 5, 5, 4, 2)
+        # mse_precisions = np.sum((model_powerlaw_fits - experimental_powerlaw_fits)**2., axis=-1)
 
         # Best parameters:
         #   4, 3, 2, 0 => 200 samples, 50 selected, rc_scale 0.5, sigmax 0.01
@@ -284,11 +298,18 @@ def plot_probabilities_mixtures():
         goodenough_parameters_values[:, 3] = sigmax_space[goodenough_indices[:, 3]]
 
         # Good fit:
+        #   "double" here means that the target_experimental is divided by 2 or not. As we have a double space, it's not 
+        #       entirely sure which one is the correct one. The plots for the poster where done for single, 8 chosen (not divided by 2)
         #   with double precision: 7
         #   with single precision: 8, 11
+
+        # Best fit for power law: 2
+        #  still keeping the nontargets:  1, 4
+        chosen_optimal_fit_index = 8
+
         f = plt.figure()
         ax = f.add_subplot(111)
-        ax.plot(np.arange(1, 7), median_fitted_models[tuple(goodenough_indices[8])][:, 1:], '-o', markersize=7, linewidth=2)
+        ax.plot(np.arange(1, 7), median_fitted_models[tuple(goodenough_indices[chosen_optimal_fit_index])][:, 1:], '-o', markersize=7, linewidth=2)
         ax.set_xlim((0.8, 6.3))
         plt.yticks((0.25, 0.5, 0.75, 1.0))
         plt.xticks((1, 2, 3, 4, 5, 6))
@@ -296,18 +317,25 @@ def plot_probabilities_mixtures():
         
         f2 = plt.figure()
         ax2 = f2.add_subplot(111)
-        ax2.plot(np.arange(1, 6), 1./median_precisions[tuple(goodenough_indices[8])][:-1], 'o-', markersize=7, linewidth=2)
-        plt.yticks((1, 2, 3, 4, 5))
-        plt.ylim((0.9, 5.5))
-        plt.xticks((1, 2, 3, 4, 5))
-        plt.xlim((0.8, 5.5))
+        ax2.plot(np.arange(1, 6), 1./median_precisions[tuple(goodenough_indices[chosen_optimal_fit_index])][:-1], 'o-', markersize=7, linewidth=2)
+        ax2.plot(np.arange(1, 6), target_experimental_precisions, 'o-', markersize=7, linewidth=2)
+        # plt.yticks((1, 2, 3, 4, 5))
+        # plt.ylim((0.9, 5.5))
+        # plt.xticks((1, 2, 3, 4, 5))
+        # plt.xlim((0.8, 5.5))
+        plt.legend(['Model', 'Experimental'])
+
+        # print 'Experimental power law: %.2f, %.2f' % experimental_powerlaw_fits
+        # print 'Power law fits: %.2f, %.2f' % tuple(model_powerlaw_fits[tuple(goodenough_indices[chosen_optimal_fit_index])].tolist())
 
         # for abs value
         # figure()
         # plot(np.arange(1, 7), median_fitted_models[tuple(goodenough_indices[8])][:, 1:])
         # figure();
         # plot(1./median_precisions[tuple(goodenough_indices[8])])
-    
+        
+        return 1./median_precisions[tuple(goodenough_indices[chosen_optimal_fit_index])][:-1]
+
     if False:
         # Mixed cells
         data = sio.loadmat('/Users/loicmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/experimental_data/fit_saveresponses_simult_mixed_search_sigmax_rcscale_numsamples_selectnumsamples_2701/all_fitted_results.mat')
@@ -360,10 +388,11 @@ def plot_probabilities_mixtures():
 
         f2 = plt.figure()
         ax2 = f2.add_subplot(111)
-        ax2.semilogy(np.arange(1, 6), 2./median_precisions[tuple(goodenough_indices[5])][:-1], 'o-', markersize=7, linewidth=2)
+        ax2.plot(np.arange(1, 6), 2./median_precisions[tuple(goodenough_indices[5])][:-1], 'o-', markersize=7, linewidth=2)
         plt.yticks((1, 2, 3, 4))
         plt.ylim((1.2, 4))
         plt.xticks((1, 2, 3, 4, 5))
+        plt.xlim((0.8, 5.5))
     
     if False:
         # Mixed cells
@@ -418,9 +447,11 @@ def plot_probabilities_mixtures():
         f2 = plt.figure()
         ax2 = f2.add_subplot(111)
         ax2.plot(np.arange(1, 6), 2./median_precisions[tuple(goodenough_indices[3])][:-1], 'o-', markersize=7, linewidth=2)
+        # ax2.plot(np.arange(1, 6), target_experimental_precisions, 'o-', markersize=7, linewidth=2)
         plt.yticks((1, 2, 3, 4))
         plt.ylim((1.2, 4))
         plt.xticks((1, 2, 3, 4, 5))
+        plt.legend(['Model', 'Experimental'])
 
 
 
@@ -429,7 +460,7 @@ def plot_probabilities_mixtures():
 
 if __name__ == '__main__':
      
-    plot_probabilities_mixtures()    
+    results = plot_probabilities_mixtures()    
 
     plt.show()
 
