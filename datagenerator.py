@@ -57,9 +57,12 @@ class DataGenerator:
             weight_prior = time_weights_parameters['weight_prior']
             weighting_alpha = time_weights_parameters['weighting_alpha']
             weighting_beta = time_weights_parameters['weighting_beta']
-            specific_weighting = time_weights_parameters['specific_weighting']
+            if 'specific_weighting' in time_weights_parameters:
+                specific_weighting = time_weights_parameters['specific_weighting']
+            else:
+                specific_weighting = 0.0
         except TypeError:
-            raise ValueError('Time_weights_parameter doesnt contain proper keys: weight_prior, weighting_alpha, weighting_beta, specific_weighting')
+            raise ValueError('Time_weights_parameter doesnt contain proper keys: weight_prior, weighting_alpha, weighting_beta, [specific_weighting]')
         
         self.time_weights = np.zeros((2, self.T))
         
