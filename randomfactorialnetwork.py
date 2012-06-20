@@ -53,6 +53,9 @@ class RandomFactorialNetwork():
         self.assign_prefered_stimuli(tiling_type='conjunctive')
         self.assign_random_eigenvectors()
 
+        # Used to stored cached network response statistics. Mean_theta(mu(theta)) and Cov_theta(mu(theta))
+        self.network_response_statistics = None
+
         self.network_initialised = True
     
     
@@ -273,7 +276,7 @@ class RandomFactorialNetwork():
         self.neurons_sigma[specified_neurons, 1] = ratio_rnd*self.neurons_sigma[specified_neurons, 0]
 
         # Shrink neurons according to their associated scale
-        self.neurons_sigma[:self.neurons_scales.size, :] = self.neurons_sigma[:self.neurons_scales.size,:]/(2.**self.neurons_scales[:,np.newaxis])
+        self.neurons_sigma[:self.neurons_scales.size, :] = self.neurons_sigma[:self.neurons_scales.size, :]/(2.**self.neurons_scales[:, np.newaxis])
 
         # Assign angles
         self.neurons_angle[specified_neurons] = np.pi*np.random.random(size=specified_neurons.size)
@@ -451,14 +454,14 @@ class RandomFactorialNetwork():
         '''
 
         # Unpack parameters
-        if 'weight' in params:
-            weight = params['weight']
-        else:
-            weight = 6.
-        if 'periodicity' in params:
-            periodicity = params['periodicity']
-        else:
-            periodicity = 0.5
+        # if 'weight' in params:
+        #     weight = params['weight']
+        # else:
+        #     weight = 6.
+        # if 'periodicity' in params:
+        #     periodicity = params['periodicity']
+        # else:
+        #     periodicity = 0.5
 
         
         normalisation = 1.
@@ -494,6 +497,38 @@ class RandomFactorialNetwork():
         else:
             # not unrolled
             raise NotImplementedError('R>3 for factorial code...')
+    
+    ####
+
+    def compute_network_response_statistics(self, precision = 20, params = {}):
+        '''
+            Will compute the mean and covariance of the network output.
+            These are used in some analytical expressions.
+
+            They are currently estimated from samples, there might be a closed-form solution...
+        '''
+
+        if self.network_response_statistics is None:
+            # Should compute it
+            
+            # Get the theta spaces
+            feature_space1 = np.linspace(-np.pi, np.pi, precision, endpoint=False)
+
+            # Sample responses to measure the statistics on
+            responses = np.zeros((feature_space1.size**2, self.M))
+            for theta1_i in xrange(feature_space1.size):
+                for theta2_i in xrange(feature_space1.size):
+                    responses[theta1_i*feature_space1.size + theta2_i] = self.get_network_response((feature_space1[theta1_i], feature_space1[theta2_i]), params=params)
+
+            # Compute the mean and covariance
+            computed_mean = np.mean(responses, axis=0)
+            computed_cov = np.cov(responses.T)
+
+            # Cache them
+            self.network_response_statistics = {'mean': computed_mean, 'cov': computed_cov}
+
+        # Return the cached values
+        return self.network_response_statistics
         
     
     ########################################################################################################################
@@ -549,34 +584,26 @@ class RandomFactorialNetwork():
         # Get covariance
         return np.cov(samples.T)
 
-
-    def compute_covariance_KL(self, precision=100, sigma_2=0.2, beta=1.0, params={}, should_plot= False, return_means=False):
+    def compute_covariance_KL(self, precision=100, sigma_2=0.2, beta=1.0, params={}, should_plot= False):
         '''
             Compute the covariance of the Gaussian approximation (through a KL) to the averaged object.
 
             Sigma* = sigma^2 I + beta^2 Cov( mu(theta))_p(theta)
         '''
 
-        # Get the theta spaces
-        feature_space1 = np.linspace(-np.pi, np.pi, precision, endpoint=False)
+        # Get the statistics of the network population code
+        network_response_statistics = self.compute_network_response_statistics(precision = precision, params=params)
 
-        # Compute the mean
-        mean = np.zeros((feature_space1.size**2, self.M))
-        for theta1_i in xrange(feature_space1.size):
-            for theta2_i in xrange(feature_space1.size):
-                mean[theta1_i*feature_space1.size + theta2_i] = self.get_network_response((feature_space1[theta1_i], feature_space1[theta2_i]), params=params)
-        
-        covariance = beta**2.*np.cov(mean.T) + sigma_2*np.eye(self.M)
+        # The actual computation
+        covariance = beta**2.*network_response_statistics['cov'] + beta**2.*sigma_2*np.eye(self.M)
 
         if should_plot  == True:
             plt.figure()
             plt.imshow(covariance, interpolation='nearest')
             plt.show()
 
-        if return_means:
-            return covariance, mean
-        else:
-            return covariance
+        # Output it
+        return covariance
 
 
     def compute_fisher_information(self, stimulus_input, sigma=0.01, cov_stim=None, params={}):
@@ -1194,7 +1221,7 @@ if __name__ == '__main__':
         T = 1
         sigma_x = 1.0
         sigma_y = 0.2
-        beta = 1.5
+        beta = 2.0
 
         time_weights_parameters = dict(weighting_alpha=alpha, weighting_beta = beta, specific_weighting = 0.1, weight_prior='uniform')
         rn = RandomFactorialNetwork.create_full_conjunctive(N, R=2, sigma=sigma_x, scale_moments=(2.0, 0.01), ratio_moments=(1.0, 0.01))
