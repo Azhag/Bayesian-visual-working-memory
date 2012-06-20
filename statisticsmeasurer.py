@@ -393,17 +393,18 @@ if __name__ == '__main__':
     if True:
         # See how much of background noise is still present as a function of number of samples
 
-        sample_sizes = np.logspace(1, 4.7, num=20).astype(int)
+        # sample_sizes = np.logspace(1, 4.7, num=5).astype(int)
+        sample_sizes = np.logspace(1, 2.5, num=5).astype(int)
         background_std_observed = np.zeros_like(sample_sizes).astype(float)
 
-        alpha = 0.9
+        alpha = 1.0
         N_sqrt = 20.
         N = int(N_sqrt**2.)
         T = 1
-        sigma_x = 2.0
-        sigma_y = 0.2
+        sigma_x = 3.0
+        sigma_y = 1.5
 
-        time_weights_parameters = dict(weighting_alpha=alpha, weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='uniform')
+        time_weights_parameters = dict(weighting_alpha=alpha, weighting_beta = 2.0, weight_prior='uniform')
         rn = RandomFactorialNetwork.create_full_conjunctive(N, R=2, sigma=sigma_x, scale_moments=(2.0, 0.01), ratio_moments=(1.0, 0.01))
         
         print "Measuring background std dev as function of number of samples"
