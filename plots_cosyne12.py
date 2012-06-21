@@ -264,20 +264,20 @@ def plot_probabilities_mixtures():
 
         ### OPTION1> Take the mean square error of the precisions.
         #  (Sum/avg for all objects)
-        mse_precisions = np.sum((1./median_precisions[:, :, :, :, :5] - target_experimental_precisions)**2., axis=-1)
+        # mse_precisions = np.sum((1./median_precisions[:, :, :, :, :5] - target_experimental_precisions)**2., axis=-1)
         # mse_precisions = np.sum(np.abs(1./median_precisions[:,:,:,:,:5] - target_experimental_precisions), axis=4)
 
         ### OPTION 2> Fit a power law, compare the two parameters
-        # experimental_powerlaw_fits = fit_powerlaw(np.arange(1, 6), target_experimental_precisions)
-        # model_precisions_flat = 1./median_precisions[:, :, :, :, :5].reshape(5*5*5*4, 5)
-        # model_powerlaw_fits = np.zeros((model_precisions_flat.shape[0], 2))
-        # for i in xrange(model_precisions_flat.shape[0]):
-        #     try:
-        #         model_powerlaw_fits[i] = np.array(fit_powerlaw(np.arange(1, 6), model_precisions_flat[i]))
-        #     except:
-        #         model_powerlaw_fits[i] = np.nan
-        # model_powerlaw_fits.shape = (5, 5, 5, 4, 2)
-        # mse_precisions = np.sum((model_powerlaw_fits - experimental_powerlaw_fits)**2., axis=-1)
+        experimental_powerlaw_fits = fit_powerlaw(np.arange(1, 6), target_experimental_precisions)
+        model_precisions_flat = 1./median_precisions[:, :, :, :, :5].reshape(5*5*5*4, 5)
+        model_powerlaw_fits = np.zeros((model_precisions_flat.shape[0], 2))
+        for i in xrange(model_precisions_flat.shape[0]):
+            try:
+                model_powerlaw_fits[i] = np.array(fit_powerlaw(np.arange(1, 6), model_precisions_flat[i]))
+            except:
+                model_powerlaw_fits[i] = np.nan
+        model_powerlaw_fits.shape = (5, 5, 5, 4, 2)
+        mse_precisions = np.sum((model_powerlaw_fits - experimental_powerlaw_fits)**2., axis=-1)
 
         # Best parameters:
         #   4, 3, 2, 0 => 200 samples, 50 selected, rc_scale 0.5, sigmax 0.01
@@ -306,6 +306,7 @@ def plot_probabilities_mixtures():
         # Best fit for power law: 2
         #  still keeping the nontargets:  1, 4
         chosen_optimal_fit_index = 8
+        print tuple(goodenough_indices[chosen_optimal_fit_index])
 
         f = plt.figure()
         ax = f.add_subplot(111)
@@ -315,6 +316,7 @@ def plot_probabilities_mixtures():
         plt.xticks((1, 2, 3, 4, 5, 6))
         plt.legend(['Target', 'Non-target', 'Random'], loc='best', fancybox=True, borderpad=0.3)
         
+
         f2 = plt.figure()
         ax2 = f2.add_subplot(111)
         ax2.plot(np.arange(1, 6), 1./median_precisions[tuple(goodenough_indices[chosen_optimal_fit_index])][:-1], 'o-', markersize=7, linewidth=2)
@@ -333,6 +335,15 @@ def plot_probabilities_mixtures():
         # plot(np.arange(1, 7), median_fitted_models[tuple(goodenough_indices[8])][:, 1:])
         # figure();
         # plot(1./median_precisions[tuple(goodenough_indices[8])])
+
+        # Plot showing the dependence of the power law exponent on sigma (none) and rc_scale (quite nice).
+        #  The number of samples has a weird effect.
+        plt.figure()
+        plt.plot(rcscale_space, model_powerlaw_fits[goodenough_indices[chosen_optimal_fit_index][0], goodenough_indices[chosen_optimal_fit_index][1], :, :, 0])
+        plt.legend(['Sigmax %.2f' % sigma for sigma in sigmax_space])
+        plt.title('Power law exponent as function of rc_scale, for multiple sigma_x')
+        plt.xlabel('Rc_scale')
+        plt.ylabel('Fitted power law exponent')
         
         return 1./median_precisions[tuple(goodenough_indices[chosen_optimal_fit_index])][:-1]
 
