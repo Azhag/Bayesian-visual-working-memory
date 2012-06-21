@@ -40,7 +40,7 @@ if __name__ == '__main__':
         mu = means[:, 0]
         gamma = means[:, 1]
 
-        precision = 9
+        precision = 1.
         stim_space = np.linspace(-np.pi, np.pi, precision, endpoint=False)
         stim_space = np.array(cross(stim_space, stim_space))
 
@@ -167,7 +167,7 @@ if __name__ == '__main__':
 
     if True:
         # Do the optimisation
-        target_experimental_precisions  = np.array([5.0391, 3.4834, 2.9056, 2.2412, 1.7729])
+        target_experimental_precisions  = np.array([5.0391, 3.4834, 2.9056, 2.2412, 1.7729])/2.
 
         N_sqrt = 20.
 
@@ -184,7 +184,7 @@ if __name__ == '__main__':
         sigma_x = 3.0
         sigma_y = 0.0
 
-        precision = 1.0
+        precision = 10.0
         stim_space = np.linspace(0, 2.*np.pi, precision, endpoint=False)
         stim_space = np.array(cross(stim_space, stim_space))
 
@@ -222,39 +222,156 @@ if __name__ == '__main__':
             return np.sum((fit_powerlaw(np.arange(1, 6), target_experimental_precisions) - fit_powerlaw(np.arange(1, 6), computed_FI))**2.)
 
 
-        #### See effect of sigma_x
-        sigma_x_space = np.linspace(0.05, 10.0, 100.)
+        if False:
+            #### See effect of sigma_x
+            sigma_x_space = np.linspace(0.05, 10.0, 100.)
 
-        sigma_x_MSE_experimental = np.zeros_like(sigma_x_space)
-        FI_all = np.zeros((sigma_x_space.size, T_all.size))
-        for i, sigma_x in enumerate(sigma_x_space):
-            FI_all[i] = compute_FI(sigma_x, kappa1, kappa2, T_all, stim_space, mu, gamma, covariances_all)
+            sigma_x_MSE_experimental = np.zeros_like(sigma_x_space)
+            sigma_x_powerlaw_params = np.zeros((sigma_x_space.size, 2))
+
+            FI_all_sigma_x = np.zeros((sigma_x_space.size, T_all.size))
+            for i, sigma_x in enumerate(sigma_x_space):
+                FI_all_sigma_x[i] = compute_FI(sigma_x, kappa1, kappa2, T_all, stim_space, mu, gamma, covariances_all)
+                
+                # sigma_x_MSE_experimental[i] = MSE_from_experimental(FI_all_sigma_x[i], target_experimental_precisions)
+
+                sigma_x_MSE_experimental[i] = MSE_powerlaw_experimental(FI_all_sigma_x[i], target_experimental_precisions)
+                sigma_x_powerlaw_params[i] = fit_powerlaw(np.arange(1, 6), FI_all_sigma_x[i])
+
+            plt.figure()
+            plt.semilogy(sigma_x_space, sigma_x_MSE_experimental)
+
+            # Show the best sigma
+            best_sigma_x_ind = np.argmin(sigma_x_MSE_experimental)
+
+            print "Best sigma_x : %.2f. MSE: %.2f" % (sigma_x_space[best_sigma_x_ind], sigma_x_MSE_experimental[best_sigma_x_ind])
+
+            # Precision curve
+            plt.figure()
+            plt.plot(T_all, FI_all_sigma_x[best_sigma_x_ind])
+            plt.plot(T_all, target_experimental_precisions)
+            plt.legend(['Model', 'Experimental'])
+
+            # 2D effect of sigma, not good
+            # plt.figure()
+            # plt.imshow(FI_all_sigma_x.T, norm=plt.matplotlib.colors.LogNorm())
+
+            # 3D effect of sigma, nice enough
+            f = plt.figure()
+            ax = f.add_subplot(111, projection='3d')
+            X, Y = np.meshgrid(sigma_x_space, T_all)
+            ax.plot_surface(X, Y, np.log(FI_all_sigma_x.T))
+
+            # Effect of sigma on FI[0], not very interesting
+            plt.figure()
+            plt.semilogy(sigma_x_space, FI_all_sigma_x[:, 0])
+
+            # Effect of sigma on the power law exponent: null.
+            plt.figure()
+            plt.plot(sigma_x_space, sigma_x_powerlaw_params[:, 0])
+
+            # Effect of sigma on the power law y0 value: same as FI[0]
+            plt.figure()
+            plt.semilogy(sigma_x_space, sigma_x_powerlaw_params[:, 1])
+
+        if False:
+            sigma_x = 1.0
+
+            #### See effect of kappa
+            kappa_space = np.linspace(0.05, 3.0, 100.)
+
+            kappa_MSE_experimental = np.zeros_like(kappa_space)
+            FI_all_kappa = np.zeros((kappa_space.size, T_all.size))
+            kappa_powerlaw_params = np.zeros((kappa_space.size, 2))
+
+            for i, kappa in enumerate(kappa_space):
+                FI_all_kappa[i] = compute_FI(sigma_x, kappa, kappa, T_all, stim_space, mu, gamma, covariances_all)
+                
+                # sigma_x_MSE_experimental[i] = MSE_from_experimental(FI_all_kappa[i], target_experimental_precisions)
+
+                kappa_MSE_experimental[i] = MSE_powerlaw_experimental(FI_all_kappa[i], target_experimental_precisions)
+                kappa_powerlaw_params[i] = fit_powerlaw(np.arange(1, 6), FI_all_kappa[i])
+
+            plt.figure()
+            plt.semilogy(kappa_space, kappa_MSE_experimental)
+
+            # Show the best sigma
+            best_kappa_ind = np.argmin(kappa_MSE_experimental)
+
+            print "Best kappa: %.2f. MSE: %.2f" % (kappa_space[best_kappa_ind], kappa_MSE_experimental[best_kappa_ind])
+
+            # Precision curve
+            plt.figure()
+            plt.plot(T_all, FI_all_kappa[best_kappa_ind])
+            plt.plot(T_all, target_experimental_precisions)
+            plt.legend(['Model', 'Experimental'])
+
+            # 2D effect of sigma, not good
+            # plt.figure()
+            # plt.imshow(FI_all_kappa.T, norm=plt.matplotlib.colors.LogNorm())
+
+            # 3D effect of kappa, nice enough. Smoother than sigmax
+            f = plt.figure()
+            ax = f.add_subplot(111, projection='3d')
+            X, Y = np.meshgrid(kappa_space, T_all)
+            ax.plot_surface(X, Y, np.log(FI_all_kappa.T))
+
+            # Effect of kappa on the power law exponent: null.
+            plt.figure()
+            plt.plot(kappa_space, kappa_powerlaw_params[:, 0])
+
+            # Effect of kappa on the power law y0 value: same as FI[0]
+            plt.figure()
+            plt.semilogy(kappa_space, kappa_powerlaw_params[:, 1])
+
+
+        if True:
+            # Double optimisation!!
+            #### See effect of kappa
+            sigma_x_space = np.linspace(0.05, 20.0, 31.)
+            kappa_space = np.linspace(0.05, 3.0, 30.)
+
+            kappasigma_MSE_experimental = np.zeros((kappa_space.size, sigma_x_space.size))
+            FI_all_kappasigma = np.zeros((kappa_space.size, sigma_x_space.size, T_all.size))
+            kappasigma_powerlaw_params = np.zeros((kappa_space.size, sigma_x_space.size, 2))
+
+            for i, kappa in enumerate(kappa_space):
+                print i*100./kappa_space.size
+                for j, sigma_x in enumerate(sigma_x_space):
+                    FI_all_kappasigma[i, j] = compute_FI(sigma_x, kappa, kappa, T_all, stim_space, mu, gamma, covariances_all)
+                    
+                    kappasigma_MSE_experimental[i, j] = MSE_from_experimental(FI_all_kappasigma[i, j], target_experimental_precisions)
+
+                    # kappasigma_MSE_experimental[i, j] = MSE_powerlaw_experimental(FI_all_kappasigma[i, j], target_experimental_precisions)
+                    # kappasigma_powerlaw_params[i, j] = fit_powerlaw(np.arange(1, 6), FI_all_kappasigma[i, j])
+
+            # Show results, log z-axis
+            f = plt.figure()
+            ax = f.add_subplot(111)
+            # ax.pcolor(kappa_space, sigma_x_space, kappasigma_MSE_experimental.T, norm=plt.matplotlib.colors.LogNorm())
+            ax.pcolor(kappa_space, sigma_x_space, np.log(kappasigma_MSE_experimental.T))
+            ax.set_xlim([kappa_space.min(), kappa_space.max()])
             
-            # sigma_x_MSE_experimental[i] = MSE_from_experimental(FI_all[i], target_experimental_precisions)
+            # Callback function when moving mouse around figure.
+            def report_pixel(x, y): 
+                # Extract loglik at that position
+                x_i = (np.abs(kappa_space-x)).argmin()
+                y_i = (np.abs(sigma_x_space-y)).argmin()
+                v = np.log(kappasigma_MSE_experimental[x_i, y_i])
+                return "x=%f y=%f value=%f" % (x, y, v) 
+            
+            ax.format_coord = report_pixel
 
-            sigma_x_MSE_experimental[i] = MSE_powerlaw_experimental(FI_all[i], target_experimental_precisions)
+            # Show the best sigma
+            best_kappasigma_ind = argmin_indices(kappasigma_MSE_experimental)
 
-        plt.figure()
-        plt.semilogy(sigma_x_space, sigma_x_MSE_experimental)
+            print "Best kappa: %.2f, best sigma_x: %.2f, MSE: %.2f" % (kappa_space[best_kappasigma_ind[0]], sigma_x_space[best_kappasigma_ind[1]], kappasigma_MSE_experimental[best_kappasigma_ind])
 
-        # Show the best sigma
-        best_sigma_x_ind = np.argmin(sigma_x_MSE_experimental)
-
-        print "Best sigma_x : %.2f. MSE: %.2f" % (sigma_x_space[best_sigma_x_ind], sigma_x_MSE_experimental[best_sigma_x_ind])
-
-        plt.figure()
-        plt.plot(T_all, FI_all[best_sigma_x_ind])
-        plt.plot(T_all, target_experimental_precisions)
-        plt.legend(['Model', 'Experimental'])
-
-        plt.figure()
-        plt.imshow(FI_all.T, norm=plt.matplotlib.colors.LogNorm())
-
-        f = plt.figure()
-        ax = f.add_subplot(111, projection='3d')
-        X, Y = np.meshgrid(sigma_x_space, T_all)
-        ax.plot_surface(X, Y, np.log(FI_all.T))
-
+            # Show the memory curves
+            plt.figure()
+            plt.plot(np.arange(1, 6), target_experimental_precisions)
+            plt.plot(np.arange(1, 6), FI_all_kappasigma[best_kappasigma_ind])
+            plt.legend(['Experimental', 'FI'])
 
 
 
