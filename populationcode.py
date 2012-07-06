@@ -24,7 +24,7 @@ class PopulationCodeAngle(PopulationCode):
     def __init__(self, N, sigma=1., rho=0.3, a=0.1, gamma=0.7, neurons_angles=None, method_neurons_angles='uniform', max_angle=2.*np.pi):
         PopulationCode.__init__(self, N)
         
-        self.sigma2 = sigma**2
+        self.sigma2 = sigma**2.
         self.rho = rho
         self.a = a
         self.gamma = gamma
@@ -61,11 +61,12 @@ class PopulationCodeAngle(PopulationCode):
         
         if np.isscalar(theta_input):
             mean = bias+np.exp(1./self.sigma2*np.cos(correction_wrapup*(self.neurons_angles - theta_input)))
-        
         else:
             mean = bias+np.exp(1./self.sigma2*np.cos(correction_wrapup*(np.tile(self.neurons_angles, (theta_input.size, 1)).T - theta_input))).T
         
-        return mean/np.max(mean)
+        mean /= np.max(mean)
+        
+        return mean
     
     def create_covariance_matrix(self):
         '''
@@ -78,7 +79,7 @@ class PopulationCodeAngle(PopulationCode):
         correction_wrapup = 2.*np.pi/self.max_angle
         
         self.covariance = self.rho*np.exp(self.a*np.cos(correction_wrapup*diff_angles))
-        np.fill_diagonal(self.covariance,  self.gamma)
+        self.covariance[np.arange(self.N), np.arange(self.N)] *= self.gamma
         
         
     
@@ -121,8 +122,7 @@ class PopulationCodeAngle(PopulationCode):
         
         if np.isscalar(theta_s):
             ax.plot(self.neurons_angles, mean)
-            ax.fill_between(self.neurons_angles, mean_minus_std, mean_plus_std, facecolor='blue', alpha=0.4,
-                        label='1 sigma range')
+            ax.fill_between(self.neurons_angles, mean_minus_std, mean_plus_std, facecolor='blue', alpha=0.4, label='1 sigma range')
         else:
             for mean_i in np.arange(mean.shape[0]):
                 l = ax.plot(self.neurons_angles, mean[mean_i])
@@ -138,7 +138,8 @@ class PopulationCodeAngle(PopulationCode):
 if __name__ == '__main__':
     N = 200
     
-    popcod = PopulationCodeAngle(N, sigma=0.2, rho=0.01, gamma=0.01, max_angle=2.*np.pi)
+    # popcod = PopulationCodeAngle(N, sigma=0.2, rho=0.01, gamma=0.01, max_angle=2.*np.pi)
+    popcod = PopulationCodeAngle(N, sigma=0.1, rho=0.002, gamma=0.002, a=0.1, max_angle=2.*np.pi)
     
     theta = 0.
     popcod.plot_population_representation(theta)
