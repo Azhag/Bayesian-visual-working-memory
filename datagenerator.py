@@ -312,7 +312,7 @@ class DataGeneratorRFN(DataGenerator):
     '''
         DataGenerator for a RandomFactorialNetwork
     '''
-    def __init__(self, N, T, random_network, sigma_y = 0.05, sigma_x = 0.02, time_weights=None, time_weights_parameters = dict(weighting_alpha=0.3, weighting_beta = 1.0, specific_weighting = 0.3, weight_prior='uniform'), cued_feature_time=0, nb_stimulus_per_feature=30, enforce_min_distance=0.17):
+    def __init__(self, N, T, random_network, sigma_y = 0.05, sigma_x = 0.02, time_weights=None, time_weights_parameters = dict(weighting_alpha=0.3, weighting_beta = 1.0, specific_weighting = 0.3, weight_prior='uniform'), cued_feature_time=0, enforce_min_distance=0.17):
 
         # assert isinstance(random_network, RandomFactorialNetwork), "Use a RandomFactorialNetwork with this DataGeneratorRFN"
         
@@ -324,13 +324,13 @@ class DataGeneratorRFN(DataGenerator):
 
         # Build the correct stimuli
         # TODO build a load_stimuli(), etc
-        self.generate_stimuli(nb_stimulus_per_feature=nb_stimulus_per_feature, enforce_min_distance=enforce_min_distance)
+        self.generate_stimuli(enforce_min_distance=enforce_min_distance)
 
         # Build the dataset
         self.build_dataset(cued_feature_time=cued_feature_time)
     
 
-    def generate_stimuli(self, nb_stimulus_per_feature=20, enforce_min_distance=0.17):
+    def generate_stimuli(self, enforce_min_distance=0.17):
         '''
             Choose N stimuli for this dataset.
             
@@ -342,34 +342,9 @@ class DataGeneratorRFN(DataGenerator):
         
         # This gives all the true stimuli
         self.stimuli_correct = np.zeros((self.N, self.T, self.R), dtype='float')
-        
-        ## Sample them randomly, without repetition
-        
-        # Get all possible stimuli
-        # coverage_1D = np.linspace(-np.pi, np.pi, num=nb_stimulus_per_feature, endpoint=False)
-        # all_stim = np.array(cross(self.R*[coverage_1D.tolist()]))
-        
-        # # Need to get T different objects, N times.
-        # # do that slightly strangely:
-        # #   - Get N x L random indices, L > T
-        # #   - We need N x T different indices, but random_integers can have dupes
-        # #   - Just keep the T first indices out of L, taking care of dupes.
-        # rnd_stim_ind = np.random.random_integers(0, all_stim.shape[0]-1, size=(self.N,20))
-        # # rnd_stim_ind = np.random.random_integers(all_stim.shape[0]/2, all_stim.shape[0]/2, size=(self.N,20))
-        
-        # for i in np.arange(self.N):
-        #     # Get indirection index to rnd_stim_ind, giving finally indirection through all_stim
-        #     [_, rnd_stim_ind_unique] = np.unique(rnd_stim_ind[i,:], return_index= True) 
-        #     self.stimuli_correct[i]  = all_stim[rnd_stim_ind[i,np.sort(rnd_stim_ind_unique)[:self.T]], :]
-
-        # Get a big array of indices, doing permutations over T to avoid same objects
-        # rnd_ind = np.zeros((self.N, self.T, self.R), dtype='int')
-        # for n in np.arange(self.N):
-        #     for r in np.arange(self.R):
-        #         rnd_ind[n, :, r] = np.random.permutation(np.arange(nb_stimulus_per_feature))[:self.T]
-        # self.stimuli_correct = coverage_1D[rnd_ind]
 
         ## Get stimuli with a minimum enforced distance. 
+        # Sample stimuli uniformly
         # Enforce differences on all dimensions (P. Bays: 10° for orientations).
         for n in np.arange(self.N):
             for r in np.arange(self.R):
@@ -504,7 +479,7 @@ class DataGeneratorRFN(DataGenerator):
         # When there are multiple centers per feature, we can reduce the space.
         
         horiz_cells = np.arange(M/2/self.random_network.nb_feature_centers)
-        vert_cells = np.arange(M/2,(M/2+M/2/self.random_network.nb_feature_centers))
+        vert_cells = np.arange(M/2, (M/2+M/2/self.random_network.nb_feature_centers))
         
         f = plt.figure()
         ax = f.add_subplot(111)
