@@ -44,7 +44,7 @@ class RandomFactorialNetwork():
         # self.response_type = 'bivariate_fisher'
         self.response_type = response_type
         if response_type == 'wrong_wrap' or response_type == 'bivariate_fisher':
-            self.coordinates = 'full_angles'
+            self.coordinates = 'full_angles_sym'
         elif response_type == 'fisher':
             self.coordinates = 'spherical'
 
@@ -541,8 +541,7 @@ class RandomFactorialNetwork():
 
         return self.get_network_response(stimulus_input, params=params)[neuron_index]
 
-    
-    
+
     def sample_network_response(self, stimulus_input, sigma=0.2, params={}):
         '''
             Get a random response for the given stimulus.
@@ -652,10 +651,28 @@ class RandomFactorialNetwork():
             
         return activity
         
-    
+
+    def get_neuron_activity_fullspace(self, neuron_index, precision=100, return_axes_vect = False, params={}):
+        '''
+            Returns the activity of a specific neuron over the entire space.
+        '''
+
+        (feature_space1, feature_space2, activity) = self.init_feature_cover_matrices(precision)
+        
+        # Compute the activity of that neuron over the whole space
+        for i in np.arange(feature_space1.size):
+            for j in np.arange(feature_space2.size):
+                activity[i, j] = self.get_neuron_response(neuron_index, (feature_space1[i], feature_space2[j]), params=params)
+        
+        if return_axes_vect:
+            return activity, feature_space1, feature_space2
+        else:
+            return activity
+        
+
     ######################## 
 
-    def build_feature_cover_matrices(self, precision=20):
+    def init_feature_cover_matrices(self, precision=20):
         '''
             Helper function, creating appropriate linspaces, depending on the chosen coordinate system.
         '''
@@ -735,7 +752,7 @@ class RandomFactorialNetwork():
         
         precision = 100
 
-        (feature_space1, feature_space2, mean_activity) = self.build_feature_cover_matrices(precision)
+        (feature_space1, feature_space2, mean_activity) = self.init_feature_cover_matrices(precision)
         
         for feat1_i in np.arange(feature_space1.size):
             for feat2_i in np.arange(feature_space2.size):
@@ -756,20 +773,12 @@ class RandomFactorialNetwork():
         
     
     
-    def plot_neuron_activity(self, neuron_index, nb_stddev=1., params={}):
+    def plot_neuron_activity(self, neuron_index, nb_stddev=1., precision=100, params={}):
         '''
             Plot the activity of one specific neuron over the whole input space.
         '''
         
-        precision = 100
-
-        (feature_space1, feature_space2, activity) = self.build_feature_cover_matrices(precision)
-        
-        # Compute the activity of that neuron over the whole space
-        for i in np.arange(feature_space1.size):
-            for j in np.arange(feature_space2.size):
-                activity[i, j] = self.get_neuron_response(neuron_index, (feature_space1[i], feature_space2[j]), params=params)
-                # activity[i,j] = self.get_neuron_response(neuron_index, (feature_space[i], feature_space[j]))
+        activity, feature_space1, feature_space2 = self.get_neuron_activity_fullspace(neuron_index, precision=precisions, return_axes_vect=True, params=params)
         
         # Plot it
         f = plt.figure()
@@ -801,7 +810,7 @@ class RandomFactorialNetwork():
         M_sqrt = np.floor(self.M**0.5)
 
         # Get the network response
-        activity = np.reshape(self.get_network_response(stimulus_input, params=params), (M_sqrt, M_sqrt))
+        activity = np.reshape(self.get_network_response(stimulus_input, params=params)[:int(M_sqrt**2.)], (M_sqrt, M_sqrt))
         
         
         # Plot it
@@ -846,7 +855,7 @@ class RandomFactorialNetwork():
             Plot the activity of a neuron on the sphere/torus
         '''
 
-        (feature_space1, feature_space2, activity) = self.build_feature_cover_matrices(precision)
+        (feature_space1, feature_space2, activity) = self.init_feature_cover_matrices(precision)
         
         # Compute the activity of that neuron over the whole space
         for i in np.arange(feature_space1.size):
@@ -865,7 +874,7 @@ class RandomFactorialNetwork():
             Plot the mean activity of the network on a sphere/torus
         '''
 
-        (feature_space1, feature_space2, activity) = self.build_feature_cover_matrices(precision)
+        (feature_space1, feature_space2, activity) = self.init_feature_cover_matrices(precision)
         
         # Compute the activity of that neuron over the whole space
         for i in np.arange(feature_space1.size):
@@ -881,16 +890,18 @@ class RandomFactorialNetwork():
     ##########################
 
     @classmethod
-    def create_full_conjunctive(cls, M, R=2, sigma=0.2, scale_parameters = None, ratio_parameters = None, scale_moments=None, ratio_moments=None):
+    def create_full_conjunctive(cls, M, R=2, sigma=0.2, scale_parameters = None, ratio_parameters = None, scale_moments=None, ratio_moments=None, debug=False):
         '''
             Create a RandomFactorialNetwork instance, using a pure conjunctive code
         '''
-        print "create conjunctive network"
+
+        if debug:
+            print "create conjunctive network"
 
         if scale_parameters is None or ratio_parameters is None:
             scale_parameters = (100., 0.01)
             ratio_parameters = (3.33333, 0.3)
-
+        
         if scale_moments is not None:
             # We are given the desired mean and variance of the scale. Convert to appropriate Gamma parameters
             scale_parameters = (scale_moments[0]**2./scale_moments[1], scale_moments[1]/scale_moments[0])
@@ -961,7 +972,7 @@ class RandomFactorialNetwork():
         conj_subpop_size = int(M*ratio_feature_conjunctive)
         feat_subpop_size = M - conj_subpop_size
 
-        print "Population sizes: %d %d" % (conj_subpop_size, feat_subpop_size)
+        print "Population sizes: conj: %d, feat: %d" % (conj_subpop_size, feat_subpop_size)
         
         rn = RandomFactorialNetwork(M, R=R)
 
