@@ -216,14 +216,15 @@ def do_plot_effect_conj():
         ax.plot(x, all_optcurve[i], linewidth=2)
     
     plt.rcParams['font.size'] = 17
+    plt.rcParams['legend.fontsize'] = 20
     
     legends=['%d items' % (x+1) for x in np.arange(T_max)]
     legends[0] = '1 item'
     
     # plt.legend(legends, loc='upper center', bbox_to_anchor=(0.5, 1.01), ncol=4, shadow=True)
     plt.legend(legends, loc='upper center', bbox_to_anchor=(0.5, 1.01), ncol=4, fancybox=True, borderpad=0.3, columnspacing=0.5, borderaxespad=0.7, handletextpad=0, handlelength=1.5)
-    plt.xlabel('Ratio conjunctive/feature cells', fontsize=17)
-    plt.ylabel('% Max precision', fontsize=17)
+    # plt.xlabel('Ratio conjunctive/feature cells', fontsize=17)
+    # plt.ylabel('% Max precision', fontsize=17)
     # plt.ylim(0.0, 1.7)
     plt.ylim(0.0, 1.2)
     plt.yticks((0.25, 0.5, 0.75, 1.0))
@@ -240,6 +241,8 @@ def plot_all_memory_curves():
 
 def plot_probabilities_mixtures():
     import scipy.io as sio
+
+    plt.rcParams['font.size'] = 17
 
     if True:
 
@@ -338,12 +341,22 @@ def plot_probabilities_mixtures():
 
         # Plot showing the dependence of the power law exponent on sigma (none) and rc_scale (quite nice).
         #  The number of samples has a weird effect.
+        print "numsamples: %d, selection_numsamples: %d" % (numsamples_space[goodenough_indices[chosen_optimal_fit_index][0]], selectnumsamples_space[goodenough_indices[chosen_optimal_fit_index][1]])
+        
         plt.figure()
         plt.plot(rcscale_space, model_powerlaw_fits[goodenough_indices[chosen_optimal_fit_index][0], goodenough_indices[chosen_optimal_fit_index][1], :, :, 0])
         plt.legend(['Sigmax %.2f' % sigma for sigma in sigmax_space])
         plt.title('Power law exponent as function of rc_scale, for multiple sigma_x')
         plt.xlabel('Rc_scale')
         plt.ylabel('Fitted power law exponent')
+
+        plt.figure()
+        plt.plot(rcscale_space, model_powerlaw_fits[goodenough_indices[chosen_optimal_fit_index][0], goodenough_indices[chosen_optimal_fit_index][1], :, :, 1])
+        plt.legend(['Sigmax %.2f' % sigma for sigma in sigmax_space])
+        plt.title('Power law biases as function of rc_scale, for multiple sigma_x (if too small, bad sampling)')
+        plt.xlabel('Rc_scale')
+        plt.ylabel('Fitted power law bias')
+        
         
         return 1./median_precisions[tuple(goodenough_indices[chosen_optimal_fit_index])][:-1]
 
