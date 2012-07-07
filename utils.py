@@ -231,8 +231,33 @@ def numpy_2_mat(array, filename, arrayname):
 
 ########################## PLOTTING FUNCTIONS #################################
 
+def plot_multiple_mean_std_area(x, y, std, ax_handle=None):
+    '''
+        Plots multiple x-y data with standard error, on the same graph
+
+        Will iterate over the first axis, has to...
+    '''
+    if ax_handle is None:
+        f = plt.figure()
+        ax_handle = f.add_subplot(111)
+    
+    if x.ndim == 1:
+        # x should be extended, for convenience
+        x = np.tile(x, (y.shape[0], 1))
+
+    for curr_plt in xrange(x.shape[0]):
+        ax_handle = plot_mean_std_area(x[curr_plt], y[curr_plt], std[curr_plt], ax_handle=ax_handle)
+
+    return ax_handle
+
 
 def plot_mean_std_area(x, y, std, ax_handle=None):
+    '''
+        Plot a given x-y data, with a transparent area for its standard deviation
+
+        If ax_handle is given, plots on this figure.
+    '''
+    
     if ax_handle is None:
         f = plt.figure()
         ax_handle = f.add_subplot(111)
@@ -244,6 +269,7 @@ def plot_mean_std_area(x, y, std, ax_handle=None):
                         label='1 sigma range')
     
     return ax_handle
+
 
 def semilogy_mean_std_area(x, y, std, ax_handle=None):
     if ax_handle is None:
