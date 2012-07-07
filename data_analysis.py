@@ -596,15 +596,206 @@ def combine_multiple_memory_curve():
 
 
 
+#===================================================================================================================================
+
+
+def load_data_fromregexp(dataset_infos, debug=False):
+    '''
+        Load multiple files from a directory, where their filename indicates the parameter values used for the dataset.
+            Assumes that all parameters are float.
+
+        Returns the following:
+            - Dictionary of uniques parameter values
+            - Dictionary of the parameters values for each dataset (list in the same order as the datasets)
+            - List of all datasets
+            - Dictionary associating parameter values to their index in the unique lists.
+
+        Can then be loaded into numpy arrays.
+
+        Takes a description dictionary as input. Example format and keys:
+        dict(
+            label='Samples and sigmax effect on power-law fits',
+            files='Data/effect_num_sample_on_powerlaw/multiple_memory_curve-samples*rcscale*sigmax*.npy',
+            regexp='^[a-zA-Z_\/0-9]*-samples(?P<samples>[0-9]*)rcscale(?P<rcscale>[0-9.]*)sigmax(?P<sigmax>[0-9.]*)-[0-9a-z\-]*.npy',
+            parameters=('samples', 'rcscale', 'sigmax')
+            )
+    '''
+
+    all_output_files = glob.glob(dataset_infos['files'])
+
+    assert len(all_output_files) > 0, "Wrong regular expression"
+
+    # We have to load each dataset, but also associate them with their parameter values.
+    #  let's try and be general:
+    #   - Store the datasets in a big list.
+    #   - Store the associated parameter values in lists (same indexing), in a dictionary indexed by the parameters.
+    datasets_list = []
+    parameters_complete = dict()
+    parameters_uniques = dict()
+
+    for curr_file in all_output_files:
+        
+        # Do a nice regular expression to catch the parameters and remove the useless random unique string
+        # (advanced, uses named groups now)
+        matched = re.search(dataset_infos['regexp'], curr_file)
+        
+        curr_params = matched.groupdict()
+
+        # Check if all the appropriate parameters were found
+        assert set(dataset_infos['parameters']) <= set(curr_params), "Couldn't extract the desired parameters from the filename"
+
+        # Load the data
+        curr_dataset = np.load(curr_file).item()
+        datasets_list.append(curr_dataset)
+
+        # Fill the parameter dictionary
+        for param in dataset_infos['parameters']:
+            # Just append the parameter value of the current dataset to the appropriate list
+            # warning: need to use the exact same string in the regexp and in the parameter names list
+            if param in parameters_complete:
+                parameters_complete[param].append(float(curr_params[param]))
+            else:
+                parameters_complete[param] = [float(curr_params[param])]
+
+        if debug:
+            print curr_file, curr_params
+
+
+    
+    # Extract the unique parameter values
+    for key, val in parameters_complete.items():
+        parameters_uniques[key] = np.unique(val)
+    
+    # Construct an indirection dictionary to give parameter index based on its value
+    parameters_indirections = dict()
+    for param in dataset_infos['parameters']:
+        parameters_indirections[param] = dict()
+        for i, par_val in enumerate(parameters_uniques[param]):
+            parameters_indirections[param][par_val] = i
+
+    return dict(parameters_uniques=parameters_uniques, parameters_complete=parameters_complete, datasets_list=datasets_list, parameters_indirections=parameters_indirections)
+
+
+def construct_numpyarray_specified_output_from_datasetlists(loaded_data, output_variable_desired, list_parameters):
+    '''
+        Construct a big numpy array out of a series of datasets, extracting a specified output variable of each dataset
+         (usually, the results of the simulations, let's say)
+        Looks only at a list of parameters, which can be of any size. Doesn't require any fixed dimensions per say (yeah I'm happy)
+
+        Input:
+            - the name of the output variable to extract from each dataset
+            - Several dictionaries, created by load_data_fromregexp (or another function)
+
+        Output:
+            - A numpy array of variable size (parameters sizes found in dataset x output shape)
+    '''
+
+    # Reload some variables, to lighten the notation
+    parameters_uniques = loaded_data['parameters_uniques']
+    parameters_complete = loaded_data['parameters_complete']
+    datasets_list = loaded_data['datasets_list']
+    parameters_indirections = loaded_data['parameters_indirections']
+
+    # Assume that we will store the whole desired variable for each parameter setting.
+    results_shape = datasets_list[0][output_variable_desired].shape
+
+    # The indices will go in the same order as the descriptive parameters list
+    fullarray_shape = [parameters_uniques[param].size for param in list_parameters]
+
+    # Don't forget to make space for the actual results...
+    fullarray_shape.extend(results_shape)
+
+    # Initialize with NaN.
+    results_array = np.ones(fullarray_shape)*np.nan
+
+    for i, dataset in enumerate(datasets_list):
+        # Now put the data at the appropriate position
+        #   We construct a variable size index (depends on how many parameters we have),
+        #    which will look in the indirection dictionary
+        curr_dataposition = tuple([parameters_indirections[param][parameters_complete[param][i]] for param in list_parameters])
+                
+        results_array[curr_dataposition] = dataset[output_variable_desired]
+
+    # and we're good
+    return results_array
+
+
+def construct_multiple_numpyarrays(loaded_data, list_output_variables, list_parameters):
+    '''
+        Constructs several numpy arrays, for each output variable given.
+
+        Returns everything in a big dictionary, with the output variables as keys.
+
+        (calls construct_numpyarray_specified_output_from_datasetlists)
+    '''
+
+    all_results_arrays = dict()
+
+    for output_variable in list_output_variables:
+        # Load each variable into a numpy array
+        all_results_arrays[output_variable] = construct_numpyarray_specified_output_from_datasetlists(loaded_data, output_variable, list_parameters)
+
+    return all_results_arrays
+
+
+def combine_multiple_memory_curve_simult_powerlaw():
+    '''
+        Loads simulations of multiple memory curves for simultaneous presentations.
+        Power law fits are also available, plot if they have some dependence on different parameters
+    '''
+    dataset_infos = dict(label='Samples and sigmax effect on power-law fits',
+                    files='Data/effect_num_sample_on_powerlaw/multiple_memory_curve-samples*rcscale*sigmax*.npy',
+                    regexp='^[a-zA-Z_\/0-9]*-samples(?P<samples>[0-9]*)rcscale(?P<rcscale>[0-9.]*)sigmax(?P<sigmax>[0-9.]*)-[0-9a-z\-]*.npy',
+                    parameters=('samples', 'rcscale'),
+                    variables_to_load=('all_precisions', 'power_law_params'),
+                    variables_description=('number of objects . repetitions', 'exponent, bias')
+                    )
+
+    # Load everything
+    loaded_data = load_data_fromregexp(dataset_infos)
+    all_results_array = construct_multiple_numpyarrays(loaded_data, dataset_infos['variables_to_load'], dataset_infos['parameters'])
+
+    # Now we can work with the data.
+
+    # MEMORY CURVES
+    # all_precisions: samples . rcscale . number of objects . repetitions
+    mean_precisions = np.mean(all_results_array['all_precisions'], axis=-1)
+    std_precisions = np.std(all_results_array['all_precisions'], axis=-1)
+
+    # Plot the mean/std of the memory curves, for the two number of samples
+    plot_multiple_mean_std_area(np.arange(1, 7), mean_precisions[0], std_precisions[0])
+    plt.title('Samples: %d' % loaded_data['parameters_uniques']['samples'][0])
+    plt.legend(['Rcscale: %.1f' % rcval for rcval in loaded_data['parameters_uniques']['rcscale']])
+    
+    plot_multiple_mean_std_area(np.arange(1, 7), mean_precisions[1], std_precisions[1])
+    plt.title('Samples: %d' % loaded_data['parameters_uniques']['samples'][1])
+    plt.legend(['Rcscale: %.1f' % rcval for rcval in loaded_data['parameters_uniques']['rcscale']])
+
+    # POWER LAW PARAMETERS
+    power_law_params = all_results_array['power_law_params']
+
+    plt.figure()
+    plt.plot(loaded_data['parameters_uniques']['rcscale'], power_law_params[:, :, 0].T)
+    plt.title('Power law exponent dependence on rcscale and samples number')
+    plt.legend(['Samples: %d' % samples for samples in loaded_data['parameters_uniques']['samples']], loc='best')
+
+    plt.figure()
+    plt.plot(loaded_data['parameters_uniques']['rcscale'], power_law_params[:, :, 1].T)
+    plt.title('Power law bias dependence on rcscale and samples number')
+    plt.legend(['Samples: %d' % samples for samples in loaded_data['parameters_uniques']['samples']], loc='best')
+
+    return locals()
+
 
 if __name__ == '__main__':
     # combine_plot_size_receptive_field_number_neurons()
     # all_vars = combine_mixed_two_scales(1)
     # all_vars = combine_mixed_two_scales(2)
     # all_vars = combine_mixed_two_scales(3)
-    all_vars = combine_multiple_memory_curve()
+    # all_vars = combine_multiple_memory_curve()
     # plot_effect_ratioconj()
     
+    all_vars = combine_multiple_memory_curve_simult_powerlaw()
 
     plt.show()
 
