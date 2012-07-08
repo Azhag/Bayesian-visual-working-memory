@@ -289,6 +289,10 @@ class Sampler:
             ASSUMES A_t = A for all t. Same for B.
         '''
         
+        if selection_num_samples > num_samples:
+            # Limit selection_num_samples
+            selection_num_samples = num_samples
+
         # Iterate over whole datapoints
         # permuted_datapoints = np.random.permutation(np.arange(self.N))
         permuted_datapoints = np.arange(self.N)
@@ -1846,11 +1850,13 @@ def do_multiple_memory_curve_simult(args):
             # Save to disk, unique filename
             np.save(output_string, {'all_precisions': all_precisions, 'args': args, 'num_repetitions': args.num_repetitions, 'output_string': output_string})
         
-        # TODO CONTINUE WRITING HERE. Should compute the power law fit for the current number of repetitions available.
         xx = np.tile(np.arange(1, args.T+1, dtype='float'), (repet_i+1, 1)).T
         power_law_params = fit_powerlaw(xx, all_precisions[:, :(repet_i+1)], should_plot=True)
 
         print '====> Power law fits: exponent: %.4f, bias: %.4f' % (power_law_params[0], power_law_params[1])
+
+        # Save to disk, unique filename
+        np.save(output_string, {'all_precisions': all_precisions, 'args': args, 'num_repetitions': args.num_repetitions, 'power_law_params': power_law_params, 'output_string': output_string})
 
     print all_precisions
 
