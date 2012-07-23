@@ -13,6 +13,7 @@ import numpy as np
 from utils import *
 from statisticsmeasurer import *
 from randomfactorialnetwork import *
+from datagenerator import *
 
 def main():
     pass
@@ -274,7 +275,7 @@ if __name__ == '__main__':
             plt.figure()
             plt.semilogy(sigma_x_space, sigma_x_powerlaw_params[:, 1])
 
-        if False:
+        if True:
             sigma_x = 1.0
 
             #### See effect of kappa
@@ -325,25 +326,29 @@ if __name__ == '__main__':
             plt.semilogy(kappa_space, kappa_powerlaw_params[:, 1])
 
 
-        if True:
+        if False:
             # Double optimisation!!
             #### See effect of kappa
-            sigma_x_space = np.linspace(0.05, 20.0, 31.)
-            kappa_space = np.linspace(0.05, 3.0, 30.)
 
-            kappasigma_MSE_experimental = np.zeros((kappa_space.size, sigma_x_space.size))
-            FI_all_kappasigma = np.zeros((kappa_space.size, sigma_x_space.size, T_all.size))
-            kappasigma_powerlaw_params = np.zeros((kappa_space.size, sigma_x_space.size, 2))
+            recompute_big_array = True
+            
+            if recompute_big_array:
+                sigma_x_space = np.linspace(0.05, 20.0, 31.)
+                kappa_space = np.linspace(0.05, 3.0, 30.)
 
-            for i, kappa in enumerate(kappa_space):
-                print i*100./kappa_space.size
-                for j, sigma_x in enumerate(sigma_x_space):
-                    FI_all_kappasigma[i, j] = compute_FI(sigma_x, kappa, kappa, T_all, stim_space, mu, gamma, covariances_all)
-                    
-                    kappasigma_MSE_experimental[i, j] = MSE_from_experimental(FI_all_kappasigma[i, j], target_experimental_precisions)
+                kappasigma_MSE_experimental = np.zeros((kappa_space.size, sigma_x_space.size))
+                FI_all_kappasigma = np.zeros((kappa_space.size, sigma_x_space.size, T_all.size))
+                kappasigma_powerlaw_params = np.zeros((kappa_space.size, sigma_x_space.size, 2))
 
-                    # kappasigma_MSE_experimental[i, j] = MSE_powerlaw_experimental(FI_all_kappasigma[i, j], target_experimental_precisions)
-                    # kappasigma_powerlaw_params[i, j] = fit_powerlaw(np.arange(1, 6), FI_all_kappasigma[i, j])
+                for i, kappa in enumerate(kappa_space):
+                    print i*100./kappa_space.size
+                    for j, sigma_x in enumerate(sigma_x_space):
+                        FI_all_kappasigma[i, j] = compute_FI(sigma_x, kappa, kappa, T_all, stim_space, mu, gamma, covariances_all)
+                        
+                        kappasigma_MSE_experimental[i, j] = MSE_from_experimental(FI_all_kappasigma[i, j], target_experimental_precisions)
+
+                        # kappasigma_MSE_experimental[i, j] = MSE_powerlaw_experimental(FI_all_kappasigma[i, j], target_experimental_precisions)
+                        # kappasigma_powerlaw_params[i, j] = fit_powerlaw(np.arange(1, 6), FI_all_kappasigma[i, j])
 
             # Show results, log z-axis
             f = plt.figure()
