@@ -200,6 +200,17 @@ def argmin_indices(array):
 def argmax_indices(array):
     return np.unravel_index(np.nanargmax(array), array.shape)
 
+def nanmean(array, axis=None):
+    if not axis is None:
+        return np.ma.masked_invalid(array).mean(axis=axis)
+    else:
+        return np.ma.masked_invalid(array).mean()
+
+def nanstd(array, axis=None):
+    if not axis is None:
+        return np.ma.masked_invalid(array).std(axis=axis)
+    else:
+        return np.ma.masked_invalid(array).std()
 
 ########################## FILE I/O #################################
 
@@ -207,6 +218,9 @@ def unique_filename(prefix=None, suffix=None, unique_id=None, return_id=False):
     """
     Get an unique filename with uuid4 random strings
     """
+
+    print 'DEPRECATED, use DataIO instead'
+
     fn = []
     if prefix:
         fn.extend([prefix, '-'])
@@ -223,10 +237,6 @@ def unique_filename(prefix=None, suffix=None, unique_id=None, return_id=False):
         return [''.join(fn), unique_id]
     else:
         return ''.join(fn)
-
-def numpy_2_mat(array, filename, arrayname):
-    sio.savemat('%s.mat' % filename, {'%s' % arrayname: array})
-
 
 
 ########################## PLOTTING FUNCTIONS #################################
@@ -458,7 +468,7 @@ def plot_torus(theta, gamma, Z, weight_deform=0., torus_radius=5., tube_radius=3
         plt.show()
 
 
-def plot_powerlaw_fit(xdata, ydata, amp, index):
+def plot_powerlaw_fit(xdata, ydata, amp, index, yerr=None):
     '''
         Plot a powerlaw with some associated datapoints
     '''
@@ -466,19 +476,28 @@ def plot_powerlaw_fit(xdata, ydata, amp, index):
     plt.figure()
     plt.subplot(2, 1, 1)
     plt.plot(xdata, powerlaw(xdata, amp, index))     # Fit
-    plt.plot(xdata, ydata, 'k.')  # Data
-    # plt.text(0.0, 0.0, 'Ampli = %5.2f +/- %5.2f' % (amp, ampErr))
-    # plt.text(0.0, 0.0, 'Index = %5.2f +/- %5.2f' % (index, indexErr))
     
+    if yerr is None:
+        plt.plot(xdata, ydata, 'k.')  # Data
+    else:
+        plt.errorbar(xdata, ydata, yerr=yerr, fmt='k.')
+
     plt.title('Best Fit Power Law')
     plt.xlabel('X')
     plt.ylabel('Y')
+    plt.xlim((xdata.min()*0.9, xdata.max()*1.1))
 
     plt.subplot(2, 1, 2)
     plt.loglog(xdata, powerlaw(xdata, amp, index))
-    plt.plot(xdata, ydata, 'k.')  # Data
+    
+    if yerr is None:
+        plt.plot(xdata, ydata, 'k.')  # Data
+    else:
+        plt.errorbar(xdata, ydata, yerr=yerr, fmt='k.')
+    
     plt.xlabel('X (log scale)')
     plt.ylabel('Y (log scale)')
+    plt.xlim((xdata.min()*0.9, xdata.max()*1.1))
 
 
 
@@ -515,31 +534,28 @@ def fit_powerlaw(xdata, ydata, should_plot=False, debug=False):
     logx = np.log(xdata.astype('float'))
     logy = np.log(ydata)
 
+    if np.any(np.isnan(logy)):
+        # Something went wrong, just stop here...
+        return np.array([np.nan, np.nan])
+    
     # define our (line) fitting function
     fitfunc = lambda p, x: p[0] + p[1] * x
     errfunc = lambda p, x, y: np.mean(y - fitfunc(p, x), axis=1)
-    # errfunc = lambda p, x, y: (y - fitfunc(p, x))
-    # errfunc_mse = lambda p, x, y: np.mean((y - fitfunc(p, x))**2.)
-
+    
     # Initial parameters
     pinit = np.array([1.0, -1.0])
     out = spopt.leastsq(errfunc, pinit, args=(logx, logy), full_output=1)
     # out = spopt.fmin(errfunc_mse, pinit, args=(logx, logy))
 
     pfinal = out[0]
-    covar = out[1]
 
     index = pfinal[1]
     amp = np.exp(pfinal[0])
 
-    indexErr = np.sqrt( covar[0][0] )
-    ampErr = np.sqrt( covar[1][1] ) * amp
-
     if debug:
         print pfinal
-        print covar
-        print 'Ampli = %5.2f +/- %5.2f' % (amp, ampErr)
-        print 'Index = %5.2f +/- %5.2f' % (index, indexErr)
+        print 'Ampli = %5.2f' % amp
+        print 'Index = %5.2f' % index
     
     ##########
     # Plotting data
@@ -549,6 +565,61 @@ def fit_powerlaw(xdata, ydata, should_plot=False, debug=False):
                 
 
     return np.array([index, amp])
+
+
+def fit_powerlaw_covariance(xdata, ydata, yerr = None, should_plot=True, debug=False):
+    '''
+        Implements http://www.scipy.org/Cookbook/FittingData
+
+        We actually compute the standard deviation for each x-value, and use this
+        when computing the fit.
+
+    '''
+
+    assert not (ydata.ndim == 1 and yerr is None), 'Use another function or provide yerr, this function requires the standard deviation'
+
+    if ydata.ndim == 2:
+        # Y data 2-dim, compute the standard errors, along the second dimension
+        yerr = np.std(ydata, axis=1)
+        ydata = np.mean(ydata, axis=1)
+
+    logx = np.log(xdata.astype('float'))
+    logy = np.log(ydata)
+    logyerr = yerr/ydata
+
+    # define our (line) fitting function
+    fitfunc = lambda p, x: p[0] + p[1] * x
+    errfunc = lambda p, x, y, err: (y - fitfunc(p, x)) / err
+    
+    # Initial parameters
+    pinit = np.array([1.0, -1.0])
+    out = spopt.leastsq(errfunc, pinit, args=(logx, logy, logyerr), full_output=1)
+
+    pfinal = out[0]
+    covar = out[1]
+
+    index = pfinal[1]
+    amp = np.exp(pfinal[0])
+
+    
+    if debug:
+        indexErr = np.sqrt( covar[0][0] )
+        ampErr = np.sqrt( covar[1][1] ) * amp
+
+        print pfinal
+        print 'Ampli = %5.2f +/- %5.2f' % (amp, ampErr)
+        print 'Index = %5.2f +/- %5.2f' % (index, indexErr)
+    
+    ##########
+    # Plotting data
+    ##########
+    if should_plot:
+        plot_powerlaw_fit(xdata, ydata, amp, index, yerr=yerr)
+                
+
+    return np.array([index, amp])
+
+
         
 
 
