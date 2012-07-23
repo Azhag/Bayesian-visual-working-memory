@@ -26,7 +26,7 @@ from randomfactorialnetwork import *
 from statisticsmeasurer import *
 from slicesampler import *
 from utils import *
-
+from dataio import *
 
 def loglike_theta_fct_vect(thetas, (datapoint, rn, theta_mu, theta_kappa, ATtcB, sampled_feature_index, mean_fixed_contrib, covariance_fixed_contrib)):
     '''
@@ -1794,18 +1794,24 @@ def do_multiple_memory_curve_simult(args):
         (will force alpha=1, and only recall one object for each T, more independent)
     '''
 
-    output_dir = os.path.join(args.output_directory, args.label)
-    output_string = unique_filename(prefix=strcat(output_dir, 'multiple_memory_curve'))
-
     # Build the random network
     alpha = 1.
     time_weights_parameters = dict(weighting_alpha=alpha, weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='uniform')
+
+    # Initialise the output file
+    dataio = DataIO(output_folder=args.output_directory, label=args.label)
+    output_string = dataio.filename
+
+    # List of variables to save
+    # Try not save when one of those is not set. 
+    variables_to_output = ['all_precisions', 'args', 'num_repetitions', 'output_string', 'power_law_params', 'repet_i']
 
     print "Doing do_multiple_memory_curve"
     print "max_T: %s" % args.T
     print "File: %s" % output_string
 
     all_precisions = np.zeros((args.T, args.num_repetitions))
+    power_law_params = np.zeros(2)
 
     # Construct different datasets, with t objects
     for repet_i in np.arange(args.num_repetitions):
@@ -1848,7 +1854,9 @@ def do_multiple_memory_curve_simult(args):
             print "-> %.5f" % all_precisions[t, repet_i]
             
             # Save to disk, unique filename
-            np.save(output_string, {'all_precisions': all_precisions, 'args': args, 'num_repetitions': args.num_repetitions, 'output_string': output_string})
+            dataio.save_variables(variables_to_output, locals())
+
+            # np.save(output_string, {'all_precisions': all_precisions, 'args': args, 'num_repetitions': args.num_repetitions, 'output_string': output_string, 'power_law_params': power_law_params, 'repet_i': repet_i})
         
         xx = np.tile(np.arange(1, args.T+1, dtype='float'), (repet_i+1, 1)).T
         power_law_params = fit_powerlaw(xx, all_precisions[:, :(repet_i+1)], should_plot=True)
@@ -1856,13 +1864,14 @@ def do_multiple_memory_curve_simult(args):
         print '====> Power law fits: exponent: %.4f, bias: %.4f' % (power_law_params[0], power_law_params[1])
 
         # Save to disk, unique filename
-        np.save(output_string, {'all_precisions': all_precisions, 'args': args, 'num_repetitions': args.num_repetitions, 'power_law_params': power_law_params, 'output_string': output_string})
+        dataio.save_variables(variables_to_output, locals())
 
     print all_precisions
 
     
     # Save to disk, unique filename
-    np.save(output_string, {'all_precisions': all_precisions, 'args': args, 'num_repetitions': args.num_repetitions, 'power_law_params': power_law_params})
+    dataio.save_variables(variables_to_output, locals())
+    
 
     f = plt.figure()
     ax = f.add_subplot(111)
