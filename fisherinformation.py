@@ -145,7 +145,7 @@ if __name__ == '__main__':
         covariance_all = np.zeros((T_all.size, T_all.size, int(N_sqrt**2.), int(N_sqrt**2.)))
         for i, T in enumerate(T_all):
             time_weights_parameters = dict(weighting_alpha=alpha, weighting_beta=1.0, specific_weighting=0.1, weight_prior='uniform')
-            rn = RandomFactorialNetwork.create_full_conjunctive(int(N_sqrt**2.), R=R, sigma=sigma_x, scale_moments=(1.0, 0.1), ratio_moments=(1.0, 0.2))
+            rn = RandomFactorialNetwork.create_full_conjunctive(int(N_sqrt**2.), R=R, scale_moments=(1.0, 0.1), ratio_moments=(1.0, 0.2))
             data_gen_noise = DataGeneratorRFN(3000, T, rn, sigma_y=sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=T-1)
             stat_meas = StatisticsMeasurer(data_gen_noise)
             covariance = stat_meas.model_parameters['covariances'][2][-1]
@@ -190,13 +190,13 @@ if __name__ == '__main__':
         stim_space = np.array(cross(stim_space, stim_space))
 
         T_all = np.arange(1, 6)
-            
+        
         covariances_all = np.zeros((T_all.size, int(N_sqrt**2.), int(N_sqrt**2.)))
 
         for i, T in enumerate(T_all):
             time_weights_parameters = dict(weighting_alpha=1.0, weighting_beta=1.0, specific_weighting=0.1, weight_prior='uniform')
-            rn = RandomFactorialNetwork.create_full_conjunctive(int(N_sqrt**2.), R=2, sigma=sigma_x, scale_moments=(1.0, 0.1), ratio_moments=(1.0, 0.2))
-            data_gen_noise = DataGeneratorRFN(3000, T, rn, sigma_y=sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=T-1)
+            rn = RandomFactorialNetwork.create_full_conjunctive(int(N_sqrt**2.), R=2, scale_moments=(1.0, 0.1), ratio_moments=(1.0, 0.2))
+            data_gen_noise = DataGeneratorRFN(3000, T, rn, sigma_y=sigma_y, time_weights_parameters=time_weights_parameters, cued_feature_time=T-1)
             stat_meas = StatisticsMeasurer(data_gen_noise)
             covariances_all[i] = stat_meas.model_parameters['covariances'][2][-1]
         
@@ -323,7 +323,7 @@ if __name__ == '__main__':
 
             # Effect of kappa on the power law y0 value: same as FI[0]
             plt.figure()
-            plt.semilogy(kappa_space, kappa_powerlaw_params[:, 1])
+            plt.plot(kappa_space, kappa_powerlaw_params[:, 1])
 
 
         if False:
