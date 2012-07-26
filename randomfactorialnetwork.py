@@ -441,7 +441,8 @@ class RandomFactorialNetwork():
         normalisation = 1.0
 
         if variant == 'cos':
-            output = normalisation*np.exp(kappas[0]*np.cos(dtheta) + kappas[1]*np.cos(dgamma) - kappas[2]*np.cos(dtheta-dgamma))
+            # output = normalisation*np.exp(kappas[0]*np.cos(dtheta) + kappas[1]*np.cos(dgamma) - kappas[2]*np.cos(dtheta-dgamma))
+            output = normalisation*np.exp(self.neurons_sigma[specific_neurons, 0]*np.cos(dtheta) + self.neurons_sigma[specific_neurons, 1]*np.cos(dgamma))
         elif variant == 'sin':
             output = normalisation*np.exp(kappas[0]*np.cos(dtheta) + kappas[1]*np.cos(dgamma) + kappas[2]*np.sin(dtheta)*np.sin(dgamma))
         else:
@@ -1427,12 +1428,12 @@ if __name__ == '__main__':
             for i, kappa in enumerate(kappa_space):
                 print kappa
                 
-                rn = RandomFactorialNetwork.create_full_conjunctive(N, R=2, scale_moments=(kappa, 0.01), ratio_moments=(1.0, 0.01), response_type='bivariate_fisher')
+                rn = RandomFactorialNetwork.create_full_conjunctive(N, R=2, scale_moments=(kappa, 0.001), ratio_moments=(1.0, 0.001), response_type='bivariate_fisher')
 
                 selected_neuron = 209
 
                 # Get the activity of one neuron (selected arbitrarily), then look at one axis only.
-                mean_neuron_out_ = np.mean(rn.get_neuron_activity(selected_neuron, precision=precision, params=dict(kappas=[kappa, kappa, 0.0])), axis=0)
+                mean_neuron_out_ = np.mean(rn.get_neuron_activity(selected_neuron, precision=precision), axis=0)
                 mean_neuron_out_ /= np.sum(mean_neuron_out_)
 
                 # Fit a Gaussian to it.
