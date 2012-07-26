@@ -903,7 +903,7 @@ class RandomFactorialNetwork():
     ##########################
 
     @classmethod
-    def create_full_conjunctive(cls, M, R=2, scale_parameters = None, ratio_parameters = None, scale_moments=None, ratio_moments=None, debug=False, response_type = 'wrong_wrap'):
+    def create_full_conjunctive(cls, M, R=2, scale_parameters = None, ratio_parameters = None, scale_moments=None, ratio_moments=None, debug=False, response_type = 'bivariate_fisher'):
         '''
             Create a RandomFactorialNetwork instance, using a pure conjunctive code
         '''
@@ -1428,7 +1428,7 @@ if __name__ == '__main__':
             for i, kappa in enumerate(kappa_space):
                 print kappa
                 
-                rn = RandomFactorialNetwork.create_full_conjunctive(N, R=2, scale_moments=(kappa, 0.001), ratio_moments=(1.0, 0.001), response_type='bivariate_fisher')
+                rn = RandomFactorialNetwork.create_full_conjunctive(N, R=2, scale_moments=(kappa, 0.001), ratio_moments=(1.0, 0.001))
 
                 selected_neuron = 209
 
