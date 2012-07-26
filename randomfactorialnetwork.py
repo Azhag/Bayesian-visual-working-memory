@@ -407,7 +407,7 @@ class RandomFactorialNetwork():
         return output
     
 
-    def get_network_response_bivariatefisher(self, stimulus_input, params={}, variant='sin'):
+    def get_network_response_bivariatefisher(self, stimulus_input, params={}, variant='cos'):
         '''
             Compute the response of the network.
 
@@ -652,7 +652,7 @@ class RandomFactorialNetwork():
         return activity
         
 
-    def get_neuron_activity_fullspace(self, neuron_index, precision=100, return_axes_vect = False, params={}):
+    def get_neuron_activity(self, neuron_index, precision=100, return_axes_vect = False, params={}):
         '''
             Returns the activity of a specific neuron over the entire space.
         '''
@@ -778,7 +778,7 @@ class RandomFactorialNetwork():
             Plot the activity of one specific neuron over the whole input space.
         '''
         
-        activity, feature_space1, feature_space2 = self.get_neuron_activity_fullspace(neuron_index, precision=precisions, return_axes_vect=True, params=params)
+        activity, feature_space1, feature_space2 = self.get_neuron_activity(neuron_index, precision=precision, return_axes_vect=True, params=params)
         
         # Plot it
         f = plt.figure()
@@ -890,7 +890,7 @@ class RandomFactorialNetwork():
     ##########################
 
     @classmethod
-    def create_full_conjunctive(cls, M, R=2, sigma=0.2, scale_parameters = None, ratio_parameters = None, scale_moments=None, ratio_moments=None, debug=False):
+    def create_full_conjunctive(cls, M, R=2, scale_parameters = None, ratio_parameters = None, scale_moments=None, ratio_moments=None, debug=False, response_type = 'wrong_wrap'):
         '''
             Create a RandomFactorialNetwork instance, using a pure conjunctive code
         '''
@@ -910,7 +910,7 @@ class RandomFactorialNetwork():
             # same
             ratio_parameters = (ratio_moments[0]**2./ratio_moments[1], ratio_moments[1]/ratio_moments[0])
         
-        rn = RandomFactorialNetwork(M, R=R)
+        rn = RandomFactorialNetwork(M, R=R, response_type=response_type)
 
         rn.assign_random_eigenvectors(scale_parameters=scale_parameters, ratio_parameters=ratio_parameters, reset=True)
         
@@ -920,7 +920,7 @@ class RandomFactorialNetwork():
 
     
     @classmethod
-    def create_full_features(cls, M, R=2, sigma=0.2, scale=0.3, ratio=40., nb_feature_centers=3, response_type = 'wrong_wrap'):
+    def create_full_features(cls, M, R=2, scale=0.3, ratio=40., nb_feature_centers=3, response_type = 'wrong_wrap'):
         '''
             Create a RandomFactorialNetwork instance, using a pure conjunctive code
 
@@ -939,7 +939,7 @@ class RandomFactorialNetwork():
         return rn
     
     @classmethod
-    def create_mixed(cls, M, R=2, sigma=0.2, ratio_feature_conjunctive = 0.5, conjunctive_parameters=None, feature_parameters=None):
+    def create_mixed(cls, M, R=2, ratio_feature_conjunctive = 0.5, conjunctive_parameters=None, feature_parameters=None, response_type = 'wrong_wrap'):
         '''
             Create a RandomFactorialNetwork instance, using a pure conjunctive code
         '''
@@ -974,7 +974,7 @@ class RandomFactorialNetwork():
 
         print "Population sizes: conj: %d, feat: %d" % (conj_subpop_size, feat_subpop_size)
         
-        rn = RandomFactorialNetwork(M, R=R)
+        rn = RandomFactorialNetwork(M, R=R, response_type=response_type)
 
         # Create the conjunctive subpopulation
         rn.assign_prefered_stimuli(tiling_type='conjunctive', reset=True, specified_neurons = np.arange(conj_subpop_size))
@@ -991,7 +991,7 @@ class RandomFactorialNetwork():
         return rn
     
     @classmethod
-    def create_wavelet(cls, M, R=2, scales_number=3, scale_parameters = None, ratio_parameters = None, scale_moments=(85.0, 0.001), ratio_moments=(1.0, 0.001)):
+    def create_wavelet(cls, M, R=2, scales_number=3, scale_parameters = None, ratio_parameters = None, scale_moments=(85.0, 0.001), ratio_moments=(1.0, 0.001), response_type='wrong_wrap'):
         '''
             Create a RandomFactorialNetwork instance, using a pure conjunctive code
         '''
@@ -1009,7 +1009,7 @@ class RandomFactorialNetwork():
             # same
             ratio_parameters = (ratio_moments[0]**2./ratio_moments[1], ratio_moments[1]/ratio_moments[0])
         
-        rn = RandomFactorialNetwork(M, R=R)
+        rn = RandomFactorialNetwork(M, R=R, response_type=response_type)
 
         rn.assign_prefered_stimuli(tiling_type='wavelet', reset=True, scales_number = scales_number)
         rn.assign_scaled_eigenvectors(scale_parameters=scale_parameters, ratio_parameters=ratio_parameters, reset=True)
@@ -1066,7 +1066,7 @@ if __name__ == '__main__':
         R = 2
         sigma_x = 0.1
         # Moments of scale: mean = volume of receptive field directly.
-        rn = RandomFactorialNetwork.create_full_conjunctive(M, R=R, sigma=sigma_x, scale_moments=(2.0, 0.1), ratio_moments=(1.0, 0.2))
+        rn = RandomFactorialNetwork.create_full_conjunctive(M, R=R, scale_moments=(2.0, 0.1), ratio_moments=(1.0, 0.2))
         # rn = RandomFactorialNetwork.create_full_features(M, R=R, scale=1.0, ratio=4.0, response_type = 'bivariate_fisher')
         # rn = RandomFactorialNetwork.create_wavelet(M, R=R, scale_moments=(85.0, 0.001), ratio_moments=(1.0, 0.001), scales_number=5)
         
@@ -1200,7 +1200,7 @@ if __name__ == '__main__':
             covariance_all = np.zeros((T_all.size, T_all.size, int(N_sqrt**2.), int(N_sqrt**2.)))
             for i, T in enumerate(T_all):
                 time_weights_parameters = dict(weighting_alpha=alpha, weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='uniform')
-                rn = RandomFactorialNetwork.create_full_conjunctive(int(N_sqrt**2.), R=R, sigma=sigma_x, scale_moments=(2.0, 0.1), ratio_moments=(1.0, 0.2))
+                rn = RandomFactorialNetwork.create_full_conjunctive(int(N_sqrt**2.), R=R, scale_moments=(2.0, 0.1), ratio_moments=(1.0, 0.2))
                 data_gen_noise = DataGeneratorRFN(4000, T, rn, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=T-1, nb_stimulus_per_feature=K, enforce_min_distance=0.0)
                 stat_meas = StatisticsMeasurer(data_gen_noise)
                 covariance = stat_meas.model_parameters['covariances'][2][-1]
@@ -1224,18 +1224,18 @@ if __name__ == '__main__':
 
         plt.show()
 
-    if True:
+    if False:
         # Compute KL approx of mixture by Gausian
         alpha = 0.9
         N_sqrt = 20.
         N = int(N_sqrt**2.)
         T = 1
-        sigma_x = 1.0
+        sigma_x = 0.5
         sigma_y = 0.2
         beta = 2.0
 
         time_weights_parameters = dict(weighting_alpha=alpha, weighting_beta = beta, specific_weighting = 0.1, weight_prior='uniform')
-        rn = RandomFactorialNetwork.create_full_conjunctive(N, R=2, sigma=sigma_x, scale_moments=(2.0, 0.01), ratio_moments=(1.0, 0.01))
+        rn = RandomFactorialNetwork.create_full_conjunctive(N, R=2, scale_moments=(1.0, 0.01), ratio_moments=(1.0, 0.01), response_type='bivariate_fisher')
         data_gen_noise = DataGeneratorRFN(15000, T, rn, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=T-1, enforce_min_distance=0.0)
         stat_meas = StatisticsMeasurer(data_gen_noise)
 
@@ -1345,5 +1345,110 @@ if __name__ == '__main__':
         # Adjust the spacing between subplots for readability 
         plt.subplots_adjust(hspace=0.32)
         plt.show()
+
+
+    if True:
+        # Check difference between kappa parameter for a bivariate_fisher and the previously used "scale" (which was more or less the standard deviation of a gaussian)
+        # Do that by looking at the activation of one neuron over one dimension and fit a Gaussian to it.
+
+        alpha = 0.999
+        beta = 1.0
+        N_sqrt = 20.
+        N = int(N_sqrt**2.)
+        time_weights_parameters = dict(weighting_alpha=alpha, weighting_beta = beta, specific_weighting = 0.1, weight_prior='uniform')
+        precision = 100
+        nb_params = 100
+
+        # Define our Gaussian and error function
+        gaussian = lambda p, x: 1./(p[1]*np.sqrt(2*np.pi))*np.exp(-(x-p[0])**2./(2.*p[1]**2.))
+        gaussian_bis = lambda p, x: p[2]*np.exp(-(x-p[0])**2./(2.*p[1]**2.))
+        error_funct = lambda p, x, y: (y - gaussian(p, x))
+
+        # Space
+        xx = np.linspace(-np.pi, np.pi, precision)
+        
+        # First actually get the relationship for the wrong_wrap method used before.
+        rc_scale_space = np.linspace(0.001, 25., nb_params)
+        std_dev_results = np.zeros(rc_scale_space.size)
+
+        print "Doing for wrong wrap"
+        for i, rc_scale in enumerate(rc_scale_space):
+            print rc_scale
+            rn = RandomFactorialNetwork.create_full_conjunctive(N, R=2, scale_moments=(rc_scale, 0.01), ratio_moments=(1.0, 0.01), response_type='wrong_wrap')
+
+            selected_neuron = 209
+
+            # Get the activity of one neuron (selected arbitrarily), then look at one axis only.
+            mean_neuron_out = np.mean(rn.get_neuron_activity(selected_neuron), axis=0)
+            # mean_neuron_out /= np.sum(mean_neuron_out)
+
+            # Fit a Gaussian to it.
+
+            # pinit = [0.0, 1.0]
+            # out = spopt.leastsq(error_funct, pinit, args=(xx, mean_neuron_out))
+            # new_params = out[0]
+            # std_dev_results[i] = new_params[1]
+
+            # Estimate mean and variance instead
+            curr_mean = np.sum(mean_neuron_out*xx)/np.sum(mean_neuron_out)
+            curr_std = np.sqrt(np.abs(np.sum((xx-curr_mean)**2*mean_neuron_out)/np.sum(mean_neuron_out)))
+            curr_max = mean_neuron_out.max()
+
+            std_dev_results[i] = curr_std
+
+            
+
+        # Second, see the relationship with the new bivariate_fisher kappas
+        kappa_space = np.linspace(0.01, 25., nb_params)
+        std_dev_results_kappas = np.zeros(kappa_space.size)
+
+        print "Doing for bivariate fisher"
+        for i, kappa in enumerate(kappa_space):
+            print kappa
+            
+            rn = RandomFactorialNetwork.create_full_conjunctive(N, R=2, scale_moments=(kappa, 0.01), ratio_moments=(1.0, 0.01), response_type='bivariate_fisher')
+
+            selected_neuron = 209
+
+            # Get the activity of one neuron (selected arbitrarily), then look at one axis only.
+            mean_neuron_out_ = np.mean(rn.get_neuron_activity(selected_neuron, params=dict(kappas=[kappa, kappa, 0.0])), axis=0)
+            mean_neuron_out_ /= np.sum(mean_neuron_out_)
+
+            # Fit a Gaussian to it.
+            # pinit = [0.0, 1.0]
+            # out = spopt.leastsq(error_funct, pinit, args=(xx, mean_neuron_out_))
+            # new_params = out[0]
+            # std_dev_results_kappas[i] = new_params[1]
+
+            # Estimate mean and variance instead
+            curr_mean = np.sum(mean_neuron_out_*xx)/np.sum(mean_neuron_out_)
+            curr_std = np.sqrt(np.abs(np.sum((xx-curr_mean)**2*mean_neuron_out_)/np.sum(mean_neuron_out_)))
+            curr_max = mean_neuron_out_.max()
+            
+            std_dev_results_kappas[i] = curr_std
+
+
+        # Plots
+        plt.figure()
+        plt.plot(rc_scale_space, std_dev_results)
+        plt.title('Wrong wrap, relationship between rc_scale and std dev')
+        plt.xlabel('Receptive field scale')
+        plt.ylabel('Standard deviation of fitted gaussian')
+
+        plt.figure()
+        plt.plot(1./kappa_space, std_dev_results_kappas)
+        plt.title('Bivariate Fisher, relationship between rc_scale and kappa')
+        plt.xlabel('Kappa scale')
+        plt.ylabel('Standard deviation of fitted gaussian')
+
+        plt.show()
+
+
+
+
+
+
+
+
 
 
