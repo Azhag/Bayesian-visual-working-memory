@@ -284,9 +284,7 @@ class RandomFactorialNetwork():
         # Compute parameters
         self.compute_2d_parameters(specified_neurons=specified_neurons)
 
-
     
-
 
     def compute_preferred_vectors(self, should_plot=False):
         '''
@@ -321,20 +319,20 @@ class RandomFactorialNetwork():
     #########################################################################################################
 
 
-    def get_network_response(self, stimulus_input, params={}):
+    def get_network_response(self, stimulus_input, specific_neurons=None, params={}):
         '''
             Function hook for the current way to get the network response.
         '''
         if self.response_type == 'fisher':
-            return self.get_network_response_vonmisesfisher(stimulus_input, params=params)
+            return self.get_network_response_vonmisesfisher(stimulus_input, specific_neurons=specific_neurons, params=params)
         elif self.response_type == 'wrong_wrap':
-            return self.get_network_response_wrongwrap(stimulus_input, params=params)
+            return self.get_network_response_wrongwrap(stimulus_input, specific_neurons=specific_neurons, params=params)
         elif self.response_type == 'bivariate_fisher':
-            return self.get_network_response_bivariatefisher(stimulus_input, params=params)
+            return self.get_network_response_bivariatefisher(stimulus_input, specific_neurons=specific_neurons, params=params)
         
         
     
-    def get_network_response_vonmisesfisher(self, stimulus_input, params={}):
+    def get_network_response_vonmisesfisher(self, stimulus_input, specific_neurons=None, params={}):
         '''
             Compute the response of the network.
 
@@ -342,6 +340,9 @@ class RandomFactorialNetwork():
 
             Now computes intermediate vectors, could change everything to use vectors only.
         '''
+
+        # TODO get_network_response_vonmisesfisher is not finished
+        print "Unfinished function..."
 
         # Unpack parameters
         if 'kappa' in params:
@@ -356,6 +357,9 @@ class RandomFactorialNetwork():
             function_type = params['function_type']
         else:
             function_type = 'vonmisesfisher'
+
+        if specific_neurons is None:
+            specific_neurons = self._ALL_NEURONS
         
         # Vector version of the stimulus
         # stimulus_input = np.array(stimulus_input)
@@ -375,7 +379,7 @@ class RandomFactorialNetwork():
         
         if function_type == 'vonmisesfisher':
             # Von Mises-Fisher
-            output = normalisation*np.exp(kappa*np.dot(self.neurons_preferred_stimulus_vect, stimulus_input_vect))
+            output = normalisation*np.exp(kappa*np.dot(self.neurons_preferred_stimulus_vect[specific_neurons], stimulus_input_vect))
         elif function_type == 'kent_5':
             # 5-param Kent
             
@@ -402,12 +406,12 @@ class RandomFactorialNetwork():
         # modified_stimulus = np.dot(M_rot, stimulus_input_vect)
         # output = normalisation*np.exp(kappa*np.dot(self.neurons_preferred_stimulus_vect, modified_stimulus))
 
-        output[self.mask_neurons_unset] = 0.0
+        output[self.mask_neurons_unset[specific_neurons]] = 0.0
         
         return output
     
 
-    def get_network_response_bivariatefisher(self, stimulus_input, params={}, variant='cos'):
+    def get_network_response_bivariatefisher(self, stimulus_input, specific_neurons=None, params={}, variant='cos'):
         '''
             Compute the response of the network.
 
@@ -422,9 +426,15 @@ class RandomFactorialNetwork():
         else:
             kappas = [1.0, 1.0, 0.0]
         
+        if specific_neurons is None:
+            specific_neurons = self._ALL_NEURONS
+        
         # Diff angles
-        dtheta = (stimulus_input[0] - self.neurons_preferred_stimulus[:, 0])
-        dgamma = (stimulus_input[1] - self.neurons_preferred_stimulus[:, 1])
+        dtheta = (stimulus_input[0] - self.neurons_preferred_stimulus[specific_neurons, 0])
+        dgamma = (stimulus_input[1] - self.neurons_preferred_stimulus[specific_neurons, 1])
+
+        # Rotate them
+        # create_2D_rotation_matrix()
 
         # Get the response
         # normalisation = kappa/(2.*np.pi*(np.exp(kappa) - np.exp(-kappa)))
@@ -437,7 +447,7 @@ class RandomFactorialNetwork():
         else:
             raise ValueError("variant parameter should be either 'cos' or 'sin'")
 
-        output[self.mask_neurons_unset] = 0.0
+        output[self.mask_neurons_unset[specific_neurons]] = 0.0
 
         # return np.ones(self.M)*np.exp(kappa*np.cos(stimulus_input[1]) + beta*np.sin(stimulus_input[1])**2.*(np.cos(stimulus_input[0])**2. - np.sin(stimulus_input[0])**2.)*np.sin(stimulus_input[1]))
 
@@ -445,7 +455,7 @@ class RandomFactorialNetwork():
 
 
 
-    def get_network_response_wrongwrap(self, stimulus_input, params={}):
+    def get_network_response_wrongwrap(self, stimulus_input, specific_neurons=None, params={}):
         '''
             Compute the response of the network.
             
@@ -463,11 +473,13 @@ class RandomFactorialNetwork():
         # else:
         #     periodicity = 0.5
 
+        if specific_neurons is None:
+            specific_neurons = self._ALL_NEURONS
         
         normalisation = 1.
         
-        dx = (self.neurons_preferred_stimulus[:, 0] - stimulus_input[0])
-        dy = (self.neurons_preferred_stimulus[:, 1] - stimulus_input[1])
+        dx = (self.neurons_preferred_stimulus[specific_neurons, 0] - stimulus_input[0])
+        dy = (self.neurons_preferred_stimulus[specific_neurons, 1] - stimulus_input[1])
 
         # TODO Change wrap around.
 
@@ -488,9 +500,9 @@ class RandomFactorialNetwork():
         
         
         if self.R == 2:
-            output = normalisation*np.exp(-self.neurons_params[:, 0]*dx**2.0 - 2.*self.neurons_params[:, 1]*dx*dy - self.neurons_params[:, 2]*dy**2.0)
+            output = normalisation*np.exp(-self.neurons_params[specific_neurons, 0]*dx**2.0 - 2.*self.neurons_params[specific_neurons, 1]*dx*dy - self.neurons_params[specific_neurons, 2]*dy**2.0)
             # output = normalisation*np.exp(vonmises_param[0]*cosdx + vonmises_param[1]*cosdy + vonmises_param[2]*sindx*sindy)
-            output[self.mask_neurons_unset] = 0.0
+            output[self.mask_neurons_unset[specific_neurons]] = 0.0
             return output
         elif self.R == 3:
             raise NotImplementedError('R=3 for factorial code...')
@@ -539,7 +551,7 @@ class RandomFactorialNetwork():
             Get the output of one specific neuron, for a specific stimulus
         '''
 
-        return self.get_network_response(stimulus_input, params=params)[neuron_index]
+        return self.get_network_response(stimulus_input, params=params, specific_neurons=np.array([neuron_index]))
 
 
     def sample_network_response(self, stimulus_input, sigma=0.2, params={}):
@@ -1367,81 +1379,84 @@ if __name__ == '__main__':
         # Space
         xx = np.linspace(-np.pi, np.pi, precision)
         
-        # First actually get the relationship for the wrong_wrap method used before.
-        rc_scale_space = np.linspace(0.001, 25., nb_params)
-        std_dev_results = np.zeros(rc_scale_space.size)
+        if False:
+            # First actually get the relationship for the wrong_wrap method used before.
+            rc_scale_space = np.linspace(0.001, 25., nb_params)
+            std_dev_results = np.zeros(rc_scale_space.size)
 
-        print "Doing for wrong wrap"
-        for i, rc_scale in enumerate(rc_scale_space):
-            print rc_scale
-            rn = RandomFactorialNetwork.create_full_conjunctive(N, R=2, scale_moments=(rc_scale, 0.01), ratio_moments=(1.0, 0.01), response_type='wrong_wrap')
+            print "Doing for wrong wrap"
+            for i, rc_scale in enumerate(rc_scale_space):
+                print rc_scale
+                rn = RandomFactorialNetwork.create_full_conjunctive(N, R=2, scale_moments=(rc_scale, 0.01), ratio_moments=(1.0, 0.01), response_type='wrong_wrap')
 
-            selected_neuron = 209
+                selected_neuron = 209
 
-            # Get the activity of one neuron (selected arbitrarily), then look at one axis only.
-            mean_neuron_out = np.mean(rn.get_neuron_activity(selected_neuron), axis=0)
-            # mean_neuron_out /= np.sum(mean_neuron_out)
+                # Get the activity of one neuron (selected arbitrarily), then look at one axis only.
+                mean_neuron_out = np.mean(rn.get_neuron_activity(selected_neuron), axis=0)
+                mean_neuron_out /= np.sum(mean_neuron_out)
 
-            # Fit a Gaussian to it.
+                # Fit a Gaussian to it.
 
-            # pinit = [0.0, 1.0]
-            # out = spopt.leastsq(error_funct, pinit, args=(xx, mean_neuron_out))
-            # new_params = out[0]
-            # std_dev_results[i] = new_params[1]
+                # pinit = [0.0, 1.0]
+                # out = spopt.leastsq(error_funct, pinit, args=(xx, mean_neuron_out))
+                # new_params = out[0]
+                # std_dev_results[i] = new_params[1]
 
-            # Estimate mean and variance instead
-            curr_mean = np.sum(mean_neuron_out*xx)/np.sum(mean_neuron_out)
-            curr_std = np.sqrt(np.abs(np.sum((xx-curr_mean)**2*mean_neuron_out)/np.sum(mean_neuron_out)))
-            curr_max = mean_neuron_out.max()
+                # Estimate mean and variance instead
+                curr_mean = np.sum(mean_neuron_out*xx)/np.sum(mean_neuron_out)
+                curr_std = np.sqrt(np.abs(np.sum((xx-curr_mean)**2*mean_neuron_out)/np.sum(mean_neuron_out)))
+                curr_max = mean_neuron_out.max()
 
-            std_dev_results[i] = curr_std
+                std_dev_results[i] = curr_std
 
-            
-
-        # Second, see the relationship with the new bivariate_fisher kappas
-        kappa_space = np.linspace(0.01, 25., nb_params)
-        std_dev_results_kappas = np.zeros(kappa_space.size)
-
-        print "Doing for bivariate fisher"
-        for i, kappa in enumerate(kappa_space):
-            print kappa
-            
-            rn = RandomFactorialNetwork.create_full_conjunctive(N, R=2, scale_moments=(kappa, 0.01), ratio_moments=(1.0, 0.01), response_type='bivariate_fisher')
-
-            selected_neuron = 209
-
-            # Get the activity of one neuron (selected arbitrarily), then look at one axis only.
-            mean_neuron_out_ = np.mean(rn.get_neuron_activity(selected_neuron, params=dict(kappas=[kappa, kappa, 0.0])), axis=0)
-            mean_neuron_out_ /= np.sum(mean_neuron_out_)
-
-            # Fit a Gaussian to it.
-            # pinit = [0.0, 1.0]
-            # out = spopt.leastsq(error_funct, pinit, args=(xx, mean_neuron_out_))
-            # new_params = out[0]
-            # std_dev_results_kappas[i] = new_params[1]
-
-            # Estimate mean and variance instead
-            curr_mean = np.sum(mean_neuron_out_*xx)/np.sum(mean_neuron_out_)
-            curr_std = np.sqrt(np.abs(np.sum((xx-curr_mean)**2*mean_neuron_out_)/np.sum(mean_neuron_out_)))
-            curr_max = mean_neuron_out_.max()
-            
-            std_dev_results_kappas[i] = curr_std
+            # Plots
+            plt.figure()
+            plt.plot(rc_scale_space, std_dev_results)
+            plt.title('Wrong wrap, relationship between rc_scale and std dev')
+            plt.xlabel('Receptive field scale')
+            plt.ylabel('Standard deviation of fitted gaussian')
 
 
-        # Plots
-        plt.figure()
-        plt.plot(rc_scale_space, std_dev_results)
-        plt.title('Wrong wrap, relationship between rc_scale and std dev')
-        plt.xlabel('Receptive field scale')
-        plt.ylabel('Standard deviation of fitted gaussian')
+        if True:
 
-        plt.figure()
-        plt.plot(1./kappa_space, std_dev_results_kappas)
-        plt.title('Bivariate Fisher, relationship between rc_scale and kappa')
-        plt.xlabel('Kappa scale')
-        plt.ylabel('Standard deviation of fitted gaussian')
+            # Second, see the relationship with the new bivariate_fisher kappas
+            kappa_space = np.linspace(0.001, 5., nb_params)
+            std_dev_results_kappas = np.zeros(kappa_space.size)
 
-        plt.show()
+            print "Doing for bivariate fisher"
+            for i, kappa in enumerate(kappa_space):
+                print kappa
+                
+                rn = RandomFactorialNetwork.create_full_conjunctive(N, R=2, scale_moments=(kappa, 0.01), ratio_moments=(1.0, 0.01), response_type='bivariate_fisher')
+
+                selected_neuron = 209
+
+                # Get the activity of one neuron (selected arbitrarily), then look at one axis only.
+                mean_neuron_out_ = np.mean(rn.get_neuron_activity(selected_neuron, precision=precision, params=dict(kappas=[kappa, kappa, 0.0])), axis=0)
+                mean_neuron_out_ /= np.sum(mean_neuron_out_)
+
+                # Fit a Gaussian to it.
+                # pinit = [0.0, 1.0]
+                # out = spopt.leastsq(error_funct, pinit, args=(xx, mean_neuron_out_))
+                # new_params = out[0]
+                # std_dev_results_kappas[i] = new_params[1]
+
+                # Estimate mean and variance instead
+                curr_mean = np.sum(mean_neuron_out_*xx)/np.sum(mean_neuron_out_)
+                curr_std = np.sqrt(np.abs(np.sum((xx-curr_mean)**2*mean_neuron_out_)/np.sum(mean_neuron_out_)))
+                curr_max = mean_neuron_out_.max()
+                
+                std_dev_results_kappas[i] = curr_std
+
+
+            # Plot
+            plt.figure()
+            plt.plot(kappa_space, std_dev_results_kappas)
+            plt.title('Bivariate Fisher, relationship between rc_scale and kappa')
+            plt.xlabel('Kappa scale')
+            plt.ylabel('Standard deviation of fitted gaussian')
+
+            plt.show()
 
 
 
