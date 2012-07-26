@@ -641,7 +641,12 @@ def load_data_fromregexp(dataset_infos, debug=False):
         curr_params = matched.groupdict()
 
         # Check if all the appropriate parameters were found
-        assert set(dataset_infos['parameters']) <= set(curr_params), "Couldn't extract the desired parameters from the filename"
+        # assert set(dataset_infos['parameters']) <= set(curr_params), "Couldn't extract the desired parameters from the filename"
+        if not (set(dataset_infos['parameters']) <= set(curr_params)):
+            print set(dataset_infos['parameters'])
+            print set(curr_params)
+            raise ValueError("Couldn't extract the desired parameters from the filename")
+
 
         # Load the data
         curr_dataset = np.load(curr_file).item()
@@ -789,7 +794,7 @@ def curves_memorypowerlaw_100712(loaded_data, all_results_array):
     precision_results = all_results_array['all_precisions']['results']
 
     ### numselectedsamples: 50 (for samples<50, not valid)
-    if True:
+    if False:
         # all_precisions: samples . rcscale . number of objects . repetitions
         precisions_selected50 = precision_results[:, :, loaded_data['parameters_indirections']['selectionnumsamples'][50.0], :, :]
         mean_precisions_selected50 = np.mean(precisions_selected50, axis=-1)
@@ -892,7 +897,7 @@ def curves_memorypowerlaw_100712(loaded_data, all_results_array):
         ax2.axis('tight')
 
     #### numselectedsamples: num_samples/2
-    if True:
+    if False:
         selected_halfnumsamples = np.nonzero([x*2. in loaded_data['parameters_uniques']['numsamples'] for x in loaded_data['parameters_uniques']['selectionnumsamples']])[0]
         precisions_halfselectednumsamples = precision_results[:, np.arange(loaded_data['parameters_uniques']['numsamples'].size), selected_halfnumsamples]
         mean_precisions_halfselectednumsamples = np.mean(precisions_halfselectednumsamples, axis=-1)
@@ -977,8 +982,55 @@ def curves_memorypowerlaw_100712(loaded_data, all_results_array):
 
     return locals()
 
+def curves_memorypowerlaw_maxll_260712(loaded_data, all_results_array):
+    '''
+        Similar to curves_memorypowerlaw_100712, but no samples and selectionnumsamples
+    '''
+    
+    # all_precisions: rcscale . number of objects . repetitions
+    precision_results = all_results_array['all_precisions']['results']
+    
+    # all_indices = all_results_array['all_precisions']['indices']
+    
+    # Now do the mean, but only take up to the computed values (the others are 0)
+    # Try to use repet_i if available...
+    loaded_data['datasets_list'][0]['repet_i']
+    # Initialise the array with the good shapes
+    mean_precisions = np.zeros(precision_results.shape[:-1])
+    std_precisions = np.zeros(precision_results.shape[:-1])
+    for dataset_i in xrange(precision_results.shape[0]):
+        if 'repet_i' in loaded_data['datasets_list'][dataset_i]:
+            # We have the number of completed simulations till now, use it.
+            mean_precisions[dataset_i] = np.mean(precision_results[dataset_i, :, :loaded_data['datasets_list'][dataset_i]['repet_i']], axis = -1)
+            std_precisions[dataset_i] = np.std(precision_results[dataset_i, :, :loaded_data['datasets_list'][dataset_i]['repet_i']], axis = -1)
+        else:
+            # We do not have it, assume that values 0 are wrong.
+            precision_results[precision_results == 0.0] = np.nan
+            mean_precisions[dataset_i] = nanmean(precision_results[dataset_i], axis=-1)
+            std_precisions[dataset_i] = nanstd(precision_results[dataset_i], axis=-1)
 
-def combine_multiple_memory_curve_simult_powerlaw(data_index = 5):
+    # Plot
+    for num_objects in xrange(mean_precisions.shape[-1]):
+        plot_mean_std_area(loaded_data['parameters_uniques']['rcscale'], mean_precisions[:, num_objects], std_precisions[:, num_objects])
+
+    power_law_params = all_results_array['power_law_params']['results']
+
+    # Plot
+    plt.figure()
+    plt.subplot(211)
+    plt.plot(loaded_data['parameters_uniques']['rcscale'], power_law_params[:, 0])
+    plt.xlim((loaded_data['parameters_uniques']['rcscale'].min(), loaded_data['parameters_uniques']['rcscale'].max()*1.4))
+    plt.title('Powerlaw exponent. Vary rcscale, selection_num_samples = 50 (or 10, 20 for smaller num_samples)')
+
+    plt.subplot(212)
+    plt.plot(loaded_data['parameters_uniques']['rcscale'], power_law_params[:, 1])
+    plt.xlim((loaded_data['parameters_uniques']['rcscale'].min(), loaded_data['parameters_uniques']['rcscale'].max()*1.4))
+    plt.title('Powerlaw bias. Vary rcscale, selection_num_samples = 50 (or 10, 20 for smaller num_samples)')
+    
+    return locals()
+
+
+def combine_multiple_memory_curve_simult_powerlaw(data_index = 7):
     '''
         Loads simulations of multiple memory curves for simultaneous presentations.
         Power law fits are also available, plot if they have some dependence on different parameters
@@ -1028,6 +1080,24 @@ def combine_multiple_memory_curve_simult_powerlaw(data_index = 5):
                     variables_to_load=('all_precisions', 'power_law_params'),
                     variables_description=('number of objects . repetitions', 'exponent, bias'),
                     post_processing=curves_memorypowerlaw_100712
+                    )
+    elif data_index == 6:
+        dataset_infos = dict(label='Samples and sigmax effect on power-law fits. Small range for rcscale, looking at the effect of sample numbers for T=1 at small scale. Could just be that large number of samples just go to the ML value...',
+                    files='Data/samples_sigma_powerlaw/small_rc_samples_effect/samples_sigma_powerlaw-*.npy',
+                    regexp='^[a-zA-Z_\/0-9]*-rcscale(?P<rcscale>[0-9.]*)numsamples(?P<numsamples>[0-9]*)selectionnumsamples(?P<selectionnumsamples>[0-9]*).*.npy',
+                    parameters=('rcscale', 'numsamples', 'selectionnumsamples'),
+                    variables_to_load=('all_precisions', 'power_law_params'),
+                    variables_description=('number of objects . repetitions', 'exponent, bias'),
+                    post_processing=curves_memorypowerlaw_100712
+                    )
+    elif data_index == 7:
+        dataset_infos = dict(label='Rc_scale effect for Max-likelihood theta selection. This is to verify if a large number of samples will make the precision go to the ML value.',
+                    files='Data/samples_sigma_powerlaw/max_loglik_comparison/sigma_powerlaw-*.npy',
+                    regexp='^[a-zA-Z_\/0-9]*-rcscale(?P<rcscale>[0-9.]*)n.*.npy',
+                    parameters=['rcscale'],
+                    variables_to_load=('all_precisions', 'power_law_params'),
+                    variables_description=('number of objects . repetitions', 'exponent, bias'),
+                    post_processing=curves_memorypowerlaw_maxll_260712
                     )
 
 
