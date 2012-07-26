@@ -57,7 +57,6 @@ def combine_pbs_effectT():
         # Do a nice regular expression to catch the parameters and remove the useless random unique string
         matched = re.search('^[a-zA-Z_]*-T([0-9]*)alpha[0-9.]*N[0-9.]*nbrepeats([0-9.]*)nbexperiments([0-9.]*)size_receptive_field_number_neurons-([0-9a-z\-]*).npy', curr_file)
         
-        
         # Get N
         curr_T = int(matched.groups()[0])
         all_T.append(curr_T)
@@ -791,13 +790,14 @@ def curves_memorypowerlaw_100712(loaded_data, all_results_array):
 
     ### numselectedsamples: 50 (for samples<50, not valid)
     if True:
+        # all_precisions: samples . rcscale . number of objects . repetitions
         precisions_selected50 = precision_results[:, :, loaded_data['parameters_indirections']['selectionnumsamples'][50.0], :, :]
         mean_precisions_selected50 = np.mean(precisions_selected50, axis=-1)
         std_precisions_selected50 = np.std(precisions_selected50, axis=-1)
 
         # Plot
-        # for num_objects in xrange(mean_precisions_selected50.shape[-1]):
-            # plot_multiple_mean_std_area(loaded_data['parameters_uniques']['rcscale'], mean_precisions_selected50[:, 3:, num_objects].T, std_precisions_selected50[:, 3:, num_objects].T)
+        for num_objects in xrange(mean_precisions_selected50.shape[-1]):
+            plot_multiple_mean_std_area(loaded_data['parameters_uniques']['rcscale'], mean_precisions_selected50[:, :, num_objects].T, std_precisions_selected50[:, :, num_objects].T)
 
         power_law_params = all_results_array['power_law_params']['results']
         powerlaw_selected50 = power_law_params[:, :, loaded_data['parameters_indirections']['selectionnumsamples'][50.0]]
@@ -841,14 +841,17 @@ def curves_memorypowerlaw_100712(loaded_data, all_results_array):
 
     #### numselectedsamples: only take the selection_num_samples same as num_samples
     if True:
+
         selected_numsamples = np.nonzero([x in loaded_data['parameters_uniques']['numsamples'] for x in loaded_data['parameters_uniques']['selectionnumsamples']])[0]
+        # all_precisions: samples . rcscale . number of objects . repetitions
         precisions_selectednumsamples = precision_results[:, np.arange(loaded_data['parameters_uniques']['numsamples'].size), selected_numsamples]
+        # mean_precisions: samples . rcscale . number of objects
         mean_precisions_selectednumsamples = nanmean(precisions_selectednumsamples, axis=-1)
         std_precisions_selectednumsamples = nanstd(precisions_selectednumsamples, axis=-1)
 
         # Plot
         for num_objects in xrange(mean_precisions_selectednumsamples.shape[-1]):
-            plot_multiple_mean_std_area(loaded_data['parameters_uniques']['rcscale'], mean_precisions_selectednumsamples[:, 3:, num_objects].T, std_precisions_selectednumsamples[:, 3:, num_objects].T)
+            plot_multiple_mean_std_area(loaded_data['parameters_uniques']['rcscale'], mean_precisions_selectednumsamples[:, :, num_objects].T, std_precisions_selectednumsamples[:, :, num_objects].T)
 
         power_law_params = all_results_array['power_law_params']['results']
         powerlaw_selectednumsamples = power_law_params[:, np.arange(loaded_data['parameters_uniques']['numsamples'].size), selected_numsamples]
