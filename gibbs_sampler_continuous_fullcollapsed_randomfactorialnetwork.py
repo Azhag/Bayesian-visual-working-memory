@@ -1844,8 +1844,14 @@ def do_multiple_memory_curve_simult(args):
             
             print "  doing T=%d %d/%d" % (t+1, repet_i+1, args.num_repetitions)
 
-            # Sample thetas
-            sampler.sample_theta(num_samples=args.num_samples, burn_samples=20, selection_method='median', selection_num_samples=args.num_samples, integrate_tc_out=False, debug=False)
+            if args.inference_method == 'sample':
+                # Sample thetas
+                sampler.sample_theta(num_samples=args.num_samples, burn_samples=20, selection_method='median', selection_num_samples=args.num_samples, integrate_tc_out=False, debug=False)
+            elif args.inference_method == 'max_lik':
+                # Just use the ML value for the theta
+                sampler.set_theta_max_likelihood(num_points=200, post_optimise=True)
+            else:
+                raise ValueError('Wrong value for inference_method')
 
             # Save the precision
             all_precisions[t, repet_i] = sampler.get_precision(remove_chance_level=True)
@@ -2267,6 +2273,7 @@ if __name__ == '__main__':
     parser.add_argument('--sigmax', type=float, default=0.2, help='Noise per object')
     parser.add_argument('--sigmay', type=float, default=0.02, help='Noise along time')
     parser.add_argument('--ratio_conj', type=float, default=0.2, help='Ratio of conjunctive/field subpopulations for mixed network')
+    parser.add_argument('--inference_method', choices=['sample', 'max_lik'], default='sample', help='Method used to infer the responses. Either sample (default) or set the maximum likelihood/posterior values directly.')
 
 
     args = parser.parse_args()
