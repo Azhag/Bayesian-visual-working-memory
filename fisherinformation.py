@@ -118,9 +118,10 @@ if __name__ == '__main__':
         N_sqrt = 20.
 
         # sigma_x_2 = (0.5)**2.
-        kappa1 = 0.8
-        kappa2 = 0.8
-        alpha = 1.0
+        kappa1 = 5.0
+        kappa2 = kappa1
+        alpha = 0.9999
+        beta = 1.0
 
         # Get the mu and gamma (means of receptive fields)
         coverage_1D = np.linspace( -np.pi + np.pi/N_sqrt, np.pi + np.pi/N_sqrt, N_sqrt, endpoint=False)
@@ -130,41 +131,50 @@ if __name__ == '__main__':
         gamma = means[:, 1]
 
         R = 2
-        sigma_x = 3.0
-        sigma_y = 1.0
+        sigma_x = 2.0
+        sigma_y = 0.001
 
-        precision = 2.
+        precision = 1.
         stim_space = np.linspace(0, 2.*np.pi, precision, endpoint=False)
         stim_space = np.array(cross(stim_space, stim_space))
 
         density = N_sqrt**2./(4.*np.pi**2.)
 
-        T_all = np.arange(1, 5)
+        T_all = np.arange(1, 7)
         FI_Tt = np.zeros((T_all.size, T_all.size))
-        all_FI_11_Tt = np.zeros((T_all.size, T_all.size))
-        covariance_all = np.zeros((T_all.size, T_all.size, int(N_sqrt**2.), int(N_sqrt**2.)))
-        for i, T in enumerate(T_all):
-            time_weights_parameters = dict(weighting_alpha=alpha, weighting_beta=1.0, specific_weighting=0.1, weight_prior='uniform')
-            rn = RandomFactorialNetwork.create_full_conjunctive(int(N_sqrt**2.), R=R, scale_moments=(1.0, 0.1), ratio_moments=(1.0, 0.2))
-            data_gen_noise = DataGeneratorRFN(3000, T, rn, sigma_y=sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=T-1)
+        all_FI_11_T = np.zeros(T_all.size)
+        covariance_all = np.zeros((T_all.size, int(N_sqrt**2.), int(N_sqrt**2.)))
+
+        kappa1 = kappa1**0.5
+        kappa2 = kappa1
+            
+        for T_i, T in enumerate(T_all):
+            time_weights_parameters = dict(weighting_alpha=alpha, weighting_beta=beta, specific_weighting=0.1, weight_prior='uniform')
+            # TODO warning, kappa1 is being transformed in RFN...
+            rn = RandomFactorialNetwork.create_full_conjunctive(int(N_sqrt**2.), R=R, scale_moments=(kappa1**2.0, 0.0001), ratio_moments=(1.0, 0.001))
+            data_gen_noise = DataGeneratorRFN(4000, T, rn, sigma_y=sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=T-1)
             stat_meas = StatisticsMeasurer(data_gen_noise)
             covariance = stat_meas.model_parameters['covariances'][2][-1]
+              
+            # FI equal for different t, as alpha=1  
+            # for j, t in enumerate(xrange(T)):
                 
-            for j, t in enumerate(xrange(T)):
-                
-                covariance_all[i, j] = covariance
+            #     covariance_all[i, j] = covariance
 
-                # Full FI
-                all_FI_11_Tt[i, j] = alpha**(2.*T-2.*t)*1./sigma_x**2. * kappa1**2.*np.mean(np.sum(np.sin(stim_space[:, 0] - mu[:, np.newaxis])*np.exp(kappa1*np.cos(stim_space[:, 0] - mu[:, np.newaxis]) + kappa2*np.cos(stim_space[:, 1] - gamma[:, np.newaxis]))*np.linalg.solve(covariance, np.sin(stim_space[:, 0] - mu[:, np.newaxis])*np.exp(kappa1*np.cos(stim_space[:, 0] - mu[:, np.newaxis]) + kappa2*np.cos(stim_space[:, 1] - gamma[:, np.newaxis]))), axis=0))
+            #     # Full FI
+            #     all_FI_11_Tt[i, j] = alpha**(2.*T-2.*t)*1./sigma_x**2. * kappa1**2.*np.mean(np.sum(np.sin(stim_space[:, 0] - mu[:, np.newaxis])*np.exp(kappa1*np.cos(stim_space[:, 0] - mu[:, np.newaxis]) + kappa2*np.cos(stim_space[:, 1] - gamma[:, np.newaxis]))*np.linalg.solve(covariance, np.sin(stim_space[:, 0] - mu[:, np.newaxis])*np.exp(kappa1*np.cos(stim_space[:, 0] - mu[:, np.newaxis]) + kappa2*np.cos(stim_space[:, 1] - gamma[:, np.newaxis]))), axis=0))
                 # all_FI_11_Tt[i, j] = alpha**(2.*T-2.*t + 2.)*1./sigma_x_2 * kappa1**2.*np.mean(np.sum(np.sin(stim_space[:, 0] - mu[:, np.newaxis])*np.exp(kappa1*np.cos(stim_space[:, 0] - mu[:, np.newaxis]) + kappa2*np.cos(stim_space[:, 1] - gamma[:, np.newaxis]))*np.sin(stim_space[:, 0] - mu[:, np.newaxis])*np.exp(kappa1*np.cos(stim_space[:, 0] - mu[:, np.newaxis]) + kappa2*np.cos(stim_space[:, 1] - gamma[:, np.newaxis])), axis=0))
 
-                # FI_Tt[i, j] = alpha**(2.*T-2.*t)*1./sigma_x**2.*density*2.*np.pi**2.*kappa1**2.0*scsp.i0(2*kappa2)*(scsp.i0(2*kappa1) - scsp.iv(2, 2*kappa1))        
+                # FI_Tt[i, j] = alpha**(2.*T-2.*t)*1./sigma_x**2.*density*2.*np.pi**2.*kappa1**2.0*scsp.i0(2*kappa2)*(scsp.i0(2*kappa1) - scsp.iv(2, 2*kappa1))    
 
-        all_FI_11_Tt[all_FI_11_Tt == 0.0] = np.nan
+            covariance_all[T_i] = covariance
+
+            all_FI_11_T[T_i] = beta**2.0*kappa1**2.*np.mean(np.sum((np.sin(stim_space[:, 0] - mu[:, np.newaxis])*np.exp(kappa1*np.cos(stim_space[:, 0] - mu[:, np.newaxis]) + kappa2*np.cos(stim_space[:, 1] - gamma[:, np.newaxis])))*np.linalg.solve(covariance, np.sin(stim_space[:, 0] - mu[:, np.newaxis])*np.exp(kappa1*np.cos(stim_space[:, 0] - mu[:, np.newaxis]) + kappa2*np.cos(stim_space[:, 1] - gamma[:, np.newaxis]))), axis=0))
+
+        all_FI_11_T[all_FI_11_T == 0.0] = np.nan
 
         plt.figure()
-        plt.imshow(all_FI_11_Tt, interpolation='nearest', origin='left')
-        plt.colorbar()
+        plt.plot(T_all, all_FI_11_T)
 
     if True:
         # Do the optimisation
@@ -182,31 +192,31 @@ if __name__ == '__main__':
         mu = means[:, 0]
         gamma = means[:, 1]
 
-        sigma_x = 3.0
-        sigma_y = 0.0
+        sigma_x = 2.0
+        sigma_y = 0.001
 
-        precision = 10.0
+        precision = 1.0
         stim_space = np.linspace(0, 2.*np.pi, precision, endpoint=False)
         stim_space = np.array(cross(stim_space, stim_space))
 
         T_all = np.arange(1, 6)
         
-        covariances_all = np.zeros((T_all.size, int(N_sqrt**2.), int(N_sqrt**2.)))
+        # covariances_all = np.zeros((T_all.size, int(N_sqrt**2.), int(N_sqrt**2.)))
 
-        for i, T in enumerate(T_all):
-            time_weights_parameters = dict(weighting_alpha=1.0, weighting_beta=1.0, specific_weighting=0.1, weight_prior='uniform')
-            rn = RandomFactorialNetwork.create_full_conjunctive(int(N_sqrt**2.), R=2, scale_moments=(1.0, 0.1), ratio_moments=(1.0, 0.2))
-            data_gen_noise = DataGeneratorRFN(3000, T, rn, sigma_y=sigma_y, time_weights_parameters=time_weights_parameters, cued_feature_time=T-1)
-            stat_meas = StatisticsMeasurer(data_gen_noise)
-            covariances_all[i] = stat_meas.model_parameters['covariances'][2][-1]
+        # for T_i, T in enumerate(T_all):
+        #     time_weights_parameters = dict(weighting_alpha=1.0, weighting_beta=1.0, specific_weighting=0.1, weight_prior='uniform')
+        #     rn = RandomFactorialNetwork.create_full_conjunctive(int(N_sqrt**2.), R=2, scale_moments=(1.0, 0.1), ratio_moments=(1.0, 0.2))
+        #     data_gen_noise = DataGeneratorRFN(3000, T, rn, sigma_y=sigma_y, time_weights_parameters=time_weights_parameters, cued_feature_time=T-1)
+        #     stat_meas = StatisticsMeasurer(data_gen_noise)
+        #     covariances_all[T_i] = stat_meas.model_parameters['covariances'][2][-1]
         
 
         def compute_FI(sigma_x, kappa1, kappa2, T_all, stim_space, mu, gamma, covariances_all):
             FI_T = np.zeros(T_all.size)
 
             # Full FI
-            for i, T in enumerate(T_all):
-                FI_T[i] = 1./sigma_x**2. * kappa1**2.*np.mean(np.sum(np.sin(stim_space[:, 0] - mu[:, np.newaxis])*np.exp(kappa1*np.cos(stim_space[:, 0] - mu[:, np.newaxis]) + kappa2*np.cos(stim_space[:, 1] - gamma[:, np.newaxis]))*np.linalg.solve(covariances_all[i], np.sin(stim_space[:, 0] - mu[:, np.newaxis])*np.exp(kappa1*np.cos(stim_space[:, 0] - mu[:, np.newaxis]) + kappa2*np.cos(stim_space[:, 1] - gamma[:, np.newaxis]))), axis=0))
+            for T_i, T in enumerate(T_all):
+                FI_T[T_i] = kappa1**2.*np.mean(np.sum(np.sin(stim_space[:, 0] - mu[:, np.newaxis])*np.exp(kappa1*np.cos(stim_space[:, 0] - mu[:, np.newaxis]) + kappa2*np.cos(stim_space[:, 1] - gamma[:, np.newaxis]))*np.linalg.solve(covariances_all[T_i], np.sin(stim_space[:, 0] - mu[:, np.newaxis])*np.exp(kappa1*np.cos(stim_space[:, 0] - mu[:, np.newaxis]) + kappa2*np.cos(stim_space[:, 1] - gamma[:, np.newaxis]))), axis=0))
                 # all_FI_11_Tt[i, j] = alpha**(2.*T-2.*t + 2.)*1./sigma_x_2 * kappa1**2.*np.mean(np.sum(np.sin(stim_space[:, 0] - mu[:, np.newaxis])*np.exp(kappa1*np.cos(stim_space[:, 0] - mu[:, np.newaxis]) + kappa2*np.cos(stim_space[:, 1] - gamma[:, np.newaxis]))*np.sin(stim_space[:, 0] - mu[:, np.newaxis])*np.exp(kappa1*np.cos(stim_space[:, 0] - mu[:, np.newaxis]) + kappa2*np.cos(stim_space[:, 1] - gamma[:, np.newaxis])), axis=0))
 
                 # FI_Tt[i, j] = alpha**(2.*T-2.*t)*1./sigma_x**2.*density*2.*np.pi**2.*kappa1**2.0*scsp.i0(2*kappa2)*(scsp.i0(2*kappa1) - scsp.iv(2, 2*kappa1))
@@ -279,13 +289,24 @@ if __name__ == '__main__':
             sigma_x = 1.0
 
             #### See effect of kappa
-            kappa_space = np.linspace(0.05, 3.0, 100.)
+            kappa_space = np.linspace(0.05, 30.0, 100.)
 
             kappa_MSE_experimental = np.zeros_like(kappa_space)
             FI_all_kappa = np.zeros((kappa_space.size, T_all.size))
             kappa_powerlaw_params = np.zeros((kappa_space.size, 2))
 
+            covariances_all = np.zeros((T_all.size, int(N_sqrt**2.), int(N_sqrt**2.)))
+
             for i, kappa in enumerate(kappa_space):
+                print "%.f%%, Doing kappa: %.2f" % (i*100./kappa_space.size, kappa)
+                
+                for T_i, T in enumerate(T_all):
+                    time_weights_parameters = dict(weighting_alpha=1.0, weighting_beta=1.0, specific_weighting=0.1, weight_prior='uniform')
+                    rn = RandomFactorialNetwork.create_full_conjunctive(int(N_sqrt**2.), R=2, scale_moments=(kappa, 0.0001), ratio_moments=(1.0, 0.0001))
+                    data_gen_noise = DataGeneratorRFN(3000, T, rn, sigma_y=sigma_y, time_weights_parameters=time_weights_parameters, cued_feature_time=T-1)
+                    stat_meas = StatisticsMeasurer(data_gen_noise)
+                    covariances_all[T_i] = stat_meas.model_parameters['covariances'][2][-1]
+
                 FI_all_kappa[i] = compute_FI(sigma_x, kappa, kappa, T_all, stim_space, mu, gamma, covariances_all)
                 
                 # sigma_x_MSE_experimental[i] = MSE_from_experimental(FI_all_kappa[i], target_experimental_precisions)
@@ -323,7 +344,15 @@ if __name__ == '__main__':
 
             # Effect of kappa on the power law y0 value: same as FI[0]
             plt.figure()
-            plt.plot(kappa_space, kappa_powerlaw_params[:, 1])
+            plt.semilogy(kappa_space, kappa_powerlaw_params[:, 1])
+            
+            # Fisher information for single object, as function of kappa
+            plt.figure()
+            plt.plot(kappa_space**2., FI_all_kappa[:, 0])
+            plt.xlabel('kappa')
+            plt.xlim([0, 10])
+            plt.ylim([0, 10000])
+            plt.ylabel('FI for single item')
 
 
         if False:
