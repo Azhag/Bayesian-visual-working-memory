@@ -596,18 +596,18 @@ class RandomFactorialNetwork():
         # Get covariance
         return np.cov(samples.T)
 
-    def compute_covariance_KL(self, precision=100, sigma_2=0.2, beta=1.0, params={}, should_plot= False):
+    def compute_covariance_KL(self, precision=100, sigma_2=0.2, beta=1.0, T=1, params={}, should_plot= False):
         '''
             Compute the covariance of the Gaussian approximation (through a KL) to the averaged object.
 
-            Sigma* = sigma^2 I + beta^2 Cov( mu(theta))_p(theta)
+            Sigma* = T (sigma_y^2 + beta^2 sigma_x^2) I + T beta^2 Cov( mu(theta))_p(theta)
         '''
 
         # Get the statistics of the network population code
         network_response_statistics = self.compute_network_response_statistics(precision = precision, params=params)
 
         # The actual computation
-        covariance = beta**2.*network_response_statistics['cov'] + beta**2.*sigma_2*np.eye(self.M)
+        covariance = T*beta**2.*network_response_statistics['cov'] + T*sigma_2*np.eye(self.M)
 
         if should_plot  == True:
             plt.figure()
@@ -695,8 +695,8 @@ class RandomFactorialNetwork():
             feature_space2 = np.linspace(0., 2.*np.pi, precision)
             cross_array = np.zeros((feature_space1.size, feature_space2.size))
         if self.coordinates == 'full_angles_sym':
-            feature_space1 = np.linspace(-np.pi, np.pi, precision)
-            feature_space2 = np.linspace(-np.pi, np.pi, precision)
+            feature_space1 = np.linspace(-np.pi, np.pi, precision, endpoint=False)
+            feature_space2 = np.linspace(-np.pi, np.pi, precision, endpoint=False)
             cross_array = np.zeros((feature_space1.size, feature_space2.size))
         if self.coordinates == 'spherical':
             # feature_space1 = np.linspace(-np.pi, np.pi, precision)
@@ -1238,14 +1238,15 @@ if __name__ == '__main__':
         plt.show()
 
     if False:
-        # Compute KL approx of mixture by Gausian
+        print 'Compute KL approx of mixture by Gausian'
+
         alpha = 0.9
         N_sqrt = 20.
         N = int(N_sqrt**2.)
-        T = 1
-        sigma_x = 0.5
-        sigma_y = 0.2
-        beta = 2.0
+        T = 6
+        sigma_x = 1.0
+        sigma_y = 1.0
+        beta = 1.0
 
         time_weights_parameters = dict(weighting_alpha=alpha, weighting_beta = beta, specific_weighting = 0.1, weight_prior='uniform')
         rn = RandomFactorialNetwork.create_full_conjunctive(N, R=2, scale_moments=(1.0, 0.01), ratio_moments=(1.0, 0.01), response_type='bivariate_fisher')
@@ -1253,7 +1254,10 @@ if __name__ == '__main__':
         stat_meas = StatisticsMeasurer(data_gen_noise)
 
         measured_cov = stat_meas.model_parameters['covariances'][-1][-1]
-        computed_cov = rn.compute_covariance_KL(sigma_2=(sigma_x**2. + sigma_y**2.), precision=50, beta=beta)
+        computed_cov = rn.compute_covariance_KL(sigma_2=(beta**2.0*sigma_x**2. + sigma_y**2.), T=T, beta=beta, precision=50)
+
+        print np.mean(np.abs(measured_cov-computed_cov))
+
 
         # Plot covariance
         plt.figure()
@@ -1359,8 +1363,44 @@ if __name__ == '__main__':
         plt.subplots_adjust(hspace=0.32)
         plt.show()
 
+    if False:
+        print 'Check evolution of diagonal elements of measured covariance matrix'
+        # Shows a big discrepancy, the measured covariance goes as ~sqrt(T)...
+        alpha = 0.9
+        N_sqrt = 20.
+        N = int(N_sqrt**2.)
+        T = 6
+        sigma_x = 1.0
+        sigma_y = 1.0
+        beta = 1.0
 
-    if True:
+        time_weights_parameters = dict(weighting_alpha=alpha, weighting_beta = beta, specific_weighting = 0.1, weight_prior='uniform')
+        rn = RandomFactorialNetwork.create_full_conjunctive(N, R=2, scale_moments=(1.0, 0.01), ratio_moments=(1.0, 0.01), response_type='bivariate_fisher')
+
+        T_all = np.arange(1, 16)
+        meas_cov_diag = np.zeros(T_all.size)
+        comp_cov_diag = np.zeros(T_all.size)
+
+        for T_i, T in enumerate(T_all):
+            print "T: %d" % T
+
+            data_gen_noise = DataGeneratorRFN(5000, T, rn, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=T-1, enforce_min_distance=0.0)
+            stat_meas = StatisticsMeasurer(data_gen_noise)
+
+            measured_cov = stat_meas.model_parameters['covariances'][-1][-1]
+            computed_cov = rn.compute_covariance_KL(sigma_2=(beta**2.0*sigma_x**2. + sigma_y**2.), T=T, beta=beta, precision=50)
+            meas_cov_diag[T_i] = np.mean(np.diag(measured_cov))
+            comp_cov_diag[T_i] = np.mean(np.diag(computed_cov))
+
+        plt.plot(T_all, meas_cov_diag, T_all, comp_cov_diag)
+        plt.xlabel('Number of items')
+        plt.ylabel('Mean diagonal magnitude')
+        plt.title('Evolution of diagonal magnitude for increasing number of items')
+        plt.legend(['Measured', 'Computed'], loc='best')
+        plt.axis('tight')
+        plt.show()
+
+    if False:
         # Check difference between kappa parameter for a bivariate_fisher and the previously used "scale" (which was more or less the standard deviation of a gaussian)
         # Do that by looking at the activation of one neuron over one dimension and fit a Gaussian to it.
 
@@ -1458,6 +1498,81 @@ if __name__ == '__main__':
             plt.ylabel('Standard deviation of fitted gaussian')
 
             plt.show()
+    
+
+    if True:
+        # Play with the normalising constant of the Bivariate Fisher
+        kappa = 1.0
+        N_sqrt = 20.
+        N = int(N_sqrt**2.)
+        precision = 100
+
+        rn = RandomFactorialNetwork.create_full_conjunctive(N, R=2, scale_moments=(kappa, 0.001), ratio_moments=(1.0, 0.001))
+
+        selected_neuron = 209
+
+        # Get the activity of one neuron (selected arbitrarily), then look at one axis only.
+        # => Those don't seem to give exactly same thing when marginalise one dimension
+        normalisation = 4.*np.pi**2.*scsp.i0(kappa)*scsp.i0(kappa)
+        mean_neuron_out_ = rn.get_neuron_activity(selected_neuron, precision=precision)/normalisation
+        # mean_neuron_out_ /= np.sum(mean_neuron_out_)
+
+        preferred_stim = np.array([0.0, 0.0])
+        stimulus = np.array([0.0, 0.0])
+        kappas = np.array([1.0, 1.0])
+
+        dtheta = (stimulus[0] - preferred_stim[0])
+        dgamma = (stimulus[1] - preferred_stim[1])
+        
+        # 2D versus 1D, should obtain same thing (approximately)
+        normalisation = 4.*np.pi**2.*scsp.i0(kappas[0])*scsp.i0(kappas[1])
+        output = np.exp(kappas[0]*np.cos(dtheta) + kappas[1]*np.cos(dgamma))/normalisation
+
+        normalisation_1d = 2.*np.pi*scsp.i0(kappas[0])
+        output_1d = np.exp(kappas[0]*np.cos(dtheta))/normalisation_1d
+
+        # 1D multiple kappas
+        kappas_space = np.linspace(0.01, 10, 100)
+        all_out = np.zeros((kappas_space.size, precision))
+        xx = np.linspace(-np.pi, np.pi, precision)
+
+        for i, kappa in enumerate(kappas_space):
+            print kappa
+            normalisation = 2.*np.pi*scsp.i0(kappa)
+            all_out[i] = np.exp(kappa*np.cos(xx))/normalisation
+        
+        # 2d multiple kappas
+        kappas_space = np.linspace(0.01, 10, 100)
+        all_out = np.zeros((kappas_space.size, precision, precision))
+        x = np.linspace(-np.pi, np.pi, precision, endpoint=False)
+        xx, yy = np.meshgrid(x, x)
+
+        for i, kappa in enumerate(kappas_space):
+            print kappa
+            normalisation = 4.*np.pi**2.*scsp.i0(kappa)**2.
+            all_out[i] = np.exp(kappa*np.cos(xx)+kappa*np.cos(yy))/normalisation
+        
+
+        # 2D Try multiple kappas, see if the normalisation works.
+        kappas_space = np.linspace(0.01, 100, 50)
+        all_neuron_out = np.zeros((kappas_space.size, precision, precision))
+        selected_neuron = 209
+        for i, kappa in enumerate(kappas_space):
+            print kappa
+            rn = RandomFactorialNetwork.create_full_conjunctive(N, R=2, scale_moments=(kappa**2., 0.0001), ratio_moments=(1.0, 0.0001))
+            normalisation = 4.*np.pi**2.*scsp.i0(kappa)*scsp.i0(kappa)
+            all_neuron_out[i] = rn.get_neuron_activity(selected_neuron, precision=precision, params={'kappas': np.array([kappa, kappa, 0.0])})/normalisation
+
+        plt.figure()
+        plt.plot(kappas_space, all_neuron_out.mean(axis=-1).sum(axis=-1))
+
+        plt.figure()
+        plt.plot(x, all_neuron_out.mean(axis=-1).T)
+
+        plt.show()
+        
+
+
 
 
 
