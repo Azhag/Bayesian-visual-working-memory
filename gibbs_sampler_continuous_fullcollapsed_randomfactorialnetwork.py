@@ -1171,35 +1171,6 @@ def do_simple_run(args):
     
     sampler.print_comparison_inferred_groundtruth()
     
-    if False:
-        t = time.time()
-        
-        (log_y, log_z, log_joint) = sampler.run(num_samples, verbose=True)
-        
-        print '\nElapsed time: %d' % (time.time()-t)
-        
-        print '\nSigma_y: %.3f' % np.sqrt(sampler.sigma2y)
-        
-        sampler.print_z_comparison()
-        
-        (stats_original, angle_errors) = sampler.compute_metric_all()
-        
-        print stats_original
-        
-        # Computed beforehand
-        precision_guessing = 0.2
-        
-        if True:
-            plt.figure()
-            plt.plot(1./stats_original[1]-precision_guessing)
-            plt.show()
-        precisions = 1./stats_original[1] - precision_guessing
-        
-        mean_last_precision = np.mean(precisions[:, -1])
-        avg_precision = np.mean(precisions)
-        
-        plt.show()
-    
     return locals()
     
 
