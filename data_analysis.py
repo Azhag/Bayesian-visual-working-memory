@@ -631,6 +631,7 @@ def load_data_fromregexp(dataset_infos, debug=False):
     datasets_list = []
     parameters_complete = dict()
     parameters_uniques = dict()
+    args_list = []
 
     for curr_file in all_output_files:
         
@@ -657,6 +658,9 @@ def load_data_fromregexp(dataset_infos, debug=False):
         curr_dataset = np.load(curr_file).item()
         datasets_list.append(curr_dataset)
 
+        # Save the arguments of each dataset
+        args_list.append(curr_dataset['args'])
+
         # Fill the parameter dictionary
         for param in dataset_infos['parameters']:
             # Just append the parameter value of the current dataset to the appropriate list
@@ -682,7 +686,7 @@ def load_data_fromregexp(dataset_infos, debug=False):
         for i, par_val in enumerate(parameters_uniques[param]):
             parameters_indirections[param][par_val] = i
 
-    return dict(parameters_uniques=parameters_uniques, parameters_complete=parameters_complete, datasets_list=datasets_list, parameters_indirections=parameters_indirections)
+    return dict(parameters_uniques=parameters_uniques, parameters_complete=parameters_complete, datasets_list=datasets_list, parameters_indirections=parameters_indirections, args_list=args_list)
 
 
 def construct_numpyarray_specified_output_from_datasetlists(loaded_data, output_variable_desired, list_parameters):
@@ -719,14 +723,15 @@ def construct_numpyarray_specified_output_from_datasetlists(loaded_data, output_
     # Don't forget to make space for the actual results...
     fullarray_shape.extend(results_shape)
 
-    print fullarray_shape
-    print results_shape
-
+    print '%s dimensions: %s' % (output_variable_desired, fullarray_shape)
+    
     # Initialize with NaN.
     results_array = np.ones(fullarray_shape)*np.nan
 
     # Keep the array of existing indices
     indices_array = []
+    # Get the array of how many repeats were actually finished
+    completed_repeats_array = []
 
     for i, dataset in enumerate(datasets_list):
         # Now put the data at the appropriate position
@@ -740,6 +745,13 @@ def construct_numpyarray_specified_output_from_datasetlists(loaded_data, output_
                     # Save the dataset at the proper position
                     results_array[curr_dataposition] = dataset[output_variable_desired]
                     indices_array.append(curr_dataposition)
+
+                    if 'repet_i' in dataset:
+                        # For newer simulations, we keep the current repetition index. This allows to remove unfinished runs.
+                        completed_repeats_array.append(dataset['repet_i'])
+                    else:
+                        # If nothing, assumed all are complete, and put the last index of the results (should be repetitions in last dimension anyway)
+                        completed_repeats_array.append(fullarray_shape[-1])
                 else:
                     # Something is wrong with the result shapes... Just put as much as possible.
                     smallest_sizes = tuple([slice(None, min(results_shape[i], dataset[output_variable_desired].shape[i])) for i in range(len(results_shape))])
@@ -748,7 +760,7 @@ def construct_numpyarray_specified_output_from_datasetlists(loaded_data, output_
             print curr_dataposition, " not in dataset"
 
     # and we're good
-    return dict(results=results_array, indices=np.array(indices_array))
+    return dict(results=results_array, indices=np.array(indices_array), repeats_completed=np.array(completed_repeats_array))
 
 
 def construct_multiple_numpyarrays(loaded_data, list_output_variables, list_parameters):
@@ -801,216 +813,194 @@ def curves_memorypowerlaw_060712(loaded_data, all_results_array):
 
 
 def curves_memorypowerlaw_100712(loaded_data, all_results_array, parameters = dict()):
+    '''
+        Performs a series of plots.
 
+        Can be parametrised quite extensively, based on some parameters.
+
+        Should give a list of desired plots, in parameters:
+            do_plots = ['numselected50', 'numselectedhalf', 'numselectedall', 'precision_rcscale', 'precision_samples', 'powerlaw_params', 'powerlaw_imshow', 'precision_1obj_maxsamples']
+
+        filters:
+            numselected50:      the angle is selected from the median of the last 50 samples. (if numsamples<50, then takes all samples)
+            numselectedhalf:    angle selected from median of half the samples.
+            numselectedall:     angle selected from median of all samples.
+
+        Plots:
+            precision_rcscale:              Plots showing the precision as fct of rcscale. One plot per number of item.
+            precision_samples:              (same, but as fct of numsamples)
+            precision_1obj_maxsamples:      (unique plot, for 1 object and the maximum number of samples.)
+            powerlaw_params:                Subplot showing the powerlaw fitted parameters, as fct of rcscale. One curve per numsample.
+            powerlaw_imshow:                (same, but 2D, sometimes better.)
+    '''
+    
     # Should extract the appropriate numselectedsamples points, the overall array is very sparse...
     # (done: numselectedsamples: 50, numsamples/2, numsamples)
     all_indices = all_results_array['all_precisions']['indices']
     precision_results = all_results_array['all_precisions']['results']
+    power_law_params = all_results_array['power_law_params']['results']
 
-    # Look in the parameters to know which plots to do or not
+
+    # precision_results:  rcscale . samples . numselectedsamples . number of objects . repetitions
+
+    #### Look in the parameters to know which plots to do or not
+    print parameters
+
+    # First, the list of possible filters over our big data
+    if 'data_filters' in parameters:
+        data_filters = parameters['data_filters']
+    else:
+        data_filters = ['numselected50', 'numselectedhalf', 'numselectedall']
+
+    # Second, the desired plots to do
     if 'do_plots' in parameters:
         do_plots = parameters['do_plots']
     else:
         # Assume we want all of them
-        do_plots = ['numselected50', 'numselectedhalf', 'numselectedall', 'precision_rcscale', 'precision_samples', 'powerlaw_params', 'powerlaw_imshow']
+        do_plots = ['numselected50', 'numselectedhalf', 'numselectedall', 'precision_rcscale', 'precision_1obj_maxsamples', 'precision_samples', 'powerlaw_params', 'powerlaw_imshow']
 
-    ### numselectedsamples: 50 (for samples<50, not valid)
-    if 'numselected50' in do_plots:
-        # all_precisions: samples . rcscale . number of objects . repetitions
-        precisions_selected50 = precision_results[:, :, loaded_data['parameters_indirections']['selectionnumsamples'][50.0], :, :]
-        mean_precisions_selected50 = np.mean(precisions_selected50, axis=-1)
-        std_precisions_selected50 = np.std(precisions_selected50, axis=-1)
+    # Third, if we need to add a sqrt to the x values, because of a mismatch between the theory and the RandomFactorialNetwork implementation
+    if 'sqrt_x_values' in parameters:
+        sqrt_x_values = parameters['sqrt_x_values']
+    else:
+        sqrt_x_values = False
 
-        # Plot
-        if 'precision_rcscale' in do_plots:
-            for num_objects in xrange(mean_precisions_selected50.shape[-1]):
-                plot_multiple_mean_std_area(loaded_data['parameters_uniques']['rcscale'], mean_precisions_selected50[:, :, num_objects].T, std_precisions_selected50[:, :, num_objects].T)
 
-        power_law_params = all_results_array['power_law_params']['results']
-        powerlaw_selected50 = power_law_params[:, :, loaded_data['parameters_indirections']['selectionnumsamples'][50.0]]
+    ### Define all possible plots
 
-        # Plot
-        if 'powerlaw_params' in do_plots:
-            plt.figure()
-            plt.subplot(211)
-            plt.plot(loaded_data['parameters_uniques']['rcscale'], powerlaw_selected50[:, :, 0])
-            plt.xlim((loaded_data['parameters_uniques']['rcscale'].min(), loaded_data['parameters_uniques']['rcscale'].max()*1.4))
-            plt.title('Powerlaw exponent. Vary rcscale, selection_num_samples = 50 (or 10, 20 for smaller num_samples)')
-            plt.legend(["%d samples" % x for x in loaded_data['parameters_uniques']['numsamples']], loc="best")
+    def plots_precision_rcscale(loaded_data, means, stds, sqrt_x_values=False):
+        for num_objects in xrange(means.shape[-1]):
+            plot_precision_rcscale_obj(loaded_data, num_objects, means, stds, sqrt_x_values=sqrt_x_values)
 
-            plt.subplot(212)
-            plt.plot(loaded_data['parameters_uniques']['rcscale'], powerlaw_selected50[:, :, 1])
-            plt.xlim((loaded_data['parameters_uniques']['rcscale'].min(), loaded_data['parameters_uniques']['rcscale'].max()*1.4))
-            plt.legend(["%d samples" % x for x in loaded_data['parameters_uniques']['numsamples']])
-            plt.title('Powerlaw bias. Vary rcscale, selection_num_samples = 50 (or 10, 20 for smaller num_samples)')
 
-        if 'powerlaw_imshow' in do_plots:
-            f = plt.figure()
-            ax = f.add_subplot(211)
-            im = ax.imshow(powerlaw_selected50[:, :, 0].T, interpolation='nearest', origin='lower left')
-            ax.set_yticks(np.arange(loaded_data['parameters_uniques']['numsamples'].size))
-            ax.set_yticklabels(loaded_data['parameters_uniques']['numsamples'])
-            ax.set_xticks(np.arange(loaded_data['parameters_uniques']['rcscale'].size))
-            ax.set_xticklabels(loaded_data['parameters_uniques']['rcscale'])
-            f.colorbar(im)
-            plt.title('Powerlaw exponent. Vary rcscale, selection_num_samples = 50')
-            ax.axis('tight')
+    def plot_precision_rcscale_obj(loaded_data, num_obj, means, stds, sqrt_x_values=False):
+        if sqrt_x_values:
+            plot_multiple_mean_std_area(loaded_data['parameters_uniques']['rcscale']**0.5, means[:, :, num_obj].T, stds[:, :, num_obj].T)
+        else:
+            plot_multiple_mean_std_area(loaded_data['parameters_uniques']['rcscale'], means[:, :, num_obj].T, stds[:, :, num_obj].T)
 
-            ax2 = f.add_subplot(212)
-            im = ax2.imshow(powerlaw_selected50[:, :, 1].T, interpolation='nearest', origin='lower left')
-            ax2.set_yticks(np.arange(loaded_data['parameters_uniques']['numsamples'].size))
-            ax2.set_yticklabels(loaded_data['parameters_uniques']['numsamples'])
-            ax2.set_xticks(np.arange(loaded_data['parameters_uniques']['rcscale'].size))
-            ax2.set_xticklabels(loaded_data['parameters_uniques']['rcscale'])
-            plt.title('Powerlaw bias. Vary rcscale, selection_num_samples = 50')
-            f.colorbar(im)
-            ax2.axis('tight')
+        plt.title('Number of items: %d' % (num_obj+1))
+
+    def plot_precision_1obj_specificsamples(loaded_data, samples, means, stds, sqrt_x_values=False):
+        if sqrt_x_values:
+            plot_mean_std_area(loaded_data['parameters_uniques']['rcscale']**0.5, means[:, loaded_data['parameters_indirections']['numsamples'][samples], 0], stds[:, loaded_data['parameters_indirections']['numsamples'][samples], 0])
+        else:
+            plot_mean_std_area(loaded_data['parameters_uniques']['rcscale'], means[:, loaded_data['parameters_indirections']['numsamples'][samples], 0], stds[:, loaded_data['parameters_indirections']['numsamples'][samples], 0])
+
+        plt.title('Precision for 1 object ~ FI ')
+
+
+    def plot_precision_1obj_maxsamples(loaded_data, means, stds, sqrt_x_values=False):
+        if sqrt_x_values:
+            plot_mean_std_area(loaded_data['parameters_uniques']['rcscale']**0.5, means[:, -1, 0], stds[:, -1, 0])
+        else:
+            plot_mean_std_area(loaded_data['parameters_uniques']['rcscale'], means[:, -1, 0], stds[:, -1, 0])
+
+        plt.title('Precision for 1 object ~ FI ')
+
+    def plots_precision_numsamples(loaded_data, means, stds):
+        for num_objects in xrange(means.shape[-1]):
+            plot_multiple_mean_std_area(loaded_data['parameters_uniques']['numsamples'], means[:, :, num_objects], stds[:, :, num_objects])
+
+
+    def plots_powerlaw_params(loaded_data, powerlaw_params, title_label='', sqrt_x_values=False):
+        plt.figure()
+        plt.subplot(211)
+        if sqrt_x_values:
+            plt.plot(loaded_data['parameters_uniques']['rcscale']**0.5, powerlaw_params[..., 0])
+        else:
+            plt.plot(loaded_data['parameters_uniques']['rcscale'], powerlaw_params[..., 0])
+        # plt.xlim((loaded_data['parameters_uniques']['rcscale'].min(), loaded_data['parameters_uniques']['rcscale'].max()*1.4))
+        plt.title('Powerlaw exponent. Vary rcscale. ' + title_label)
+        # plt.legend(["%d samples" % x for x in loaded_data['parameters_uniques']['numsamples']], loc="best")
+
+        plt.subplot(212)
+        if sqrt_x_values:
+            plt.plot(loaded_data['parameters_uniques']['rcscale']**0.5, powerlaw_params[..., 1])
+        else:
+            plt.plot(loaded_data['parameters_uniques']['rcscale'], powerlaw_params[..., 1])
+        # plt.xlim((loaded_data['parameters_uniques']['rcscale'].min(), loaded_data['parameters_uniques']['rcscale'].max()*1.4))
+        # plt.legend(["%d samples" % x for x in loaded_data['parameters_uniques']['numsamples']])
+        plt.title('Powerlaw bias. Vary rcscale. ' + title_label)
+
+    def plots_powerlaw_imshow(loaded_data, powerlaw_params, title_label=''):
+        f = plt.figure()
+        ax = f.add_subplot(211)
+        im = ax.imshow(powerlaw_params[:, :, 0].T, interpolation='nearest', origin='lower left')
+        ax.set_yticks(np.arange(loaded_data['parameters_uniques']['numsamples'].size))
+        ax.set_yticklabels(loaded_data['parameters_uniques']['numsamples'])
+        ax.set_xticks(np.arange(loaded_data['parameters_uniques']['rcscale'].size))
+        ax.set_xticklabels(loaded_data['parameters_uniques']['rcscale'])
+        f.colorbar(im)
+        plt.title('Powerlaw exponent. Vary rcscale. ' + title_label)
+        ax.axis('tight')
+
+        ax2 = f.add_subplot(212)
+        im = ax2.imshow(powerlaw_params[:, :, 1].T, interpolation='nearest', origin='lower left')
+        ax2.set_yticks(np.arange(loaded_data['parameters_uniques']['numsamples'].size))
+        ax2.set_yticklabels(loaded_data['parameters_uniques']['numsamples'])
+        ax2.set_xticks(np.arange(loaded_data['parameters_uniques']['rcscale'].size))
+        ax2.set_xticklabels(loaded_data['parameters_uniques']['rcscale'])
+        plt.title('Powerlaw bias. Vary rcscale. ' + title_label)
+        f.colorbar(im)
+        ax2.axis('tight')
+
+    ### Do the appropriate plots
+    for data_filter in data_filters:
+        if data_filter in do_plots:
+            
+            #### Filter the data
+            # all_precisions: rcscale . samples . numselectedsamples . number of objects . repetitions
+            if data_filter == 'numselected50':
+                selectionnumsamples_filter = loaded_data['parameters_indirections']['selectionnumsamples'][50.0]
+                
+                title_label = 'selection_num_samples = 50'
+
+            elif data_filter == 'numselectedall':
+                selectionnumsamples_filter = np.nonzero([x in loaded_data['parameters_uniques']['numsamples'] for x in loaded_data['parameters_uniques']['selectionnumsamples']])[0]
+                
+                title_label = 'selection_num_samples = num_samples'
+
+            elif data_filter == 'numselectedhalf':
+                selectionnumsamples_filter = np.nonzero([x*2. in loaded_data['parameters_uniques']['numsamples'] for x in loaded_data['parameters_uniques']['selectionnumsamples']])[0]
+                
+                title_label = 'selection_num_samples = 0.5 * num_samples'
+            
+            # Remove unfinished simulatons. Works, but looking for 0.0 values is easier and does the same...
+            # if 'repet_i' in all_results_array:
+            #     for curr_index in all_indices:
+            #         print tuple(curr_index)+tuple([slice(None, 6, None), slice(all_results_array['repet_i']['results'][tuple(curr_index)], None, None)])
+            #         precision_results[tuple(curr_index)+tuple([slice(None, 6, None), slice(all_results_array['repet_i']['results'][tuple(curr_index)], None, None)])] = np.nan
+
+            precisions_filtered = precision_results[:, np.arange(loaded_data['parameters_uniques']['numsamples'].size), selectionnumsamples_filter]
+            powerlaw_filtered = power_law_params[:, np.arange(loaded_data['parameters_uniques']['numsamples'].size), selectionnumsamples_filter]
+
+            #### Compute the means
+
+            # Assume that unfinished simulations got a result of 0.0 exactly. Works quite well.
+            precisions_filtered[precisions_filtered == 0.0] = np.nan
+            
+            mean_precisions_filtered = nanmean(precisions_filtered, axis=-1)
+            std_precisions_filtered = nanstd(precisions_filtered, axis=-1)
+                
+
+            ##### Do the appropriate plots.
+            if 'precision_rcscale' in do_plots:
+                plots_precision_rcscale(loaded_data, mean_precisions_filtered, std_precisions_filtered)
+                # plot_precision_1obj_specificsamples(loaded_data, 500., mean_precisions_halfselectednumsamples, std_precisions_halfselectednumsamples, sqrt_x_values=sqrt_x_values)
+
+            if 'precision_samples' in do_plots:
+                plots_precision_numsamples(loaded_data, mean_precisions_filtered, std_precisions_filtered)
         
+            if 'precision_1obj_maxsamples' in do_plots:
+                plot_precision_1obj_maxsamples(loaded_data, mean_precisions_filtered, std_precisions_filtered, sqrt_x_values=sqrt_x_values)
 
-    #### numselectedsamples: only take the selection_num_samples same as num_samples
-    if 'numselectedall' in do_plots:
+            if 'powerlaw_params' in do_plots:
+                plots_powerlaw_params(loaded_data, powerlaw_filtered, title_label=title_label, sqrt_x_values=sqrt_x_values)
 
-        selected_numsamples = np.nonzero([x in loaded_data['parameters_uniques']['numsamples'] for x in loaded_data['parameters_uniques']['selectionnumsamples']])[0]
-        # all_precisions: samples . rcscale . number of objects . repetitions
-        precisions_selectednumsamples = precision_results[:, np.arange(loaded_data['parameters_uniques']['numsamples'].size), selected_numsamples]
-        # mean_precisions: samples . rcscale . number of objects
-        mean_precisions_selectednumsamples = nanmean(precisions_selectednumsamples, axis=-1)
-        std_precisions_selectednumsamples = nanstd(precisions_selectednumsamples, axis=-1)
+            if 'powerlaw_imshow' in do_plots:
+                plots_powerlaw_imshow(loaded_data, powerlaw_filtered, title_label=title_label)
 
-        # Plot
-        if 'precision_rcscale' in do_plots:
-            for num_objects in xrange(mean_precisions_selectednumsamples.shape[-1]):
-                plot_multiple_mean_std_area(loaded_data['parameters_uniques']['rcscale'], mean_precisions_selectednumsamples[:, :, num_objects].T, std_precisions_selectednumsamples[:, :, num_objects].T)
-
-        power_law_params = all_results_array['power_law_params']['results']
-        powerlaw_selectednumsamples = power_law_params[:, np.arange(loaded_data['parameters_uniques']['numsamples'].size), selected_numsamples]
-        
-        # Plot
-        if 'powerlaw_params' in do_plots:
-            plt.figure()
-            plt.subplot(211)
-            loaded_data['parameters_uniques']['rcscale'] = loaded_data['parameters_uniques']['rcscale']**0.5
-            plt.plot(loaded_data['parameters_uniques']['rcscale'], powerlaw_selectednumsamples[:, :, 0]**2.0)
-            # plt.xlim((loaded_data['parameters_uniques']['rcscale'].min(), loaded_data['parameters_uniques']['rcscale'].max()*1.4))
-            plt.title('Powerlaw exponent. Vary rcscale, selection_num_samples = num_samples')
-            plt.legend(["%d samples" % x for x in loaded_data['parameters_uniques']['numsamples']], loc="best")
-
-            plt.subplot(212)
-            plt.plot(loaded_data['parameters_uniques']['rcscale'], powerlaw_selectednumsamples[:, :, 1]**2.)
-            # plt.xlim((loaded_data['parameters_uniques']['rcscale'].min(), loaded_data['parameters_uniques']['rcscale'].max()*1.4))
-            plt.legend(["%d samples" % x for x in loaded_data['parameters_uniques']['numsamples']])
-            plt.title('Powerlaw bias. Vary rcscale, selection_num_samples = num_samples')
-
-        if 'powerlaw_imshow' in do_plots:
-            f = plt.figure()
-            ax = f.add_subplot(211)
-            im = ax.imshow(powerlaw_selectednumsamples[:, :, 0].T, interpolation='nearest', origin='lower left')
-            ax.set_yticks(np.arange(loaded_data['parameters_uniques']['numsamples'].size))
-            ax.set_yticklabels(loaded_data['parameters_uniques']['numsamples'])
-            ax.set_xticks(np.arange(loaded_data['parameters_uniques']['rcscale'].size))
-            ax.set_xticklabels(loaded_data['parameters_uniques']['rcscale'])
-            f.colorbar(im)
-            plt.title('Powerlaw exponent. Vary rcscale, selection_num_samples = num_samples')
-            ax.axis('tight')
-
-            ax2 = f.add_subplot(212)
-            im = ax2.imshow(powerlaw_selectednumsamples[:, :, 1].T, interpolation='nearest', origin='lower left')
-            ax2.set_yticks(np.arange(loaded_data['parameters_uniques']['numsamples'].size))
-            ax2.set_yticklabels(loaded_data['parameters_uniques']['numsamples'])
-            ax2.set_xticks(np.arange(loaded_data['parameters_uniques']['rcscale'].size))
-            ax2.set_xticklabels(loaded_data['parameters_uniques']['rcscale'])
-            plt.title('Powerlaw bias. Vary rcscale, selection_num_samples = num_samples')
-            f.colorbar(im)
-            ax2.axis('tight')
-
-    #### numselectedsamples: num_samples/2
-    if 'numselectedhalf' in do_plots:
-        selected_halfnumsamples = np.nonzero([x*2. in loaded_data['parameters_uniques']['numsamples'] for x in loaded_data['parameters_uniques']['selectionnumsamples']])[0]
-        precisions_halfselectednumsamples = precision_results[:, np.arange(loaded_data['parameters_uniques']['numsamples'].size), selected_halfnumsamples]
-        mean_precisions_halfselectednumsamples = np.mean(precisions_halfselectednumsamples, axis=-1)
-        std_precisions_halfselectednumsamples = np.std(precisions_halfselectednumsamples, axis=-1)
-
-        # Plot
-        if 'precision_rcscale' in do_plots:
-            for num_objects in xrange(mean_precisions_halfselectednumsamples.shape[-1]):
-                plot_multiple_mean_std_area(loaded_data['parameters_uniques']['rcscale'], mean_precisions_halfselectednumsamples[:, :, num_objects].T, std_precisions_halfselectednumsamples[:, :, num_objects].T)
-        if 'precision_samples' in do_plots:
-            for num_objects in xrange(mean_precisions_halfselectednumsamples.shape[-1]):
-                plot_multiple_mean_std_area(loaded_data['parameters_uniques']['numsamples'], mean_precisions_halfselectednumsamples[:, :, num_objects], std_precisions_halfselectednumsamples[:, :, num_objects])
-
-        power_law_params = all_results_array['power_law_params']['results']
-        powerlaw_halfselectednumsamples = power_law_params[:, np.arange(loaded_data['parameters_uniques']['numsamples'].size), selected_halfnumsamples]
-        
-        # Plot
-        if 'powerlaw_params' in do_plots:
-            plt.figure()
-            plt.subplot(211)
-            plt.plot(loaded_data['parameters_uniques']['rcscale'], powerlaw_halfselectednumsamples[:, :, 0])
-            plt.xlim((loaded_data['parameters_uniques']['rcscale'].min(), loaded_data['parameters_uniques']['rcscale'].max()*1.4))
-            plt.title('Powerlaw exponent. Vary rcscale, selection_num_samples = 0.5*num_samples')
-            plt.legend(["%d samples" % x for x in loaded_data['parameters_uniques']['numsamples']], loc="best")
-
-            plt.subplot(212)
-            plt.plot(loaded_data['parameters_uniques']['rcscale'], powerlaw_halfselectednumsamples[:, :, 1])
-            plt.xlim((loaded_data['parameters_uniques']['rcscale'].min(), loaded_data['parameters_uniques']['rcscale'].max()*1.4))
-            plt.legend(["%d samples" % x for x in loaded_data['parameters_uniques']['numsamples']])
-            plt.title('Powerlaw bias. Vary rcscale, selection_num_samples = 0.5*num_samples')
-
-        if 'powerlaw_imshow' in do_plots:
-            f = plt.figure()
-            ax = f.add_subplot(211)
-            im = ax.imshow(powerlaw_halfselectednumsamples[:, :, 0].T, interpolation='nearest', origin='lower left')
-            ax.set_yticks(np.arange(loaded_data['parameters_uniques']['numsamples'].size))
-            ax.set_yticklabels(loaded_data['parameters_uniques']['numsamples'])
-            ax.set_xticks(np.arange(loaded_data['parameters_uniques']['rcscale'].size))
-            ax.set_xticklabels(loaded_data['parameters_uniques']['rcscale'])
-            f.colorbar(im)
-            plt.title('Powerlaw exponent. Vary rcscale, selection_num_samples = 0.5*num_samples')
-            ax.axis('tight')
-
-            ax2 = f.add_subplot(212)
-            im = ax2.imshow(powerlaw_halfselectednumsamples[:, :, 1].T, interpolation='nearest', origin='lower left')
-            ax2.set_yticks(np.arange(loaded_data['parameters_uniques']['numsamples'].size))
-            ax2.set_yticklabels(loaded_data['parameters_uniques']['numsamples'])
-            ax2.set_xticks(np.arange(loaded_data['parameters_uniques']['rcscale'].size))
-            ax2.set_xticklabels(loaded_data['parameters_uniques']['rcscale'])
-            plt.title('Powerlaw bias. Vary rcscale, selection_num_samples = 0.5*num_samples')
-            f.colorbar(im)
-            ax2.axis('tight')
-
-        # plt.plot(loaded_data['parameters_uniques']['numsamples'], powerlaw_halfselectednumsamples[:, :, 0].T)
-        # plt.xlim((loaded_data['parameters_uniques']['numsamples'].min(), loaded_data['parameters_uniques']['numsamples'].max()*1.4))
-        # plt.legend(["rcscale %.1f" % x for x in loaded_data['parameters_uniques']['rcscale']], loc="best")
-        # plt.title('Powerlaw exponent. Vary numsamples, selection_num_samples = 0.5*num_samples')
-
-        # plt.plot(loaded_data['parameters_uniques']['numsamples'], powerlaw_halfselectednumsamples[:, :, 1].T)
-        # plt.xlim((loaded_data['parameters_uniques']['numsamples'].min(), loaded_data['parameters_uniques']['numsamples'].max()*1.4))
-        # plt.legend(["rcscale %.1f" % x for x in loaded_data['parameters_uniques']['rcscale']], loc="best")
-        # plt.title('Powerlaw bias. Vary numsamples, selection_num_samples = 0.5*num_samples')
-
-
-    #
-    # Plot the mean/std of the memory curves, for the two number of samples
-    # plot_multiple_mean_std_area(np.arange(1, 7), mean_precisions[0], std_precisions[0])
-    # plt.title('Samples: %d' % loaded_data['parameters_uniques']['samples'][0])
-    # plt.legend(['Rcscale: %.1f' % rcval for rcval in loaded_data['parameters_uniques']['rcscale']])
-
-    # plot_multiple_mean_std_area(np.arange(1, 7), mean_precisions[1], std_precisions[1])
-    # plt.title('Samples: %d' % loaded_data['parameters_uniques']['samples'][1])
-    # plt.legend(['Rcscale: %.1f' % rcval for rcval in loaded_data['parameters_uniques']['rcscale']])
-
-    # # POWER LAW PARAMETERS
-    # power_law_params = all_results_array['power_law_params']['results']
-
-    # plt.figure()
-    # plt.plot(loaded_data['parameters_uniques']['rcscale'], power_law_params[:, :, 0].T)
-    # plt.title('Power law exponent dependence on rcscale and samples number')
-    # plt.legend(['Samples: %d' % samples for samples in loaded_data['parameters_uniques']['samples']], loc='best')
-
-    # plt.figure()
-    # plt.plot(loaded_data['parameters_uniques']['rcscale'], power_law_params[:, :, 1].T)
-    # plt.title('Power law bias dependence on rcscale and samples number')
-    # plt.legend(['Samples: %d' % samples for samples in loaded_data['parameters_uniques']['samples']], loc='best')
 
     return locals()
 
@@ -1028,7 +1018,7 @@ def curves_memorypowerlaw_maxll_260712(loaded_data, all_results_array):
     
     # Now do the mean, but only take up to the computed values (the others are 0)
     # Try to use repet_i if available...
-    loaded_data['datasets_list'][0]['repet_i']
+    
     # Initialise the array with the good shapes
     mean_precisions = np.zeros(precision_results.shape[:-1])
     std_precisions = np.zeros(precision_results.shape[:-1])
@@ -1164,16 +1154,37 @@ def combine_multiple_memory_curve_simult_powerlaw(data_index = 8):
                     # Choices: do_plots = ['numselected50', 'numselectedhalf', 'numselectedall', 'precision_rcscale', 'precision_samples', 'powerlaw_params', 'powerlaw_imshow']
                     post_processing_parameters=dict(do_plots=['numselectedall', 'powerlaw_params', 'precision_rcscale'])
                     )
+    elif data_index == 10:
+        dataset_infos = dict(label='Bivariate Fisher receptive fields with normalised receptive fields. Rc_scale . numsamples . selectionnumsamples. Saw some overflow problems in scipy.special.i0, could get weird results.',
+                    files='Data/normalised_rf_samples_rcscale_powerlaw/M200/samples_sigma_powerlaw_newreceptfields-*.npy',
+                    regexp='^[a-zA-Z_\/0-9]*-rcscale(?P<rcscale>[0-9.]*)numsamples(?P<numsamples>[0-9]*)selectionnumsamples(?P<selectionnumsamples>[0-9]*).*.npy',
+                    parameters=('rcscale', 'numsamples', 'selectionnumsamples'),
+                    variables_to_load=('all_precisions', 'power_law_params'),
+                    variables_description=('number of objects . repetitions', 'exponent, bias'),
+                    post_processing=curves_memorypowerlaw_100712,
+                    # Choices: do_plots = ['numselected50', 'numselectedhalf', 'numselectedall', 'precision_rcscale', 'precision_samples', 'powerlaw_params', 'powerlaw_imshow', 'precision_1obj_maxsamples']
+                    post_processing_parameters=dict(do_plots=['numselectedhalf', 'powerlaw_params', 'precision_1obj_maxsamples'], sqrt_x_values=True)
+                    )
+    elif data_index == 11:
+        dataset_infos = dict(label='Bivariate Fisher receptive fields with normalised receptive fields. Only M=100 neurons here. Rc_scale . numsamples . selectionnumsamples.',
+                    files='Data/normalised_rf_samples_rcscale_powerlaw/M100/results_M100/samples_sigma_powerlaw_newreceptfields-*.npy',
+                    regexp='^[a-zA-Z_\/0-9]*-rcscale(?P<rcscale>[0-9.]*)numsamples(?P<numsamples>[0-9]*)selectionnumsamples(?P<selectionnumsamples>[0-9]*).*.npy',
+                    parameters=('rcscale', 'numsamples', 'selectionnumsamples'),
+                    variables_to_load=('all_precisions', 'power_law_params'),
+                    variables_description=('number of objects . repetitions', 'exponent, bias'),
+                    post_processing=curves_memorypowerlaw_100712,
+                    # Choices: do_plots = ['numselected50', 'numselectedhalf', 'numselectedall', 'precision_rcscale', 'precision_samples', 'powerlaw_params', 'powerlaw_imshow', 'precision_1obj_maxsamples']
+                    post_processing_parameters=dict(do_plots=['numselectedhalf', 'powerlaw_params', 'precision_1obj_maxsamples'], sqrt_x_values=True, data_filters=['numselected50', 'numselectedhalf', 'numselectedall'])
+                    )
     else:
         raise ValueError('Wrong data_index')
-
 
     # Load everything
     loaded_data = load_data_fromregexp(dataset_infos, debug=True)
     all_results_array = construct_multiple_numpyarrays(loaded_data, dataset_infos['variables_to_load'], dataset_infos['parameters'])
 
     # Now we can work with the data.
-    pp_out = dataset_infos['post_processing'](loaded_data, all_results_array, dataset_infos['post_processing_parameters'])
+    pp_out = dataset_infos['post_processing'](loaded_data, all_results_array, parameters = dataset_infos['post_processing_parameters'])
 
 
     return locals()
