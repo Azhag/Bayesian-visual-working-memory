@@ -234,7 +234,6 @@ class RandomFactorialNetwork():
         if self.neurons_sigma is None or reset:
             self.neurons_sigma = np.zeros((self.M, self.R))
             self.neurons_angle = np.zeros(self.M)
-            self.neurons_params = np.zeros((self.M, 3))
         
         if specific_neurons is None:
             specific_neurons = self._ALL_NEURONS
@@ -264,7 +263,6 @@ class RandomFactorialNetwork():
         if self.neurons_sigma is None or reset:
             self.neurons_sigma = np.zeros((self.M, self.R))
             self.neurons_angle = np.zeros(self.M)
-            self.neurons_params = np.zeros((self.M, 3))
         
         if specific_neurons is None:
             specific_neurons = self._ALL_NEURONS
@@ -322,6 +320,8 @@ class RandomFactorialNetwork():
         if specific_neurons is None:
             specific_neurons = self._ALL_NEURONS
         
+        self.neurons_params = np.zeros((self.M, 3))
+
         # Compute the 3 components of the covariance of the gaussian filter [a, b; b, c]
         for m in np.arange(specific_neurons.size):
             
@@ -347,6 +347,7 @@ class RandomFactorialNetwork():
             self.normalisation = np.zeros(self.M)
 
         # The normalising constant
+        #   Overflows have happened, but they have no real consequence, as 1/inf = 0.0, appropriately.
         self.normalisation[specific_neurons] = 4.*np.pi**2.0*scsp.i0(self.neurons_sigma[specific_neurons, 0])*scsp.i0(self.neurons_sigma[specific_neurons, 1])
         
     
@@ -1399,23 +1400,25 @@ if __name__ == '__main__':
         plt.subplots_adjust(hspace=0.32)
         plt.show()
 
-    if False:
+    if True:
         print 'Check evolution of diagonal elements of measured covariance matrix'
-        # Shows a big discrepancy, the measured covariance goes as ~sqrt(T)...
-        alpha = 0.9
+        # \strike{Shows a big discrepancy, the measured covariance goes as ~sqrt(T)...}
+        # DO NOT PUT alpha != 1.0 if you want to compare them...
+        alpha = 1.0
         N_sqrt = 20.
         N = int(N_sqrt**2.)
-        T = 6
-        sigma_x = 1.0
-        sigma_y = 1.0
+        sigma_x = 0.2
+        sigma_y = 0.0
         beta = 1.0
 
         time_weights_parameters = dict(weighting_alpha=alpha, weighting_beta = beta, specific_weighting = 0.1, weight_prior='uniform')
         rn = RandomFactorialNetwork.create_full_conjunctive(N, R=2, scale_moments=(1.0, 0.01), ratio_moments=(1.0, 0.01), response_type='bivariate_fisher')
 
-        T_all = np.arange(1, 16)
+        T_all = np.arange(15, 18)
         meas_cov_diag = np.zeros(T_all.size)
         comp_cov_diag = np.zeros(T_all.size)
+        all_measured_cov = np.zeros((T_all.size, N, N))
+        all_computed_cov = np.zeros((T_all.size, N, N))
 
         for T_i, T in enumerate(T_all):
             print "T: %d" % T
@@ -1423,10 +1426,10 @@ if __name__ == '__main__':
             data_gen_noise = DataGeneratorRFN(5000, T, rn, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=T-1, enforce_min_distance=0.0)
             stat_meas = StatisticsMeasurer(data_gen_noise)
 
-            measured_cov = stat_meas.model_parameters['covariances'][-1][-1]
-            computed_cov = rn.compute_covariance_KL(sigma_2=(beta**2.0*sigma_x**2. + sigma_y**2.), T=T, beta=beta, precision=50)
-            meas_cov_diag[T_i] = np.mean(np.diag(measured_cov))
-            comp_cov_diag[T_i] = np.mean(np.diag(computed_cov))
+            all_measured_cov[T_i] = stat_meas.model_parameters['covariances'][-1][-1]
+            all_computed_cov[T_i] = rn.compute_covariance_KL(sigma_2=(beta**2.0*sigma_x**2. + sigma_y**2.), T=T, beta=beta, precision=50)
+            meas_cov_diag[T_i] = np.mean(np.diag(all_measured_cov[T_i]))
+            comp_cov_diag[T_i] = np.mean(np.diag(all_computed_cov[T_i]))
 
         plt.plot(T_all, meas_cov_diag, T_all, comp_cov_diag)
         plt.xlabel('Number of items')
@@ -1536,7 +1539,7 @@ if __name__ == '__main__':
             plt.show()
     
 
-    if True:
+    if False:
         # Play with the normalising constant of the Bivariate Fisher
         kappa = 1.0
         N_sqrt = 20.
@@ -1590,12 +1593,12 @@ if __name__ == '__main__':
         
 
         # 2D Try multiple kappas, see if the normalisation works.
-        kappas_space = np.linspace(0.01, 100, 50)
+        kappas_space = np.linspace(10, 200, 50)
         all_neuron_out = np.zeros((kappas_space.size, precision, precision))
         selected_neuron = 209
         for i, kappa in enumerate(kappas_space):
-            print kappa
-            rn = RandomFactorialNetwork.create_full_conjunctive(N, R=2, scale_moments=(kappa**2., 0.0001), ratio_moments=(1.0, 0.0001))
+            print "%.3f" % kappa
+            rn = RandomFactorialNetwork.create_full_conjunctive(N, R=2, scale_moments=(kappa**2., 0.01), ratio_moments=(1.0, 0.01))
             # normalisation = 4.*np.pi**2.*scsp.i0(kappa)*scsp.i0(kappa)
             # all_neuron_out[i] = rn.get_neuron_activity(selected_neuron, precision=precision, params={'kappas': np.array([kappa, kappa, 0.0])})/normalisation
             all_neuron_out[i] = rn.get_neuron_activity(selected_neuron, precision=precision, params={'kappas': np.array([kappa, kappa, 0.0])})
