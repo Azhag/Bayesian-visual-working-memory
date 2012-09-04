@@ -14,6 +14,7 @@ from utils import *
 from statisticsmeasurer import *
 from randomfactorialnetwork import *
 from datagenerator import *
+from gibbs_sampler_continuous_fullcollapsed_randomfactorialnetwork import *
 
 def main():
     pass
@@ -286,11 +287,11 @@ if __name__ == '__main__':
             plt.semilogy(sigma_x_space, sigma_x_powerlaw_params[:, 1])
 
         if True:
-            sigma_x = 0.2
+            sigma_x = 0.01
             beta = 1.0
             sigma_y = 0.01
             
-            N_sqrt = 17.0
+            N_sqrt = 10.0
 
             N = int(N_sqrt**2.)
 
@@ -300,7 +301,7 @@ if __name__ == '__main__':
             gamma = means[:, 1]
 
             #### See effect of kappa
-            kappa_space = np.linspace(0.05, 15.0, 10.)
+            kappa_space = np.linspace(0.01, 30.0, 100.)
             # kappa_space = np.array([1.0])
 
             T_all = np.arange(1, 2)
@@ -323,7 +324,7 @@ if __name__ == '__main__':
                     # covariances_all[T_i] = stat_meas.model_parameters['covariances'][2][-1]
 
                     # Computed covariances
-                    covariances_all[T_i] = rn.compute_covariance_KL(sigma_2=(beta**2.0*sigma_x**2. + sigma_y**2.), T=T, beta=beta, precision=20)
+                    covariances_all[T_i] = rn.compute_covariance_KL(sigma_2=(beta**2.0*sigma_x**2. + sigma_y**2.), T=T, beta=beta, precision=100)
                     # covariances_all[T_i] = sigma_x**2.*np.eye(N)
 
                 FI_all_kappa[i] = compute_FI(sigma_x, kappa, kappa, T_all, stim_space, mu, gamma, covariances_all)
@@ -426,7 +427,7 @@ if __name__ == '__main__':
             plt.plot(np.arange(1, 6), FI_all_kappasigma[best_kappasigma_ind])
             plt.legend(['Experimental', 'FI'])
 
-    if True:
+    if False:
         # Fisher info, new try, 13.08.12
         kappa = 1.0
         kappa2 = 1.0
@@ -484,7 +485,267 @@ if __name__ == '__main__':
 
         plt.show()
 
+    if False:
+        # Compare Fisher Information and curvature of posterior
+
+        # Start with gaussian: x | \theta ~ N(\theta, \sigma I)
+        # I_F = sigma^-1
+
+        theta = 0.1
+        sigma = 0.1
+
+        xx = np.linspace(-10., 10., 10000)
+        dx = np.diff(xx)[0]
+
+        yy = spst.norm.pdf(xx, theta, sigma)
+
+        # Theoretical
+        IF_theo = 1./sigma**2.
+
+        # Estimated using IF = E [ (\partial_theta log P(x, \theta))^ 2]
+        IF_estim_1 = np.trapz((np.diff(np.log(yy)))**2.*yy[1:]/dx**2., xx[1:])
+
+        # Estimated using IF = E [ - \partial_theta \partial_theta log P(x, \theta)]
+        IF_estim_2 = np.trapz(-np.diff(np.diff(np.log(yy)))*yy[1:-1]/dx**2., xx[1:-1])
+
+        print "Theo: %.3f, Estim_1: %.3f, Estim_curv: %.3f" % (IF_theo, IF_estim_1, IF_estim_2)
+
+    if False:
+        # Compare scale of theory/posterior for different parameters.
+        weighting_alpha=1.0
+        R=2
+        M=100
+        rc_scale=2.0
+        T=1
+        sigma_y = 0.000001
+        sigma_x = 0.2
+        N=100
+
+        # param_space = np.arange(50, 500, 50)  # M
+        # param_space = np.linspace(0.000001, 2.0, 50)  # sigma_y
+        param_space = np.linspace(0.1, 2.0, 20)  # sigma_x
+        # param_space = np.linspace(0.01, 10.0, 20)  # rc_scale
         
+        FI_M_effect_mean = np.zeros(param_space.size)
+        FI_M_effect_std = np.zeros(param_space.size)
+
+        for i, param in enumerate(param_space):
+            # M = param
+            # sigma_y = param
+            sigma_x = param
+            # rc_scale = param
+
+            # Build the random network
+            time_weights_parameters = dict(weighting_alpha=weighting_alpha, weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='uniform')
+            cued_feature_time = T-1
+
+            random_network = RandomFactorialNetwork.create_full_conjunctive(M, R=R, scale_moments=(rc_scale, 0.0001), ratio_moments=(1.0, 0.0001))
+
+            # Construct the real dataset
+            # print "Building the database"
+            data_gen = DataGeneratorRFN(N, T, random_network, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters = time_weights_parameters, cued_feature_time=cued_feature_time)
+            
+            # Measure the noise structure
+            # print "Measuring noise structure"
+            data_gen_noise = DataGeneratorRFN(2000, T, random_network, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time)
+            stat_meas = StatisticsMeasurer(data_gen_noise)
+            
+            sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters = stat_meas.model_parameters, tc=cued_feature_time)
+                
+            ### Estimate the Fisher Information
+            print "Estimating the Fisher Information, param %.3f" % param
+            (FI_M_effect_mean[i], FI_M_effect_std[i], _) = sampler.estimate_fisher_info_from_posterior_avg(num_points=100, return_std=True)
+
+        # Dependence: FI = M * (sigma_y + sigma_x)**-1 * rcscale**2
+        
+        print (FI_M_effect_mean, FI_M_effect_std)
+
+
+        plot_mean_std_area(param_space, FI_M_effect_mean, FI_M_effect_std)
+
+    
+    if True:
+        ## Redoing everything from scratch.
+        # First try the Fisher Info in 1D, and see if the relation on kappa is correct.
+        
+        def fisher_info_Ninf(kappa=1.0, rho=0.1, N=None, sigma=1.0):
+            if N:
+                rho = 1./(2*np.pi/(N))
+
+            return kappa**2.*rho*(scsp.i0(2*kappa) - scsp.iv(2, 2*kappa))/(sigma**2.*4*np.pi*scsp.i0(kappa)**2.)
+
+        def fisher_info_Ninf_bis(kappa=1.0, rho=0.1, N=None, sigma=1.0):
+            if N:
+                rho = 1./(2*np.pi/(N))
+
+            return kappa*rho*scsp.i1(2*kappa)/(sigma**2.*4*np.pi*scsp.i0(kappa)**2.)
+
+        def fisher_info_N(N=100, kappa=1.0, sigma=1.0):
+            pref_angles = np.linspace(0., 2*np.pi, N, endpoint=False)
+            
+            theta = np.linspace(0., 2*np.pi, 200.)
+            # theta = 0.0
+
+            return np.mean(np.sum(kappa**2.*np.sin(theta[:, np.newaxis] - pref_angles)**2.*np.exp(2*kappa*np.cos(theta[:, np.newaxis] - pref_angles))/(sigma**2.*4.*np.pi**2.*scsp.i0(kappa)**2.), axis=-1))
+            # return np.sum(kappa**2.*np.sin(theta - pref_angles)**2.*np.exp(2*kappa*np.cos(theta - pref_angles))/(sigma**2.*4.*np.pi**2.*scsp.i0(kappa)**2.))
+
+
+        if False:
+
+            kappa_space = np.linspace(0., 100., 1000.)
+
+            plt.figure()
+            plt.plot(kappa_space, fisher_info_Ninf(kappa=kappa_space), kappa_space, fisher_info_Ninf_bis(kappa=kappa_space))
+            plt.title('Two different defitinion of the large N limit equation')
+
+            out = fisher_info_Ninf(kappa=kappa_space)
+            slope = np.log(out[200]/out[150])/np.log(kappa_space[200]/kappa_space[150])
+            print "Slope of Fisher Info: %.3f" % slope
+
+            # Comparison between large N limit and exact.
+            N_space = np.arange(1, 1000)
+            fi_largeN = np.array([fisher_info_Ninf_bis(rho=1./(2*np.pi/n)) for n in N_space])
+            fi_exact = np.array([fisher_info_N(N=n) for n in N_space])
+
+            plt.figure()
+            plt.plot(N_space, fi_exact, N_space, fi_largeN)
+            plt.title('Comparison between large N limit equation and exact FI definition')
+
+            plt.figure()
+            plt.semilogy(N_space, (fi_exact - fi_largeN)**2., nonposy='clip')
+            plt.title('Comparison between large N limit equation and exact FI definition')
+
+            # Plot I_1(2k)/I_0(k)**2
+            plt.figure()
+            out = scsp.iv(1, 2*kappa_space)/scsp.i0(kappa_space)**2.
+            plt.plot(kappa_space, out)  
+            # ~ kappa**0.5
+            slope = np.log(out[200]/out[150])/np.log(kappa_space[200]/kappa_space[150])
+            print "Slope of I_1(2k)/I_0(k)**2: %.3f" % slope
+
+            # Plot \sum_i sin**2() exp(k cos()) / I_0(k)**2
+
+            # Plot exp(2 k)/4pi**2 I_0(k)**2
+            # not smaller than 1
+            plt.figure()
+            plt.plot(np.exp(2*kappa_space)/(4*np.pi**2.*scsp.i0(kappa_space)**2.))
+
+
+        ## Redo everything here.
+        if True:
+
+            ## Population
+            N     = 50
+            kappa = 2.0
+            sigma = 0.8
+            amplitude = 1.0
+            
+            def population_code_response(theta, N=100, kappa=0.1, amplitude=1.0):
+
+                pref_angles = np.linspace(0., 2*np.pi, N, endpoint=False)
+
+                return amplitude*np.exp(kappa*np.cos(theta - pref_angles))/(2.*np.pi*scsp.i0(kappa))
+
+            kappa_space = np.linspace(0.001, 100., 10)
+
+            effects_kappa = []
+            effects_kappa_std = []
+
+            for k, kappa in enumerate(kappa_space):
+                print 'DOING KAPPA: %.3f' % kappa
+
+                ## Generate dataset
+                M = 50
+                stimuli_used = np.random.rand(M)*np.pi*2.
+                stimuli_used = np.random.rand(M)*np.pi/2. + np.pi
+
+                dataset = np.zeros((M, N))
+                for i, stim in enumerate(stimuli_used):
+                    dataset[i] = population_code_response(stim, N=N, kappa=kappa, amplitude=amplitude) + sigma*np.random.randn(N)
+
+                ## Estimate likelihood
+                num_points = 1000
+                # num_points_space = np.arange(50, 1000, 200)
+                # effects_num_points = []
+
+                # for k, num_points in enumerate(num_points_space):
+
+                all_angles = np.linspace(0., 2.*np.pi, num_points, endpoint=False)
+
+                def likelihood(data, all_angles, N=100, kappa=0.1, sigma=1.0, should_exponentiate=True, remove_mean=False):
+
+                    lik = np.zeros(all_angles.size)
+                    for i, angle in enumerate(all_angles):
+                        lik[i] = -np.log((2*np.pi)**0.5*sigma) -1./(2*sigma**2.)*np.sum((data - population_code_response(angle, N=N, kappa=kappa, amplitude=amplitude))**2.)
+
+                    if remove_mean:
+                        lik -= np.mean(lik)
+
+                    if should_exponentiate:
+                        lik = np.exp(lik)
+
+                    return lik
+
+                ## Estimate fisher info
+                print "Estimate fisher info"
+                fisher_info_curve = np.zeros(M)
+                fisher_info_prec = np.zeros(M)
+                dx = np.diff(all_angles)[0]
+
+                for m, data in enumerate(dataset):
+                    print m
+                    
+                    posterior = likelihood(data, all_angles, N=N, kappa=kappa, sigma=sigma)
+                    log_posterior = np.log(posterior)
+                    
+                    log_posterior[np.isinf(log_posterior)] = 0.0
+                    log_posterior[np.isnan(log_posterior)] = 0.0
+
+                    posterior /= np.sum(posterior*dx)
+
+                    # Fails when angles are close to 0/2pi.
+                    # Could roll the posterior around to center it, wouldn't be that bad.
+                    fisher_info_curve[m] = np.trapz(-np.diff(np.diff(log_posterior))*posterior[1:-1]/dx**2., all_angles[1:-1])
+                    
+                    # Replace this with circular variance estimate
+                    #fisher_info_prec[m] = 1./fit_gaussian(all_angles, posterior, should_plot=False, return_fitted=False)[1]**2.
+                    fisher_info_prec[m] = 1./(-2.*np.log(np.abs(np.trapz(posterior*np.exp(1j*all_angles), all_angles))))
+
+                fisher_info_curve_mean = np.mean(fisher_info_curve)
+                fisher_info_curve_std = np.std(fisher_info_curve)
+                fisher_info_prec_mean = np.mean(fisher_info_prec)
+                fisher_info_prec_std = np.std(fisher_info_prec)
+
+                # Save it
+                effects_kappa.append([fisher_info_curve_mean, fisher_info_prec_mean, fisher_info_N(N=N, kappa=kappa, sigma=sigma), fisher_info_Ninf(kappa=kappa, N=N, sigma=sigma)])
+                effects_kappa_std.append([fisher_info_curve_std, fisher_info_prec_std, 0, 0])
+
+                # effects_num_points.append((fisher_info_curve_mean, fisher_info_curve_std))
+
+                print "FI curve: %.3f, FI precision: %.3f, Theo: %.3f, Theo large N: %.3f" % (fisher_info_curve_mean, fisher_info_prec_mean, fisher_info_N(N=N, kappa=kappa, sigma=sigma), fisher_info_Ninf(kappa=kappa, N=N, sigma=sigma))
+
+            # plot_mean_std_area(num_points_space, np.array(effects_num_points)[:, 0], np.array(effects_num_points)[:, 1])
+            effects_kappa = np.array(effects_kappa)
+            effects_kappa_std = np.array(effects_kappa_std)
+
+            
+            # No small N / big kappa effect on Fisher information.
+            plot_multiple_mean_std_area(kappa_space, effects_kappa.T, effects_kappa_std.T)
+
+            plt.legend(['Curve', 'Precision', 'Theo', 'Theo large N'])
+
+
+
+    if True:
+        # Now do everything for 2D population code.
+        pass
+
+
+
+
+
+
+
 
 
 
