@@ -9,16 +9,16 @@ Copyright (c) 2011 Gatsby Unit. All rights reserved.
 
 import numpy as np
 import scipy.special as scsp
-from scipy.stats import vonmises as vm
+# from scipy.stats import vonmises as vm
 import scipy.optimize as spopt
 import scipy.interpolate as spint
 import scipy.io as sio
-import time
+# import time
 import sys
 import os.path
 import argparse
 import matplotlib.patches as plt_patches
-import matplotlib.collections as plt_collections
+# import matplotlib.collections as plt_collections
 
 from datagenerator import *
 from randomnetwork import *
@@ -37,8 +37,8 @@ def loglike_theta_fct_vect(thetas, (datapoint, rn, theta_mu, theta_kappa, ATtcB,
                 np.dot(ATtcB, rn.get_network_response(thetas))
             
     # Using inverse covariance as param
-    return theta_kappa*np.cos(thetas[sampled_feature_index] - theta_mu) - 0.5*np.dot(like_mean, np.dot(covariance_fixed_contrib, like_mean))
-    # return -0.5*np.dot(like_mean, np.dot(covariance_fixed_contrib, like_mean))
+    # return theta_kappa*np.cos(thetas[sampled_feature_index] - theta_mu) - 0.5*np.dot(like_mean, np.dot(covariance_fixed_contrib, like_mean))
+    return -0.5*np.dot(like_mean, np.dot(covariance_fixed_contrib, like_mean))
 
 
 def loglike_theta_fct_single(new_theta, (thetas, datapoint, rn, theta_mu, theta_kappa, ATtcB, sampled_feature_index, mean_fixed_contrib, covariance_fixed_contrib)):
@@ -52,8 +52,8 @@ def loglike_theta_fct_single(new_theta, (thetas, datapoint, rn, theta_mu, theta_
                 np.dot(ATtcB, rn.get_network_response(thetas))
     
     # Using inverse covariance as param
-    return theta_kappa*np.cos(thetas[sampled_feature_index] - theta_mu) - 0.5*np.dot(like_mean, np.dot(covariance_fixed_contrib, like_mean))
-    # return -0.5*np.dot(like_mean, like_mean)
+    # return theta_kappa*np.cos(thetas[sampled_feature_index] - theta_mu) - 0.5*np.dot(like_mean, np.dot(covariance_fixed_contrib, like_mean))
+    return - 0.5*np.dot(like_mean, np.dot(covariance_fixed_contrib, like_mean))
 
 
 def loglike_theta_fct_single_min(x, thetas, datapoint, rn, theta_mu, theta_kappa, ATtcB, sampled_feature_index, mean_fixed_contrib, covariance_fixed_contrib):
@@ -298,16 +298,16 @@ class Sampler:
         permuted_datapoints = np.arange(self.N)
         # permuted_datapoints = np.arange(1)
         
-        errors = np.zeros(permuted_datapoints.shape, dtype=float)
+        # errors = np.zeros(permuted_datapoints.shape, dtype=float)
 
         if return_samples:
             all_samples = np.zeros((self.N, num_samples))
 
-        curr_theta = np.zeros(self.R)
+        # curr_theta = np.zeros(self.R)
         
         # Do everything in log-domain, to avoid numerical errors
         for n in permuted_datapoints:
-            curr_theta = self.theta[n].copy()
+            # curr_theta = self.theta[n].copy()
             
             # Sample all the non-cued features
             permuted_features = np.random.permutation(self.theta_to_sample[n, np.newaxis])
@@ -700,7 +700,7 @@ class Sampler:
             return llh_2angles
     
     
-    def plot_likelihood_correctlycuedtimes(self, n=0, amplify_diag=1.0, num_points=500, should_plot=True, should_return=False, should_exponentiate = False, sampled_feature_index = 0):
+    def plot_likelihood_correctlycuedtimes(self, n=0, amplify_diag=1.0, num_points=500, should_plot=True, should_return=False, should_exponentiate = False, sampled_feature_index = 0, debug=True):
         '''
             Plot the log-likelihood function, over the space of the sampled theta, keeping the other thetas fixed to their correct cued value.
         '''
@@ -729,6 +729,7 @@ class Sampler:
             llh_2angles = np.exp(llh_2angles)
         
         # Normalize loglik
+        # TODO DANGEROUS HERE
         llh_2angles /= np.abs(np.max(llh_2angles, axis=0))
         
         opt_angles = np.argmax(llh_2angles, axis=0)
@@ -737,23 +738,25 @@ class Sampler:
         llh_2angles += 1.2*np.arange(self.T)*np.abs(np.max(llh_2angles, axis=0)-np.mean(llh_2angles, axis=0))
         
         # Plot the result
-        f = plt.figure()
-        ax = f.add_subplot(111)
-        lines = ax.plot(all_angles, llh_2angles)
-        ax.set_xlim((-np.pi, np.pi))
+        if should_plot:
+            f = plt.figure()
+            ax = f.add_subplot(111)
+            lines = ax.plot(all_angles, llh_2angles)
+            ax.set_xlim((-np.pi, np.pi))
 
-        legends = ['-%d' % x for x in np.arange(self.T)[::-1]]
-        legends[-1] = 'Last'
-        
-        for t in np.arange(self.T):
-            # Put the legends
-            ax.legend(lines, legends, loc='upper center', bbox_to_anchor=(0.5, 1.1), ncol=self.T, fancybox=True, shadow=True)
+            legends = ['-%d' % x for x in np.arange(self.T)[::-1]]
+            legends[-1] = 'Last'
+            
+            for t in np.arange(self.T):
+                # Put the legends
+                ax.legend(lines, legends, loc='upper center', bbox_to_anchor=(0.5, 1.1), ncol=self.T, fancybox=True, shadow=True)
 
-            # Put a vertical line at the true answer
-            ax.axvline(x=self.data_gen.stimuli_correct[n, t, 0], color=lines[t].get_c())  # ax[t] returns the plotted line
+                # Put a vertical line at the true answer
+                ax.axvline(x=self.data_gen.stimuli_correct[n, t, 0], color=lines[t].get_c())  # ax[t] returns the plotted line
 
         # Print the answers
-        print "True angles: %s >> Inferred: %s" % (' | '.join(['%.3f' % x for x in self.data_gen.stimuli_correct[n, :, 0]]),  ' | '.join(['%.3f' % x for x in all_angles[opt_angles]]))
+        if debug:
+            print "True angles: %s >> Inferred: %s" % (' | '.join(['%.3f' % x for x in self.data_gen.stimuli_correct[n, :, 0]]),  ' | '.join(['%.3f' % x for x in all_angles[opt_angles]]))
 
         # if sampler.T == 2:
         #     plt.legend(('First', 'Second'), loc='best')
@@ -765,6 +768,9 @@ class Sampler:
         #     print "True angles: %.3f | %.3f | %.3f >> Inferred: %.3f | %.3f | %.3f" % (self.data_gen.stimuli_correct[n, 0, 0], self.data_gen.stimuli_correct[n, 1, 0], self.data_gen.stimuli_correct[n, 2, 0], all_angles[opt_angles[0]], all_angles[opt_angles[1]], all_angles[opt_angles[2]])
         
         plt.show()
+
+        if should_return:
+            return llh_2angles
 
 
     def plot_likelihood_alltc(self, n=0, num_points=500, should_plot=True, should_sample=False, num_samples=2000, return_output=False, sampled_feature_index = 0):
@@ -816,6 +822,53 @@ class Sampler:
             else:
                 return (ll_x, x)
     
+
+    def estimate_fisher_info_from_posterior(self, n=0, num_points=500):
+        '''
+            Look at the curvature of the posterior to estimate the Fisher Information
+        '''
+
+        posterior = self.plot_likelihood_correctlycuedtimes(n=n, num_points=num_points, should_plot=False, should_return=True, should_exponentiate = True, debug=False)[:, 0]
+
+        # Look if it seems Gaussian enough
+
+        log_posterior = np.log(posterior.T)
+        log_posterior[np.isinf(log_posterior)] = 0.0
+        log_posterior[np.isnan(log_posterior)] = 0.0
+
+        x = np.linspace(-np.pi, np.pi, num_points)
+        dx = np.diff(x)[0]
+
+        np.seterr(all='raise')
+        try:
+            FI_estim_curv = np.trapz(-np.diff(np.diff(log_posterior))*posterior[1:-1]/dx**2., x[1:-1])
+        except FloatingPointError:
+            # print 'Overflow on n: %d' % n
+            FI_estim_curv = np.nan
+
+        np.seterr(all='warn')
+
+        return FI_estim_curv
+
+
+    def estimate_fisher_info_from_posterior_avg(self, num_points=500, return_std=False):
+        '''
+            Estimate the Fisher Information from the curvature of the posterior.
+
+            Takes the mean over all datapoints.
+        '''
+
+        mean_FI = np.zeros(self.N)
+
+        for i in xrange(self.N):
+            mean_FI[i] = self.estimate_fisher_info_from_posterior(n=i, num_points=num_points)
+
+        if return_std:
+            return (nanmean(mean_FI), nanstd(mean_FI), nanmedian(mean_FI))
+        else:
+            return nanmean(mean_FI)
+
+
     
     #################
     
@@ -932,6 +985,7 @@ class Sampler:
         '''
 
         # Compute precision
+        # TODO SHOULD HAVE A SQUARE HERE!!
         precision = 1./self.compute_angle_error()[1]
 
         if remove_chance_level:
@@ -1023,6 +1077,8 @@ class Sampler:
             [from Ed Awh's paper]
         '''
 
+        assert self.T > 1, "No nontarget for a single object..."
+
         (responses, target, nontargets) = self.collect_responses()
 
         # Now check the error between the responses and nontargets.
@@ -1063,7 +1119,7 @@ def profiling_run():
     N = 100
     T = 2
     K = 25
-    D = 64
+    # D = 64
     M = 128
     R = 2
     
@@ -1075,11 +1131,11 @@ def profiling_run():
     
     N = args.N
     T = args.T
-    K = args.K
+    # K = args.K
     M = args.M
     R = args.R
-    num_samples = args.num_samples
-    weighting_alpha = args.alpha
+    # num_samples = args.num_samples
+    # weighting_alpha = args.alpha
     
     # Build the random network
     sigma_y = 0.02
@@ -1117,7 +1173,7 @@ def do_simple_run(args):
     
     N = args.N
     T = args.T
-    K = args.K
+    # K = args.K
     M = args.M
     R = args.R
     weighting_alpha = args.alpha
@@ -1166,9 +1222,14 @@ def do_simple_run(args):
     
     print "Inferring optimal angles, for t=%d" % sampler.tc[0]
     # sampler.set_theta_max_likelihood(num_points=500, post_optimise=True)
-    sampler.change_cued_features(sampler.T-1)
-    sampler.sample_theta(num_samples=args.num_samples, burn_samples=20, selection_method='median', selection_num_samples=args.selection_num_samples, integrate_tc_out=False, debug=False)
     
+    # if args.inference_method == 'sample':
+    #     # Sample thetas
+    #     sampler.sample_theta(num_samples=args.num_samples, burn_samples=20, selection_method='median', selection_num_samples=args.num_samples, integrate_tc_out=False, debug=False)
+    # elif args.inference_method == 'max_lik':
+    #     # Just use the ML value for the theta
+    #     sampler.set_theta_max_likelihood(num_points=200, post_optimise=True)
+        
     sampler.print_comparison_inferred_groundtruth()
     
     return locals()
@@ -1382,6 +1443,7 @@ def do_size_receptive_field(args):
             # all_precisions[param1_i, repet_i] = sampler.get_precision()
             all_precisions[param1_i, repet_i] = sampler.compute_angle_error()[1]
 
+            
             print "-> %.5f" % all_precisions[param1_i, repet_i]
         
         # Save to disk, unique filename
@@ -2022,14 +2084,14 @@ def do_mixed_two_scales(args):
 
     N = args.N
     M = args.M
-    K = args.K
+    # K = args.K
     num_samples = args.num_samples
     weighting_alpha = args.alpha
     num_repetitions = args.num_repetitions
     T = args.T
     output_dir = os.path.join(args.output_directory, args.label)
-    rc_scale = args.rc_scale
-    rc_scale2 = args.rc_scale2
+    # rc_scale = args.rc_scale
+    # rc_scale2 = args.rc_scale2
     ratio_conj = args.ratio_conj
 
     R = 2
@@ -2196,14 +2258,141 @@ def do_save_responses_simultaneous(args):
     return locals()
 
 
+def do_fisher_information_estimation(args):
+    '''
+        Estimate the Fisher information from the posterior.
+
+        Get its dependance upon M and rcscale
+    '''
+
+    print "Fisher Information estimation from Posterior."
+    
+    N = args.N
+    T = args.T
+    # K = args.K
+    M = args.M
+    R = args.R
+    weighting_alpha = args.alpha
+    code_type = args.code_type
+    rc_scale = args.rc_scale
+    rc_scale2 = args.rc_scale2
+    ratio_conj = args.ratio_conj
+    sigma_x = args.sigmax
+    sigma_y = args.sigmay
+
+    if args.subaction == '':
+        args.subaction = 'M_dependence'
+
+    if args.subaction == 'M_dependence':
+
+        M_space = np.arange(10, 500, 20)
+        FI_M_effect = np.zeros_like(M_space, dtype=float)
+        FI_M_effect_std = np.zeros_like(M_space, dtype=float)
+
+        for i, M in enumerate(M_space):
+
+
+            # Build the random network
+            time_weights_parameters = dict(weighting_alpha=weighting_alpha, weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='uniform')
+            cued_feature_time = T-1
+
+            if code_type == 'conj':
+                random_network = RandomFactorialNetwork.create_full_conjunctive(M, R=R, scale_moments=(rc_scale, 0.0001), ratio_moments=(1.0, 0.0001))
+            elif code_type == 'feat':
+                random_network = RandomFactorialNetwork.create_full_features(M, R=R, scale=rc_scale, ratio=40.)
+            elif code_type == 'mixed':
+                conj_params = dict(scale_moments=(rc_scale, 0.001), ratio_moments=(1.0, 0.0001))
+                feat_params = dict(scale=rc_scale2, ratio=40.)
+
+                random_network = RandomFactorialNetwork.create_mixed(M, R=R, ratio_feature_conjunctive=ratio_conj, conjunctive_parameters=conj_params, feature_parameters=feat_params)
+            elif code_type == 'wavelet':
+                random_network = RandomFactorialNetwork.create_wavelet(M, R=R, scales_number=5)
+            else:
+                raise ValueError('Code_type is wrong!')
+            
+            # Construct the real dataset
+            # print "Building the database"
+            data_gen = DataGeneratorRFN(N, T, random_network, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters = time_weights_parameters, cued_feature_time=cued_feature_time)
+            
+            # Measure the noise structure
+            # print "Measuring noise structure"
+            data_gen_noise = DataGeneratorRFN(3000, T, random_network, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time)
+            stat_meas = StatisticsMeasurer(data_gen_noise)
+            
+            sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters = stat_meas.model_parameters, tc=cued_feature_time)
+            
+            ### Estimate the Fisher Information
+            print "Estimating the Fisher Information, M %d" % M
+            (_, FI_M_effect_std[i], FI_M_effect[i]) = sampler.t_all_avg(num_points=200, return_std=True)
+
+
+        # Plot results
+        plot_mean_std_area(M_space, FI_M_effect, FI_M_effect_std)
+        plt.title('FI dependence on M')
+        plt.xlabel('M')
+        plt.ylabel('FI')
+
+    elif args.subaction == 'rcscale_dependence':
+
+        rcscale_space = np.linspace(0.05, 100, 20)
+        FI_M_effect = np.zeros_like(rcscale_space, dtype=float)
+        FI_M_effect_std = np.zeros_like(rcscale_space, dtype=float)
+
+        for i, rc_scale in enumerate(rcscale_space):
+
+
+            # Build the random network
+            time_weights_parameters = dict(weighting_alpha=weighting_alpha, weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='uniform')
+            cued_feature_time = T-1
+
+            if code_type == 'conj':
+                random_network = RandomFactorialNetwork.create_full_conjunctive(M, R=R, scale_moments=(rc_scale, 0.0001), ratio_moments=(1.0, 0.0001))
+            elif code_type == 'feat':
+                random_network = RandomFactorialNetwork.create_full_features(M, R=R, scale=rc_scale, ratio=40.)
+            elif code_type == 'mixed':
+                conj_params = dict(scale_moments=(rc_scale, 0.001), ratio_moments=(1.0, 0.0001))
+                feat_params = dict(scale=rc_scale2, ratio=40.)
+
+                random_network = RandomFactorialNetwork.create_mixed(M, R=R, ratio_feature_conjunctive=ratio_conj, conjunctive_parameters=conj_params, feature_parameters=feat_params)
+            elif code_type == 'wavelet':
+                random_network = RandomFactorialNetwork.create_wavelet(M, R=R, scales_number=5)
+            else:
+                raise ValueError('Code_type is wrong!')
+            
+            # Construct the real dataset
+            # print "Building the database"
+            data_gen = DataGeneratorRFN(N, T, random_network, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters = time_weights_parameters, cued_feature_time=cued_feature_time)
+            
+            # Measure the noise structure
+            # print "Measuring noise structure"
+            data_gen_noise = DataGeneratorRFN(3000, T, random_network, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time)
+            stat_meas = StatisticsMeasurer(data_gen_noise)
+            
+            sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters = stat_meas.model_parameters, tc=cued_feature_time)
+            
+            ### Estimate the Fisher Information
+            print "Estimating the Fisher Information, rcscale %.3f" % rc_scale
+            # (FI_M_effect[i], FI_M_effect_std[i]) = sampler.estimate_fisher_info_from_posterior_avg(num_points=200, return_std=True)
+            (_, FI_M_effect_std[i], FI_M_effect[i]) = sampler.estimate_fisher_info_from_posterior_avg(num_points=500, return_std=True)
+            print (FI_M_effect[i], FI_M_effect_std[i])
+
+
+        # Plot results
+        plot_mean_std_area(rcscale_space, FI_M_effect, FI_M_effect_std)
+        plt.title('FI dependence on rcscale')
+        plt.xlabel('rcscale')
+        plt.ylabel('FI')
+
+
+    return locals()
 
 
 ####################################
 if __name__ == '__main__':
         
     # Switch on different actions
-    actions = {x.__name__: x for x in 
-            [do_simple_run, 
+    actions = dict([(x.__name__, x) for x in 
+        [do_simple_run, 
             profile_me,
             do_size_receptive_field,
             do_neuron_number_precision,
@@ -2218,8 +2407,9 @@ if __name__ == '__main__':
             plot_multiple_memory_curve_simult,
             do_mixed_ratioconj,
             do_mixed_two_scales,
-            do_save_responses_simultaneous
-            ]}
+            do_save_responses_simultaneous,
+            do_fisher_information_estimation
+            ]])
     
     print sys.argv[1:]
     
@@ -2245,6 +2435,7 @@ if __name__ == '__main__':
     parser.add_argument('--sigmay', type=float, default=0.02, help='Noise along time')
     parser.add_argument('--ratio_conj', type=float, default=0.2, help='Ratio of conjunctive/field subpopulations for mixed network')
     parser.add_argument('--inference_method', choices=['sample', 'max_lik'], default='sample', help='Method used to infer the responses. Either sample (default) or set the maximum likelihood/posterior values directly.')
+    parser.add_argument('--subaction', default='', help='Some actions have multiple possibilities.')
 
 
     args = parser.parse_args()
@@ -2269,3 +2460,5 @@ if __name__ == '__main__':
         np.save(output_file, all_vars)
     
     plt.show()
+
+
