@@ -12,6 +12,7 @@ import numpy as np
 import matplotlib.ticker as plttic
 import scipy.io as sio
 import scipy.optimize as spopt
+import scipy.stats as spst
 import uuid
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
@@ -206,6 +207,13 @@ def nanmean(array, axis=None):
     else:
         return np.ma.masked_invalid(array).mean()
 
+def nanmedian(array, axis=None):
+    if not axis is None:
+        return np.ma.extras.median(np.ma.masked_invalid(array), axis=axis)
+    else:
+        return np.ma.extras.median(np.ma.masked_invalid(array))
+
+
 def nanstd(array, axis=None):
     if not axis is None:
         return np.ma.masked_invalid(array).std(axis=axis)
@@ -275,9 +283,12 @@ def plot_mean_std_area(x, y, std, ax_handle=None):
     ax = ax_handle.plot(x, y)
     current_color = ax[-1].get_c()
     
-    ax_handle.fill_between(x, y-std, y+std, facecolor=current_color, alpha=0.4,
+    if np.any(std > 1e-6):
+        ax_handle.fill_between(x, y-std, y+std, facecolor=current_color, alpha=0.4,
                         label='1 sigma range')
     
+    ax_handle.get_figure().canvas.draw()
+
     return ax_handle
 
 
@@ -500,6 +511,18 @@ def plot_powerlaw_fit(xdata, ydata, amp, index, yerr=None):
     plt.xlim((xdata.min()*0.9, xdata.max()*1.1))
 
 
+def plot_fft2_power(data, s=None, axes=(-2, -1)):
+    '''
+        Compute the 2D FFT and plot the 2D power spectrum.
+    '''
+
+    FS = np.fft.fft2(data, s=s, axes=axes)
+
+    plt.figure()
+    plt.imshow(np.log(np.abs(np.fft.fftshift(FS))**2.))
+    plt.title('Power spectrum')
+    plt.colorbar()
+
 
 ################################# FITTING ########################################
 
@@ -618,6 +641,39 @@ def fit_powerlaw_covariance(xdata, ydata, yerr = None, should_plot=True, debug=F
                 
 
     return np.array([index, amp])
+
+
+def fit_gaussian(xdata, ydata, should_plot = True, return_fitted = True, normalise = True, debug = False):
+    '''
+        Fit a gaussian to the given points.
+        Doesn't take samples! Only tries to fit a gaussian function onto some points.
+
+        Can plot the result if desired
+    '''
+    
+    mean_fit = np.sum(ydata*xdata)/np.sum(ydata)
+    std_fit = np.sqrt(np.abs(np.sum((xdata - mean_fit)**2*ydata)/np.sum(ydata)))
+    max_fit = ydata.max()
+
+    fitted_data = spst.norm.pdf(xdata, mean_fit, std_fit)
+
+    if debug:
+        print "Mean: %.3f, Std: %.3f, Max: %.3f" % (mean_fit, std_fit, max_fit)
+
+    if should_plot:
+        plt.figure()
+        if normalise:
+            plt.plot(xdata, ydata/ydata.sum(), xdata, fitted_data/fitted_data.sum())
+        else:
+            plt.plot(xdata, ydata, xdata, fitted_data)
+        plt.legend(['Data', 'Fit'])
+        plt.show()
+
+    if return_fitted:
+        return dict(parameters=np.array([mean_fit, std_fit, max_fit]), fitted_data=fitted_data)
+    else:
+        return np.array([mean_fit, std_fit, max_fit])
+
 
 
         
