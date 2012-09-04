@@ -985,8 +985,7 @@ class Sampler:
         '''
 
         # Compute precision
-        # TODO SHOULD HAVE A SQUARE HERE!!
-        precision = 1./self.compute_angle_error()[1]
+        precision = 1./self.compute_angle_error()[1]**2.
 
         if remove_chance_level:
             # Expected precision under uniform distribution
