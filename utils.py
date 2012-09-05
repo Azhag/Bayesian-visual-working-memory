@@ -643,7 +643,7 @@ def fit_powerlaw_covariance(xdata, ydata, yerr = None, should_plot=True, debug=F
     return np.array([index, amp])
 
 
-def fit_gaussian(xdata, ydata, should_plot = True, return_fitted = True, normalise = True, debug = False):
+def fit_gaussian(xdata, ydata, should_plot = True, return_fitted_data = True, normalise = True, debug = False):
     '''
         Fit a gaussian to the given points.
         Doesn't take samples! Only tries to fit a gaussian function onto some points.
@@ -669,11 +669,43 @@ def fit_gaussian(xdata, ydata, should_plot = True, return_fitted = True, normali
         plt.legend(['Data', 'Fit'])
         plt.show()
 
-    if return_fitted:
+    if return_fitted_data:
         return dict(parameters=np.array([mean_fit, std_fit, max_fit]), fitted_data=fitted_data)
     else:
         return np.array([mean_fit, std_fit, max_fit])
 
+
+def fit_gaussian_samples(samples, should_plot = True, return_fitted_data = True, normalise = True, debug = False):
+    """
+        Fit a 1D Gaussian on the samples provided.
+
+        Plot the result if desired
+    """
+
+    mean_fit = np.mean(samples)
+    std_fit = np.std(samples)
+
+    x = np.linspace(samples.min()*1.5, samples.max()*1.5, 1000)
+
+    fitted_data = spst.norm.pdf(x, mean_fit, std_fit)
+
+    if debug:
+        print "Mean: %.3f, Std: %.3f" % (mean_fit, std_fit)
+
+    if should_plot:
+        if normalise:
+            histogram_angular_data(samples, norm='max', bins=1000)
+            plt.plot(x, fitted_data/np.max(fitted_data), 'r')
+        else:
+            histogram_angular_data(samples, bins=1000)
+            plt.plot(x, fitted_data, 'r')
+
+        plt.show()
+
+    if return_fitted_data:
+        return dict(parameters=np.array([mean_fit, std_fit]), fitted_data=fitted_data)
+    else:
+        return np.array([mean_fit, std_fit])
 
 
         
