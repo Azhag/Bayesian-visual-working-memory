@@ -39,6 +39,7 @@ def loglike_theta_fct_vect(thetas, (datapoint, rn, theta_mu, theta_kappa, ATtcB,
     # Using inverse covariance as param
     # return theta_kappa*np.cos(thetas[sampled_feature_index] - theta_mu) - 0.5*np.dot(like_mean, np.dot(covariance_fixed_contrib, like_mean))
     return -0.5*np.dot(like_mean, np.dot(covariance_fixed_contrib, like_mean))
+    # return -1./(2*0.1**2)*np.sum(like_mean**2.)
 
 
 def loglike_theta_fct_single(new_theta, (thetas, datapoint, rn, theta_mu, theta_kappa, ATtcB, sampled_feature_index, mean_fixed_contrib, covariance_fixed_contrib)):
@@ -53,7 +54,7 @@ def loglike_theta_fct_single(new_theta, (thetas, datapoint, rn, theta_mu, theta_
     
     # Using inverse covariance as param
     # return theta_kappa*np.cos(thetas[sampled_feature_index] - theta_mu) - 0.5*np.dot(like_mean, np.dot(covariance_fixed_contrib, like_mean))
-    return - 0.5*np.dot(like_mean, np.dot(covariance_fixed_contrib, like_mean))
+    return -0.5*np.dot(like_mean, np.dot(covariance_fixed_contrib, like_mean))
 
 
 def loglike_theta_fct_single_min(x, thetas, datapoint, rn, theta_mu, theta_kappa, ATtcB, sampled_feature_index, mean_fixed_contrib, covariance_fixed_contrib):
@@ -281,7 +282,7 @@ class Sampler:
         
     
     
-    def sample_theta(self, num_samples=500, return_samples=False, burn_samples=100, integrate_tc_out = True, selection_method='median', selection_num_samples=10, debug=True):
+    def sample_theta(self, num_samples=500, return_samples=False, burn_samples=20, integrate_tc_out = True, selection_method='median', selection_num_samples=250, debug=False):
         '''
             Sample the thetas
             Need to use a slice sampler, as we do not know the normalization constant.
@@ -727,9 +728,12 @@ class Sampler:
         if should_exponentiate:
             # If desired, plot the likelihood, not the loglik
             llh_2angles = np.exp(llh_2angles)
-        
+
+        # Save it if we need to return it
+        if should_return:
+            llh_2angles_out = llh_2angles.copy()
+
         # Normalize loglik
-        # TODO DANGEROUS HERE
         llh_2angles /= np.abs(np.max(llh_2angles, axis=0))
         
         opt_angles = np.argmax(llh_2angles, axis=0)
@@ -770,7 +774,7 @@ class Sampler:
         plt.show()
 
         if should_return:
-            return llh_2angles
+            return llh_2angles_out
 
 
     def plot_likelihood_alltc(self, n=0, num_points=500, should_plot=True, should_sample=False, num_samples=2000, return_output=False, sampled_feature_index = 0):
@@ -839,9 +843,11 @@ class Sampler:
         x = np.linspace(-np.pi, np.pi, num_points)
         dx = np.diff(x)[0]
 
+        posterior /= np.sum(posterior*dx)
+
         np.seterr(all='raise')
         try:
-            FI_estim_curv = np.trapz(-np.diff(np.diff(log_posterior))*posterior[1:-1]/dx**2., x[1:-1])
+            FI_estim_curv = np.trapz(-np.gradient(np.gradient(log_posterior))*posterior/dx**2., x)
         except FloatingPointError:
             # print 'Overflow on n: %d' % n
             FI_estim_curv = np.nan
@@ -951,10 +957,6 @@ class Sampler:
                 return (self.compute_mean_std_circular_data(angle_errors), true_angles)
             else:
                 return self.compute_mean_std_circular_data(angle_errors)
-    
-    
-    def compute_misbinds(self, angles_errors):
-        raise NotImplementedError()
     
     
     def compute_mean_std_circular_data(self, angles):
@@ -2224,7 +2226,7 @@ def do_save_responses_simultaneous(args):
                 sampler.change_cued_features(tc)
 
                 # Sample the new theta
-                sampler.sample_theta(num_samples=args.num_samples, burn_samples=20, selection_method='median', selection_num_samples=args.selection_num_samples, integrate_tc_out=False, debug=False)
+                sampler.sample_theta(num_samples=args.num_samples, selection_num_samples=args.selection_num_samples, integrate_tc_out=False)
 
                 # Save the precision
                 # all_precisions[param1_i, repet_i] = sampler.get_precision()
@@ -2296,7 +2298,7 @@ def do_fisher_information_estimation(args):
             cued_feature_time = T-1
 
             if code_type == 'conj':
-                random_network = RandomFactorialNetwork.create_full_conjunctive(M, R=R, scale_moments=(rc_scale, 0.0001), ratio_moments=(1.0, 0.0001))
+                random_network = RandomFactorialNetwork.create_full_conjunctive(M, R=R, scale_moments=(rc_scale, 0.00001), ratio_moments=(1.0, 0.00001))
             elif code_type == 'feat':
                 random_network = RandomFactorialNetwork.create_full_features(M, R=R, scale=rc_scale, ratio=40.)
             elif code_type == 'mixed':
@@ -2333,7 +2335,8 @@ def do_fisher_information_estimation(args):
 
     elif args.subaction == 'rcscale_dependence':
 
-        rcscale_space = np.linspace(0.05, 100, 20)
+        # rcscale_space = np.linspace(0.05, 20, 5)
+        rcscale_space = np.linspace(20., 20., 1.)
         FI_M_effect = np.zeros_like(rcscale_space, dtype=float)
         FI_M_effect_std = np.zeros_like(rcscale_space, dtype=float)
 
