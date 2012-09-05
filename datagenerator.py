@@ -349,11 +349,13 @@ class DataGeneratorRFN(DataGenerator):
         for n in np.arange(self.N):
             for r in np.arange(self.R):
                 self.stimuli_correct[n, :, r] = (np.random.rand(self.T)-0.5)*2.*np.pi
+                # self.stimuli_correct[n, :, r] = (np.random.rand(self.T)-0.5)*np.pi
 
                 # Enforce minimal distance
                 while np.any(pdist(self.stimuli_correct[n, :, r][:, np.newaxis], 'chebyshev') < self.enforce_min_distance):
                     # Some are too close, resample
                     self.stimuli_correct[n, :, r] = (np.random.rand(self.T)-0.5)*2.*np.pi
+                    # self.stimuli_correct[n, :, r] = (np.random.rand(self.T)-0.5)*np.pi
         
         # Force first stimuli to be something specific
         forced_stimuli = np.array([[-0.4, 0.4], [-0.9, 0.9], [np.pi/2., -np.pi+0.05]])
