@@ -16,8 +16,19 @@ from randomfactorialnetwork import *
 from datagenerator import *
 from gibbs_sampler_continuous_fullcollapsed_randomfactorialnetwork import *
 
-def main():
-    pass
+def profile_me():
+    print "-------- Profiling ----------"
+    
+    import cProfile
+    import pstats
+    
+    cProfile.runctx('run_fisher_info_2d()', globals(), locals(), filename='profile_fi.stats')
+    
+    stat = pstats.Stats('profile_fi.stats')
+    stat.strip_dirs().sort_stats('cumulative').print_stats()
+    
+    return {}
+
 
 if __name__ == '__main__':
     '''
@@ -564,7 +575,7 @@ if __name__ == '__main__':
         plot_mean_std_area(param_space, FI_M_effect_mean, FI_M_effect_std)
 
     
-    if True:
+    if False:
         ## Redoing everything from scratch.
         # First try the Fisher Info in 1D, and see if the relation on kappa is correct.
         
@@ -676,7 +687,8 @@ if __name__ == '__main__':
 
                     lik = np.zeros(all_angles.size)
                     for i, angle in enumerate(all_angles):
-                        lik[i] = -np.log((2*np.pi)**0.5*sigma) -1./(2*sigma**2.)*np.sum((data - population_code_response(angle, N=N, kappa=kappa, amplitude=amplitude))**2.)
+                        # lik[i] = -np.log((2*np.pi)**0.5*sigma) -1./(2*sigma**2.)*np.sum((data - population_code_response(angle, N=N, kappa=kappa, amplitude=amplitude))**2.)
+                        lik[i] = -1./(2*sigma**2.)*np.sum((data - population_code_response(angle, N=N, kappa=kappa, amplitude=amplitude))**2.)
 
                     if remove_mean:
                         lik -= np.mean(lik)
@@ -705,9 +717,9 @@ if __name__ == '__main__':
 
                     # Fails when angles are close to 0/2pi.
                     # Could roll the posterior around to center it, wouldn't be that bad.
-                    fisher_info_curve[m] = np.trapz(-np.diff(np.diff(log_posterior))*posterior[1:-1]/dx**2., all_angles[1:-1])
+                    # fisher_info_curve[m] = np.trapz(-np.diff(np.diff(log_posterior))*posterior[1:-1]/dx**2., all_angles[1:-1])
+                    fisher_info_curve[m] = np.trapz(-np.gradient(np.gradient(log_posterior))*posterior/dx**2., all_angles)
                     
-                    # Replace this with circular variance estimate
                     #fisher_info_prec[m] = 1./fit_gaussian(all_angles, posterior, should_plot=False, return_fitted=False)[1]**2.
                     fisher_info_prec[m] = 1./(-2.*np.log(np.abs(np.trapz(posterior*np.exp(1j*all_angles), all_angles))))
 
@@ -727,8 +739,8 @@ if __name__ == '__main__':
             # plot_mean_std_area(num_points_space, np.array(effects_num_points)[:, 0], np.array(effects_num_points)[:, 1])
             effects_kappa = np.array(effects_kappa)
             effects_kappa_std = np.array(effects_kappa_std)
-
             
+
             # No small N / big kappa effect on Fisher information.
             plot_multiple_mean_std_area(kappa_space, effects_kappa.T, effects_kappa_std.T)
 
@@ -738,13 +750,182 @@ if __name__ == '__main__':
 
     if True:
         # Now do everything for 2D population code.
-        pass
+        
+        N     = (10.)**2
+        N_sqrt = int(np.sqrt(N))
+        kappa1 = 1.0
+        kappa2 = 1.0
+        sigma = 0.1
+        amplitude = 1.0
+
+        ## Fisher info
+        def fisher_info_2D_N(stimulus_space=None, pref_angles=None, N=100, kappa1=1.0, kappa2=1.0, sigma=1.0):
+            if pref_angles is None:
+                N_sqrt = int(np.sqrt(N))
+                coverage_1D = np.linspace(0., 2*np.pi, N_sqrt, endpoint=False)
+                pref_angles = np.array(cross(2*[coverage_1D.tolist()]))
+            
+            if stimulus_space is None:
+                phi_space = np.linspace(0., 2*np.pi, 20., endpoint=False)
+                psi_space = np.linspace(0., 2*np.pi, 20., endpoint=False)
+                stimulus_space = np.array(cross(phi_space, psi_space))
+            # theta = 0.0
+
+            return np.mean(np.sum(kappa1**2.*np.sin(stimulus_space[:, 0, np.newaxis] - pref_angles[:, 0])**2.*np.exp(2*kappa1*np.cos(stimulus_space[:, 0, np.newaxis] - pref_angles[:, 0]) + 2*kappa2*np.cos(stimulus_space[:, 1, np.newaxis] - pref_angles[:, 1]))/(sigma**2.*16.*np.pi**4.*scsp.i0(kappa1)**2.*scsp.i0(kappa2)**2.), axis=-1))
+            # return np.sum(kappa**2.*np.sin(theta - pref_angles)**2.*np.exp(2*kappa*np.cos(theta - pref_angles))/(sigma**2.*4.*np.pi**2.*scsp.i0(kappa)**2.))
+
+        def fisher_info_2D_Ninf(N=100, kappa1=1.0, kappa2=1.0, sigma=1.0):
+            if N:
+                rho = 1./(2*np.pi/(N))
+
+            return kappa1**2.*rho*(scsp.i0(2*kappa1) - scsp.iv(2, 2*kappa1))*scsp.i0(2*kappa2)/(sigma**2.*16*np.pi**3.*scsp.i0(kappa1)**2.*scsp.i0(kappa2)**2.)
+            
+
+        ## Population
+        N_sqrt = int(np.sqrt(N))
+        coverage_1D = np.linspace(0., 2*np.pi, N_sqrt, endpoint=False)
+        pref_angles = np.array(cross(2*[coverage_1D.tolist()]))
 
 
+        def population_code_response_2D(theta, pref_angles=None, N=100, kappa1=0.1, kappa2=0.1, amplitude=1.0):
+            if pref_angles is None:
+                N_sqrt = int(np.sqrt(N))
+                coverage_1D = np.linspace(0., 2*np.pi, N_sqrt, endpoint=False)
+                pref_angles = np.array(cross(2*[coverage_1D.tolist()]))
+
+            return amplitude*np.exp(kappa1*np.cos(theta[0] - pref_angles[:, 0]) + kappa2*np.cos(theta[1] - pref_angles[:, 1]))/(4.*np.pi**2.*scsp.i0(kappa1)*scsp.i0(kappa2))
+
+        def show_population_output(data):
+            N_sqrt = int(np.sqrt(data.size))
+            plt.figure()
+            plt.imshow(data.reshape((N_sqrt, N_sqrt)).T, origin='left', interpolation='nearest')
+            plt.show()
 
 
+        def likelihood_2D(data, all_angles, pref_angles=None, N=100, kappa1=0.1, kappa2=0.1, sigma=1.0, should_exponentiate=True, remove_mean=False):
+                if pref_angles is None:
+                    N_sqrt = int(np.sqrt(N))
+                    coverage_1D = np.linspace(0., 2*np.pi, N_sqrt, endpoint=False)
+                    pref_angles = np.array(cross(2*[coverage_1D.tolist()]))
+
+                lik = np.zeros(all_angles.shape[0])
+                for i, angle in enumerate(all_angles):
+                    lik[i] = -1./(2*sigma**2.)*np.sum((data - population_code_response_2D(angle, pref_angles=pref_angles, N=N, kappa1=kappa1, kappa2=kappa2, amplitude=amplitude))**2.)
+
+                if remove_mean:
+                    lik -= np.mean(lik)
+
+                if should_exponentiate:
+                    lik = np.exp(lik)
+
+                return lik
+
+        def likelihood_2D_clamped(data, theta2, angles_1D=None, pref_angles=None, N=100, kappa1=0.1, kappa2=0.1, sigma=1.0, should_exponentiate=True, remove_mean=True):
+            if pref_angles is None:
+                N_sqrt = int(np.sqrt(N))
+                coverage_1D = np.linspace(0., 2*np.pi, N_sqrt, endpoint=False)
+                pref_angles = np.array(cross(2*[coverage_1D.tolist()]))
+
+            if angles_1D is None:
+                angles_1D = np.linspace(0., 2.*np.pi, 1000, endpoint=False)
+
+            lik = np.zeros(angles_1D.shape[0])
+            for i, theta1 in enumerate(angles_1D):
+                lik[i] = -1./(2*sigma**2.)*np.sum((data - population_code_response_2D([theta1, theta2], pref_angles=pref_angles, N=N, kappa1=kappa1, kappa2=kappa2, amplitude=amplitude))**2.)
+
+            if remove_mean:
+                lik -= np.mean(lik)
+
+            if should_exponentiate:
+                lik = np.exp(lik)
+
+            return lik
+
+        num_points = 200
+            
+        angles_1D = np.linspace(0., 2.*np.pi, num_points, endpoint=False)
+        all_angles = np.array(cross(angles_1D, angles_1D))
+
+        angles_clamped_fi = np.linspace(0., 2.*np.pi, 1000, endpoint=False)
 
 
+        # kappa_space = np.linspace(0.001, 20., 10)
+        kappa_space = np.linspace(20., 20., 1)
+
+        effects_kappa_mean = []
+        effects_kappa_std = []
+
+        for k, kappa1 in enumerate(kappa_space):
+            print 'DOING KAPPA: %.3f' % kappa1
+
+            kappa2 = kappa1
+
+            ## Generate dataset
+            M = 20
+            # stimuli_used = np.random.rand(M, 2)*np.pi*2.
+            stimuli_used = np.random.rand(M, 2)*np.pi/2. + np.pi*3/4.
+            stimuli_used[0] = np.array([np.pi-0.4, np.pi+0.4])
+
+            dataset = np.zeros((M, N))
+            for i, stim in enumerate(stimuli_used):
+                dataset[i] = population_code_response_2D(stim, pref_angles=pref_angles, N=N, kappa1=kappa1, kappa2=kappa2, amplitude=amplitude) + sigma*np.random.randn(N)
+
+            ## Estimate fisher info
+            print "Estimate fisher info"
+            fisher_info_curve = np.zeros(M)
+            fisher_info_curve_clamped = np.zeros(M)
+            fisher_info_prec = np.zeros(M)
+            dx = np.diff(all_angles[:, 0]).max()
+            dx_clamped = np.diff(angles_clamped_fi)[0]
+
+            for m, data in enumerate(dataset):
+                print m
+                
+                # posterior = likelihood_2D(data, all_angles, pref_angles=pref_angles, N=N, kappa1=kappa1, kappa2=kappa2, sigma=sigma)
+                # # posterior += 1e-310
+
+                # log_posterior = np.log(posterior)
+                
+                # log_posterior[np.isinf(log_posterior)] = 0.0
+                # log_posterior[np.isnan(log_posterior)] = 0.0
+
+                # posterior /= np.sum(posterior*dx**2.)
+
+                # # Full fisher info
+                # fisher_info_curve[m] = np.trapz(np.trapz((-np.gradient(np.gradient(log_posterior.reshape((num_points, num_points)))[0])[0]*posterior.reshape((num_points, num_points))/dx**2.), angles_1D), angles_1D)
+
+                # Clamped fisher info
+                posterior_clamped = likelihood_2D_clamped(data, stimuli_used[m, 1], angles_1D=angles_clamped_fi, pref_angles=pref_angles, N=N, kappa1=kappa1, kappa2=kappa2, sigma=sigma)
+                log_posterior_clamped = np.log(posterior_clamped)
+                log_posterior_clamped[np.isinf(log_posterior_clamped)] = 0.0
+                log_posterior_clamped[np.isnan(log_posterior_clamped)] = 0.0
+                posterior_clamped /= np.sum(posterior_clamped*dx_clamped)
+
+                fisher_info_curve_clamped[m] = np.trapz(-np.gradient(np.gradient(log_posterior_clamped))*posterior_clamped/dx_clamped**2., angles_clamped_fi)
+
+                
+                #fisher_info_prec[m] = 1./fit_gaussian(all_angles, posterior, should_plot=False, return_fitted=False)[1]**2.
+                # fisher_info_prec[m] = 1./(-2.*np.log(np.abs(np.trapz(posterior*np.exp(1j*all_angles), all_angles))))
+
+            fisher_info_curve_mean = np.mean(fisher_info_curve)
+            fisher_info_curve_std = np.std(fisher_info_curve)
+            # fisher_info_prec_mean = np.mean(fisher_info_prec)
+            # fisher_info_prec_std = np.std(fisher_info_prec)
+            fisher_info_curve_clamped_mean = np.mean(fisher_info_curve_clamped)
+            fisher_info_curve_clamped_std = np.std(fisher_info_curve_clamped)
+
+            print "FI curve: %.3f, FI clamped: %.3f, Theo: %.3f, Theo large N: %.3f" % (fisher_info_curve_mean, fisher_info_curve_clamped_mean, fisher_info_2D_N(pref_angles=pref_angles, N=N, kappa1=kappa1, kappa2=kappa2, sigma=sigma), fisher_info_2D_Ninf(N=N, kappa1=kappa1, kappa2=kappa2, sigma=sigma))
+
+            effects_kappa_mean.append((fisher_info_curve_mean, fisher_info_curve_clamped_mean, fisher_info_2D_N(pref_angles=pref_angles, N=N, kappa1=kappa1, kappa2=kappa2, sigma=sigma), fisher_info_2D_Ninf(N=N, kappa1=kappa1, kappa2=kappa2, sigma=sigma)))
+            effects_kappa_std.append((fisher_info_curve_std, fisher_info_curve_clamped_std, 0.0, 0.0))
+
+
+        effects_kappa_mean = np.array(effects_kappa_mean)
+        effects_kappa_std = np.array(effects_kappa_std)
+
+        plot_multiple_mean_std_area(kappa_space, effects_kappa_mean.T, effects_kappa_std.T)
+
+        plt.legend(['Curve', 'Clamped', 'Theo', 'Theo large N'])
 
 
 
