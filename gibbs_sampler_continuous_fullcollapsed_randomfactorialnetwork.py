@@ -38,8 +38,8 @@ def loglike_theta_fct_vect(thetas, (datapoint, rn, theta_mu, theta_kappa, ATtcB,
             
     # Using inverse covariance as param
     # return theta_kappa*np.cos(thetas[sampled_feature_index] - theta_mu) - 0.5*np.dot(like_mean, np.dot(covariance_fixed_contrib, like_mean))
-    return -0.5*np.dot(like_mean, np.dot(covariance_fixed_contrib, like_mean))
-    # return -1./(2*0.1**2)*np.sum(like_mean**2.)
+    # return -0.5*np.dot(like_mean, np.dot(covariance_fixed_contrib, like_mean))
+    return -1./(2*0.1**2)*np.sum(like_mean**2.)
 
 
 def loglike_theta_fct_single(new_theta, (thetas, datapoint, rn, theta_mu, theta_kappa, ATtcB, sampled_feature_index, mean_fixed_contrib, covariance_fixed_contrib)):
@@ -857,6 +857,30 @@ class Sampler:
         return FI_estim_curv
 
 
+    def estimate_precision_from_posterior(self, n=0, num_points=500):
+        '''
+            Look at the posterior to estimate the precision directly
+        '''
+
+        posterior = self.plot_likelihood_correctlycuedtimes(n=n, num_points=num_points, should_plot=False, should_return=True, should_exponentiate = True, debug=False)[:, 0]
+
+        x = np.linspace(-np.pi, np.pi, num_points)
+        dx = np.diff(x)[0]
+
+        posterior /= np.sum(posterior*dx)
+
+        np.seterr(all='raise')
+        try:
+            precision_estimated = 1./(-2.*np.log(np.abs(np.trapz(posterior*np.exp(1j*x), x))))
+        except FloatingPointError:
+            # print 'Overflow on n: %d' % n
+            precision_estimated = np.nan
+
+        np.seterr(all='warn')
+
+        return precision_estimated
+
+
     def estimate_fisher_info_from_posterior_avg(self, num_points=500, return_std=False):
         '''
             Estimate the Fisher Information from the curvature of the posterior.
@@ -873,6 +897,25 @@ class Sampler:
             return (nanmean(mean_FI), nanstd(mean_FI), nanmedian(mean_FI))
         else:
             return nanmean(mean_FI)
+
+
+    def estimate_precision_from_posterior_avg(self, num_points=500, return_std=False):
+        '''
+            Estimate the precision from the posterior.
+
+            Takes the mean over all datapoints.
+        '''
+
+        precisions = np.zeros(self.N)
+
+        for i in xrange(self.N):
+            precisions[i] = self.estimate_precision_from_posterior(n=i, num_points=num_points)
+
+        if return_std:
+            print precisions
+            return (nanmean(precisions), nanstd(precisions), nanmedian(precisions))
+        else:
+            return nanmean(precisions)
 
 
     
@@ -2336,7 +2379,7 @@ def do_fisher_information_estimation(args):
     elif args.subaction == 'rcscale_dependence':
 
         # rcscale_space = np.linspace(0.05, 20, 5)
-        rcscale_space = np.linspace(20., 20., 1.)
+        rcscale_space = np.linspace(2., 2., 1.)
         FI_M_effect = np.zeros_like(rcscale_space, dtype=float)
         FI_M_effect_std = np.zeros_like(rcscale_space, dtype=float)
 
