@@ -292,6 +292,66 @@ def plot_mean_std_area(x, y, std, ax_handle=None):
     return ax_handle
 
 
+def plot_multiple_median_quantile_area(x, y=None, quantiles=None, axis=-1, ax_handle=None):
+    '''
+        Plots multiple x-y data with median and quantiles, on the same graph
+
+        Will iterate over the first axis, has to...
+
+        Assume that you give either the raw data in y, or the quantiles.
+    '''
+    
+    assert (y is not None or quantiles is not None), "Give either y or quantiles"
+
+    if ax_handle is None:
+        f = plt.figure()
+        ax_handle = f.add_subplot(111)
+    
+    if x.ndim == 1:
+        # x should be extended, for convenience
+        if y is not None:
+            x = np.tile(x, (y.shape[0], 1))
+        else:
+            x = np.tile(x, (quantiles.shape[0], 1))
+
+    for curr_plt in xrange(x.shape[0]):
+        if y is not None:
+            ax_handle = plot_median_quantile_area(x[curr_plt], y[curr_plt], quantiles=None, axis=axis, ax_handle=ax_handle)
+        elif quantiles is not None:
+            ax_handle = plot_median_quantile_area(x[curr_plt], quantiles=quantiles[curr_plt], axis=axis, ax_handle=ax_handle)
+
+
+    return ax_handle
+
+
+def plot_median_quantile_area(x, y=None, quantiles=None, axis=-1, ax_handle=None):
+    """
+        Plot the given x-y data, showing the median of y, and its 25 and 75 quantiles as a shaded area
+
+        If ax_handle is given, plots on this figure
+    """
+
+    assert (y is not None or quantiles is not None), "Give either y or quantiles"
+
+    if quantiles is None:
+        quantiles = spst.mstats.mquantiles(y, axis=axis, prob=[0.25, 0.5, 0.75])
+
+    if ax_handle is None:
+        f = plt.figure()
+        ax_handle = f.add_subplot(111)
+    
+    ax = ax_handle.plot(x, quantiles[..., 1])
+
+    current_color = ax[-1].get_c()
+    
+    ax_handle.fill_between(x, quantiles[..., 0], quantiles[..., 2], facecolor=current_color, alpha=0.4,
+                        label='quantile')
+    
+    ax_handle.get_figure().canvas.draw()
+
+    return ax_handle
+
+
 def semilogy_mean_std_area(x, y, std, ax_handle=None):
     if ax_handle is None:
         f = plt.figure()

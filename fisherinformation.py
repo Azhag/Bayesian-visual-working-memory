@@ -751,7 +751,7 @@ if __name__ == '__main__':
     if True:
         # Now do everything for 2D population code.
         
-        N     = (10.)**2
+        N     = (15.)**2
         N_sqrt = int(np.sqrt(N))
         kappa1 = 1.0
         kappa2 = 1.0
@@ -848,12 +848,15 @@ if __name__ == '__main__':
 
         angles_clamped_fi = np.linspace(0., 2.*np.pi, 1000, endpoint=False)
 
-
-        # kappa_space = np.linspace(0.001, 30., 20)
-        kappa_space = np.linspace(30., 30., 1)
+        kappa_space = np.linspace(0.001, 30., 20)
+        # kappa_space = np.linspace(30., 30., 1)
 
         effects_kappa_mean = []
         effects_kappa_std = []
+        effects_kappa_quantiles = []
+
+        fisher_info_curve_clamped_all = []
+
 
         for k, kappa1 in enumerate(kappa_space):
             print 'DOING KAPPA: %.3f' % kappa1
@@ -909,24 +912,37 @@ if __name__ == '__main__':
 
             fisher_info_curve_mean = np.mean(fisher_info_curve)
             fisher_info_curve_std = np.std(fisher_info_curve)
+
             fisher_info_prec_mean = np.mean(fisher_info_prec)
             fisher_info_prec_std = np.std(fisher_info_prec)
+            fisher_info_prec_quantiles = spst.mstats.mquantiles(fisher_info_prec)
+
             fisher_info_curve_clamped_mean = np.mean(fisher_info_curve_clamped)
             fisher_info_curve_clamped_std = np.std(fisher_info_curve_clamped)
+            fisher_info_curve_clamped_quantiles = spst.mstats.mquantiles(fisher_info_curve_clamped)
+            
+            fi_theo_N = fisher_info_2D_N(pref_angles=pref_angles, N=N, kappa1=kappa1, kappa2=kappa2, sigma=sigma)
+            fi_theo_Ninf = fisher_info_2D_Ninf(N=N, kappa1=kappa1, kappa2=kappa2, sigma=sigma)
 
-            print "FI precision: %.3f, FI clamped: %.3f, Theo: %.3f, Theo large N: %.3f" % (fisher_info_prec_mean, fisher_info_curve_clamped_mean, fisher_info_2D_N(pref_angles=pref_angles, N=N, kappa1=kappa1, kappa2=kappa2, sigma=sigma), fisher_info_2D_Ninf(N=N, kappa1=kappa1, kappa2=kappa2, sigma=sigma))
+            print "FI precision: %.3f, FI clamped: %.3f, Theo: %.3f, Theo large N: %.3f" % (fisher_info_prec_mean, fisher_info_curve_clamped_mean, fi_theo_N, fi_theo_Ninf)
 
-            effects_kappa_mean.append((fisher_info_prec_mean, fisher_info_curve_clamped_mean, fisher_info_2D_N(pref_angles=pref_angles, N=N, kappa1=kappa1, kappa2=kappa2, sigma=sigma), fisher_info_2D_Ninf(N=N, kappa1=kappa1, kappa2=kappa2, sigma=sigma)))
+            effects_kappa_mean.append((fisher_info_prec_mean, fisher_info_curve_clamped_mean, fi_theo_N, fi_theo_Ninf))
             effects_kappa_std.append((fisher_info_prec_std, fisher_info_curve_clamped_std, 0.0, 0.0))
+            effects_kappa_quantiles.append((fisher_info_prec_quantiles, fisher_info_curve_clamped_quantiles, np.array([fi_theo_N, ]*3), np.array([fi_theo_Ninf, ]*3)))
+            fisher_info_curve_clamped_all.append(fisher_info_curve_clamped)
 
 
         effects_kappa_mean = np.array(effects_kappa_mean)
         effects_kappa_std = np.array(effects_kappa_std)
+        fisher_info_curve_clamped_all = np.array(fisher_info_curve_clamped_all)
+        effects_kappa_quantiles = np.array(effects_kappa_quantiles)
 
         plot_multiple_mean_std_area(kappa_space, effects_kappa_mean.T, effects_kappa_std.T)
 
         plt.legend(['Precision from 1D Clamped', '1D Clamped curvature', '2D Theo', '2D Theo large N'])
 
+        plot_multiple_median_quantile_area(kappa_space, quantiles=effects_kappa_quantiles.transpose(1, 0, 2))
+        plt.legend(['Precision from 1D Clamped', '1D Clamped curvature', '2D Theo', '2D Theo large N'])
 
 
 
