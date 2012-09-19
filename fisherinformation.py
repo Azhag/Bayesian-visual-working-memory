@@ -9,6 +9,7 @@ Copyright (c) 2012 Gatsby Unit. All rights reserved.
 
 import pylab as plt
 import numpy as np
+import scipy.special as scsp
 
 from utils import *
 from statisticsmeasurer import *
@@ -574,6 +575,15 @@ if __name__ == '__main__':
 
         plot_mean_std_area(param_space, FI_M_effect_mean, FI_M_effect_std)
 
+
+
+
+
+################################################################################
+########################################################################################################################################################
+################################################################################
+
+
     
     if False:
         ## Redoing everything from scratch.
@@ -718,7 +728,14 @@ if __name__ == '__main__':
                     # Fails when angles are close to 0/2pi.
                     # Could roll the posterior around to center it, wouldn't be that bad.
                     # fisher_info_curve[m] = np.trapz(-np.diff(np.diff(log_posterior))*posterior[1:-1]/dx**2., all_angles[1:-1])
-                    fisher_info_curve[m] = np.trapz(-np.gradient(np.gradient(log_posterior))*posterior/dx**2., all_angles)
+                    
+                    # Actually wrong, see Issue #23
+                    # fisher_info_curve[m] = np.trapz(-np.gradient(np.gradient(log_posterior))*posterior/dx**2., all_angles)
+
+                    # Take curvature at ML value
+                    ml_index = np.argmax(posterior)
+                    curv_logp = -np.gradient(np.gradient(log_posterior))/dx**2.
+                    fisher_info_curve[m] = curv_logp[ml_index]
                     
                     #fisher_info_prec[m] = 1./fit_gaussian(all_angles, posterior, should_plot=False, return_fitted=False)[1]**2.
                     fisher_info_prec[m] = 1./(-2.*np.log(np.abs(np.trapz(posterior*np.exp(1j*all_angles), all_angles))))
@@ -904,8 +921,11 @@ if __name__ == '__main__':
                 log_posterior_clamped[np.isnan(log_posterior_clamped)] = 0.0
                 posterior_clamped /= np.sum(posterior_clamped*dx_clamped)
 
-                fisher_info_curve_clamped[m] = np.trapz(-np.gradient(np.gradient(log_posterior_clamped))*posterior_clamped/dx_clamped**2., angles_clamped_fi)
-                
+                # Incorrect here, see Issue #23
+                # fisher_info_curve_clamped[m] = np.trapz(-np.gradient(np.gradient(log_posterior_clamped))*posterior_clamped/dx_clamped**2., angles_clamped_fi)
+                ml_index = np.argmax(posterior_clamped)
+                curv_logp = -np.gradient(np.gradient(log_posterior_clamped))/dx_clamped**2.
+                fisher_info_curve_clamped[m] = curv_logp[ml_index]                
 
                 #fisher_info_prec[m] = 1./fit_gaussian(all_angles, posterior, should_plot=False, return_fitted=False)[1]**2.
                 fisher_info_prec[m] = 1./(-2.*np.log(np.abs(np.trapz(posterior_clamped*np.exp(1j*angles_clamped_fi), angles_clamped_fi))))

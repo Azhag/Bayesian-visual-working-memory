@@ -847,7 +847,14 @@ class Sampler:
 
         np.seterr(all='raise')
         try:
-            FI_estim_curv = np.trapz(-np.gradient(np.gradient(log_posterior))*posterior/dx**2., x)
+            # Incorrect here, see Issue #23
+            # FI_estim_curv = np.trapz(-np.gradient(np.gradient(log_posterior))*posterior/dx**2., x)
+
+            ml_index = np.argmax(posterior)
+            curv_logp = -np.gradient(np.gradient(log_posterior))/dx**2.
+
+            # take the curvature at the ML value
+            FI_estim_curv = curv_logp[ml_index]
         except FloatingPointError:
             # print 'Overflow on n: %d' % n
             FI_estim_curv = np.nan
