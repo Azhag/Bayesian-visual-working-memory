@@ -38,8 +38,11 @@ def loglike_theta_fct_vect(thetas, (datapoint, rn, theta_mu, theta_kappa, ATtcB,
             
     # Using inverse covariance as param
     # return theta_kappa*np.cos(thetas[sampled_feature_index] - theta_mu) - 0.5*np.dot(like_mean, np.dot(covariance_fixed_contrib, like_mean))
-    # return -0.5*np.dot(like_mean, np.dot(covariance_fixed_contrib, like_mean))
-    return -1./(2*0.1**2)*np.sum(like_mean**2.)
+    return -0.5*np.dot(like_mean, np.dot(covariance_fixed_contrib, like_mean))
+    # return -1./(2*0.2**2)*np.sum(like_mean**2.)
+
+    # TODO Found the error for the mismatch between samples and posterior here... Using two functions is retarded, should refactore it.
+    # Something funny though: this could be a nice way to get the mismatch between the sigma I approximation to the full covariance matrix.
 
 
 def loglike_theta_fct_single(new_theta, (thetas, datapoint, rn, theta_mu, theta_kappa, ATtcB, sampled_feature_index, mean_fixed_contrib, covariance_fixed_contrib)):
@@ -55,6 +58,7 @@ def loglike_theta_fct_single(new_theta, (thetas, datapoint, rn, theta_mu, theta_
     # Using inverse covariance as param
     # return theta_kappa*np.cos(thetas[sampled_feature_index] - theta_mu) - 0.5*np.dot(like_mean, np.dot(covariance_fixed_contrib, like_mean))
     return -0.5*np.dot(like_mean, np.dot(covariance_fixed_contrib, like_mean))
+    # return -1./(2*0.2**2)*np.sum(like_mean**2.)
 
 
 def loglike_theta_fct_single_min(x, thetas, datapoint, rn, theta_mu, theta_kappa, ATtcB, sampled_feature_index, mean_fixed_contrib, covariance_fixed_contrib):
@@ -282,7 +286,7 @@ class Sampler:
         
     
     
-    def sample_theta(self, num_samples=500, return_samples=False, burn_samples=20, integrate_tc_out = True, selection_method='median', selection_num_samples=250, debug=False):
+    def sample_theta(self, num_samples=500, return_samples=False, burn_samples=20, integrate_tc_out = True, selection_method='median', selection_num_samples=250, subset_theta=None, debug=False):
         '''
             Sample the thetas
             Need to use a slice sampler, as we do not know the normalization constant.
@@ -294,19 +298,23 @@ class Sampler:
             # Limit selection_num_samples
             selection_num_samples = num_samples
 
-        # Iterate over whole datapoints
-        # permuted_datapoints = np.random.permutation(np.arange(self.N))
-        permuted_datapoints = np.arange(self.N)
-        # permuted_datapoints = np.arange(1)
+        if subset_theta is not None:
+            # Should only sample a subset of the theta
+            permuted_datapoints = np.array(subset_theta)
+        else:
+            # Iterate over whole datapoints
+            # permuted_datapoints = np.random.permutation(np.arange(self.N))
+            permuted_datapoints = np.arange(self.N)
         
         # errors = np.zeros(permuted_datapoints.shape, dtype=float)
 
         if return_samples:
-            all_samples = np.zeros((self.N, num_samples))
+            all_samples = np.zeros((permuted_datapoints.size, num_samples))
 
         # curr_theta = np.zeros(self.R)
         
         # Do everything in log-domain, to avoid numerical errors
+        i = 0
         for n in permuted_datapoints:
             # curr_theta = self.theta[n].copy()
             
@@ -326,7 +334,7 @@ class Sampler:
 
                 # Keep all samples if desired
                 if return_samples:
-                    all_samples[n] = samples
+                    all_samples[i] = samples
                 
                 # Select the new orientation
                 if selection_method == 'median':
@@ -354,18 +362,22 @@ class Sampler:
                 #     sample_h, left_x = np.histogram(samples, bins=x)
                 #     plt.bar(x[:-1], sample_h/np.max(sample_h).astype('float'), facecolor='green', alpha=0.75, width=np.diff(x)[0])
             
-        
+            i+= 1
+
         if return_samples:
             return all_samples
     
-    def get_samples_theta_current_tc(self, n, num_samples=2000, sampled_feature_index=0, burn_samples=100):
+
+    def get_samples_theta_current_tc(self, n, num_samples=2000, sampled_feature_index=0, burn_samples=200):
 
         # Pack the parameters for the likelihood function.
         #   Here, as the loglike_function only varies one of the input, need to give the rest of the theta vector.
         params = (self.theta[n], self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[self.tc[n]], sampled_feature_index, self.mean_fixed_contrib[self.tc[n]], self.covariance_fixed_contrib)
-                
+
         # Sample the new theta
         samples, llh = self.slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=np.pi/5., loglike_fct_params=params, debug=False, step_out=True)
+        # samples, llh = self.slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=0.01, loglike_fct_params=params, debug=False, step_out=True)
+        
         # samples, llh = self.slicesampler.sample_1D_circular(1, self.theta[n, sampled_feature_index], loglike_theta_fct, burn=100, widths=np.pi/3., thinning=2, loglike_fct_params=params, debug=False, step_out=True)
 
         return (samples, llh)
@@ -864,6 +876,26 @@ class Sampler:
         return FI_estim_curv
 
 
+
+    def estimate_fisher_info_from_posterior_avg(self, num_points=500, return_std=False):
+        '''
+            Estimate the Fisher Information from the curvature of the posterior.
+
+            Takes the mean over all datapoints.
+        '''
+
+        mean_FI = np.zeros(self.N)
+
+        for i in xrange(self.N):
+            mean_FI[i] = self.estimate_fisher_info_from_posterior(n=i, num_points=num_points)
+
+        if return_std:
+            return (nanmean(mean_FI), nanstd(mean_FI), nanmedian(mean_FI))
+        else:
+            return nanmean(mean_FI)
+
+
+
     def estimate_precision_from_posterior(self, n=0, num_points=500):
         '''
             Look at the posterior to estimate the precision directly
@@ -888,23 +920,6 @@ class Sampler:
         return precision_estimated
 
 
-    def estimate_fisher_info_from_posterior_avg(self, num_points=500, return_std=False):
-        '''
-            Estimate the Fisher Information from the curvature of the posterior.
-
-            Takes the mean over all datapoints.
-        '''
-
-        mean_FI = np.zeros(self.N)
-
-        for i in xrange(self.N):
-            mean_FI[i] = self.estimate_fisher_info_from_posterior(n=i, num_points=num_points)
-
-        if return_std:
-            return (nanmean(mean_FI), nanstd(mean_FI), nanmedian(mean_FI))
-        else:
-            return nanmean(mean_FI)
-
 
     def estimate_precision_from_posterior_avg(self, num_points=500, return_std=False):
         '''
@@ -925,6 +940,29 @@ class Sampler:
             return nanmean(precisions)
 
 
+    def plot_comparison_samples_fit_posterior(self, n=0, samples=None, num_samples=1000, num_points=1000):
+        '''
+            Plot a series of samples (usually from theta), associated with the posterior generating them and a gaussian fit.
+
+            Trying to see where the bias from the Slice Sampler comes from
+        '''
+
+        if samples is None:
+            # no samples, get them
+            samples = self.sample_theta(num_samples=num_samples, integrate_tc_out=False, return_samples=True, subset_theta=[n])[0]
+
+        # Plot the samples and the fit
+        fit_gaussian_samples(samples)
+
+        # Get the posterior
+        posterior = self.plot_likelihood_correctlycuedtimes(n=n, num_points=num_points, should_plot=False, should_return=True, should_exponentiate = True, debug=False)[:, 0]
+
+        x = np.linspace(-np.pi, np.pi, num_points)
+
+        plt.plot(x, posterior/posterior.max(), 'k')
+
+        plt.legend(['Fit', 'Posterior'])
+        
     
     #################
     
@@ -1274,12 +1312,15 @@ def do_simple_run(args):
     print "Inferring optimal angles, for t=%d" % sampler.tc[0]
     # sampler.set_theta_max_likelihood(num_points=500, post_optimise=True)
     
-    # if args.inference_method == 'sample':
-    #     # Sample thetas
-    #     sampler.sample_theta(num_samples=args.num_samples, burn_samples=20, selection_method='median', selection_num_samples=args.num_samples, integrate_tc_out=False, debug=False)
-    # elif args.inference_method == 'max_lik':
-    #     # Just use the ML value for the theta
-    #     sampler.set_theta_max_likelihood(num_points=200, post_optimise=True)
+    if args.inference_method == 'sample':
+        # Sample thetas
+        sampler.sample_theta(num_samples=args.num_samples, burn_samples=20, selection_method='median', selection_num_samples=args.num_samples, integrate_tc_out=False, debug=False)
+    elif args.inference_method == 'max_lik':
+        # Just use the ML value for the theta
+        sampler.set_theta_max_likelihood(num_points=200, post_optimise=True)
+    elif args.inference_method == 'none':
+        # Do nothing
+        pass
         
     sampler.print_comparison_inferred_groundtruth()
     
@@ -2471,7 +2512,7 @@ if __name__ == '__main__':
     parser.add_argument('--action_to_do', choices=actions.keys(), default='do_simple_run')
     parser.add_argument('--input_filename', default='', help='Some input file, depending on context')
     parser.add_argument('--num_repetitions', type=int, default=1, help='For search actions, number of repetitions to average on')
-    parser.add_argument('--N', default=200, type=int, help='Number of datapoints')
+    parser.add_argument('--N', default=100, type=int, help='Number of datapoints')
     parser.add_argument('--T', default=1, type=int, help='Number of times')
     parser.add_argument('--K', default=2, type=int, help='Number of representated features')  # Warning: Need more data for bigger matrix
     parser.add_argument('--D', default=32, type=int, help='Dimensionality of features')
@@ -2486,7 +2527,7 @@ if __name__ == '__main__':
     parser.add_argument('--sigmax', type=float, default=0.2, help='Noise per object')
     parser.add_argument('--sigmay', type=float, default=0.02, help='Noise along time')
     parser.add_argument('--ratio_conj', type=float, default=0.2, help='Ratio of conjunctive/field subpopulations for mixed network')
-    parser.add_argument('--inference_method', choices=['sample', 'max_lik'], default='sample', help='Method used to infer the responses. Either sample (default) or set the maximum likelihood/posterior values directly.')
+    parser.add_argument('--inference_method', choices=['sample', 'max_lik', 'none'], default='sample', help='Method used to infer the responses. Either sample (default) or set the maximum likelihood/posterior values directly.')
     parser.add_argument('--subaction', default='', help='Some actions have multiple possibilities.')
 
 
