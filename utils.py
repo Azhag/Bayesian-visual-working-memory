@@ -735,7 +735,7 @@ def fit_gaussian(xdata, ydata, should_plot = True, return_fitted_data = True, no
         return np.array([mean_fit, std_fit, max_fit])
 
 
-def fit_gaussian_samples(samples, should_plot = True, return_fitted_data = True, normalise = True, debug = False):
+def fit_gaussian_samples(samples, num_points=500, bound=np.pi, should_plot = True, return_fitted_data = True, normalise = True, debug = False):
     """
         Fit a 1D Gaussian on the samples provided.
 
@@ -745,7 +745,11 @@ def fit_gaussian_samples(samples, should_plot = True, return_fitted_data = True,
     mean_fit = np.mean(samples)
     std_fit = np.std(samples)
 
-    x = np.linspace(samples.min()*1.5, samples.max()*1.5, 1000)
+    # x = np.linspace(samples.min()*1.5, samples.max()*1.5, 1000)
+    x = np.linspace(-bound, bound, num_points)
+
+    print mean_fit
+    print std_fit
 
     fitted_data = spst.norm.pdf(x, mean_fit, std_fit)
 
@@ -754,10 +758,10 @@ def fit_gaussian_samples(samples, should_plot = True, return_fitted_data = True,
 
     if should_plot:
         if normalise:
-            histogram_angular_data(samples, norm='max', bins=1000)
+            histogram_angular_data(samples, norm='max', bins=num_points)
             plt.plot(x, fitted_data/np.max(fitted_data), 'r')
         else:
-            histogram_angular_data(samples, bins=1000)
+            histogram_angular_data(samples, bins=num_points)
             plt.plot(x, fitted_data, 'r')
 
         plt.show()
