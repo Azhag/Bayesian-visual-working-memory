@@ -17,7 +17,9 @@ N     = 50
 kappa = 4.0
 sigma = 0.1
 amplitude = 1.0
-            
+
+# Put a prior on all the theta?
+with_prior = True
 
 ## Generate dataset
 M = 1
@@ -30,61 +32,23 @@ for i, stim in enumerate(stimuli_used):
 
 
 ## Now build the model
-# single data
 
-# mu_theta = pymc.Uniform('mu', lower=-np.pi, upper=np.pi)
-# mu_theta = pymc.CircVonMises('mu', mu=0.0, kappa=0.001)
-# kappa_theta = pymc.Uniform('kappa', lower=0.0, upper=100.0)
-
-# theta = pymc.CircVonMises('theta', mu=0.0, kappa=0.001)
-# # theta = pymc.CircVonMises('theta', mu=mu_theta, kappa=kappa_theta)
-# # theta = pymc.CircVonMises('theta', mu=mu_theta, kappa=5.)
-# # theta = pymc.Uniform('theta', lower=-np.pi, upper=np.pi)
-
-# @pymc.deterministic
-# def deterministic_popresponse(theta=theta, N=N, kappa=kappa):
-#     """
-#         Get an angle, returns the population response.
-
-#         Dimension N
-#     """
-#     # Maybe enforce that theta \in [0, 2pi]...
-#     pref_angles = np.linspace(-np.pi, np.pi, N, endpoint=False)
-
-#     return np.exp(kappa*np.cos(theta - pref_angles))/(2.*np.pi*scsp.i0(kappa))
-
-# print stimuli_used[0]
-# memory = pymc.MvNormal('m_0', mu=deterministic_popresponse, tau=1./sigma**0.5*np.eye(N), value=dataset[0], observed=True)
-
-# all data
+if with_prior:
+    mu_theta = pymc.CircVonMises('mu', mu=0.0, kappa=0.001)
+    kappa_theta = pymc.Uniform('kappa', lower=0.0, upper=100.0)
 
 all_theta = np.empty(M, dtype=object)
-all_theta2 = np.empty(M, dtype=object)
 all_memory = np.empty(M, dtype=object)
 all_mu_popresp = np.empty(M, dtype=object)
 
 for i in np.arange(M):
-    all_theta[i] = pymc.CircVonMises('theta1_%d' % i, mu=0.0, kappa=0.001)
-    all_theta2[i] = pymc.CircVonMises('theta2_%d' % i, mu=0.0, kappa=0.001)
-    # all_theta[i] = pymc.CircVonMises('theta_%d' % i, mu=mu_theta, kappa=kappa_theta)
+    if with_prior:
+        all_theta[i] = pymc.CircVonMises('theta_%d' % i, mu=mu_theta, kappa=kappa_theta)    
+    else:
+        all_theta[i] = pymc.CircVonMises('theta_%d' % i, mu=0.0, kappa=0.001)
 
-    curr_theta = all_theta[i]
-
-    # @pymc.deterministic
-    # def deterministic_popresponse(theta, N=N, kappa=kappa):
-    #     """
-    #         Get an angle, returns the population response.
-
-    #         Dimension N
-    #     """
-    #     # Maybe enforce that theta \in [0, 2pi]...
-    #     pref_angles = np.linspace(-np.pi, np.pi, N, endpoint=False)
-        
-    #     output = np.exp(kappa*np.cos(theta - pref_angles))/(2.*np.pi*scsp.i0(kappa))
-
-    #     return output
-
-    def deterministic_popresponse(theta1, theta2, N=N, kappa=kappa):
+    
+    def deterministic_popresponse(theta, N=N, kappa=kappa):
         """
             Get an angle, returns the population response.
 
@@ -93,16 +57,13 @@ for i in np.arange(M):
         # Maybe enforce that theta \in [0, 2pi]...
         pref_angles = np.linspace(-np.pi, np.pi, N, endpoint=False)
         
-        output = np.exp(kappa*np.cos(theta1 - pref_angles))/(2.*np.pi*scsp.i0(kappa))
-        output += np.exp(kappa*np.cos(theta2 - pref_angles))/(2.*np.pi*scsp.i0(kappa))
+        output = np.exp(kappa*np.cos(theta - pref_angles))/(2.*np.pi*scsp.i0(kappa))
 
         return output
 
 
-    all_mu_popresp[i] = pymc.Deterministic(eval=deterministic_popresponse, name="mu_popresp_%d" % i, parents={'theta1': all_theta[i], 'theta2': all_theta2[i]}, doc='Population response for data %d' % i)
+    all_mu_popresp[i] = pymc.Deterministic(eval=deterministic_popresponse, name="mu_popresp_%d" % i, parents={'theta': all_theta[i]}, doc='Population response for data %d' % i)
 
-    # all_memory[i] = pymc.MvNormal('m_%d' % i, mu=deterministic_popresponse, tau=1./sigma**0.5*np.eye(N), value=dataset[i], observed=True)
-    # all_memory[i] = pymc.MvNormal('m_%d' % i, mu=all_mu_popresp[i], tau=1./sigma**0.5*np.eye(N), value=dataset[i], observed=True)
-    all_memory[i] = pymc.MvNormal('m_%d' % i, mu=all_mu_popresp[i], tau=1./sigma**0.5*np.eye(N))
-
+    all_memory[i] = pymc.MvNormal('m_%d' % i, mu=all_mu_popresp[i], tau=1./sigma**0.5*np.eye(N), value=dataset[i], observed=True)
+    
 
