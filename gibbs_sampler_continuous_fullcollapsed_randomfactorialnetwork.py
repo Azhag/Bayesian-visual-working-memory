@@ -368,7 +368,6 @@ class Sampler:
             return all_samples
     
 
-
     def get_samples_theta_current_tc(self, n, num_samples=2000, sampled_feature_index=0, burn_samples=200):
 
         # Pack the parameters for the likelihood function.
@@ -879,7 +878,7 @@ class Sampler:
 
 
 
-    def estimate_fisher_info_from_posterior_avg(self, num_points=500, return_std=False):
+    def estimate_fisher_info_from_posterior_avg(self, num_points=500, full_stats=False):
         '''
             Estimate the Fisher Information from the curvature of the posterior.
 
@@ -891,8 +890,8 @@ class Sampler:
         for i in xrange(self.N):
             mean_FI[i] = self.estimate_fisher_info_from_posterior(n=i, num_points=num_points)
 
-        if return_std:
-            return (nanmean(mean_FI), nanstd(mean_FI), nanmedian(mean_FI))
+        if full_stats:
+            return dict(mean=nanmean(mean_FI), std=nanstd(mean_FI), median=nanmedian(mean_FI), all=mean_FI)
         else:
             return nanmean(mean_FI)
 
@@ -912,7 +911,6 @@ class Sampler:
 
         np.seterr(all='raise')
         try:
-            # circular std = sqrt(-2 log R) => precision = 1/circ_std**2.
             precision_estimated = 1./(-2.*np.log(np.abs(np.trapz(posterior*np.exp(1j*x), x))))
         except FloatingPointError:
             # print 'Overflow on n: %d' % n
@@ -924,7 +922,7 @@ class Sampler:
 
 
 
-    def estimate_precision_from_posterior_avg(self, num_points=500, return_std=False):
+    def estimate_precision_from_posterior_avg(self, num_points=500, full_stats=False):
         '''
             Estimate the precision from the posterior.
 
@@ -934,16 +932,57 @@ class Sampler:
         precisions = np.zeros(self.N)
 
         for i in xrange(self.N):
+            print i
             precisions[i] = self.estimate_precision_from_posterior(n=i, num_points=num_points)
 
-        if return_std:
-            print precisions
-            return (nanmean(precisions), nanstd(precisions), nanmedian(precisions))
+        if full_stats:
+            return dict(mean=nanmean(precisions), std=nanstd(precisions), median=nanmedian(precisions), all=precisions)
         else:
             return nanmean(precisions)
 
 
-    def plot_comparison_samples_fit_posterior(self, n=0, samples=None, num_samples=1000, num_points=1000):
+    def estimate_precision_from_samples(self, n=0, num_samples=1000, num_repetitions=1, selection_method='median'):
+        '''
+            Take samples of theta for a particular datapoint, and estimate the precision from their distribution.
+        '''
+        
+        all_precisions = np.zeros(num_repetitions)
+
+        for repet_i in xrange(num_repetitions):
+
+            # Get samples
+            samples = self.sample_theta(num_samples=num_samples, integrate_tc_out=False, return_samples=True, subset_theta=[n], selection_method=selection_method)[0]
+
+            # Estimate the circular standard deviation of those samples
+            circ_std_dev = self.compute_mean_std_circular_data(samples)[1]
+
+            # And now get the precision (uncorrected for chance level)
+            all_precisions[repet_i] = 1./circ_std_dev**2.
+
+        return dict(mean=np.mean(all_precisions), std=np.std(all_precisions), all=all_precisions)
+
+
+    def estimate_precision_from_samples_avg(self, num_samples=1000, num_repetitions=1, full_stats=False, selection_method='median'):
+        '''
+            Estimate precision from the samples. Get it for every datapoint.
+        '''
+
+        all_precision = np.zeros(self.N)
+        all_precision_everything = np.zeros((self.N, num_repetitions))
+
+        for i in xrange(self.N):
+            print i
+            res = self.estimate_precision_from_samples(n=i, num_samples=num_samples, num_repetitions=num_repetitions, selection_method=selection_method)
+            (all_precision[i], all_precision_everything[i]) = (res['mean'], res['all'])
+
+        if full_stats:
+            return dict(mean=nanmean(all_precision), std=nanstd(all_precision), median=nanmedian(all_precision), all=all_precision_everything)
+        else:
+            return nanmean(all_precision)
+
+
+
+    def plot_comparison_samples_fit_posterior(self, n=0, samples=None, num_samples=1000, num_points=1000, selection_method='median'):
         '''
             Plot a series of samples (usually from theta), associated with the posterior generating them and a gaussian fit.
 
@@ -1078,7 +1117,7 @@ class Sampler:
             This is our target metric
         '''
 
-        # Compute precision = 1./circ_std**2
+        # Compute precision
         precision = 1./self.compute_angle_error()[1]**2.
 
         if remove_chance_level:
@@ -1118,7 +1157,7 @@ class Sampler:
                 print "% 4.3f \t\t % 4.3f \t % 4.3f" % (self.theta[i, 0], groundtruth[i], angle_errors[i])           
 
         print "======================================="
-        print "  Precision:\t %.3f" % (1./stats[1]**2.)
+        print "  Precision:\t %.3f" % (1./stats[1])
         print "======================================="
     
 
