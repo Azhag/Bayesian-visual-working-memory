@@ -585,7 +585,7 @@ if __name__ == '__main__':
 
 
     
-    if False:
+    if True:
         ## Redoing everything from scratch.
         # First try the Fisher Info in 1D, and see if the relation on kappa is correct.
         
@@ -657,8 +657,8 @@ if __name__ == '__main__':
 
             ## Population
             N     = 50
-            kappa = 2.0
-            sigma = 0.8
+            kappa = 1.0
+            sigma = 0.2
             amplitude = 1.0
             
             def population_code_response(theta, N=100, kappa=0.1, amplitude=1.0):
@@ -667,7 +667,7 @@ if __name__ == '__main__':
 
                 return amplitude*np.exp(kappa*np.cos(theta - pref_angles))/(2.*np.pi*scsp.i0(kappa))
 
-            kappa_space = np.linspace(0.001, 100., 10)
+            kappa_space = np.linspace(0.001, 10., 5)
 
             effects_kappa = []
             effects_kappa_std = []
@@ -676,9 +676,10 @@ if __name__ == '__main__':
                 print 'DOING KAPPA: %.3f' % kappa
 
                 ## Generate dataset
-                M = 50
-                stimuli_used = np.random.rand(M)*np.pi*2.
-                stimuli_used = np.random.rand(M)*np.pi/2. + np.pi
+                M = 200
+                # stimuli_used = np.random.rand(M)*np.pi*2.
+                # stimuli_used = np.random.rand(M)*np.pi/2. + np.pi
+                stimuli_used = np.ones(M)*1.2
 
                 dataset = np.zeros((M, N))
                 for i, stim in enumerate(stimuli_used):
@@ -765,7 +766,7 @@ if __name__ == '__main__':
 
 
 
-    if True:
+    if False:
         # Now do everything for 2D population code.
         
         N     = (15.)**2
