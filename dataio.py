@@ -13,6 +13,7 @@ import scipy.io as sio
 import os.path
 import numpy as np
 import inspect
+import pylab as plt
 
 
 class DataIO:
@@ -37,6 +38,7 @@ class DataIO:
         self.output_folder = output_folder
         self.label = label
         self.calling_function = calling_function
+        self.unique_id = ''  # Keep the unique ID for further uses
 
         # Initialize unique_filename
         self.create_filename()
@@ -68,6 +70,8 @@ class DataIO:
 
         if unique_id is None:
             unique_id = str(uuid.uuid4())
+
+            self.unique_id = unique_id
 
         fn.append(unique_id)
 
@@ -123,6 +127,24 @@ class DataIO:
 
         # Save them as a numpy array
         np.save(self.filename, dict_selected_vars)
+
+
+    def save_current_figure(self, filename):
+        '''
+            Will save the current figure to the desired filename.
+
+            the filename can contain some fields:
+            {unique_id}
+
+            The output directory will be automatically prepend.
+        '''
+
+        # Complete the filename if needs be.
+        formatted_filename = os.path.join(self.output_folder, filename.format(unique_id=self.unique_id))
+
+        # Save the figure.
+        plt.savefig(formatted_filename)
+
 
 
 
