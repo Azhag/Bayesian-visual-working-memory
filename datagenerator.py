@@ -312,7 +312,7 @@ class DataGeneratorRFN(DataGenerator):
     '''
         DataGenerator for a RandomFactorialNetwork
     '''
-    def __init__(self, N, T, random_network, sigma_y = 0.05, sigma_x = 0.02, time_weights=None, time_weights_parameters = dict(weighting_alpha=0.3, weighting_beta = 1.0, specific_weighting = 0.3, weight_prior='uniform'), cued_feature_time=0, enforce_min_distance=0.17):
+    def __init__(self, N, T, random_network, sigma_y = 0.05, sigma_x = 0.02, time_weights=None, time_weights_parameters = dict(weighting_alpha=0.3, weighting_beta = 1.0, specific_weighting = 0.3, weight_prior='uniform'), cued_feature_time=0, enforce_min_distance=0.17, stimuli_generation='random'):
 
         # assert isinstance(random_network, RandomFactorialNetwork), "Use a RandomFactorialNetwork with this DataGeneratorRFN"
         
@@ -324,19 +324,26 @@ class DataGeneratorRFN(DataGenerator):
 
         # Build the correct stimuli
         # TODO build a load_stimuli(), etc
-        self.generate_stimuli(enforce_min_distance=enforce_min_distance)
+        self.generate_stimuli(enforce_min_distance=enforce_min_distance, stimuli_generation=stimuli_generation)
 
         # Build the dataset
         self.build_dataset(cued_feature_time=cued_feature_time)
     
 
-    def generate_stimuli(self, enforce_min_distance=0.17):
+    def generate_stimuli(self, enforce_min_distance=0.17, stimuli_generation='random', enforce_first_stimulus=True):
         '''
             Choose N stimuli for this dataset.
             
             init:
                 self.stimuli_correct:   N x T x R    
         '''
+
+        if stimuli_generation == 'random':
+            angle_generator = lambda: (np.random.rand(self.T)-0.5)*2.*np.pi
+        elif stimuli_generation == 'constant':
+            angle_generator = lambda: 1.2*np.ones(self.T)
+        else:
+            raise ValueError('Unknown stimulus generation technique')
 
         self.enforce_min_distance = enforce_min_distance
         
@@ -348,18 +355,19 @@ class DataGeneratorRFN(DataGenerator):
         # Enforce differences on all dimensions (P. Bays: 10° for orientations).
         for n in np.arange(self.N):
             for r in np.arange(self.R):
-                self.stimuli_correct[n, :, r] = (np.random.rand(self.T)-0.5)*2.*np.pi
+                self.stimuli_correct[n, :, r] = angle_generator()
                 # self.stimuli_correct[n, :, r] = (np.random.rand(self.T)-0.5)*np.pi
 
-                # Enforce minimal distance
+                # Enforce minimal distance between different times
                 while np.any(pdist(self.stimuli_correct[n, :, r][:, np.newaxis], 'chebyshev') < self.enforce_min_distance):
                     # Some are too close, resample
-                    self.stimuli_correct[n, :, r] = (np.random.rand(self.T)-0.5)*2.*np.pi
+                    self.stimuli_correct[n, :, r] = angle_generator()
                     # self.stimuli_correct[n, :, r] = (np.random.rand(self.T)-0.5)*np.pi
         
-        # Force first stimuli to be something specific
-        forced_stimuli = np.array([[-0.4, 0.4], [-0.9, 0.9], [np.pi/2., -np.pi+0.05]])
-        self.stimuli_correct[0, :np.min((self.T, 3))] = forced_stimuli[:np.min((self.T, 3))]
+        if enforce_first_stimulus:
+            # Force first stimuli to be something specific
+            forced_stimuli = np.array([[-0.4, 0.4], [-0.9, 0.9], [np.pi/2., -np.pi+0.05]])
+            self.stimuli_correct[0, :np.min((self.T, 3))] = forced_stimuli[:np.min((self.T, 3))]
 
         
 
