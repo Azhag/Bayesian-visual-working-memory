@@ -7,6 +7,7 @@ Created by Loic Matthey on 2011-06-1.
 Copyright (c) 2011 Gatsby Unit. All rights reserved.
 """
 
+import pylab as plt
 import numpy as np
 import scipy.special as scsp
 # from scipy.stats import vonmises as vm
@@ -28,22 +29,6 @@ from slicesampler import *
 from utils import *
 from dataio import *
 
-def loglike_theta_fct_vect(thetas, (datapoint, rn, theta_mu, theta_kappa, ATtcB, sampled_feature_index, mean_fixed_contrib, covariance_fixed_contrib)):
-    '''
-        Compute the loglikelihood of: theta_r | n_tc theta_r' tc
-    '''
-    
-    like_mean = datapoint - mean_fixed_contrib - \
-                np.dot(ATtcB, rn.get_network_response(thetas))
-            
-    # Using inverse covariance as param
-    # return theta_kappa*np.cos(thetas[sampled_feature_index] - theta_mu) - 0.5*np.dot(like_mean, np.dot(covariance_fixed_contrib, like_mean))
-    return -0.5*np.dot(like_mean, np.dot(covariance_fixed_contrib, like_mean))
-    # return -1./(2*0.2**2)*np.sum(like_mean**2.)
-
-    # TODO Found the error for the mismatch between samples and posterior here... Using two functions is retarded, should refactore it.
-    # Something funny though: this could be a nice way to get the mismatch between the sigma I approximation to the full covariance matrix.
-
 
 def loglike_theta_fct_single(new_theta, (thetas, datapoint, rn, theta_mu, theta_kappa, ATtcB, sampled_feature_index, mean_fixed_contrib, covariance_fixed_contrib)):
     '''
@@ -58,7 +43,7 @@ def loglike_theta_fct_single(new_theta, (thetas, datapoint, rn, theta_mu, theta_
     # Using inverse covariance as param
     # return theta_kappa*np.cos(thetas[sampled_feature_index] - theta_mu) - 0.5*np.dot(like_mean, np.dot(covariance_fixed_contrib, like_mean))
     return -0.5*np.dot(like_mean, np.dot(covariance_fixed_contrib, like_mean))
-    # return -1./(2*0.2**2)*np.sum(like_mean**2.)
+    # return -1./(2*0.1**2)*np.sum(like_mean**2.)
 
 
 def loglike_theta_fct_single_min(x, thetas, datapoint, rn, theta_mu, theta_kappa, ATtcB, sampled_feature_index, mean_fixed_contrib, covariance_fixed_contrib):
@@ -368,6 +353,7 @@ class Sampler:
             return all_samples
     
 
+
     def get_samples_theta_current_tc(self, n, num_samples=2000, sampled_feature_index=0, burn_samples=200):
 
         # Pack the parameters for the likelihood function.
@@ -375,7 +361,7 @@ class Sampler:
         params = (self.theta[n], self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[self.tc[n]], sampled_feature_index, self.mean_fixed_contrib[self.tc[n]], self.covariance_fixed_contrib)
 
         # Sample the new theta
-        samples, llh = self.slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=np.pi/5., loglike_fct_params=params, debug=False, step_out=True)
+        samples, llh = self.slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=np.pi/3., loglike_fct_params=params, debug=False, step_out=True)
         # samples, llh = self.slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=0.01, loglike_fct_params=params, debug=False, step_out=True)
         
         # samples, llh = self.slicesampler.sample_1D_circular(1, self.theta[n, sampled_feature_index], loglike_theta_fct, burn=100, widths=np.pi/3., thinning=2, loglike_fct_params=params, debug=False, step_out=True)
@@ -406,7 +392,8 @@ class Sampler:
         
         return np.array(samples_integratedout)
 
-        
+    
+
     def set_theta_max_likelihood(self, num_points=100, post_optimise=True, sampled_feature_index=0):
         '''
             Update theta to their Max Likelihood values.
@@ -657,9 +644,6 @@ class Sampler:
             Plot the result
         '''
 
-        # Pack the parameters for the likelihood function
-        params = (self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[t], sampled_feature_index, self.mean_fixed_contrib[t], self.covariance_fixed_contrib)
-        
 
         all_angles = np.linspace(-np.pi, np.pi, num_points, endpoint=False)
         llh_2angles = np.zeros((num_points, num_points))
@@ -668,7 +652,12 @@ class Sampler:
         for i in np.arange(num_points):
             print "%d%%" % (i/float(num_points)*100)
             for j in np.arange(num_points):
-                llh_2angles[i, j] = loglike_theta_fct_vect(np.array([all_angles[i], all_angles[j]]), params)
+
+                # Pack the parameters for the likelihood function
+                params = (np.array([all_angles[i], all_angles[j]]), self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[t], sampled_feature_index, self.mean_fixed_contrib[t], self.covariance_fixed_contrib)
+        
+                # llh_2angles[i, j] = loglike_theta_fct_vect(np.array([all_angles[i], all_angles[j]]), params)
+                llh_2angles[i, j] = loglike_theta_fct_single(all_angles[i], params)
         
         if should_exponentiate:
             llh_2angles = np.exp(llh_2angles)
@@ -718,19 +707,23 @@ class Sampler:
             Plot the log-likelihood function, over the space of the sampled theta, keeping the other thetas fixed to their correct cued value.
         '''
 
+        num_points = int(num_points)
+
         all_angles = np.linspace(-np.pi, np.pi, num_points, endpoint=False)
         llh_2angles = np.zeros((self.T, num_points))
         
         # Compute the array
         for t in np.arange(self.T):
 
-            # Pack the parameters for the likelihood function
-            params = (self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[t], sampled_feature_index, self.mean_fixed_contrib[t], self.covariance_fixed_contrib)
-            
             # Compute the loglikelihood for all possible first feature
             for i in np.arange(num_points):
+
+                # Pack the parameters for the likelihood function
+                params = (np.array([all_angles[i], self.data_gen.stimuli_correct[n, t, 1]]), self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[t], sampled_feature_index, self.mean_fixed_contrib[t], self.covariance_fixed_contrib)
+            
                 # Give the correct cued second feature
-                llh_2angles[t, i] = loglike_theta_fct_vect(np.array([all_angles[i], self.data_gen.stimuli_correct[n, t, 1]]), params)
+                llh_2angles[t, i] = loglike_theta_fct_single(all_angles[i], params)
+                # llh_2angles[t, i] = loglike_theta_fct_vect(np.array([all_angles[i], self.data_gen.stimuli_correct[n, t, 1]]), params)
         
         llh_2angles = llh_2angles.T
         
@@ -855,7 +848,7 @@ class Sampler:
         x = np.linspace(-np.pi, np.pi, num_points)
         dx = np.diff(x)[0]
 
-        posterior /= np.sum(posterior*dx)
+        # posterior /= np.sum(posterior*dx)
 
         np.seterr(all='raise')
         try:
@@ -910,6 +903,7 @@ class Sampler:
 
         np.seterr(all='raise')
         try:
+            # circular std = sqrt(-2 log R) => precision = 1/circ_std**2.
             precision_estimated = 1./(-2.*np.log(np.abs(np.trapz(posterior*np.exp(1j*x), x))))
         except FloatingPointError:
             # print 'Overflow on n: %d' % n
@@ -949,7 +943,7 @@ class Sampler:
 
         if samples is None:
             # no samples, get them
-            samples = self.sample_theta(num_samples=num_samples, integrate_tc_out=False, return_samples=True, subset_theta=[n])[0]
+            samples = self.sample_theta(num_samples=num_samples, integrate_tc_out=False, return_samples=True, subset_theta=[n], selection_method=selection_method)[0]
 
         # Plot the samples and the fit
         fit_gaussian_samples(samples)
@@ -962,7 +956,8 @@ class Sampler:
         plt.plot(x, posterior/posterior.max(), 'k')
 
         plt.legend(['Fit', 'Posterior'])
-        
+    
+
     
     #################
     
@@ -1074,7 +1069,7 @@ class Sampler:
             This is our target metric
         '''
 
-        # Compute precision
+        # Compute precision = 1./circ_std**2
         precision = 1./self.compute_angle_error()[1]**2.
 
         if remove_chance_level:
@@ -1114,7 +1109,7 @@ class Sampler:
                 print "% 4.3f \t\t % 4.3f \t % 4.3f" % (self.theta[i, 0], groundtruth[i], angle_errors[i])           
 
         print "======================================="
-        print "  Precision:\t %.3f" % (1./stats[1])
+        print "  Precision:\t %.3f" % (1./stats[1]**2.)
         print "======================================="
     
 
@@ -1298,11 +1293,11 @@ def do_simple_run(args):
     
     # Construct the real dataset
     print "Building the database"
-    data_gen = DataGeneratorRFN(N, T, random_network, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters = time_weights_parameters, cued_feature_time=cued_feature_time)
+    data_gen = DataGeneratorRFN(N, T, random_network, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters = time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation='constant')
     
     # Measure the noise structure
     print "Measuring noise structure"
-    data_gen_noise = DataGeneratorRFN(3000, T, random_network, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time)
+    data_gen_noise = DataGeneratorRFN(3000, T, random_network, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation='constant')
     stat_meas = StatisticsMeasurer(data_gen_noise)
     # stat_meas = StatisticsMeasurer(data_gen)
     
@@ -2317,7 +2312,7 @@ def do_save_responses_simultaneous(args):
                 sampler.change_cued_features(tc)
 
                 # Sample the new theta
-                sampler.sample_theta(num_samples=args.num_samples, selection_num_samples=args.selection_num_samples, integrate_tc_out=False)
+                sampler.sample_theta(num_samples=args.num_samples, selection_num_samples=args.selection_num_samples, integrate_tc_out=False, selection_method='median')
 
                 # Save the precision
                 # all_precisions[param1_i, repet_i] = sampler.get_precision()
@@ -2371,6 +2366,11 @@ def do_fisher_information_estimation(args):
     ratio_conj = args.ratio_conj
     sigma_x = args.sigmax
     sigma_y = args.sigmay
+    selection_method = args.selection_method
+
+    stimuli_generation = 'constant'
+
+    dataio = DataIO(output_folder=args.output_directory, label=args.label)
 
     if args.subaction == '':
         args.subaction = 'M_dependence'
@@ -2424,12 +2424,181 @@ def do_fisher_information_estimation(args):
         plt.xlabel('M')
         plt.ylabel('FI')
 
-    elif args.subaction == 'rcscale_dependence':
+    elif args.subaction == 'samples_dependence':
 
-        # rcscale_space = np.linspace(0.05, 20, 5)
-        rcscale_space = np.linspace(2., 2., 1.)
-        FI_M_effect = np.zeros_like(rcscale_space, dtype=float)
-        FI_M_effect_std = np.zeros_like(rcscale_space, dtype=float)
+        # samples_space = np.linspace(50, 1000, 11)
+        samples_space = np.linspace(500., 500., 1.)
+        single_point_estimate = False
+        num_repet_sample_estimate = 5
+
+        print 'selection_method: %s' % selection_method
+        print "Stimuli_generation: %s" % stimuli_generation
+
+        FI_samples_curv = np.zeros((samples_space.size, 3), dtype=float)
+        FI_samples_curv_quantiles = np.zeros((samples_space.size, 3), dtype=float)
+        FI_samples_curv_all = []
+        FI_samples_samples = np.zeros((samples_space.size, 3), dtype=float)
+        FI_samples_samples_quantiles = np.zeros((samples_space.size, 3), dtype=float)
+        FI_samples_samples_all = []
+        FI_samples_precision = np.zeros(samples_space.size, dtype=float)
+        FI_samples_precision_quantiles = np.zeros((samples_space.size, 3), dtype=float)
+        FI_samples_precision_all = []
+
+        for i, num_samples in enumerate(samples_space):
+            print "Doing for %d num_samples" % num_samples
+
+            # Build the random network
+            time_weights_parameters = dict(weighting_alpha=weighting_alpha, weighting_beta = 1.0, specific_weighting = 0.1, weight_prior='uniform')
+            cued_feature_time = T-1
+
+            if code_type == 'conj':
+                random_network = RandomFactorialNetwork.create_full_conjunctive(M, R=R, scale_moments=(rc_scale, 0.0001), ratio_moments=(1.0, 0.0001))
+            elif code_type == 'feat':
+                random_network = RandomFactorialNetwork.create_full_features(M, R=R, scale=rc_scale, ratio=40.)
+            elif code_type == 'mixed':
+                conj_params = dict(scale_moments=(rc_scale, 0.001), ratio_moments=(1.0, 0.0001))
+                feat_params = dict(scale=rc_scale2, ratio=40.)
+
+                random_network = RandomFactorialNetwork.create_mixed(M, R=R, ratio_feature_conjunctive=ratio_conj, conjunctive_parameters=conj_params, feature_parameters=feat_params)
+            elif code_type == 'wavelet':
+                random_network = RandomFactorialNetwork.create_wavelet(M, R=R, scales_number=5)
+            else:
+                raise ValueError('Code_type is wrong!')
+            
+            # Construct the real dataset
+            # print "Building the database"
+            data_gen = DataGeneratorRFN(N, T, random_network, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters = time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation=stimuli_generation)
+            
+            # Measure the noise structure
+            # print "Measuring noise structure"
+            data_gen_noise = DataGeneratorRFN(5000, T, random_network, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation=stimuli_generation)
+            stat_meas = StatisticsMeasurer(data_gen_noise)
+            
+            sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters = stat_meas.model_parameters, tc=cued_feature_time)
+            
+            ### Estimate the Fisher Information
+            print "Estimating the Fisher Information, samples %.3f" % num_samples
+            print "from curvature..."
+            # (FI_M_effect[i], FI_M_effect_std[i]) = sampler.estimate_fisher_info_from_posterior_avg(num_points=200, full_stats=True)
+            # (_, FI_samples_curv[i, 1], FI_samples_curv[i, 0]) = sampler.estimate_fisher_info_from_posterior_avg(num_points=500, full_stats=True)
+
+            if single_point_estimate:
+                # Should estimate everything at specific theta/datapoint?
+                FI_samples_curv[i, 0] = sampler.estimate_precision_from_posterior(num_points=num_samples)
+            else:
+                fi_curv_dict = sampler.estimate_fisher_info_from_posterior_avg(num_points=num_samples, full_stats=True)
+                (FI_samples_curv[i, 0], FI_samples_curv[i, 1]) = (fi_curv_dict['median'], fi_curv_dict['std'])
+                FI_samples_curv_quantiles[i] = spst.mstats.mquantiles(fi_curv_dict['all'])
+
+                FI_samples_curv_all.append(fi_curv_dict['all'])
+
+            print FI_samples_curv[i]
+            print FI_samples_curv_quantiles[i]
+            
+            # FI_M_effect[i] = sampler.estimate_fisher_info_from_posterior(n=0, num_points=500)
+            # prec_samples = sampler.estimate_precision_from_samples(n=0, num_samples=1000, num_repetitions=10)
+            # (FI_samples_samples[i, 0], FI_samples_samples[i, 1]) = (prec_samples['mean'], prec_samples['std'])
+            
+            if True:
+                print "from samples..."
+                if single_point_estimate:
+                    prec_samples_dict =  sampler.estimate_precision_from_samples(num_samples=num_samples, num_repetitions=num_repet_sample_estimate, selection_method=selection_method)
+                    (FI_samples_samples[i, 0], FI_samples_samples[i, 1]) = (prec_samples_dict['mean'], prec_samples_dict['std'])
+                    FI_samples_samples_quantiles[i] = spst.mstats.mquantiles(prec_samples_dict['all'])
+                else:
+                    prec_samples_dict = sampler.estimate_precision_from_samples_avg(num_samples=num_samples, full_stats=True, num_repetitions=num_repet_sample_estimate, selection_method=selection_method)
+                    (FI_samples_samples[i, 0], FI_samples_samples[i, 1], FI_samples_samples[i, 2]) = (prec_samples_dict['median'], prec_samples_dict['std'], np.max(prec_samples_dict['all']))
+                    FI_samples_samples_quantiles[i] = spst.mstats.mquantiles(prec_samples_dict['all'])
+
+                    FI_samples_samples_all.append(prec_samples_dict['all'])
+
+            print FI_samples_samples[i]
+            print FI_samples_samples_quantiles[i]
+            
+            print "from precision of recall..."
+            sampler.sample_theta(num_samples=num_samples, burn_samples=100, selection_method=selection_method, selection_num_samples=num_samples, integrate_tc_out=False, debug=False)
+            FI_samples_precision[i] = sampler.get_precision()
+            FI_samples_precision_quantiles[i] = spst.mstats.mquantiles(FI_samples_precision[i])
+            FI_samples_precision_all.append(FI_samples_precision[i])
+
+            print FI_samples_precision[i]
+
+        FI_samples_samples_all = np.array(FI_samples_samples_all)
+        FI_samples_curv_all = np.array(FI_samples_curv_all)
+        FI_samples_precision_all = np.array(FI_samples_precision_all)
+
+        # Save the results
+        dataio.save_variables(['FI_samples_curv', 'FI_samples_samples', 'FI_samples_precision', 'FI_samples_curv_quantiles', 'FI_samples_samples_quantiles', 'FI_samples_precision_quantiles', 'samples_space', 'FI_samples_samples_all', 'FI_samples_curv_all', 'FI_samples_precision_all'], locals())
+
+        # Plot results
+        ax = plot_mean_std_area(samples_space, FI_samples_curv[:, 0], FI_samples_curv[:, 1])
+        plot_mean_std_area(samples_space, FI_samples_samples[:, 0], FI_samples_samples[:, 1], ax_handle=ax)
+        # ax = plot_mean_std_area(samples_space, FI_samples_samples[:, 2], 0.0*FI_samples_samples[:, 1], ax_handle=ax)
+        ax = plot_mean_std_area(samples_space, FI_samples_precision, 0.0*FI_samples_precision, ax_handle=ax)
+
+        plt.title('FI dependence on num_samples')
+        plt.xlabel('num samples')
+        plt.ylabel('FI')
+        plt.legend(['Curvature', 'Samples', 'Recall precision'])
+
+        dataio.save_current_figure('FI_numsamples_comparison_mean_std-{unique_id}.pdf')
+
+        ax2 = plot_median_quantile_area(samples_space, quantiles=FI_samples_curv_quantiles)
+        ax2 = plot_median_quantile_area(samples_space, quantiles=FI_samples_samples_quantiles, ax_handle=ax2)
+        ax2 = plot_median_quantile_area(samples_space, quantiles=FI_samples_precision_quantiles, ax_handle=ax2)
+
+        plt.title('FI dependence, quantiles shown')
+        plt.xlabel('num samples')
+        plt.ylabel('FI')
+        plt.legend(['Curvature', 'Samples', 'Recall precision'])
+
+        dataio.save_current_figure('FI_numsamples_comparison_median_std-{unique_id}.pdf')
+
+        if not single_point_estimate:
+
+            for num_samples_i, num_samples in enumerate(samples_space):
+                # Show the precision from posterior estimate against the FI from posterior estimate
+                plt.figure()
+                print num_samples_i, FI_samples_curv_all.shape, FI_samples_samples_all.shape
+
+                plt.plot(FI_samples_curv_all[num_samples_i], FI_samples_samples_all[num_samples_i], 'x')
+
+                idx = np.linspace(FI_samples_curv_all[num_samples_i].min()*0.95, FI_samples_curv_all[num_samples_i].max()*1.05, 100.)
+
+                plt.plot(idx, idx, ':k')
+                plt.axis('tight')
+                plt.xlabel('Curvature estimate')
+                plt.ylabel('Samples estimate')
+                plt.title('Comparison Curvature vs samples estimate of FI. %d samples' % num_samples)
+
+                dataio.save_current_figure('FI_numsamples_comparison_curv_samples_allpoints_%d-{unique_id}.pdf' % num_samples)
+
+                # Show the boxplot of each estimate, per number of samples
+                plt.figure()
+                plt.boxplot([FI_samples_curv_all[num_samples_i], FI_samples_samples_all[num_samples_i].flatten(), FI_samples_precision_all[num_samples_i]])
+                plt.title('Comparison Curvature vs samples estimate. %d samples' % num_samples)
+                plt.xticks([1, 2, 3], ['Curvature', 'Samples', 'Precision'], rotation=45)
+
+                dataio.save_current_figure('FI_numsamples_comparison_curv_samples_%d-{unique_id}.pdf' % num_samples)
+
+
+    elif args.subaction == 'rcscale_dependence':
+        single_point_estimate = False
+        num_repet_sample_estimate = 3
+
+        print "stimuli_generation: %s" % stimuli_generation
+
+        rcscale_space = np.linspace(0.5, 15, 5)
+        # rcscale_space = np.linspace(4., 4., 1.)
+        FI_rc_curv = np.zeros((rcscale_space.size, 3), dtype=float)
+        FI_rc_curv_quantiles = np.zeros((rcscale_space.size, 3), dtype=float)
+        FI_rc_curv_all = []
+        FI_rc_samples = np.zeros((rcscale_space.size, 3), dtype=float)
+        FI_rc_samples_quantiles = np.zeros((rcscale_space.size, 3), dtype=float)
+        FI_rc_samples_all = []
+        FI_rc_precision = np.zeros(rcscale_space.size, dtype=float)
+        FI_rc_precision_quantiles = np.zeros((rcscale_space.size, 3), dtype=float)
+        FI_rc_precision_all = []
 
         for i, rc_scale in enumerate(rcscale_space):
 
@@ -2454,27 +2623,124 @@ def do_fisher_information_estimation(args):
             
             # Construct the real dataset
             # print "Building the database"
-            data_gen = DataGeneratorRFN(N, T, random_network, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters = time_weights_parameters, cued_feature_time=cued_feature_time)
+            data_gen = DataGeneratorRFN(N, T, random_network, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters = time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation=stimuli_generation)
             
             # Measure the noise structure
             # print "Measuring noise structure"
-            data_gen_noise = DataGeneratorRFN(3000, T, random_network, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time)
+            data_gen_noise = DataGeneratorRFN(5000, T, random_network, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation=stimuli_generation)
             stat_meas = StatisticsMeasurer(data_gen_noise)
             
             sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters = stat_meas.model_parameters, tc=cued_feature_time)
             
             ### Estimate the Fisher Information
             print "Estimating the Fisher Information, rcscale %.3f" % rc_scale
-            # (FI_M_effect[i], FI_M_effect_std[i]) = sampler.estimate_fisher_info_from_posterior_avg(num_points=200, return_std=True)
-            (_, FI_M_effect_std[i], FI_M_effect[i]) = sampler.estimate_fisher_info_from_posterior_avg(num_points=500, return_std=True)
-            print (FI_M_effect[i], FI_M_effect_std[i])
+            print "from curvature..."
+            # (FI_M_effect[i], FI_M_effect_std[i]) = sampler.estimate_fisher_info_from_posterior_avg(num_points=200, full_stats=True)
+            # (_, FI_rc_curv[i, 1], FI_rc_curv[i, 0]) = sampler.estimate_fisher_info_from_posterior_avg(num_points=500, full_stats=True)
+            if single_point_estimate:
+                # Should estimate everything at specific theta/datapoint?
+                FI_rc_curv[i, 0] = sampler.estimate_precision_from_posterior(num_points=num_samples)
+            else:
+                fi_curv_dict = sampler.estimate_fisher_info_from_posterior_avg(num_points=1000, full_stats=True)
+                (FI_rc_curv[i, 0], FI_rc_curv[i, 1]) = (fi_curv_dict['median'], fi_curv_dict['std'])
+                FI_rc_curv_quantiles[i] = spst.mstats.mquantiles(fi_curv_dict['all'])
 
+                FI_rc_curv_all.append(fi_curv_dict['all'])
+
+            print FI_rc_curv[i]
+            print FI_rc_curv_quantiles[i]
+            
+            # FI_M_effect[i] = sampler.estimate_fisher_info_from_posterior(n=0, num_points=500)
+            # prec_samples = sampler.estimate_precision_from_samples(n=0, num_samples=1000, num_repetitions=10)
+            # (FI_rc_samples[i, 0], FI_rc_samples[i, 1]) = (prec_samples['mean'], prec_samples['std'])
+            
+            if True:
+                print "from samples..."
+                
+                if single_point_estimate:
+                    prec_samples_dict =  sampler.estimate_precision_from_samples(num_samples=500, num_repetitions=num_repet_sample_estimate, selection_method=selection_method)
+                    (FI_rc_samples[i, 0], FI_rc_samples[i, 1]) = (prec_samples_dict['mean'], prec_samples_dict['std'])
+                    FI_rc_samples_quantiles[i] = spst.mstats.mquantiles(prec_samples_dict['all'])
+                else:
+                    prec_samples_dict = sampler.estimate_precision_from_samples_avg(num_samples=500, full_stats=True, num_repetitions=num_repet_sample_estimate, selection_method=selection_method)
+                    (FI_rc_samples[i, 0], FI_rc_samples[i, 1], FI_rc_samples[i, 2]) = (prec_samples_dict['median'], prec_samples_dict['std'], np.max(prec_samples_dict['all']))
+                    FI_rc_samples_quantiles[i] = spst.mstats.mquantiles(prec_samples_dict['all'])
+
+                    FI_rc_samples_all.append(prec_samples_dict['all'])
+
+
+            print FI_rc_samples[i]
+            print FI_rc_samples_quantiles[i]
+            
+            print "from precision of recall..."
+            sampler.sample_theta(num_samples=args.num_samples, burn_samples=100, selection_method=selection_method, selection_num_samples=args.num_samples, integrate_tc_out=False, debug=False)
+            FI_rc_precision[i] = sampler.get_precision()
+            FI_rc_precision_quantiles[i] = spst.mstats.mquantiles(FI_rc_precision[i])
+            FI_rc_precision_all.append(FI_rc_precision[i])
+
+            print FI_rc_precision[i]
+
+        FI_rc_curv_all = np.array(FI_rc_curv_all)
+        FI_rc_samples_all = np.array(FI_rc_samples_all)
+        FI_rc_precision_all = np.array(FI_rc_precision_all)
+
+
+        # Save the results
+        dataio.save_variables(['FI_rc_curv', 'FI_rc_samples', 'FI_rc_precision', 'FI_rc_curv_quantiles', 'FI_rc_samples_quantiles', 'FI_rc_precision_quantiles', 'rcscale_space', 'FI_rc_curv_all', 'FI_rc_samples_all', 'FI_rc_precision_all'], locals())
 
         # Plot results
-        plot_mean_std_area(rcscale_space, FI_M_effect, FI_M_effect_std)
+        ax = plot_mean_std_area(rcscale_space, FI_rc_curv[:, 0], FI_rc_curv[:, 1])
+        plot_mean_std_area(rcscale_space, FI_rc_samples[:, 0], FI_rc_samples[:, 1], ax_handle=ax)
+        # ax = plot_mean_std_area(rcscale_space, FI_rc_samples[:, 2], 0.0*FI_rc_samples[:, 1], ax_handle=ax)
+        ax = plot_mean_std_area(rcscale_space, FI_rc_precision, 0.0*FI_rc_precision, ax_handle=ax)
+
         plt.title('FI dependence on rcscale')
         plt.xlabel('rcscale')
         plt.ylabel('FI')
+        plt.legend(['Curvature', 'Samples', 'Recall precision'])
+
+        dataio.save_current_figure("FI_rcscale_comparison_mean_std_{unique_id}.pdf")
+
+        ax2 = plot_median_quantile_area(rcscale_space, quantiles=FI_rc_curv_quantiles)
+        ax2 = plot_median_quantile_area(rcscale_space, quantiles=FI_rc_samples_quantiles, ax_handle=ax2)
+        ax2 = plot_median_quantile_area(rcscale_space, quantiles=FI_rc_precision_quantiles, ax_handle=ax2)
+
+        plt.title('FI dependence, quantiles shown')
+        plt.xlabel('rcscale')
+        plt.ylabel('FI')
+        plt.legend(['Curvature', 'Samples', 'Recall precision'])
+
+        dataio.save_current_figure('FI_rcscale_comparison_median_std_{unique_id}.pdf')
+
+        if not single_point_estimate:
+
+            for rc_scale_i, rc_scale in enumerate(rcscale_space):
+                # Show the precision from posterior estimate against the FI from posterior estimate
+                plt.figure()
+                print rc_scale_i, FI_rc_curv_all.shape, FI_rc_samples_all.shape
+
+                plt.plot(FI_rc_curv_all[rc_scale_i], FI_rc_samples_all[rc_scale_i], 'x')
+
+                idx = np.linspace(FI_rc_curv_all[rc_scale_i].min()*0.95, FI_rc_curv_all[rc_scale_i].max()*1.05, 100.)
+
+                plt.plot(idx, idx, ':k')
+                plt.axis('tight')
+                plt.xlabel('Curvature estimate')
+                plt.ylabel('Samples estimate')
+                plt.title('Comparison Curvature vs samples estimate of FI. Rscale: %d' % rc_scale)
+
+                dataio.save_current_figure('FI_rc_comparison_curv_samples_allpoints_%d-{unique_id}.pdf' % rc_scale)
+
+                # Show the boxplot of each estimate, per number of samples
+                plt.figure()
+                plt.boxplot([FI_rc_curv_all[rc_scale_i], FI_rc_samples_all[rc_scale_i].flatten(), FI_rc_precision_all[rc_scale_i]])
+                plt.title('Comparison Curvature vs samples estimate. Rscale: %d' % rc_scale)
+                plt.xticks([1, 2, 3], ['Curvature', 'Samples', 'Precision'], rotation=45)
+
+                dataio.save_current_figure('FI_rc_comparison_curv_samples_%d-{unique_id}.pdf' % rc_scale)
+    
+    else:
+        raise ValueError('Wrong subaction!')
 
 
     return locals()
@@ -2520,6 +2786,7 @@ if __name__ == '__main__':
     parser.add_argument('--R', default=2, type=int, help='Number of population codes')
     parser.add_argument('--num_samples', type=int, default=20, help='Number of samples to use')
     parser.add_argument('--selection_num_samples', type=int, default=1, help='While selecting the new sample from a set of samples, consider the P last samples only. (if =1, return last sample)')
+    parser.add_argument('--selection_method', choices=['median', 'last'], default='median', help='How the new sample is chosen from a set of samples. Median is closer to the ML value but could have weird effects.')
     parser.add_argument('--alpha', default=1.0, type=float, help='Weighting of the decay through time')
     parser.add_argument('--code_type', choices=['conj', 'feat', 'mixed', 'wavelet'], default='conj', help='Select the type of code used by the Network')
     parser.add_argument('--rc_scale', type=float, default=0.5, help='Scale of receptive fields')
