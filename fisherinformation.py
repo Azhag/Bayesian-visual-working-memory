@@ -585,7 +585,7 @@ if __name__ == '__main__':
 
 
     
-    if True:
+    if False:
         ## Redoing everything from scratch.
         # First try the Fisher Info in 1D, and see if the relation on kappa is correct.
         
@@ -998,7 +998,74 @@ if __name__ == '__main__':
         plot_multiple_median_quantile_area(kappa_space, quantiles=effects_kappa_quantiles.transpose(1, 0, 2))
         plt.legend(['Precision from 1D Clamped', '1D Clamped curvature', '2D Theo', '2D Theo large N'])
 
+    if True:
+        # Try with true gaussian to see the effect of precision estimation
+        N     = 1
+        # kappa = 1.0
+        sigma = 0.2
+        M = 100
+        num_points = 500
 
+        # stimuli_used = np.random.rand(M)*np.pi*2.
+        # stimuli_used = np.random.rand(M)*np.pi/2. + np.pi
+        stimuli_used = np.ones(M)*1.2
+
+        dataset = np.zeros((M, N))
+        for i, stim in enumerate(stimuli_used):
+            dataset[i] = stimuli_used[i] + sigma*np.random.randn(N)
+
+
+        def loglik_sampler(angle, params):
+            sigma = params['sigma']
+            data = params['data']
+            return -1./(2.*sigma**2.0)*np.sum((data - angle)**2.)
+
+        def loglik_fullspace(all_angles, params):
+            lik = np.zeros(all_angles.size)
+            for i, angle in enumerate(all_angles):
+                lik[i] = loglik_sampler(angle, params)
+
+            return lik
+
+        all_angles = np.linspace(0., 2.*np.pi, num_points, endpoint=False)
+        dx = np.diff(all_angles)[0]
+
+        slicesampler = SliceSampler()
+
+        fisher_info_curve = np.zeros(M)
+        samples_all_precisions = np.zeros(M)
+        recall_samples = np.zeros(M)
+
+        for m, data in enumerate(dataset):
+            print m
+
+            params = dict(sigma=sigma, data=data)
+            log_posterior = loglik_fullspace(all_angles, params)
+            
+            log_posterior[np.isinf(log_posterior)] = 0.0
+            log_posterior[np.isnan(log_posterior)] = 0.0
+
+            # Take curvature at ML value
+            ml_index = np.argmax(log_posterior)
+            curv_logp = -np.gradient(np.gradient(log_posterior))/dx**2.
+            fisher_info_curve[m] = curv_logp[ml_index]
+
+            # Precision from samples
+            samples, _ = slicesampler.sample_1D_circular(400, np.random.rand()*2.*np.pi-np.pi, loglik_sampler, burn=100, widths=np.pi/4., loglike_fct_params=params, debug=False, step_out=True)
+
+            samples_circ_std_dev = np.sqrt(-2.*np.log(np.abs(np.mean(np.exp(1j*samples), axis=0))))
+            samples_all_precisions[m] = 1./samples_circ_std_dev**2.
+
+            # Now sample one angle, and compute the fisher information from the distribution of the recall samples
+            # choose last one
+            recall_samples[m] = np.median(samples[-100:])
+        
+        recall_samples_precision = 1./np.sqrt(-2.*np.log(np.abs(np.mean(np.exp(1j*(recall_samples - stimuli_used)), axis=0))))**2
+
+        plt.figure()
+        plt.boxplot([fisher_info_curve, samples_all_precisions, recall_samples_precision])
+        plt.title('Comparison Curvature vs samples estimate vs recall precision. Simple gaussian.')
+        plt.xticks([1, 2, 3], ['Curvature', 'Samples', 'Precision'], rotation=45)
 
 
     plt.show()
