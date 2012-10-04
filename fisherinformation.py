@@ -667,10 +667,13 @@ if __name__ == '__main__':
 
                 return amplitude*np.exp(kappa*np.cos(theta - pref_angles))/(2.*np.pi*scsp.i0(kappa))
 
-            kappa_space = np.linspace(0.001, 10., 5)
+            # kappa_space = np.linspace(0.001, 10., 5)
+            kappa_space = np.linspace(2., 2., 1)
 
             effects_kappa = []
             effects_kappa_std = []
+
+            slicesampler = SliceSampler()
 
             for k, kappa in enumerate(kappa_space):
                 print 'DOING KAPPA: %.3f' % kappa
@@ -709,11 +712,23 @@ if __name__ == '__main__':
 
                     return lik
 
+
+                def lik_sampler(angle, params):
+                    sigma = params['sigma']
+                    data = params['data']
+                    N = params['N']
+                    kappa = params['kappa']
+                    amplitude = 1.0
+                    return -1./(2.*sigma**2.0)*np.sum((data - population_code_response(angle, N=N, kappa=kappa, amplitude=amplitude))**2.)
+
                 ## Estimate fisher info
                 print "Estimate fisher info"
                 fisher_info_curve = np.zeros(M)
                 fisher_info_prec = np.zeros(M)
                 dx = np.diff(all_angles)[0]
+
+                samples_all_precisions = []
+                recall_samples = np.zeros(M)
 
                 for m, data in enumerate(dataset):
                     print m
@@ -741,10 +756,28 @@ if __name__ == '__main__':
                     #fisher_info_prec[m] = 1./fit_gaussian(all_angles, posterior, should_plot=False, return_fitted=False)[1]**2.
                     fisher_info_prec[m] = 1./(-2.*np.log(np.abs(np.trapz(posterior*np.exp(1j*all_angles), all_angles))))
 
+                    # Using samples, estimate the precision for each data
+                    params = dict(sigma=sigma, data=data, N=N, kappa=kappa)
+                    samples, _ = slicesampler.sample_1D_circular(300, np.random.rand()*2.*np.pi-np.pi, lik_sampler, burn=100, widths=np.pi/4., loglike_fct_params=params, debug=False, step_out=True)
+
+                    samples_circ_std_dev = np.sqrt(-2.*np.log(np.abs(np.mean(np.exp(1j*samples), axis=0))))
+                    samples_all_precisions.append(1./samples_circ_std_dev**2.)
+
+                    # Now sample one angle, and compute the fisher information from the distribution of the recall samples
+                    # choose last one
+                    recall_samples[m] = np.median(samples[-100:])
+                    # recall_samples[m] = samples[-1]
+
+
                 fisher_info_curve_mean = np.mean(fisher_info_curve)
                 fisher_info_curve_std = np.std(fisher_info_curve)
                 fisher_info_prec_mean = np.mean(fisher_info_prec)
                 fisher_info_prec_std = np.std(fisher_info_prec)
+
+                samples_precisions_mean = np.mean(samples_all_precisions)
+                samples_precisions_std = np.std(samples_all_precisions)
+
+                recall_samples_precision = 1./np.sqrt(-2.*np.log(np.abs(np.mean(np.exp(1j*(recall_samples - stimuli_used)), axis=0))))**2
 
                 # Save it
                 effects_kappa.append([fisher_info_curve_mean, fisher_info_prec_mean, fisher_info_N(N=N, kappa=kappa, sigma=sigma), fisher_info_Ninf(kappa=kappa, N=N, sigma=sigma)])
@@ -752,7 +785,7 @@ if __name__ == '__main__':
 
                 # effects_num_points.append((fisher_info_curve_mean, fisher_info_curve_std))
 
-                print "FI curve: %.3f, FI precision: %.3f, Theo: %.3f, Theo large N: %.3f" % (fisher_info_curve_mean, fisher_info_prec_mean, fisher_info_N(N=N, kappa=kappa, sigma=sigma), fisher_info_Ninf(kappa=kappa, N=N, sigma=sigma))
+                print "FI curve: %.3f, FI precision: %.3f, Samples: %.3f, Recall precision: %.3f, Theo: %.3f, Theo large N: %.3f" % (fisher_info_curve_mean, fisher_info_prec_mean, samples_precisions_mean, recall_samples_precision, fisher_info_N(N=N, kappa=kappa, sigma=sigma), fisher_info_Ninf(kappa=kappa, N=N, sigma=sigma))
 
             # plot_mean_std_area(num_points_space, np.array(effects_num_points)[:, 0], np.array(effects_num_points)[:, 1])
             effects_kappa = np.array(effects_kappa)
@@ -866,8 +899,8 @@ if __name__ == '__main__':
 
         angles_clamped_fi = np.linspace(0., 2.*np.pi, 1000, endpoint=False)
 
-        kappa_space = np.linspace(0.001, 30., 20)
-        # kappa_space = np.linspace(30., 30., 1)
+        # kappa_space = np.linspace(0.001, 30., 20)
+        kappa_space = np.linspace(2., 2., 1)
 
         effects_kappa_mean = []
         effects_kappa_std = []
