@@ -2001,20 +2001,20 @@ def do_multiple_memory_curve_simult(args):
 
             
             # Construct the real dataset
-            data_gen = DataGeneratorRFN(args.N, t+1, random_network, sigma_y = args.sigmay, sigma_x=args.sigmax, time_weights_parameters = time_weights_parameters)
+            data_gen = DataGeneratorRFN(args.N, t+1, random_network, sigma_y = args.sigmay, sigma_x=args.sigmax, time_weights_parameters = time_weights_parameters, cued_feature_time=t, stimuli_generation=args.stimuli_generation)
             
             # Measure the noise structure
-            data_gen_noise = DataGeneratorRFN(3000, t+1, random_network, sigma_y = args.sigmay, sigma_x=args.sigmax, time_weights_parameters=time_weights_parameters)
+            data_gen_noise = DataGeneratorRFN(3000, t+1, random_network, sigma_y = args.sigmay, sigma_x=args.sigmax, time_weights_parameters=time_weights_parameters, cued_feature_time=t, stimuli_generation=args.stimuli_generation)
             stat_meas = StatisticsMeasurer(data_gen_noise)
             # stat_meas = StatisticsMeasurer(data_gen)
             
-            sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters = stat_meas.model_parameters)
+            sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters = stat_meas.model_parameters, tc=t)
             
             print "  doing T=%d %d/%d" % (t+1, repet_i+1, args.num_repetitions)
 
             if args.inference_method == 'sample':
                 # Sample thetas
-                sampler.sample_theta(num_samples=args.num_samples, burn_samples=20, selection_method='median', selection_num_samples=args.num_samples, integrate_tc_out=False, debug=False)
+                sampler.sample_theta(num_samples=args.num_samples, burn_samples=100, selection_method=args.selection_method, selection_num_samples=args.num_samples, integrate_tc_out=False, debug=False)
             elif args.inference_method == 'max_lik':
                 # Just use the ML value for the theta
                 sampler.set_theta_max_likelihood(num_points=200, post_optimise=True)
@@ -2022,7 +2022,7 @@ def do_multiple_memory_curve_simult(args):
                 raise ValueError('Wrong value for inference_method')
 
             # Save the precision
-            all_precisions[t, repet_i] = sampler.get_precision(remove_chance_level=True)
+            all_precisions[t, repet_i] = sampler.get_precision(remove_chance_level=False)
             # all_precisions[t, repet_i] = 1./sampler.compute_angle_error()[1]
 
             print "-> %.5f" % all_precisions[t, repet_i]
@@ -2105,15 +2105,18 @@ def plot_multiple_memory_curve_simult(args):
     T = loaded_data['args'].T
     
     # Average over repetitions, and then get mean across T
-    mean_precision = np.zeros(T)
-    std_precision = np.zeros(T)
-    for t in np.arange(T):
-        mean_precision[t] = np.mean(all_precisions[t][:t+1])
-        std_precision[t] = np.std(all_precisions[t][:t+1])
+    # mean_precision = np.zeros(T)
+    # std_precision = np.zeros(T)
+    # for t in np.arange(T):
+        # mean_precision[t] = np.mean(all_precisions[t][:t+1])
+        # std_precision[t] = np.std(all_precisions[t][:t+1])
+
+    mean_precision = np.mean(all_precisions, axis=1)
+    std_precision = np.std(all_precisions, axis=1)
 
     f = plt.figure()
     ax = f.add_subplot(111)
-    plt.semilogy(np.arange(1, T+1), 1./mean_precision, 'o-')
+    plt.semilogy(np.arange(1, T+1), mean_precision, 'o-')
     plt.xticks(np.arange(1, T+1))
     plt.xlim((0.9, T+0.1))
     ax.set_xlabel('Number of stored items')
@@ -2121,9 +2124,13 @@ def plot_multiple_memory_curve_simult(args):
 
     f = plt.figure()
     ax = f.add_subplot(111)
-    plt.bar(np.arange(1, T+1), 1./mean_precision, align='center', log=False)
+    plt.plot(np.arange(1, T+1), mean_precision)
     ax.set_xlabel('Number of stored items')
     ax.set_ylabel('Precision [rad]')
+
+    plot_mean_std_area(np.arange(1, T+1), mean_precision, std_precision)
+    plt.xlabel('Number of stored items')
+    plt.ylabel('Precision [rad]^-0.5')
 
 
     return locals()
@@ -2636,7 +2643,7 @@ def do_fisher_information_estimation(args):
 
         print "stimuli_generation: %s" % stimuli_generation
 
-        rcscale_space = np.linspace(0.5, 15, 5)
+        rcscale_space = np.linspace(1.5, 6.0, 5)
         # rcscale_space = np.linspace(4., 4., 1.)
         FI_rc_curv = np.zeros((rcscale_space.size, 3), dtype=float)
         FI_rc_curv_quantiles = np.zeros((rcscale_space.size, 3), dtype=float)
@@ -2835,6 +2842,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_samples', type=int, default=20, help='Number of samples to use')
     parser.add_argument('--selection_num_samples', type=int, default=1, help='While selecting the new sample from a set of samples, consider the P last samples only. (if =1, return last sample)')
     parser.add_argument('--selection_method', choices=['median', 'last'], default='median', help='How the new sample is chosen from a set of samples. Median is closer to the ML value but could have weird effects.')
+    parser.add_argument('--stimuli_generation', choices=['constant', 'random'], default='random', help='How to generate the dataset.')
     parser.add_argument('--alpha', default=1.0, type=float, help='Weighting of the decay through time')
     parser.add_argument('--code_type', choices=['conj', 'feat', 'mixed', 'wavelet'], default='conj', help='Select the type of code used by the Network')
     parser.add_argument('--rc_scale', type=float, default=0.5, help='Scale of receptive fields')
