@@ -656,7 +656,7 @@ if __name__ == '__main__':
         if True:
 
             ## Population
-            N     = 50
+            N     = 200
             kappa = 1.0
             sigma = 0.2
             amplitude = 1.0
@@ -667,8 +667,8 @@ if __name__ == '__main__':
 
                 return amplitude*np.exp(kappa*np.cos(theta - pref_angles))/(2.*np.pi*scsp.i0(kappa))
 
-            # kappa_space = np.linspace(0.001, 10., 5)
-            kappa_space = np.linspace(2., 2., 1)
+            kappa_space = np.linspace(0.001, 20., 10)
+            # kappa_space = np.linspace(2., 2., 1)
 
             effects_kappa = []
             effects_kappa_std = []
@@ -765,8 +765,8 @@ if __name__ == '__main__':
 
                     # Now sample one angle, and compute the fisher information from the distribution of the recall samples
                     # choose last one
-                    recall_samples[m] = np.median(samples[-100:])
-                    # recall_samples[m] = samples[-1]
+                    # recall_samples[m] = np.median(samples[-100:])
+                    recall_samples[m] = samples[-1]
 
 
                 fisher_info_curve_mean = np.mean(fisher_info_curve)
@@ -780,8 +780,8 @@ if __name__ == '__main__':
                 recall_samples_precision = 1./np.sqrt(-2.*np.log(np.abs(np.mean(np.exp(1j*(recall_samples - stimuli_used)), axis=0))))**2
 
                 # Save it
-                effects_kappa.append([fisher_info_curve_mean, fisher_info_prec_mean, fisher_info_N(N=N, kappa=kappa, sigma=sigma), fisher_info_Ninf(kappa=kappa, N=N, sigma=sigma)])
-                effects_kappa_std.append([fisher_info_curve_std, fisher_info_prec_std, 0, 0])
+                effects_kappa.append([fisher_info_curve_mean, fisher_info_prec_mean, fisher_info_N(N=N, kappa=kappa, sigma=sigma), fisher_info_Ninf(kappa=kappa, N=N, sigma=sigma), samples_precisions_mean, recall_samples_precision])
+                effects_kappa_std.append([fisher_info_curve_std, fisher_info_prec_std, 0, 0, samples_precisions_std, 0])
 
                 # effects_num_points.append((fisher_info_curve_mean, fisher_info_curve_std))
 
@@ -795,7 +795,7 @@ if __name__ == '__main__':
             # No small N / big kappa effect on Fisher information.
             plot_multiple_mean_std_area(kappa_space, effects_kappa.T, effects_kappa_std.T)
 
-            plt.legend(['Curve', 'Precision', 'Theo', 'Theo large N'])
+            plt.legend(['Curvature', 'Posterior precision', 'Theo', 'Theo large N', 'Samples', 'Recall precision'])
 
 
 
@@ -899,8 +899,8 @@ if __name__ == '__main__':
 
         angles_clamped_fi = np.linspace(0., 2.*np.pi, 1000, endpoint=False)
 
-        # kappa_space = np.linspace(0.001, 30., 20)
-        kappa_space = np.linspace(2., 2., 1)
+        kappa_space = np.linspace(0.001, 20., 5)
+        # kappa_space = np.linspace(2., 2., 1)
 
         effects_kappa_mean = []
         effects_kappa_std = []
@@ -998,13 +998,13 @@ if __name__ == '__main__':
         plot_multiple_median_quantile_area(kappa_space, quantiles=effects_kappa_quantiles.transpose(1, 0, 2))
         plt.legend(['Precision from 1D Clamped', '1D Clamped curvature', '2D Theo', '2D Theo large N'])
 
-    if True:
+    if False:
         # Try with true gaussian to see the effect of precision estimation
         N     = 1
         # kappa = 1.0
         sigma = 0.2
-        M = 100
-        num_points = 500
+        M = 500
+        num_points = 1000
 
         # stimuli_used = np.random.rand(M)*np.pi*2.
         # stimuli_used = np.random.rand(M)*np.pi/2. + np.pi
@@ -1051,14 +1051,14 @@ if __name__ == '__main__':
             fisher_info_curve[m] = curv_logp[ml_index]
 
             # Precision from samples
-            samples, _ = slicesampler.sample_1D_circular(400, np.random.rand()*2.*np.pi-np.pi, loglik_sampler, burn=100, widths=np.pi/4., loglike_fct_params=params, debug=False, step_out=True)
+            samples, _ = slicesampler.sample_1D_circular(500, np.random.rand()*2.*np.pi-np.pi, loglik_sampler, burn=100, widths=np.pi/4., loglike_fct_params=params, debug=False, step_out=True)
 
             samples_circ_std_dev = np.sqrt(-2.*np.log(np.abs(np.mean(np.exp(1j*samples), axis=0))))
             samples_all_precisions[m] = 1./samples_circ_std_dev**2.
 
             # Now sample one angle, and compute the fisher information from the distribution of the recall samples
             # choose last one
-            recall_samples[m] = np.median(samples[-100:])
+            recall_samples[m] = np.median(samples[-1:])
         
         recall_samples_precision = 1./np.sqrt(-2.*np.log(np.abs(np.mean(np.exp(1j*(recall_samples - stimuli_used)), axis=0))))**2
 
@@ -1066,6 +1066,87 @@ if __name__ == '__main__':
         plt.boxplot([fisher_info_curve, samples_all_precisions, recall_samples_precision])
         plt.title('Comparison Curvature vs samples estimate vs recall precision. Simple gaussian.')
         plt.xticks([1, 2, 3], ['Curvature', 'Samples', 'Precision'], rotation=45)
+
+        print np.mean(fisher_info_curve/recall_samples_precision)
+
+    if True:
+        ### Check precision/curvature ratio as fct of sigma
+
+        N     = 1
+        # kappa = 1.0
+        sigma = 0.2
+        M = 1000
+        num_points = 2000
+        
+        sigma_space = np.linspace(0.05, 0.8, 10.)
+        ratio_precisioncurv = np.zeros(sigma_space.size)
+        
+        def loglik_sampler(angle, params):
+            sigma = params['sigma']
+            data = params['data']
+            return -1./(2.*sigma**2.0)*np.sum((data - angle)**2.)
+
+        def loglik_fullspace(all_angles, params):
+            lik = np.zeros(all_angles.size)
+            for i, angle in enumerate(all_angles):
+                lik[i] = loglik_sampler(angle, params)
+
+            return lik
+
+        for sigma_i, sigma in enumerate(sigma_space):
+
+            print "===> Sigma: %.3f" % sigma
+
+            # stimuli_used = np.random.rand(M)*np.pi*2.
+            # stimuli_used = np.random.rand(M)*np.pi/2. + np.pi
+            stimuli_used = np.ones(M)*1.
+
+            dataset = np.zeros((M, N))
+            for i, stim in enumerate(stimuli_used):
+                dataset[i] = stimuli_used[i] + sigma*np.random.randn(N)
+
+            all_angles = np.linspace(-3.*np.pi, 3.*np.pi, num_points, endpoint=False)
+            dx = np.diff(all_angles)[0]
+
+            slicesampler = SliceSampler()
+
+            fisher_info_curve = np.zeros(M)
+            samples_all_precisions = np.zeros(M)
+            recall_samples = np.zeros(M)
+
+            for m, data in enumerate(dataset):
+                # print m
+
+                params = dict(sigma=sigma, data=data)
+                log_posterior = loglik_fullspace(all_angles, params)
+                
+                log_posterior[np.isinf(log_posterior)] = 0.0
+                log_posterior[np.isnan(log_posterior)] = 0.0
+
+                # Take curvature at ML value
+                ml_index = np.argmax(log_posterior)
+                curv_logp = -np.gradient(np.gradient(log_posterior))/dx**2.
+                fisher_info_curve[m] = curv_logp[ml_index]
+
+                # Precision from samples
+                samples, _ = slicesampler.sample_1D_circular(300, np.random.rand()*2.*np.pi-np.pi, loglik_sampler, burn=100, widths=np.pi/3., loglike_fct_params=params, debug=False, step_out=True)
+
+                samples_circ_std_dev = np.sqrt(-2.*np.log(np.abs(np.mean(np.exp(1j*samples), axis=0))))
+                samples_all_precisions[m] = 1./samples_circ_std_dev**2.
+
+                # Now sample one angle, and compute the fisher information from the distribution of the recall samples
+                # choose last one
+                recall_samples[m] = np.median(samples[-1:])
+            
+            recall_samples_precision = 1./np.sqrt(-2.*np.log(np.abs(np.mean(np.exp(1j*(recall_samples - stimuli_used)), axis=0))))**2
+
+            ratio_precisioncurv[sigma_i] = np.mean(fisher_info_curve/recall_samples_precision)
+
+            print ratio_precisioncurv
+
+
+        plt.figure()
+        plt.plot(sigma_space, ratio_precisioncurv)
 
 
     plt.show()

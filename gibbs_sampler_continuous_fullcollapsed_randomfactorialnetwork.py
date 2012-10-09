@@ -19,6 +19,7 @@ import os.path
 import argparse
 import matplotlib.patches as plt_patches
 # import matplotlib.collections as plt_collections
+import pylab as plt
 
 from datagenerator import *
 from randomnetwork import *
@@ -27,22 +28,6 @@ from statisticsmeasurer import *
 from slicesampler import *
 from utils import *
 from dataio import *
-
-def loglike_theta_fct_vect(thetas, (datapoint, rn, theta_mu, theta_kappa, ATtcB, sampled_feature_index, mean_fixed_contrib, covariance_fixed_contrib)):
-    '''
-        Compute the loglikelihood of: theta_r | n_tc theta_r' tc
-    '''
-    
-    like_mean = datapoint - mean_fixed_contrib - \
-                np.dot(ATtcB, rn.get_network_response(thetas))
-            
-    # Using inverse covariance as param
-    # return theta_kappa*np.cos(thetas[sampled_feature_index] - theta_mu) - 0.5*np.dot(like_mean, np.dot(covariance_fixed_contrib, like_mean))
-    return -0.5*np.dot(like_mean, np.dot(covariance_fixed_contrib, like_mean))
-    # return -1./(2*0.2**2)*np.sum(like_mean**2.)
-
-    # TODO Found the error for the mismatch between samples and posterior here... Using two functions is retarded, should refactore it.
-    # Something funny though: this could be a nice way to get the mismatch between the sigma I approximation to the full covariance matrix.
 
 
 def loglike_theta_fct_single(new_theta, (thetas, datapoint, rn, theta_mu, theta_kappa, ATtcB, sampled_feature_index, mean_fixed_contrib, covariance_fixed_contrib)):
@@ -375,7 +360,7 @@ class Sampler:
         params = (self.theta[n], self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[self.tc[n]], sampled_feature_index, self.mean_fixed_contrib[self.tc[n]], self.covariance_fixed_contrib)
 
         # Sample the new theta
-        samples, llh = self.slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=np.pi/5., loglike_fct_params=params, debug=False, step_out=True)
+        samples, llh = self.slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=np.pi/3., loglike_fct_params=params, debug=False, step_out=True)
         # samples, llh = self.slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=0.01, loglike_fct_params=params, debug=False, step_out=True)
         
         # samples, llh = self.slicesampler.sample_1D_circular(1, self.theta[n, sampled_feature_index], loglike_theta_fct, burn=100, widths=np.pi/3., thinning=2, loglike_fct_params=params, debug=False, step_out=True)
@@ -658,9 +643,6 @@ class Sampler:
             Plot the result
         '''
 
-        # Pack the parameters for the likelihood function
-        params = (self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[t], sampled_feature_index, self.mean_fixed_contrib[t], self.covariance_fixed_contrib)
-        
 
         all_angles = np.linspace(-np.pi, np.pi, num_points, endpoint=False)
         llh_2angles = np.zeros((num_points, num_points))
@@ -669,7 +651,12 @@ class Sampler:
         for i in np.arange(num_points):
             print "%d%%" % (i/float(num_points)*100)
             for j in np.arange(num_points):
-                llh_2angles[i, j] = loglike_theta_fct_vect(np.array([all_angles[i], all_angles[j]]), params)
+
+                # Pack the parameters for the likelihood function
+                params = (np.array([all_angles[i], all_angles[j]]), self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[t], sampled_feature_index, self.mean_fixed_contrib[t], self.covariance_fixed_contrib)
+        
+                # llh_2angles[i, j] = loglike_theta_fct_vect(np.array([all_angles[i], all_angles[j]]), params)
+                llh_2angles[i, j] = loglike_theta_fct_single(all_angles[i], params)
         
         if should_exponentiate:
             llh_2angles = np.exp(llh_2angles)
@@ -719,19 +706,23 @@ class Sampler:
             Plot the log-likelihood function, over the space of the sampled theta, keeping the other thetas fixed to their correct cued value.
         '''
 
+        num_points = int(num_points)
+
         all_angles = np.linspace(-np.pi, np.pi, num_points, endpoint=False)
         llh_2angles = np.zeros((self.T, num_points))
         
         # Compute the array
         for t in np.arange(self.T):
 
-            # Pack the parameters for the likelihood function
-            params = (self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[t], sampled_feature_index, self.mean_fixed_contrib[t], self.covariance_fixed_contrib)
-            
             # Compute the loglikelihood for all possible first feature
             for i in np.arange(num_points):
+
+                # Pack the parameters for the likelihood function
+                params = (np.array([all_angles[i], self.data_gen.stimuli_correct[n, t, 1]]), self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[t], sampled_feature_index, self.mean_fixed_contrib[t], self.covariance_fixed_contrib)
+            
                 # Give the correct cued second feature
-                llh_2angles[t, i] = loglike_theta_fct_vect(np.array([all_angles[i], self.data_gen.stimuli_correct[n, t, 1]]), params)
+                llh_2angles[t, i] = loglike_theta_fct_single(all_angles[i], params)
+                # llh_2angles[t, i] = loglike_theta_fct_vect(np.array([all_angles[i], self.data_gen.stimuli_correct[n, t, 1]]), params)
         
         llh_2angles = llh_2angles.T
         
@@ -2639,12 +2630,12 @@ def do_fisher_information_estimation(args):
 
     elif args.subaction == 'rcscale_dependence':
         single_point_estimate = False
-        num_repet_sample_estimate = 3
+        num_repet_sample_estimate = 1
 
         print "stimuli_generation: %s" % stimuli_generation
 
-        rcscale_space = np.linspace(1.5, 6.0, 5)
-        # rcscale_space = np.linspace(4., 4., 1.)
+        # rcscale_space = np.linspace(1.5, 6.0, 5)
+        rcscale_space = np.linspace(4., 4., 1.)
         FI_rc_curv = np.zeros((rcscale_space.size, 3), dtype=float)
         FI_rc_curv_quantiles = np.zeros((rcscale_space.size, 3), dtype=float)
         FI_rc_curv_all = []
@@ -2772,7 +2763,6 @@ def do_fisher_information_estimation(args):
             for rc_scale_i, rc_scale in enumerate(rcscale_space):
                 # Show the precision from posterior estimate against the FI from posterior estimate
                 plt.figure()
-                print rc_scale_i, FI_rc_curv_all.shape, FI_rc_samples_all.shape
 
                 plt.plot(FI_rc_curv_all[rc_scale_i], FI_rc_samples_all[rc_scale_i], 'x')
 
