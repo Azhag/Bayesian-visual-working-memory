@@ -12,6 +12,7 @@ import numpy as np
 import matplotlib.ticker as plttic
 import scipy.io as sio
 import scipy.optimize as spopt
+import scipy.stats as spst
 import uuid
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
@@ -206,6 +207,13 @@ def nanmean(array, axis=None):
     else:
         return np.ma.masked_invalid(array).mean()
 
+def nanmedian(array, axis=None):
+    if not axis is None:
+        return np.ma.extras.median(np.ma.masked_invalid(array), axis=axis)
+    else:
+        return np.ma.extras.median(np.ma.masked_invalid(array))
+
+
 def nanstd(array, axis=None):
     if not axis is None:
         return np.ma.masked_invalid(array).std(axis=axis)
@@ -275,9 +283,72 @@ def plot_mean_std_area(x, y, std, ax_handle=None):
     ax = ax_handle.plot(x, y)
     current_color = ax[-1].get_c()
     
-    ax_handle.fill_between(x, y-std, y+std, facecolor=current_color, alpha=0.4,
+    if np.any(std > 1e-6):
+        ax_handle.fill_between(x, y-std, y+std, facecolor=current_color, alpha=0.4,
                         label='1 sigma range')
     
+    ax_handle.get_figure().canvas.draw()
+
+    return ax_handle
+
+
+def plot_multiple_median_quantile_area(x, y=None, quantiles=None, axis=-1, ax_handle=None):
+    '''
+        Plots multiple x-y data with median and quantiles, on the same graph
+
+        Will iterate over the first axis, has to...
+
+        Assume that you give either the raw data in y, or the quantiles.
+    '''
+    
+    assert (y is not None or quantiles is not None), "Give either y or quantiles"
+
+    if ax_handle is None:
+        f = plt.figure()
+        ax_handle = f.add_subplot(111)
+    
+    if x.ndim == 1:
+        # x should be extended, for convenience
+        if y is not None:
+            x = np.tile(x, (y.shape[0], 1))
+        else:
+            x = np.tile(x, (quantiles.shape[0], 1))
+
+    for curr_plt in xrange(x.shape[0]):
+        if y is not None:
+            ax_handle = plot_median_quantile_area(x[curr_plt], y[curr_plt], quantiles=None, axis=axis, ax_handle=ax_handle)
+        elif quantiles is not None:
+            ax_handle = plot_median_quantile_area(x[curr_plt], quantiles=quantiles[curr_plt], axis=axis, ax_handle=ax_handle)
+
+
+    return ax_handle
+
+
+def plot_median_quantile_area(x, y=None, quantiles=None, axis=-1, ax_handle=None):
+    """
+        Plot the given x-y data, showing the median of y, and its 25 and 75 quantiles as a shaded area
+
+        If ax_handle is given, plots on this figure
+    """
+
+    assert (y is not None or quantiles is not None), "Give either y or quantiles"
+
+    if quantiles is None:
+        quantiles = spst.mstats.mquantiles(y, axis=axis, prob=[0.25, 0.5, 0.75])
+
+    if ax_handle is None:
+        f = plt.figure()
+        ax_handle = f.add_subplot(111)
+    
+    ax = ax_handle.plot(x, quantiles[..., 1])
+
+    current_color = ax[-1].get_c()
+    
+    ax_handle.fill_between(x, quantiles[..., 0], quantiles[..., 2], facecolor=current_color, alpha=0.4,
+                        label='quantile')
+    
+    ax_handle.get_figure().canvas.draw()
+
     return ax_handle
 
 
@@ -500,6 +571,18 @@ def plot_powerlaw_fit(xdata, ydata, amp, index, yerr=None):
     plt.xlim((xdata.min()*0.9, xdata.max()*1.1))
 
 
+def plot_fft2_power(data, s=None, axes=(-2, -1)):
+    '''
+        Compute the 2D FFT and plot the 2D power spectrum.
+    '''
+
+    FS = np.fft.fft2(data, s=s, axes=axes)
+
+    plt.figure()
+    plt.imshow(np.log(np.abs(np.fft.fftshift(FS))**2.))
+    plt.title('Power spectrum')
+    plt.colorbar()
+
 
 ################################# FITTING ########################################
 
@@ -618,6 +701,75 @@ def fit_powerlaw_covariance(xdata, ydata, yerr = None, should_plot=True, debug=F
                 
 
     return np.array([index, amp])
+
+
+def fit_gaussian(xdata, ydata, should_plot = True, return_fitted_data = True, normalise = True, debug = False):
+    '''
+        Fit a gaussian to the given points.
+        Doesn't take samples! Only tries to fit a gaussian function onto some points.
+
+        Can plot the result if desired
+    '''
+    
+    mean_fit = np.sum(ydata*xdata)/np.sum(ydata)
+    std_fit = np.sqrt(np.abs(np.sum((xdata - mean_fit)**2*ydata)/np.sum(ydata)))
+    max_fit = ydata.max()
+
+    fitted_data = spst.norm.pdf(xdata, mean_fit, std_fit)
+
+    if debug:
+        print "Mean: %.3f, Std: %.3f, Max: %.3f" % (mean_fit, std_fit, max_fit)
+
+    if should_plot:
+        plt.figure()
+        if normalise:
+            plt.plot(xdata, ydata/ydata.sum(), xdata, fitted_data/fitted_data.sum())
+        else:
+            plt.plot(xdata, ydata, xdata, fitted_data)
+        plt.legend(['Data', 'Fit'])
+        plt.show()
+
+    if return_fitted_data:
+        return dict(parameters=np.array([mean_fit, std_fit, max_fit]), fitted_data=fitted_data)
+    else:
+        return np.array([mean_fit, std_fit, max_fit])
+
+
+def fit_gaussian_samples(samples, num_points=500, bound=np.pi, should_plot = True, return_fitted_data = True, normalise = True, debug = False):
+    """
+        Fit a 1D Gaussian on the samples provided.
+
+        Plot the result if desired
+    """
+
+    mean_fit = np.mean(samples)
+    std_fit = np.std(samples)
+
+    # x = np.linspace(samples.min()*1.5, samples.max()*1.5, 1000)
+    x = np.linspace(-bound, bound, num_points)
+
+    print mean_fit
+    print std_fit
+
+    fitted_data = spst.norm.pdf(x, mean_fit, std_fit)
+
+    if debug:
+        print "Mean: %.3f, Std: %.3f" % (mean_fit, std_fit)
+
+    if should_plot:
+        if normalise:
+            histogram_angular_data(samples, norm='max', bins=num_points)
+            plt.plot(x, fitted_data/np.max(fitted_data), 'r')
+        else:
+            histogram_angular_data(samples, bins=num_points)
+            plt.plot(x, fitted_data, 'r')
+
+        plt.show()
+
+    if return_fitted_data:
+        return dict(parameters=np.array([mean_fit, std_fit]), fitted_data=fitted_data)
+    else:
+        return np.array([mean_fit, std_fit])
 
 
         

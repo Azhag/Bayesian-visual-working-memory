@@ -13,7 +13,9 @@ import scipy.io as sio
 import os.path
 import numpy as np
 import inspect
-
+import pylab as plt
+from matplotlib.backends.backend_pdf import PdfPages
+import git
 
 class DataIO:
     '''
@@ -37,9 +39,15 @@ class DataIO:
         self.output_folder = output_folder
         self.label = label
         self.calling_function = calling_function
+        self.unique_id = ''  # Keep the unique ID for further uses
+        self.git_infos = None
+        self.debug = debug
 
         # Initialize unique_filename
         self.create_filename()
+
+        # Gather Git informations if relevant
+        self.gather_git_informations()
 
         if debug:
             print "FileIO ready: %s" % self.filename
@@ -69,6 +77,8 @@ class DataIO:
         if unique_id is None:
             unique_id = str(uuid.uuid4())
 
+            self.unique_id = unique_id
+
         fn.append(unique_id)
 
         if suffix:
@@ -87,6 +97,37 @@ class DataIO:
             return [outstring, unique_id]
         else:
             return outstring
+
+
+    def gather_git_informations(self):
+        '''
+            Check if we are in a current Git repository.
+
+            If so, will find the repository name and current commit number, to be saved with
+            the data and in figures metadata.
+        '''
+        try:
+            # Get the repository
+            self.git_repo = git.Repo(os.getcwd())
+
+            # Get the current branch
+            branch_name = self.git_repo.active_branch.name
+
+            # Get the current commit
+            commit_num = self.git_repo.active_branch.commit.hexsha
+
+            # Check if the repo is dirty (hence the commit is incorrect, may be important)
+            repo_dirty = self.git_repo.is_dirty()
+
+            # Save them up
+            self.git_infos = dict(repo=self.git_repo, branch_name=branch_name, commit_num=commit_num, repo_dirty=repo_dirty)
+
+            if self.debug:
+                print "Found Git informations: %s" % self.git_infos
+
+        except git.InvalidGitRepositoryError:
+            # No Git repository here, just stop
+            pass
 
 
     def numpy_2_mat(self, array, filename, arrayname):
@@ -123,6 +164,41 @@ class DataIO:
 
         # Save them as a numpy array
         np.save(self.filename, dict_selected_vars)
+
+
+    def save_current_figure(self, filename):
+        '''
+            Will save the current figure to the desired filename.
+
+            the filename can contain some fields:
+            {unique_id}
+
+            The output directory will be automatically prepend.
+        '''
+
+        # Complete the filename if needs be.
+        formatted_filename = os.path.join(self.output_folder, filename.format(unique_id=self.unique_id))
+
+        ## Save the figure.
+
+        extension = os.path.splitext(formatted_filename)[1]
+
+        if extension == '.pdf':
+            # We save in PDF, let's try to write some additional metadata
+            pdf = PdfPages(formatted_filename)
+
+            pdf.savefig()
+            pdf_metadata = pdf.infodict()
+
+            if self.git_infos:
+                # If we are in a Git repository, add the informations about the current branch and commit
+                # (it may not be properly commited, but close enough, check the next commit if dirty)
+                pdf_metadata['Subject'] = "Created on branch %s, commit %s (dirty: %d)" % (self.git_infos['branch_name'], self.git_infos['commit_num'], self.git_infos['repo_dirty'])
+
+            pdf.close()
+        else:
+            plt.savefig(formatted_filename)
+
 
 
 

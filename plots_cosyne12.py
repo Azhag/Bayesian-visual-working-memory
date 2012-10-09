@@ -30,7 +30,7 @@ def do_plots_networks():
         # rn = RandomFactorialNetwork.create_full_conjunctive(M, R=R, scale_moments=(0.45, 0.001), ratio_moments=(1.0, 0.001))
         rn = RandomFactorialNetwork.create_full_conjunctive(M, R=R, scale_moments=(0.5, 0.2), ratio_moments=(1.0, 0.2))
         # ax = rn.plot_coverage_feature_space(nb_stddev=0.7)
-        ax = rn.plot_coverage_feature_space(nb_stddev=0.7, alpha_ellipses=0.3, specified_neurons=np.arange(MM))
+        ax = rn.plot_coverage_feature_space(nb_stddev=0.7, alpha_ellipses=0.3, specific_neurons=np.arange(MM))
         ax.set_xlim(-3.5, 3.5)
         ax.set_ylim(-3.5, 3.5)
         ax.set_xticks((-np.pi, -np.pi / 2, 0, np.pi / 2., np.pi))
@@ -64,11 +64,11 @@ def do_plots_networks():
         ##
         # ax = rn.plot_coverage_feature_space(nb_stddev=0.7, alpha_ellipses=0.25)
         ##
-        ax = rn.plot_coverage_feature_space(nb_stddev=0.7, alpha_ellipses=0.2, specified_neurons=np.arange(MM), facecolor='b')
-        ax = rn.plot_coverage_feature_space(nb_stddev=0.7, alpha_ellipses=0.35, specified_neurons=np.arange(M * ratio_conj, M, dtype='int'), facecolor='r', ax=ax)
+        ax = rn.plot_coverage_feature_space(nb_stddev=0.7, alpha_ellipses=0.2, specific_neurons=np.arange(MM), facecolor='b')
+        ax = rn.plot_coverage_feature_space(nb_stddev=0.7, alpha_ellipses=0.35, specific_neurons=np.arange(M * ratio_conj, M, dtype='int'), facecolor='r', ax=ax)
         ##
-        # ax = rn.plot_coverage_feature_space(nb_stddev=0.7, alpha_ellipses=0.2, specified_neurons=np.arange(MM))
-        # ax = rn.plot_coverage_feature_space(nb_stddev=0.7, alpha_ellipses=0.3, specified_neurons=np.arange(M*ratio_conj,M, dtype='int'), ax=ax)
+        # ax = rn.plot_coverage_feature_space(nb_stddev=0.7, alpha_ellipses=0.2, specific_neurons=np.arange(MM))
+        # ax = rn.plot_coverage_feature_space(nb_stddev=0.7, alpha_ellipses=0.3, specific_neurons=np.arange(M*ratio_conj,M, dtype='int'), ax=ax)
 
         boxsize = 4.4
         ax.set_xlim(-boxsize, boxsize)
