@@ -120,7 +120,7 @@ class DataIO:
             repo_dirty = self.git_repo.is_dirty()
 
             # Save them up
-            self.git_infos = dict(repo=self.git_repo, branch_name=branch_name, commit_num=commit_num, repo_dirty=repo_dirty)
+            self.git_infos = dict(repo=str(self.git_repo), branch_name=branch_name, commit_num=commit_num, repo_dirty=repo_dirty)
 
             if self.debug:
                 print "Found Git informations: %s" % self.git_infos
@@ -162,6 +162,10 @@ class DataIO:
             if var in all_variables:
                 dict_selected_vars[var] = all_variables[var]
 
+        # Add the Git informations if appropriate
+        if self.git_infos:
+            dict_selected_vars['git_infos'] = self.git_infos
+
         # Save them as a numpy array
         np.save(self.filename, dict_selected_vars)
 
@@ -193,7 +197,7 @@ class DataIO:
             if self.git_infos:
                 # If we are in a Git repository, add the informations about the current branch and commit
                 # (it may not be properly commited, but close enough, check the next commit if dirty)
-                pdf_metadata['Subject'] = "Created on branch %s, commit %s (dirty: %d)" % (self.git_infos['branch_name'], self.git_infos['commit_num'], self.git_infos['repo_dirty'])
+                pdf_metadata['Subject'] = "Created on branch {branch_name}, commit {commit_num} (dirty: {repo_dirty:d})".format(**self.git_infos)
 
             pdf.close()
         else:
