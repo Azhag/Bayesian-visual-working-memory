@@ -8,7 +8,7 @@ Copyright (c) 2011 Gatsby Unit. All rights reserved.
 """
 
 # from scaledimage import *
-import pylab as plt
+import matplotlib.pyplot as plt
 import matplotlib.ticker as plttic
 import numpy as np
 from scipy.spatial.distance import pdist

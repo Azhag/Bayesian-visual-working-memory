@@ -7,7 +7,7 @@ Created by Loic Matthey on 2012-06-03.
 Copyright (c) 2012 Gatsby Unit. All rights reserved.
 """
 
-import pylab as plt
+import matplotlib.pyplot as plt
 import numpy as np
 import scipy.special as scsp
 

@@ -13,7 +13,7 @@ import scipy.io as sio
 import os.path
 import numpy as np
 import inspect
-import pylab as plt
+import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import git
 
@@ -34,6 +34,7 @@ class DataIO:
 
         if calling_function is None:
             # No calling function given, let's try and detect it!
+            # (this is useful when the calling command is a specific launcher for a given experiment)
             calling_function = inspect.stack()[1][3]
 
         self.output_folder = output_folder
@@ -50,7 +51,7 @@ class DataIO:
         self.gather_git_informations()
 
         if debug:
-            print "FileIO ready: %s" % self.filename
+            print "=== FileIO ready: %s ===" % self.filename
 
 
     def create_filename(self):
@@ -130,8 +131,11 @@ class DataIO:
             pass
 
 
-    def numpy_2_mat(self, array, filename, arrayname):
-        sio.savemat('%s.mat' % filename, {'%s' % arrayname: array})
+    def numpy_2_mat(self, array, arrayname):
+        '''
+            If you really want to save .mat files, you can...
+        '''
+        sio.savemat('%s.mat' % self.filename, {'%s' % arrayname: array})
 
 
 
@@ -152,8 +156,12 @@ class DataIO:
 
     def save_variables(self, selected_variables, all_variables):
         '''
+            Main function
+
             Takes a list of variables and save them in a numpy file.
             (could be changed to a cPickle or something)
+
+            all_variables should usually just be "locals()". It's slightly ugly but it's easy.
         '''
 
         # Select only a subset of the variables to save
@@ -178,6 +186,8 @@ class DataIO:
             {unique_id}
 
             The output directory will be automatically prepend.
+
+            Adds Git informations into the PDF metadata if available.
         '''
 
         # Complete the filename if needs be.
@@ -207,16 +217,31 @@ class DataIO:
 
 
 if __name__ == '__main__':
+
+    print "Testing..."
+
     # Some tests
+    dataio = DataIO(output_folder='.', label='test_io', calling_function='')
 
-    dataio = DataIO(label='test_io', calling_function='')
-
-    print dataio.filename
-
-    a= 12
+    a = 12
     b = 31
+    c = 'ba'
+    d = 11
 
+    # Now define which variables you want to save to disk
     selected_variables = ['a', 'b', 'c']
+
+    # Save them
     dataio.save_variables(selected_variables, locals())
+
+    print "Variables %s saved" % selected_variables
+
+    # Create a figure and save it
+    plt.figure()
+    plt.plot(np.linspace(0, 10, 100.), np.sin(np.linspace(0, 10, 100.)))
+
+    dataio.save_current_figure('test_figure-{unique_id}.pdf')
+
+    print "Figure saved"
 
 
