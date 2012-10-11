@@ -7,10 +7,10 @@ Created by Loic Matthey on 2011-06-16.
 Copyright (c) 2011 Gatsby Unit. All rights reserved.
 """
 
-import pylab as plt
+import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.ticker as plttic
-import scipy.io as sio
+# import scipy.io as sio
 import scipy.optimize as spopt
 import scipy.stats as spst
 import uuid
@@ -84,7 +84,7 @@ def dist_torus(points1, points2):
     xx = np.abs(points1 - points2)
     d = (np.fmin(2.*np.pi - xx, xx))**2.
 
-    return (d[:,0]+d[:,1])**0.5
+    return (d[:, 0]+d[:, 1])**0.5
 
 
 def dist_sphere(point1, point2):
@@ -98,6 +98,7 @@ def dist_sphere(point1, point2):
     p3 = np.cos(point1_pos[0]+point2_pos[0])
 
     return np.arccos((p1*(p2+p3) + p2-p3)/2.)
+
 
 def dist_sphere_mat(points1, points2):
     '''
@@ -114,6 +115,7 @@ def dist_sphere_mat(points1, points2):
 
     return np.arccos((p12[:, 1]*(p12[:, 0]+p3) + p12[:, 0]-p3)/2.)
 
+
 def spherical_to_vect(angles):
     output_vect = np.zeros(3)
     output_vect[0] = np.cos(angles[0])*np.sin(angles[1])
@@ -121,6 +123,7 @@ def spherical_to_vect(angles):
     output_vect[2] = np.cos(angles[1])
 
     return output_vect
+
 
 def spherical_to_vect_array(angles):
     output_vect = np.zeros((angles.shape[0], angles.shape[1]+1))
@@ -131,8 +134,10 @@ def spherical_to_vect_array(angles):
 
     return output_vect
 
+
 def create_2D_rotation_matrix(angle):
     return np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
+
 
 def create_3D_rotation_around_vector(vector, angle):
     '''
@@ -145,6 +150,7 @@ def create_3D_rotation_around_vector(vector, angle):
               [ -vector[1], vector[0], 0.]]) + \
            np.cos(angle)*np.eye(3) + \
            (1. - np.cos(angle))*np.outer(vector, vector)
+
 
 def gs_ortho(input_vect, ortho_target):
     output = input_vect - np.dot(ortho_target, input_vect)*ortho_target
