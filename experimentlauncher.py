@@ -11,10 +11,15 @@ Copyright (c) 2011 . All rights reserved.
 import argparse
 import sys
 import matplotlib.pyplot as plt
+import inspect
 
-from launchers import *
-from launchers_profile import *
-from gibbs_sampler_continuous_fullcollapsed_randomfactorialnetwork import *
+import launchers
+import launchers_profile
+import launchers_memorycurves
+import launchers_parametersweeps
+import launchers_fisherinformation
+
+launchers_modules = [launchers, launchers_profile, launchers_memorycurves, launchers_parametersweeps, launchers_fisherinformation]
 
 
 class ExperimentLauncher(object):
@@ -39,26 +44,23 @@ class ExperimentLauncher(object):
 
 
     def init_possible_launchers(self):
-        # Switch on different actions
-        self.actions = dict([(x.__name__, x) for x in 
-            [do_simple_run, 
-                profile_me,
-                do_size_receptive_field,
-                do_neuron_number_precision,
-                do_size_receptive_field_number_neurons,
-                plot_neuron_number_precision,
-                plot_size_receptive_field,
-                plot_size_receptive_field_number_neurons,
-                do_memory_curve,
-                do_multiple_memory_curve,
-                do_multiple_memory_curve_simult,
-                plot_multiple_memory_curve,
-                plot_multiple_memory_curve_simult,
-                do_mixed_ratioconj,
-                do_mixed_two_scales,
-                do_save_responses_simultaneous,
-                do_fisher_information_estimation
-                ]])
+        
+        # List of possible launchers
+        self.possible_launchers = {}
+
+        # Get all the launchers available
+        for launch_module in launchers_modules:
+
+            # Getmembers returns a list of tuples (f.__name__, f)
+            all_functions = inspect.getmembers(launch_module, inspect.isfunction)
+
+            # Only keep the functions starting with "launcher_" which denote one of our launcher
+            for (func_name, func) in all_functions:
+                if func_name.startswith('launcher_'):
+                    
+                    # Fill the dictionary of callable launchers
+                    self.possible_launchers[func_name] = func
+
 
 
     def create_argument_parser(self):
@@ -68,7 +70,7 @@ class ExperimentLauncher(object):
         parser = argparse.ArgumentParser(description='Sample a model of Visual working memory.')
         parser.add_argument('--label', help='label added to output files', default='')
         parser.add_argument('--output_directory', nargs='?', default='Data/')
-        parser.add_argument('--action_to_do', choices=self.actions.keys(), default='do_simple_run')
+        parser.add_argument('--action_to_do', choices=self.possible_launchers.keys(), default='do_simple_run')
         parser.add_argument('--input_filename', default='', help='Some input file, depending on context')
         parser.add_argument('--num_repetitions', type=int, default=1, help='For search actions, number of repetitions to average on')
         parser.add_argument('--N', default=100, type=int, help='Number of datapoints')
@@ -91,14 +93,14 @@ class ExperimentLauncher(object):
         parser.add_argument('--inference_method', choices=['sample', 'max_lik', 'none'], default='sample', help='Method used to infer the responses. Either sample (default) or set the maximum likelihood/posterior values directly.')
         parser.add_argument('--subaction', default='', help='Some actions have multiple possibilities.')
 
-
+        
         self.args = parser.parse_args()
 
 
     def run_launcher(self):
 
         # Run the launcher
-        self.all_vars = self.actions[self.args.action_to_do](self.args)
+        self.all_vars = self.possible_launchers[self.args.action_to_do](self.args)
 
     
 

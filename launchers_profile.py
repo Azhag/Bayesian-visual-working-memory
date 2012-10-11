@@ -20,7 +20,7 @@ from gibbs_sampler_continuous_fullcollapsed_randomfactorialnetwork import *
 
 
 
-def profile_me(args):
+def launcher_profile_me(args):
     print "-------- Profiling ----------"
     
     import cProfile
@@ -34,7 +34,7 @@ def profile_me(args):
     return {}
 
 
-def profiling_run(args):
+def launcher_profiling_run(args):
     
     N = 100
     T = 2

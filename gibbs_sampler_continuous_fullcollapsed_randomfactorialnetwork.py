@@ -24,9 +24,7 @@ import matplotlib.pyplot as plt
 from utils import *
 
 from slicesampler import *
-from experimentlauncher import *
 # from dataio import *
-
 
 def loglike_theta_fct_single(new_theta, (thetas, datapoint, rn, theta_mu, theta_kappa, ATtcB, sampled_feature_index, mean_fixed_contrib, covariance_fixed_contrib)):
     '''
@@ -1220,7 +1218,8 @@ if __name__ == '__main__':
     
     print "====> DEPRECATED, use experimentlauncher.py instead"
 
-    experiment_launcher = ExperimentLauncher(run=True)
+    import experimentlauncher
+    experiment_launcher = experimentlauncher.ExperimentLauncher(run=True)
 
     plt.show()
 
