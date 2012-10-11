@@ -174,6 +174,10 @@ class DataIO:
         if self.git_infos:
             dict_selected_vars['git_infos'] = self.git_infos
 
+        # Make sure to save the arguments if forgotten
+        if 'args' in all_variables and not 'args' in dict_selected_vars:
+            dict_selected_vars['args'] = all_variables['args']
+
         # Save them as a numpy array
         np.save(self.filename, dict_selected_vars)
 
