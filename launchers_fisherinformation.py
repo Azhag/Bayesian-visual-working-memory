@@ -262,8 +262,8 @@ def launcher_do_fisher_information_estimation(args):
 
         print "stimuli_generation: %s" % stimuli_generation
 
-        # rcscale_space = np.linspace(1.5, 6.0, 5)
-        rcscale_space = np.linspace(4., 4., 1.)
+        rcscale_space = np.linspace(0.5, 10.0, 10)
+        # rcscale_space = np.linspace(4., 4., 1.)
         FI_rc_curv = np.zeros((rcscale_space.size, 3), dtype=float)
         FI_rc_curv_quantiles = np.zeros((rcscale_space.size, 3), dtype=float)
         FI_rc_curv_all = []
@@ -273,6 +273,9 @@ def launcher_do_fisher_information_estimation(args):
         FI_rc_precision = np.zeros(rcscale_space.size, dtype=float)
         FI_rc_precision_quantiles = np.zeros((rcscale_space.size, 3), dtype=float)
         FI_rc_precision_all = []
+        FI_rc_theo = np.zeros((rcscale_space.size, 2), dtype=float)
+        FI_rc_theo_quantiles = np.zeros((rcscale_space.size, 3), dtype=float)
+        FI_rc_theo_all = []
 
         for i, rc_scale in enumerate(rcscale_space):
 
@@ -328,24 +331,34 @@ def launcher_do_fisher_information_estimation(args):
             # prec_samples = sampler.estimate_precision_from_samples(n=0, num_samples=1000, num_repetitions=10)
             # (FI_rc_samples[i, 0], FI_rc_samples[i, 1])=(prec_samples['mean'], prec_samples['std'])
             
-            if True:
+            if False:
                 print "from samples..."
                 
                 if single_point_estimate:
-                    prec_samples_dict =  sampler.estimate_precision_from_samples(num_samples=500, num_repetitions=num_repet_sample_estimate, selection_method=selection_method)
+                    prec_samples_dict =  sampler.estimate_precision_from_samples(num_samples=300, num_repetitions=num_repet_sample_estimate, selection_method=selection_method)
                     (FI_rc_samples[i, 0], FI_rc_samples[i, 1])=(prec_samples_dict['mean'], prec_samples_dict['std'])
                     FI_rc_samples_quantiles[i] = spst.mstats.mquantiles(prec_samples_dict['all'])
                 else:
-                    prec_samples_dict = sampler.estimate_precision_from_samples_avg(num_samples=500, full_stats=True, num_repetitions=num_repet_sample_estimate, selection_method=selection_method)
+                    prec_samples_dict = sampler.estimate_precision_from_samples_avg(num_samples=300, full_stats=True, num_repetitions=num_repet_sample_estimate, selection_method=selection_method)
                     (FI_rc_samples[i, 0], FI_rc_samples[i, 1], FI_rc_samples[i, 2])=(prec_samples_dict['median'], prec_samples_dict['std'], np.max(prec_samples_dict['all']))
                     FI_rc_samples_quantiles[i] = spst.mstats.mquantiles(prec_samples_dict['all'])
 
                     FI_rc_samples_all.append(prec_samples_dict['all'])
 
 
-            print FI_rc_samples[i]
-            print FI_rc_samples_quantiles[i]
+                print FI_rc_samples[i]
+                print FI_rc_samples_quantiles[i]
             
+
+            # Compute theoretical values
+            print "theoretical FI"
+            FI_rc_theo[i, 0] = random_network.compute_fisher_information(stimulus_input=(0.0, 0.0), cov_stim=stat_meas.model_parameters['covariances'][-1, 0])
+            FI_rc_theo[i, 1] = random_network.compute_fisher_information_theoretical(sigma=sigma_x+sigma_y)
+            FI_rc_theo_quantiles[i] = spst.mstats.mquantiles(FI_rc_theo[i, 0])
+            FI_rc_theo_all.append(FI_rc_theo[i])
+
+            print FI_rc_theo
+
             print "from precision of recall..."
             sampler.sample_theta(num_samples=args.num_samples, burn_samples=100, selection_method=selection_method, selection_num_samples=args.num_samples, integrate_tc_out=False, debug=False)
             FI_rc_precision[i] = sampler.get_precision()
@@ -357,32 +370,36 @@ def launcher_do_fisher_information_estimation(args):
         FI_rc_curv_all = np.array(FI_rc_curv_all)
         FI_rc_samples_all = np.array(FI_rc_samples_all)
         FI_rc_precision_all = np.array(FI_rc_precision_all)
+        FI_rc_theo_all = np.array(FI_rc_theo_all)
 
 
         # Save the results
-        dataio.save_variables(['FI_rc_curv', 'FI_rc_samples', 'FI_rc_precision', 'FI_rc_curv_quantiles', 'FI_rc_samples_quantiles', 'FI_rc_precision_quantiles', 'rcscale_space', 'FI_rc_curv_all', 'FI_rc_samples_all', 'FI_rc_precision_all'], locals())
+        dataio.save_variables(['FI_rc_curv', 'FI_rc_samples', 'FI_rc_precision', 'FI_rc_curv_quantiles', 'FI_rc_samples_quantiles', 'FI_rc_precision_quantiles', 'rcscale_space', 'FI_rc_curv_all', 'FI_rc_samples_all', 'FI_rc_precision_all', 'FI_rc_theo', 'FI_rc_theo_quantiles', 'FI_rc_theo_all'], locals())
 
         # Plot results
         ax = plot_mean_std_area(rcscale_space, FI_rc_curv[:, 0], FI_rc_curv[:, 1])
         plot_mean_std_area(rcscale_space, FI_rc_samples[:, 0], FI_rc_samples[:, 1], ax_handle=ax)
         # ax = plot_mean_std_area(rcscale_space, FI_rc_samples[:, 2], 0.0*FI_rc_samples[:, 1], ax_handle=ax)
         ax = plot_mean_std_area(rcscale_space, FI_rc_precision, 0.0*FI_rc_precision, ax_handle=ax)
+        ax = plot_mean_std_area(rcscale_space, FI_rc_theo[:, 0], 0.0*FI_rc_theo[:, 0], ax_handle=ax)
+        ax = plot_mean_std_area(rcscale_space, FI_rc_theo[:, 1], 0.0*FI_rc_theo[:, 1], ax_handle=ax)
 
         plt.title('FI dependence on rcscale')
         plt.xlabel('rcscale')
         plt.ylabel('FI')
-        plt.legend(['Curvature', 'Samples', 'Recall precision'])
+        plt.legend(['Curvature', 'Samples', 'Recall precision', 'Theoretical sum', 'Theoretical large N'])
 
         dataio.save_current_figure("FI_rcscale_comparison_mean_std_{unique_id}.pdf")
 
         ax2 = plot_median_quantile_area(rcscale_space, quantiles=FI_rc_curv_quantiles)
         ax2 = plot_median_quantile_area(rcscale_space, quantiles=FI_rc_samples_quantiles, ax_handle=ax2)
         ax2 = plot_median_quantile_area(rcscale_space, quantiles=FI_rc_precision_quantiles, ax_handle=ax2)
+        ax2 = plot_median_quantile_area(rcscale_space, quantiles=FI_rc_theo_quantiles, ax_handle=ax2)
 
         plt.title('FI dependence, quantiles shown')
         plt.xlabel('rcscale')
         plt.ylabel('FI')
-        plt.legend(['Curvature', 'Samples', 'Recall precision'])
+        plt.legend(['Curvature', 'Samples', 'Recall precision', 'Theoretical sum'])
 
         dataio.save_current_figure('FI_rcscale_comparison_median_std_{unique_id}.pdf')
 
@@ -392,7 +409,7 @@ def launcher_do_fisher_information_estimation(args):
                 # Show the precision from posterior estimate against the FI from posterior estimate
                 plt.figure()
 
-                plt.plot(FI_rc_curv_all[rc_scale_i], FI_rc_samples_all[rc_scale_i], 'x')
+                # plt.plot(FI_rc_curv_all[rc_scale_i], FI_rc_samples_all[rc_scale_i], 'x')
 
                 idx = np.linspace(FI_rc_curv_all[rc_scale_i].min()*0.95, FI_rc_curv_all[rc_scale_i].max()*1.05, 100.)
 
@@ -406,9 +423,11 @@ def launcher_do_fisher_information_estimation(args):
 
                 # Show the boxplot of each estimate, per number of samples
                 plt.figure()
-                plt.boxplot([FI_rc_curv_all[rc_scale_i], FI_rc_samples_all[rc_scale_i].flatten(), FI_rc_precision_all[rc_scale_i]])
+                # plt.boxplot([FI_rc_curv_all[rc_scale_i], FI_rc_samples_all[rc_scale_i].flatten(), FI_rc_precision_all[rc_scale_i], FI_rc_theo_all[rc_scale_i, 0], FI_rc_theo_all[rc_scale_i, 1]])
+                plt.boxplot([FI_rc_curv_all[rc_scale_i], FI_rc_precision_all[rc_scale_i], FI_rc_theo_all[rc_scale_i, 0], FI_rc_theo_all[rc_scale_i, 1]])
                 plt.title('Comparison Curvature vs samples estimate. Rscale: %d' % rc_scale)
-                plt.xticks([1, 2, 3], ['Curvature', 'Samples', 'Precision'], rotation=45)
+                # plt.xticks([1, 2, 3, 5], ['Curvature', 'Samples', 'Precision', 'Theo', 'Theo large N'], rotation=45)
+                plt.xticks([1, 2, 3, 4], ['Curvature', 'Precision', 'Theo', 'Theo large N'], rotation=45)
 
                 dataio.save_current_figure('FI_rc_comparison_curv_samples_%d-{unique_id}.pdf' % rc_scale)
     
@@ -417,3 +436,192 @@ def launcher_do_fisher_information_estimation(args):
 
 
     return locals()
+
+
+
+
+def init_everything(parameters):
+
+    # Build the random network
+    time_weights_parameters = dict(weighting_alpha=parameters['alpha'], weighting_beta=1.0, specific_weighting=0.1, weight_prior='uniform')
+    cued_feature_time = parameters['T']-1
+
+    if parameters['code_type'] == 'conj':
+        random_network = RandomFactorialNetwork.create_full_conjunctive(parameters['M'], R=parameters['R'], scale_moments=(parameters['rc_scale'], 0.0001), ratio_moments=(1.0, 0.0001))
+    elif parameters['code_type'] == 'feat':
+        random_network = RandomFactorialNetwork.create_full_features(parameters['M'], R=parameters['R'], scale=parameters['rc_scale'], ratio=40.)
+    elif parameters['code_type'] == 'mixed':
+        conj_params = dict(scale_moments=(parameters['rc_scale'], 0.001), ratio_moments=(1.0, 0.0001))
+        feat_params = dict(scale=parameters['rc_scale2'], ratio=40.)
+
+        random_network = RandomFactorialNetwork.create_mixed(parameters['M'], R=parameters['R'], ratio_feature_conjunctive=ratio_conj, conjunctive_parameters=conj_params, feature_parameters=feat_params)
+    elif code_type == 'wavelet':
+        random_network = RandomFactorialNetwork.create_wavelet(parameters['M'], R=parameters['R'], scales_number=5)
+    else:
+        raise ValueError('Code_type is wrong!')
+    
+    # Construct the real dataset
+    # print "Building the database"
+    data_gen = DataGeneratorRFN(parameters['N'], parameters['T'], random_network, sigma_y=parameters['sigmay'], sigma_x=parameters['sigmax'], time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation=parameters['stimuli_generation'])
+    
+    # Measure the noise structure
+    # print "Measuring noise structure"
+    data_gen_noise = DataGeneratorRFN(5000, parameters['T'], random_network, sigma_y=parameters['sigmay'], sigma_x=parameters['sigmax'], time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation=parameters['stimuli_generation'])
+    stat_meas = StatisticsMeasurer(data_gen_noise)
+    
+    sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters=stat_meas.model_parameters, tc=cued_feature_time)
+
+    return (random_network, data_gen, stat_meas, sampler)
+
+
+def launcher_do_fisher_information_param_search(args):
+    '''
+        Get the fisher information for varying values of sigmax and rc_scale.
+
+        - First see how different FI estimators behave.
+        - Then build a constraint between sigmax/rc_scale based on the experimental value for 1 object.
+    '''
+
+    all_parameters = vars(args)
+
+    dataio = DataIO(output_folder=args.output_directory, label=args.label)
+    variables_to_save = ['rcscale_space', 'sigma_space', 'FI_rc_curv', 'FI_rc_precision', 'FI_rc_theo']
+
+    rcscale_space = np.linspace(0.5, 10.0, 10.)
+    # rcscale_space = np.linspace(4., 4., 1.)
+    
+    sigma_space = np.linspace(0.01, 1.5, 10.)
+    # sigma_space = np.linspace(0.2, 0.2, 1.)
+
+    FI_rc_curv = np.zeros((rcscale_space.size, sigma_space.size, 2), dtype=float)
+    FI_rc_precision = np.zeros((rcscale_space.size, sigma_space.size), dtype=float)
+    FI_rc_theo = np.zeros((rcscale_space.size, sigma_space.size, 2), dtype=float)
+    
+    for i, rc_scale in enumerate(rcscale_space):
+        for j, sigma in enumerate(sigma_space):
+            ### Estimate the Fisher Information
+            print "Estimating the Fisher Information, rcscale %.3f, sigma %.3f. %.2f%%" % (rc_scale, sigma, 100.*(i*rcscale_space.size+j)/(rcscale_space.size*sigma_space.size))
+            
+            # Current parameter values
+            all_parameters['rc_scale']  = rc_scale
+            all_parameters['sigmax']    = sigma
+
+            # Instantiate the sampler
+            (random_network, data_gen, stat_meas, sampler) = init_everything(all_parameters)
+            
+            print "from curvature..."
+            fi_curv_dict = sampler.estimate_fisher_info_from_posterior_avg(num_points=1000, full_stats=True)
+            (FI_rc_curv[i, j, 0], FI_rc_curv[i, j, 1]) = (fi_curv_dict['mean'], fi_curv_dict['std'])
+            print FI_rc_curv
+            
+            print "theoretical FI"
+
+            FI_rc_theo[i, j, 0] = random_network.compute_fisher_information(stimulus_input=(0.0, 0.0), cov_stim=stat_meas.model_parameters['covariances'][-1, 0])
+            FI_rc_theo[i, j, 1] = random_network.compute_fisher_information_theoretical(sigma=all_parameters['sigmax'], kappa1=all_parameters['rc_scale'], kappa2=all_parameters['rc_scale'])
+            print FI_rc_theo
+
+            print "from precision of recall..."
+            sampler.sample_theta(num_samples=all_parameters['num_samples'], burn_samples=100, selection_method=all_parameters['selection_method'], selection_num_samples=all_parameters['num_samples'], integrate_tc_out=False, debug=False)
+            FI_rc_precision[i, j] = sampler.get_precision()
+            print FI_rc_precision
+
+            dataio.save_variables(variables_to_save, locals())
+
+    # Plots
+    data_to_plot = {}
+    for curr_data in variables_to_save:
+        data_to_plot[curr_data] = locals()[curr_data]
+
+    plots_fisher_info_param_search(data_to_plot, dataio)
+
+    return locals()
+
+
+def plots_fisher_info_param_search(data_to_plot, dataio):
+    '''
+        Create and save a few plots for the fisher information parameter search
+    '''
+    
+    # Sanity check, verify that we have all the data we will be plotting
+    required_variables = ['rcscale_space', 'sigma_space', 'FI_rc_curv', 'FI_rc_precision', 'FI_rc_theo']
+
+    assert set.intersection(set(data_to_plot), set(required_variables)) == set(required_variables), "This dataset is not complete. Require %s" % required_variables
+
+    # 2D plots
+    f = plt.figure()
+    ax = f.add_subplot(111)
+    im = ax.imshow(data_to_plot['FI_rc_curv'][:, :, 0].T, interpolation='nearest', origin='lower left')
+    ax.set_yticks(np.arange(data_to_plot['rcscale_space'].size))
+    ax.set_yticklabels(data_to_plot['rcscale_space'])
+    ax.set_xticks(np.arange(data_to_plot['sigma_space'].size))
+    ax.set_xticklabels(data_to_plot['sigma_space'])
+    f.colorbar(im)
+    plt.title('FI from curvature, sigma/rcscale')
+    ax.axis('tight')
+    dataio.save_current_figure("FI_paramsearch_2d_curve_{unique_id}.pdf")
+
+    
+    f = plt.figure()
+    ax = f.add_subplot(111)
+    im = ax.imshow(data_to_plot['FI_rc_precision'].T, interpolation='nearest', origin='lower left')
+    ax.set_yticks(np.arange(data_to_plot['rcscale_space'].size))
+    ax.set_yticklabels(data_to_plot['rcscale_space'])
+    ax.set_xticks(np.arange(data_to_plot['sigma_space'].size))
+    ax.set_xticklabels(data_to_plot['sigma_space'])
+    f.colorbar(im)
+    plt.title('FI Recall precision, sigma/rcscale')
+    ax.axis('tight')
+    dataio.save_current_figure("FI_paramsearch_2d_precision_{unique_id}.pdf")
+
+    f = plt.figure()
+    ax = f.add_subplot(111)
+    im = ax.imshow(data_to_plot['FI_rc_theo'][:, :, 0].T, interpolation='nearest', origin='lower left')
+    ax.set_yticks(np.arange(data_to_plot['rcscale_space'].size))
+    ax.set_yticklabels(data_to_plot['rcscale_space'])
+    ax.set_xticks(np.arange(data_to_plot['sigma_space'].size))
+    ax.set_xticklabels(data_to_plot['sigma_space'])
+    f.colorbar(im)
+    plt.title('FI Theoretical sum, sigma/rcscale')
+    ax.axis('tight')
+    dataio.save_current_figure("FI_paramsearch_2d_theo_{unique_id}.pdf")
+
+    f = plt.figure()
+    ax = f.add_subplot(111)
+    im = ax.imshow(data_to_plot['FI_rc_theo'][:, :, 1].T, interpolation='nearest', origin='lower left')
+    ax.set_yticks(np.arange(data_to_plot['rcscale_space'].size))
+    ax.set_yticklabels(data_to_plot['rcscale_space'])
+    ax.set_xticks(np.arange(data_to_plot['sigma_space'].size))
+    ax.set_xticklabels(data_to_plot['sigma_space'])
+    f.colorbar(im)
+    plt.title('FI Theoretical large N, sigma/rcscale')
+    ax.axis('tight')
+    dataio.save_current_figure("FI_paramsearch_2d_theoN_{unique_id}.pdf")
+
+    # 1D plots
+    for i, sigma in enumerate(data_to_plot['sigma_space']):
+        ax = plot_mean_std_area(data_to_plot['rcscale_space'], data_to_plot['FI_rc_curv'][:, i, 0], data_to_plot['FI_rc_curv'][:, i, 1])
+        ax = plot_mean_std_area(data_to_plot['rcscale_space'], data_to_plot['FI_rc_precision'][:, i], 0.0*data_to_plot['FI_rc_precision'][:, i], ax_handle=ax)
+        ax = plot_mean_std_area(data_to_plot['rcscale_space'], data_to_plot['FI_rc_theo'][:, i, 0], 0.0*data_to_plot['FI_rc_theo'][:, i, 0], ax_handle=ax)
+        ax = plot_mean_std_area(data_to_plot['rcscale_space'], data_to_plot['FI_rc_theo'][:, i, 1], 0.0*data_to_plot['FI_rc_theo'][:, i, 1], ax_handle=ax)
+
+        plt.title('FI dependence on rcscale, sigma %.2f' % sigma)
+        plt.xlabel('rcscale')
+        plt.ylabel('FI')
+        plt.legend(['Curvature', 'Recall precision', 'Theoretical sum', 'Theoretical large N'])
+
+        dataio.save_current_figure("FI_paramsearch_rcscale_sigmafixed_mean_std_{unique_id}.pdf")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

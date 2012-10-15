@@ -99,6 +99,9 @@ class ExperimentLauncher(object):
 
     def run_launcher(self):
 
+        # Print the docstring
+        print self.possible_launchers[self.args.action_to_do].__doc__
+        
         # Run the launcher
         self.all_vars = self.possible_launchers[self.args.action_to_do](self.args)
 
@@ -113,7 +116,7 @@ if __name__ == '__main__':
 
     # Re-instantiate some variables
     #   Ugly but laziness prevails...
-    variables_to_reinstantiate = ['data_gen', 'sampler', 'stat_meas', 'random_network']
+    variables_to_reinstantiate = ['data_gen', 'sampler', 'stat_meas', 'random_network', 'args']
     for var_reinst in variables_to_reinstantiate:
         if var_reinst in experiment_launcher.all_vars:
             vars()[var_reinst] = experiment_launcher.all_vars[var_reinst]

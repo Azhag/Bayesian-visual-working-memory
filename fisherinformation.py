@@ -1075,10 +1075,10 @@ if __name__ == '__main__':
         N     = 1
         # kappa = 1.0
         sigma = 0.2
-        M = 1000
-        num_points = 2000
+        M = 500
+        num_points = 1000
         
-        sigma_space = np.linspace(0.05, 0.8, 10.)
+        sigma_space = np.linspace(0.05, 0.8, 5.)
         ratio_precisioncurv = np.zeros(sigma_space.size)
         
         def loglik_sampler(angle, params):
