@@ -310,6 +310,9 @@ class RandomFactorialNetwork():
             # Precompute the normalisation constant
             self.compute_normalising_constant_bivariatefisher(specific_neurons=specific_neurons)
 
+            # Save the rc_scale used
+            self.rc_scale = np.mean(self.neurons_sigma, axis=0)
+
 
 
     def compute_2d_parameters(self, specific_neurons=None):
@@ -633,6 +636,7 @@ class RandomFactorialNetwork():
         # Get covariance
         return np.cov(samples.T)
 
+
     def compute_covariance_KL(self, precision=100, sigma_2=0.2, beta=1.0, T=1, params={}, should_plot= False):
         '''
             Compute the covariance of the Gaussian approximation (through a KL) to the averaged object.
@@ -655,7 +659,7 @@ class RandomFactorialNetwork():
         return covariance
 
 
-    def compute_fisher_information(self, stimulus_input, sigma=0.01, cov_stim=None, params={}):
+    def compute_fisher_information(self, stimulus_input=None, sigma=0.01, cov_stim=None, params={}):
         '''
             Compute and return the Fisher information for the given stimulus.
             Assume we are looking for the FI in coordinate 1, fixing the other (in 2D).
@@ -664,27 +668,37 @@ class RandomFactorialNetwork():
             I = f' Cov_stim^-1 f'
         '''
 
-        print "DEPRECATED"
 
         if cov_stim is None:
             # The covariance for the stimulus
             cov_stim = self.compute_covariance_stimulus(stimulus_input, sigma=sigma, params=params)
 
+        if stimulus_input is None:
+            stimulus_input = np.array((0.0, 0.0))
 
-        # Compute the derivative of the receptive field
-        dx = (self.neurons_preferred_stimulus[:, 0] - stimulus_input[0])
-        dy = (self.neurons_preferred_stimulus[:, 1] - stimulus_input[1])
+        kappa1 = self.rc_scale[0]
+        kappa2 = self.rc_scale[1]
 
-        sindx = np.sin(dx)
-        coshalfdx = np.cos(0.5*dx)
-        sinhalfdy = np.sin(0.5*dy)
+        der_f_0 = np.sin(stimulus_input[0] - self.neurons_preferred_stimulus[:, 0])*np.exp(kappa1*np.cos(stimulus_input[0] - self.neurons_preferred_stimulus[:, 0]) + kappa2*np.cos(stimulus_input[1] - self.neurons_preferred_stimulus[:, 1]))
 
-        der_f = 6.**2.*(self.neurons_params[:, 0]*0.5*sindx + self.neurons_params[:, 1]*coshalfdx*sinhalfdy)*self.get_network_response(stimulus_input, params=params)
+        return (kappa1**2./(16.*np.pi**4.*scsp.i0(kappa1)**2.*scsp.i0(kappa2)**2.))*np.dot(der_f_0, np.linalg.solve(cov_stim, der_f_0))
 
-        der_f[np.isnan(der_f)] = 0.0
 
-        # Now get the Fisher information
-        return np.dot(der_f, np.linalg.solve(cov_stim, der_f))
+
+    def compute_fisher_information_theoretical(self, sigma=0.01, kappa1=None, kappa2=None):
+        '''
+            Compute the theoretical, large N limit estimate of the Fisher Information
+            This one assumes a diagonal covariance matrix, wrong for the complete model.
+        '''
+        rho = 1./(2*np.pi/(self.M))
+
+        if kappa1 is None:
+            kappa1 = self.rc_scale[0]
+
+        if kappa2 is None:
+            kappa2 = self.rc_scale[1]
+
+        return kappa1**2.*rho*(scsp.i0(2*kappa1) - scsp.iv(2, 2*kappa1))*scsp.i0(2*kappa2)/(sigma**2.*16*np.pi**3.*scsp.i0(kappa1)**2.*scsp.i0(kappa2)**2.)
 
 
     def compute_fisher_information_fullspace(self, sigma=0.01, cov_stim=None, precision=100, params={}):
@@ -699,7 +713,7 @@ class RandomFactorialNetwork():
         # Compute the activity of that neuron over the whole space
         for i in np.arange(feature_space.size):
             for j in np.arange(feature_space.size):
-                activity[i, j] = self.compute_fisher_information((feature_space[i], feature_space[j]), sigma=sigma, cov_stim=cov_stim, params=params)
+                activity[i, j] = self.compute_fisher_information(stimulus_input=np.array((feature_space[i], feature_space[j])), sigma=sigma, cov_stim=cov_stim, params=params)
             
         return activity
         
@@ -1704,7 +1718,7 @@ if __name__ == '__main__':
         rn.compute_num_neurons_responsive_stimulus(percent_max=percent_max)
 
         # See the whole dependance
-        kappa_space = np.linspace(0.05, 50, 1000)
+        kappa_space = np.linspace(0.05, 20, 10)
         num_neurons_responding = np.zeros((kappa_space.size), dtype=float)
 
         for i, kappa in enumerate(kappa_space):
