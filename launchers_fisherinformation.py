@@ -17,7 +17,7 @@ from slicesampler import *
 from utils import *
 from dataio import *
 from gibbs_sampler_continuous_fullcollapsed_randomfactorialnetwork import *
-
+import progress
 
 def launcher_do_fisher_information_estimation(args):
     '''
@@ -483,25 +483,29 @@ def launcher_do_fisher_information_param_search(args):
     '''
 
     all_parameters = vars(args)
-
+    data_to_plot = {}
+    
     dataio = DataIO(output_folder=args.output_directory, label=args.label)
     variables_to_save = ['rcscale_space', 'sigma_space', 'FI_rc_curv', 'FI_rc_precision', 'FI_rc_theo']
 
-    rcscale_space = np.linspace(0.5, 10.0, 10.)
+    rcscale_space = np.linspace(0.5, 30.0, 21.)
     # rcscale_space = np.linspace(4., 4., 1.)
     
-    sigma_space = np.linspace(0.01, 1.5, 10.)
+    sigma_space = np.linspace(0.01, 2.0, 20.)
     # sigma_space = np.linspace(0.2, 0.2, 1.)
 
     FI_rc_curv = np.zeros((rcscale_space.size, sigma_space.size, 2), dtype=float)
     FI_rc_precision = np.zeros((rcscale_space.size, sigma_space.size), dtype=float)
     FI_rc_theo = np.zeros((rcscale_space.size, sigma_space.size, 2), dtype=float)
     
+    # Show the progress in a nice way
+    search_progress = progress.Progress(rcscale_space.size*sigma_space.size)
+
     for i, rc_scale in enumerate(rcscale_space):
         for j, sigma in enumerate(sigma_space):
             ### Estimate the Fisher Information
-            print "Estimating the Fisher Information, rcscale %.3f, sigma %.3f. %.2f%%" % (rc_scale, sigma, 100.*(i*rcscale_space.size+j)/(rcscale_space.size*sigma_space.size))
-            
+            print "Estimating the Fisher Information, rcscale %.3f, sigma %.3f. %.2f%%, %s left - %s" % (rc_scale, sigma, search_progress.percentage(), search_progress.time_remaining_str(), search_progress.eta_str())
+
             # Current parameter values
             all_parameters['rc_scale']  = rc_scale
             all_parameters['sigmax']    = sigma
@@ -509,35 +513,36 @@ def launcher_do_fisher_information_param_search(args):
             # Instantiate the sampler
             (random_network, data_gen, stat_meas, sampler) = init_everything(all_parameters)
             
-            print "from curvature..."
-            fi_curv_dict = sampler.estimate_fisher_info_from_posterior_avg(num_points=1000, full_stats=True)
-            (FI_rc_curv[i, j, 0], FI_rc_curv[i, j, 1]) = (fi_curv_dict['mean'], fi_curv_dict['std'])
-            print FI_rc_curv
+            # print "from curvature..."
+            # fi_curv_dict = sampler.estimate_fisher_info_from_posterior_avg(num_points=1000, full_stats=True)
+            # (FI_rc_curv[i, j, 0], FI_rc_curv[i, j, 1]) = (fi_curv_dict['mean'], fi_curv_dict['std'])
+            # print FI_rc_curv
             
             print "theoretical FI"
 
             FI_rc_theo[i, j, 0] = random_network.compute_fisher_information(stimulus_input=(0.0, 0.0), cov_stim=stat_meas.model_parameters['covariances'][-1, 0])
             FI_rc_theo[i, j, 1] = random_network.compute_fisher_information_theoretical(sigma=all_parameters['sigmax'], kappa1=all_parameters['rc_scale'], kappa2=all_parameters['rc_scale'])
-            print FI_rc_theo
+            print FI_rc_theo[i, j]
 
-            print "from precision of recall..."
-            sampler.sample_theta(num_samples=all_parameters['num_samples'], burn_samples=100, selection_method=all_parameters['selection_method'], selection_num_samples=all_parameters['num_samples'], integrate_tc_out=False, debug=False)
-            FI_rc_precision[i, j] = sampler.get_precision()
-            print FI_rc_precision
+            # print "from precision of recall..."
+            # sampler.sample_theta(num_samples=all_parameters['num_samples'], burn_samples=100, selection_method=all_parameters['selection_method'], selection_num_samples=all_parameters['num_samples'], integrate_tc_out=False, debug=False)
+            # FI_rc_precision[i, j] = sampler.get_precision()
+            # print FI_rc_precision
 
-            dataio.save_variables(variables_to_save, locals())
+            search_progress.increment()
 
-    # Plots
-    data_to_plot = {}
-    for curr_data in variables_to_save:
-        data_to_plot[curr_data] = locals()[curr_data]
+        dataio.save_variables(variables_to_save, locals())
 
-    plots_fisher_info_param_search(data_to_plot, dataio)
+        # Plots
+        for curr_data in variables_to_save:
+            data_to_plot[curr_data] = locals()[curr_data]
+
+        plots_fisher_info_param_search(data_to_plot, dataio)
 
     return locals()
 
 
-def plots_fisher_info_param_search(data_to_plot, dataio):
+def plots_fisher_info_param_search(data_to_plot, dataio, save_figures=True):
     '''
         Create and save a few plots for the fisher information parameter search
     '''
@@ -552,50 +557,54 @@ def plots_fisher_info_param_search(data_to_plot, dataio):
     ax = f.add_subplot(111)
     im = ax.imshow(data_to_plot['FI_rc_curv'][:, :, 0].T, interpolation='nearest', origin='lower left')
     ax.set_yticks(np.arange(data_to_plot['rcscale_space'].size))
-    ax.set_yticklabels(data_to_plot['rcscale_space'])
+    ax.set_yticklabels(["%.2f" % curr for curr in data_to_plot['rcscale_space']])
     ax.set_xticks(np.arange(data_to_plot['sigma_space'].size))
-    ax.set_xticklabels(data_to_plot['sigma_space'])
+    ax.set_xticklabels(["%.2f" % curr for curr in data_to_plot['sigma_space']])
     f.colorbar(im)
     plt.title('FI from curvature, sigma/rcscale')
     ax.axis('tight')
-    dataio.save_current_figure("FI_paramsearch_2d_curve_{unique_id}.pdf")
+    if save_figures:
+        dataio.save_current_figure("FI_paramsearch_2d_curve_{label}_{unique_id}.pdf")
 
     
     f = plt.figure()
     ax = f.add_subplot(111)
     im = ax.imshow(data_to_plot['FI_rc_precision'].T, interpolation='nearest', origin='lower left')
     ax.set_yticks(np.arange(data_to_plot['rcscale_space'].size))
-    ax.set_yticklabels(data_to_plot['rcscale_space'])
+    ax.set_yticklabels(["%.2f" % curr for curr in data_to_plot['rcscale_space']])
     ax.set_xticks(np.arange(data_to_plot['sigma_space'].size))
-    ax.set_xticklabels(data_to_plot['sigma_space'])
+    ax.set_xticklabels(["%.2f" % curr for curr in data_to_plot['sigma_space']])
     f.colorbar(im)
     plt.title('FI Recall precision, sigma/rcscale')
     ax.axis('tight')
-    dataio.save_current_figure("FI_paramsearch_2d_precision_{unique_id}.pdf")
+    if save_figures:
+        dataio.save_current_figure("FI_paramsearch_2d_precision_{label}_{unique_id}.pdf")
 
     f = plt.figure()
     ax = f.add_subplot(111)
     im = ax.imshow(data_to_plot['FI_rc_theo'][:, :, 0].T, interpolation='nearest', origin='lower left')
     ax.set_yticks(np.arange(data_to_plot['rcscale_space'].size))
-    ax.set_yticklabels(data_to_plot['rcscale_space'])
+    ax.set_yticklabels(["%.2f" % curr for curr in data_to_plot['rcscale_space']])
     ax.set_xticks(np.arange(data_to_plot['sigma_space'].size))
-    ax.set_xticklabels(data_to_plot['sigma_space'])
+    ax.set_xticklabels(["%.2f" % curr for curr in data_to_plot['sigma_space']])
     f.colorbar(im)
     plt.title('FI Theoretical sum, sigma/rcscale')
     ax.axis('tight')
-    dataio.save_current_figure("FI_paramsearch_2d_theo_{unique_id}.pdf")
+    if save_figures:
+        dataio.save_current_figure("FI_paramsearch_2d_theo_{label}_{unique_id}.pdf")
 
     f = plt.figure()
     ax = f.add_subplot(111)
     im = ax.imshow(data_to_plot['FI_rc_theo'][:, :, 1].T, interpolation='nearest', origin='lower left')
     ax.set_yticks(np.arange(data_to_plot['rcscale_space'].size))
-    ax.set_yticklabels(data_to_plot['rcscale_space'])
+    ax.set_yticklabels(["%.2f" % curr for curr in data_to_plot['rcscale_space']])
     ax.set_xticks(np.arange(data_to_plot['sigma_space'].size))
-    ax.set_xticklabels(data_to_plot['sigma_space'])
+    ax.set_xticklabels(["%.2f" % curr for curr in data_to_plot['sigma_space']])
     f.colorbar(im)
     plt.title('FI Theoretical large N, sigma/rcscale')
     ax.axis('tight')
-    dataio.save_current_figure("FI_paramsearch_2d_theoN_{unique_id}.pdf")
+    if save_figures:
+        dataio.save_current_figure("FI_paramsearch_2d_theoN_{label}_{unique_id}.pdf")
 
     # 1D plots
     for i, sigma in enumerate(data_to_plot['sigma_space']):
@@ -609,12 +618,31 @@ def plots_fisher_info_param_search(data_to_plot, dataio):
         plt.ylabel('FI')
         plt.legend(['Curvature', 'Recall precision', 'Theoretical sum', 'Theoretical large N'])
 
-        dataio.save_current_figure("FI_paramsearch_rcscale_sigmafixed_mean_std_{unique_id}.pdf")
+        if save_figures:
+            dataio.save_current_figure("FI_paramsearch_rcscale_sigmafixed%.2f_mean_std_{label}_{unique_id}.pdf" % sigma)
 
 
 
+def launcher_reload_fisher_information_param_search(args):
+    '''
+        Reload data created from launcher_do_fisher_information_param_search
+    '''
+
+    # Check that a filename was provided
+    input_filename = args.input_filename
+    assert input_filename is not '', "Give a file with saved results from launcher_do_fisher_information_param_search"
 
 
+    dataio = DataIO(output_folder=args.output_directory, label=args.label)
+
+    # Reload everything
+    loaded_data = np.load(input_filename).item()
+
+
+    # Plots
+    plots_fisher_info_param_search(loaded_data, dataio, save_figures=False)
+
+    return locals()
 
 
 

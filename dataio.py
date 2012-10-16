@@ -187,7 +187,7 @@ class DataIO:
             Will save the current figure to the desired filename.
 
             the filename can contain some fields:
-            {unique_id}
+            {unique_id}, {label}
 
             The output directory will be automatically prepend.
 
@@ -195,7 +195,7 @@ class DataIO:
         '''
 
         # Complete the filename if needs be.
-        formatted_filename = os.path.join(self.output_folder, filename.format(unique_id=self.unique_id))
+        formatted_filename = os.path.join(self.output_folder, filename.format(unique_id=self.unique_id, label=self.label))
 
         ## Save the figure.
 
