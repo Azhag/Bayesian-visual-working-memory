@@ -242,7 +242,7 @@ def launcher_do_multiple_memory_curve_simult(args):
                 raise ValueError('Wrong value for inference_method')
 
             # Save the precision
-            all_precisions[t, repet_i] = sampler.get_precision(remove_chance_level=False)
+            all_precisions[t, repet_i] = sampler.get_precision(remove_chance_level=False, correction_theo_fit=1.0)
             # all_precisions[t, repet_i] = 1./sampler.compute_angle_error()[1]
 
             print "-> %.5f" % all_precisions[t, repet_i]
