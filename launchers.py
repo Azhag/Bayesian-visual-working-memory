@@ -61,15 +61,15 @@ def launcher_do_simple_run(args):
     
     # Construct the real dataset
     print "Building the database"
-    data_gen = DataGeneratorRFN(N, T, random_network, sigma_y=sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation='constant')
+    data_gen = DataGeneratorRFN(N, T, random_network, sigma_y=sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation=args.stimuli_generation)
     
     # Measure the noise structure
     print "Measuring noise structure"
-    data_gen_noise = DataGeneratorRFN(3000, T, random_network, sigma_y=sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation='constant')
+    data_gen_noise = DataGeneratorRFN(3000, T, random_network, sigma_y=sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation=args.stimuli_generation)
     stat_meas = StatisticsMeasurer(data_gen_noise)
     # stat_meas = StatisticsMeasurer(data_gen)
     
-    print "Sampling..."
+    print "Building sampler..."
     sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters=stat_meas.model_parameters, tc=cued_feature_time)
     
     print "Inferring optimal angles, for t=%d" % sampler.tc[0]
@@ -77,13 +77,15 @@ def launcher_do_simple_run(args):
     
     if args.inference_method == 'sample':
         # Sample thetas
+        print "-> Sampling theta"
         sampler.sample_theta(num_samples=args.num_samples, burn_samples=20, selection_method='median', selection_num_samples=args.num_samples, integrate_tc_out=False, debug=False)
     elif args.inference_method == 'max_lik':
         # Just use the ML value for the theta
+        print "-> Setting theta to ML values"
         sampler.set_theta_max_likelihood(num_points=200, post_optimise=True)
     elif args.inference_method == 'none':
         # Do nothing
-        pass
+        print "do nothing"
         
     sampler.print_comparison_inferred_groundtruth()
     
