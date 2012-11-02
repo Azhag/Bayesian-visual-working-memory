@@ -551,6 +551,22 @@ class DataGeneratorRFN(DataGenerator):
 
         
         plt.show()
+
+
+    def show_datapoint_flat(self, n=0, t=0):
+        '''
+            Show a datapoint in 1d, flatten out.
+
+            For conjunctive, indicate the "correct" stimulus position.
+        '''
+
+        # Plot the datapoint
+        plt.figure()
+        plt.plot(self.Y[n])
+
+        # Put a vertical line at the true answer
+        best_neuron_i = np.argmin(np.sum((self.random_network.neurons_preferred_stimulus - self.stimuli_correct[n])**2., axis=1))
+        plt.axvline(x=best_neuron_i, color='r', linewidth=3)
       
 
 
