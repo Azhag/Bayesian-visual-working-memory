@@ -255,14 +255,14 @@ def unique_filename(prefix=None, suffix=None, unique_id=None, return_id=False):
 
 ########################## PLOTTING FUNCTIONS #################################
 
-def plot_multiple_mean_std_area(x, y, std, ax_handle=None):
+def plot_multiple_mean_std_area(x, y, std, ax_handle=None, fignum=None):
     '''
         Plots multiple x-y data with standard error, on the same graph
 
         Will iterate over the first axis, has to...
     '''
     if ax_handle is None:
-        f = plt.figure()
+        f = plt.figure(fignum)
         ax_handle = f.add_subplot(111)
     
     if x.ndim == 1:
@@ -275,30 +275,36 @@ def plot_multiple_mean_std_area(x, y, std, ax_handle=None):
     return ax_handle
 
 
-def plot_mean_std_area(x, y, std, ax_handle=None):
+def plot_mean_std_area(x, y, std, ax_handle=None, fignum=None):
     '''
         Plot a given x-y data, with a transparent area for its standard deviation
 
         If ax_handle is given, plots on this figure.
     '''
-    
+
     if ax_handle is None:
-        f = plt.figure()
+        f = plt.figure(fignum)
         ax_handle = f.add_subplot(111)
     
+    ishold = plt.ishold()
+
     ax = ax_handle.plot(x, y)
     current_color = ax[-1].get_c()
     
+    plt.hold(True)
+
     if np.any(std > 1e-6):
         ax_handle.fill_between(x, y-std, y+std, facecolor=current_color, alpha=0.4,
                         label='1 sigma range')
     
     ax_handle.get_figure().canvas.draw()
 
+    plt.hold(ishold)
+
     return ax_handle
 
 
-def plot_multiple_median_quantile_area(x, y=None, quantiles=None, axis=-1, ax_handle=None):
+def plot_multiple_median_quantile_area(x, y=None, quantiles=None, axis=-1, ax_handle=None, fignum=None):
     '''
         Plots multiple x-y data with median and quantiles, on the same graph
 
@@ -310,7 +316,7 @@ def plot_multiple_median_quantile_area(x, y=None, quantiles=None, axis=-1, ax_ha
     assert (y is not None or quantiles is not None), "Give either y or quantiles"
 
     if ax_handle is None:
-        f = plt.figure()
+        f = plt.figure(fignum)
         ax_handle = f.add_subplot(111)
     
     if x.ndim == 1:
@@ -330,7 +336,7 @@ def plot_multiple_median_quantile_area(x, y=None, quantiles=None, axis=-1, ax_ha
     return ax_handle
 
 
-def plot_median_quantile_area(x, y=None, quantiles=None, axis=-1, ax_handle=None):
+def plot_median_quantile_area(x, y=None, quantiles=None, axis=-1, ax_handle=None, fignum=None):
     """
         Plot the given x-y data, showing the median of y, and its 25 and 75 quantiles as a shaded area
 
@@ -343,7 +349,7 @@ def plot_median_quantile_area(x, y=None, quantiles=None, axis=-1, ax_handle=None
         quantiles = spst.mstats.mquantiles(y, axis=axis, prob=[0.25, 0.5, 0.75])
 
     if ax_handle is None:
-        f = plt.figure()
+        f = plt.figure(fignum)
         ax_handle = f.add_subplot(111)
     
     ax = ax_handle.plot(x, quantiles[..., 1])
@@ -358,9 +364,9 @@ def plot_median_quantile_area(x, y=None, quantiles=None, axis=-1, ax_handle=None
     return ax_handle
 
 
-def semilogy_mean_std_area(x, y, std, ax_handle=None):
+def semilogy_mean_std_area(x, y, std, ax_handle=None, fignum=None):
     if ax_handle is None:
-        f = plt.figure()
+        f = plt.figure(fignum)
         ax_handle = f.add_subplot(111)
     
     ax = ax_handle.semilogy(x, y)
@@ -400,7 +406,7 @@ def plot_square_grid(x, y, nb_to_plot=-1):
     return (f, subaxes)    
 
 
-def histogram_angular_data(data, bins=20, in_degrees=False, title=None, norm=None):
+def histogram_angular_data(data, bins=20, in_degrees=False, title=None, norm=None, fignum=None):
 
     if in_degrees:
         bound_x = 180.
@@ -419,11 +425,48 @@ def histogram_angular_data(data, bins=20, in_degrees=False, title=None, norm=Non
     elif norm == 'sum':
         bar_heights = bar_heights/np.sum(bar_heights.astype('float'))
     
-    plt.figure()
+    plt.figure(fignum)
     plt.bar(x, bar_heights, alpha=0.75, width=2.*bound_x/(bins-1), align='center')
     if title:
         plt.title(title)
     plt.xlim([x[0]*1.1, 1.1*x[-1]])
+
+
+def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorbar=True, ax_handle=None, label_format="%.2f", fignum=None):
+    '''
+        Plots a Pcolor-like 2d grid plot. Can give x and y arrays, which will provide ticks.
+    '''
+
+    if ax_handle is None:
+        f = plt.figure(fignum)
+        ax_handle = f.add_subplot(111)
+        ax_handle.clear()
+
+    im = ax_handle.imshow(data.T, interpolation='nearest', origin='lower left')
+
+    if not x is None:
+        assert data.shape[0] == x.size, 'Wrong x dimension'
+
+        ax_handle.set_xticks(np.arange(x.size))
+        ax_handle.set_xticklabels([label_format % curr for curr in x], rotation=90)
+    if not y is None:
+        assert data.shape[1] == y.size, 'Wrong y dimension'
+        ax_handle.set_yticks(np.arange(y.size))
+        ax_handle.set_yticklabels([label_format % curr for curr in y])
+    
+    if xlabel:
+        ax_handle.set_xlabel(xlabel)
+
+    if ylabel:
+        ax_handle.set_ylabel(ylabel)
+
+    if colorbar:
+        ax_handle.get_figure().colorbar(im)
+    
+    if title:
+        ax_handle.set_title(title)
+    
+    ax_handle.axis('tight')
 
 
 def pcolor_square_grid(data, nb_to_plot=-1):
@@ -545,12 +588,12 @@ def plot_torus(theta, gamma, Z, weight_deform=0., torus_radius=5., tube_radius=3
         plt.show()
 
 
-def plot_powerlaw_fit(xdata, ydata, amp, index, yerr=None):
+def plot_powerlaw_fit(xdata, ydata, amp, index, yerr=None, fignum=None):
     '''
         Plot a powerlaw with some associated datapoints
     '''
 
-    plt.figure()
+    plt.figure(fignum)
     plt.subplot(2, 1, 1)
     plt.plot(xdata, powerlaw(xdata, amp, index))     # Fit
     
@@ -577,14 +620,14 @@ def plot_powerlaw_fit(xdata, ydata, amp, index, yerr=None):
     plt.xlim((xdata.min()*0.9, xdata.max()*1.1))
 
 
-def plot_fft2_power(data, s=None, axes=(-2, -1)):
+def plot_fft2_power(data, s=None, axes=(-2, -1), fignum=None):
     '''
         Compute the 2D FFT and plot the 2D power spectrum.
     '''
 
     FS = np.fft.fft2(data, s=s, axes=axes)
 
-    plt.figure()
+    plt.figure(fignum)
     plt.imshow(np.log(np.abs(np.fft.fftshift(FS))**2.))
     plt.title('Power spectrum')
     plt.colorbar()
@@ -753,6 +796,7 @@ def fit_gaussian_samples(samples, num_points=500, bound=np.pi, should_plot = Tru
 
     # x = np.linspace(samples.min()*1.5, samples.max()*1.5, 1000)
     x = np.linspace(-bound, bound, num_points)
+    dx = np.diff(x)[0]
 
     print mean_fit
     print std_fit
@@ -776,6 +820,33 @@ def fit_gaussian_samples(samples, num_points=500, bound=np.pi, should_plot = Tru
         return dict(parameters=np.array([mean_fit, std_fit]), fitted_data=fitted_data)
     else:
         return np.array([mean_fit, std_fit])
+
+
+def fit_line(xdata, ydata, title='', should_plot=True):
+    '''
+        Fit a simple line, y = ax + b
+    '''
+
+    fitfunc = lambda p, x: p[0] + p[1] * x
+    errfunc = lambda p, x, y: (y - fitfunc(p, x))**2.
+
+    pinit = np.array([0.0, 1.0])
+    out = spopt.leastsq(errfunc, pinit, args=(xdata, ydata))
+
+    pfinal = out[0]
+
+    # Plots
+    if should_plot:
+        plt.figure()
+        plt.plot(xdata, ydata, 'k', xdata, fitfunc(pfinal, xdata), 'r')
+        plt.legend(['Data', 'Fit'])
+        plt.title(title)
+
+    return pfinal
+
+
+
+    
 
 
         
