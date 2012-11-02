@@ -668,18 +668,20 @@ class RandomFactorialNetwork():
             I = f' Cov_stim^-1 f'
         '''
 
+        if stimulus_input is None:
+            stimulus_input = np.array([0.0, 0.0])
+
 
         if cov_stim is None:
             # The covariance for the stimulus
             cov_stim = self.compute_covariance_stimulus(stimulus_input, sigma=sigma, params=params)
 
-        if stimulus_input is None:
-            stimulus_input = np.array((0.0, 0.0))
-
         kappa1 = self.rc_scale[0]
         kappa2 = self.rc_scale[1]
 
         der_f_0 = np.sin(stimulus_input[0] - self.neurons_preferred_stimulus[:, 0])*np.exp(kappa1*np.cos(stimulus_input[0] - self.neurons_preferred_stimulus[:, 0]) + kappa2*np.cos(stimulus_input[1] - self.neurons_preferred_stimulus[:, 1]))
+
+        der_f_0[self.mask_neurons_unset] = 0.0
 
         return (kappa1**2./(16.*np.pi**4.*scsp.i0(kappa1)**2.*scsp.i0(kappa2)**2.))*np.dot(der_f_0, np.linalg.solve(cov_stim, der_f_0))
 
