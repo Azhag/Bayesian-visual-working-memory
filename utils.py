@@ -9,6 +9,7 @@ Copyright (c) 2011 Gatsby Unit. All rights reserved.
 
 import matplotlib.pyplot as plt
 import numpy as np
+import scipy as sp
 import matplotlib.ticker as plttic
 # import scipy.io as sio
 import scipy.optimize as spopt
@@ -822,27 +823,23 @@ def fit_gaussian_samples(samples, num_points=500, bound=np.pi, should_plot = Tru
         return np.array([mean_fit, std_fit])
 
 
-def fit_line(xdata, ydata, title='', should_plot=True):
+def fit_line(xdata, ydata, title='', should_plot=True, fignum=None):
     '''
         Fit a simple line, y = ax + b
     '''
 
-    fitfunc = lambda p, x: p[0] + p[1] * x
-    errfunc = lambda p, x, y: (y - fitfunc(p, x))**2.
+    p = np.zeros(2)
+    (p[0], p[1], r, p_val, stderr) = spst.linregress(xdata, ydata)
 
-    pinit = np.array([0.0, 1.0])
-    out = spopt.leastsq(errfunc, pinit, args=(xdata, ydata))
-
-    pfinal = out[0]
-
-    # Plots
     if should_plot:
-        plt.figure()
-        plt.plot(xdata, ydata, 'k', xdata, fitfunc(pfinal, xdata), 'r')
+        plt.figure(fignum)
+        plt.plot(xdata, ydata, 'k', xdata, sp.polyval(p, xdata), 'r')
         plt.legend(['Data', 'Fit'])
         plt.title(title)
 
-    return pfinal
+    return p
+
+
 
 
 
