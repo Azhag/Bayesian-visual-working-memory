@@ -25,8 +25,10 @@ from utils import *
 
 from slicesampler import *
 # from dataio import *
+import progress
 
-def loglike_theta_fct_single(new_theta, (thetas, datapoint, rn, theta_mu, theta_kappa, ATtcB, sampled_feature_index, mean_fixed_contrib, covariance_fixed_contrib)):
+
+def loglike_theta_fct_single(new_theta, (thetas, datapoint, rn, theta_mu, theta_kappa, ATtcB, sampled_feature_index, mean_fixed_contrib, inv_covariance_fixed_contrib)):
     '''
         Compute the loglikelihood of: theta_r | n_tc theta_r' tc
     '''
@@ -37,13 +39,13 @@ def loglike_theta_fct_single(new_theta, (thetas, datapoint, rn, theta_mu, theta_
                 np.dot(ATtcB, rn.get_network_response(thetas))
     
     # Using inverse covariance as param
-    # return theta_kappa*np.cos(thetas[sampled_feature_index] - theta_mu) - 0.5*np.dot(like_mean, np.dot(covariance_fixed_contrib, like_mean))
-    return -0.5*np.dot(like_mean, np.dot(covariance_fixed_contrib, like_mean))
+    # return theta_kappa*np.cos(thetas[sampled_feature_index] - theta_mu) - 0.5*np.dot(like_mean, np.dot(inv_covariance_fixed_contrib, like_mean))
+    return -0.5*np.dot(like_mean, np.dot(inv_covariance_fixed_contrib, like_mean))
     # return -1./(2*0.2**2)*np.sum(like_mean**2.)
 
 
-def loglike_theta_fct_single_min(x, thetas, datapoint, rn, theta_mu, theta_kappa, ATtcB, sampled_feature_index, mean_fixed_contrib, covariance_fixed_contrib):
-    return -loglike_theta_fct_single(x, (thetas, datapoint, rn, theta_mu, theta_kappa, ATtcB, sampled_feature_index, mean_fixed_contrib, covariance_fixed_contrib))
+def loglike_theta_fct_single_min(x, thetas, datapoint, rn, theta_mu, theta_kappa, ATtcB, sampled_feature_index, mean_fixed_contrib, inv_covariance_fixed_contrib):
+    return -loglike_theta_fct_single(x, (thetas, datapoint, rn, theta_mu, theta_kappa, ATtcB, sampled_feature_index, mean_fixed_contrib, inv_covariance_fixed_contrib))
 
 
 class Sampler:
@@ -182,16 +184,17 @@ class Sampler:
             Computes:
                 - ATtcB
                 - mean_fixed_contrib
-                - covariance_fixed_contrib
+                - inv_covariance_fixed_contrib
         '''
 
         
         self.ATtcB = np.zeros(self.T)
         self.mean_fixed_contrib = np.zeros((self.T, self.M))
-        self.covariance_fixed_contrib = np.zeros((self.M, self.M))
+        self.inv_covariance_fixed_contrib = np.zeros((self.M, self.M))
+        self.noise_covariance = self.n_covariances_measured[-1]
 
         for t in np.arange(self.T):
-            (self.ATtcB[t], self.mean_fixed_contrib[t], self.covariance_fixed_contrib) = self.precompute_parameters(t, amplify_diag=amplify_diag)
+            (self.ATtcB[t], self.mean_fixed_contrib[t], self.inv_covariance_fixed_contrib) = self.precompute_parameters(t, amplify_diag=amplify_diag)
         
     
     
@@ -203,17 +206,17 @@ class Sampler:
         ATmtc = np.power(self.time_weights[0, t], self.T - t - 1.)
         mean_fixed_contrib = self.n_means_end[t] + np.dot(ATmtc, self.n_means_start[t])
         ATtcB = np.dot(ATmtc, self.time_weights[1, t])
-        # covariance_fixed_contrib = self.n_covariances_end[t] + np.dot(ATmtc, np.dot(self.n_covariances_start[t], ATmtc))   # + np.dot(ATtcB, np.dot(self.random_network.get_network_covariance_combined(), ATtcB.T))
-        covariance_fixed_contrib = self.n_covariances_measured[-1]
+        # inv_covariance_fixed_contrib = self.n_covariances_end[t] + np.dot(ATmtc, np.dot(self.n_covariances_start[t], ATmtc))   # + np.dot(ATtcB, np.dot(self.random_network.get_network_covariance_combined(), ATtcB.T))
+        inv_covariance_fixed_contrib = self.n_covariances_measured[-1]
         
         # Weird, this solves it. Measured covariances are wrong for generation...
-        covariance_fixed_contrib[np.arange(self.M), np.arange(self.M)] *= amplify_diag
+        inv_covariance_fixed_contrib[np.arange(self.M), np.arange(self.M)] *= amplify_diag
         
         # Precompute the inverse, should speedup quite nicely
-        covariance_fixed_contrib = np.linalg.inv(covariance_fixed_contrib)
-        # covariance_fixed_contrib = np.eye(self.M)
+        inv_covariance_fixed_contrib = np.linalg.inv(inv_covariance_fixed_contrib)
+        # inv_covariance_fixed_contrib = np.eye(self.M)
 
-        return (ATtcB, mean_fixed_contrib, covariance_fixed_contrib)
+        return (ATtcB, mean_fixed_contrib, inv_covariance_fixed_contrib)
       
 
     ########
@@ -296,7 +299,7 @@ class Sampler:
         
         # Do everything in log-domain, to avoid numerical errors
         i = 0
-        for n in permuted_datapoints:
+        for n in progress.ProgressDisplay(permuted_datapoints, display=progress.SINGLE_LINE):
             # curr_theta = self.theta[n].copy()
             
             # Sample all the non-cued features
@@ -353,10 +356,10 @@ class Sampler:
 
         # Pack the parameters for the likelihood function.
         #   Here, as the loglike_function only varies one of the input, need to give the rest of the theta vector.
-        params = (self.theta[n], self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[self.tc[n]], sampled_feature_index, self.mean_fixed_contrib[self.tc[n]], self.covariance_fixed_contrib)
+        params = (self.theta[n], self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[self.tc[n]], sampled_feature_index, self.mean_fixed_contrib[self.tc[n]], self.inv_covariance_fixed_contrib)
 
         # Sample the new theta
-        samples, llh = self.slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=np.pi/3., loglike_fct_params=params, debug=False, step_out=True)
+        samples, llh = self.slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=np.pi/8., loglike_fct_params=params, debug=False, step_out=True)
         # samples, llh = self.slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=0.01, loglike_fct_params=params, debug=False, step_out=True)
         
         # samples, llh = self.slicesampler.sample_1D_circular(1, self.theta[n, sampled_feature_index], loglike_theta_fct, burn=100, widths=np.pi/3., thinning=2, loglike_fct_params=params, debug=False, step_out=True)
@@ -375,10 +378,10 @@ class Sampler:
 
         samples_integratedout = []
         for tc in np.arange(self.T):
-            params = (self.theta[n], self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[tc], sampled_feature_index, self.mean_fixed_contrib[tc], self.covariance_fixed_contrib)
+            params = (self.theta[n], self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[tc], sampled_feature_index, self.mean_fixed_contrib[tc], self.inv_covariance_fixed_contrib)
             
             # TODO> Should be starting from the previous sample here.
-            samples, _ = self.slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=np.pi/4., loglike_fct_params=params, debug=False, step_out=True)
+            samples, _ = self.slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=np.pi/8., loglike_fct_params=params, debug=False, step_out=True)
 
             # Now keep only some of them, following p(tc)
             #   for now, p(tc) = 1/T
@@ -399,10 +402,10 @@ class Sampler:
         llh = np.zeros(num_points)
         
         # Compute the array
-        for n in np.arange(self.N):
+        for n in progress.ProgressDisplay(np.arange(self.N), display=progress.SINGLE_LINE):
 
             # Pack the parameters for the likelihood function
-            params = (self.theta[n], self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[self.tc[n]], sampled_feature_index, self.mean_fixed_contrib[self.tc[n]], self.covariance_fixed_contrib)
+            params = (self.theta[n], self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[self.tc[n]], sampled_feature_index, self.mean_fixed_contrib[self.tc[n]], self.inv_covariance_fixed_contrib)
                 
             # Compute the loglikelihood for all possible first feature
             # Use this as initial value for the optimisation routine
@@ -435,7 +438,7 @@ class Sampler:
             for tc in np.arange(self.T):
 
                 # Pack the parameters for the likelihood function
-                params = (self.theta[n], self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[tc], sampled_feature_index, self.mean_fixed_contrib[tc], self.covariance_fixed_contrib)
+                params = (self.theta[n], self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[tc], sampled_feature_index, self.mean_fixed_contrib[tc], self.inv_covariance_fixed_contrib)
                     
                 # Compute the loglikelihood for all possible first feature
                 # Use this as initial value for the optimisation routine
@@ -597,6 +600,49 @@ class Sampler:
             l -= scsp.gammaln(self.K*self.dir_alpha + self.N)
         
         return l
+
+
+    def compute_likelihood_fullspace(self, n=0, sampled_feature_index=0, all_angles=None, num_points=1000, normalize=False, remove_mean=True, should_exponentiate=False):
+        '''
+            Computes and returns the (log)likelihood evaluated for a given datapoint on the entire space (e.g. [-pi,pi]).
+        '''
+
+        if all_angles is None:
+            all_angles = np.linspace(-np.pi, np.pi, num_points, endpoint=False)
+        else:
+            num_points = all_angles.size
+        
+        likelihood = np.zeros((self.T, num_points))
+        
+        # Compute the array
+        for t in np.arange(self.T):
+
+            # Compute the loglikelihood for all possible first feature
+            for i in np.arange(num_points):
+
+                # Pack the parameters for the likelihood function
+                params = (np.array([all_angles[i], self.data_gen.stimuli_correct[n, t, 1]]), self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[t], sampled_feature_index, self.mean_fixed_contrib[t], self.inv_covariance_fixed_contrib)
+            
+                # Give the correct cued second feature
+                likelihood[t, i] = loglike_theta_fct_single(all_angles[i], params)
+                # likelihood[t, i] = loglike_theta_fct_vect(np.array([all_angles[i], self.data_gen.stimuli_correct[n, t, 1]]), params)
+        
+        likelihood = likelihood.T
+        
+        # Center loglik
+        if remove_mean:
+            likelihood -= np.mean(likelihood, axis=0)
+        
+        if should_exponentiate:
+            # If desired, plot the likelihood, not the loglik
+            likelihood = np.exp(likelihood)
+
+            if normalize:
+                # Normalise if required.
+                dx = np.diff(all_angles)[0]
+                likelihood /= np.sum(likelihood*dx)
+
+        return likelihood
     
 
     ######################
@@ -606,7 +652,7 @@ class Sampler:
 
         # Pack the parameters for the likelihood function.
         #   Here, as the loglike_function only varies one of the input, need to give the rest of the theta vector.
-        params = (self.theta[n], self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[t], sampled_feature_index, self.mean_fixed_contrib[t], self.covariance_fixed_contrib)
+        params = (self.theta[n], self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[t], sampled_feature_index, self.mean_fixed_contrib[t], self.inv_covariance_fixed_contrib)
         
         x = np.linspace(-np.pi, np.pi, num_points)
         plt.figure()
@@ -649,7 +695,7 @@ class Sampler:
             for j in np.arange(num_points):
 
                 # Pack the parameters for the likelihood function
-                params = (np.array([all_angles[i], all_angles[j]]), self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[t], sampled_feature_index, self.mean_fixed_contrib[t], self.covariance_fixed_contrib)
+                params = (np.array([all_angles[i], all_angles[j]]), self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[t], sampled_feature_index, self.mean_fixed_contrib[t], self.inv_covariance_fixed_contrib)
         
                 # llh_2angles[i, j] = loglike_theta_fct_vect(np.array([all_angles[i], all_angles[j]]), params)
                 llh_2angles[i, j] = loglike_theta_fct_single(all_angles[i], params)
@@ -697,37 +743,18 @@ class Sampler:
             return llh_2angles
     
     
-    def plot_likelihood_correctlycuedtimes(self, n=0, amplify_diag=1.0, num_points=500, should_plot=True, should_return=False, should_exponentiate = False, sampled_feature_index = 0, debug=True):
+    def plot_likelihood_correctlycuedtimes(self, n=0, amplify_diag=1.0, all_angles=None, num_points=500, should_plot=True, should_return=False, should_exponentiate = False, sampled_feature_index = 0, debug=True):
         '''
             Plot the log-likelihood function, over the space of the sampled theta, keeping the other thetas fixed to their correct cued value.
         '''
 
         num_points = int(num_points)
 
-        all_angles = np.linspace(-np.pi, np.pi, num_points, endpoint=False)
-        llh_2angles = np.zeros((self.T, num_points))
+        if all_angles is None:
+            all_angles = np.linspace(-np.pi, np.pi, num_points, endpoint=False)
         
-        # Compute the array
-        for t in np.arange(self.T):
-
-            # Compute the loglikelihood for all possible first feature
-            for i in np.arange(num_points):
-
-                # Pack the parameters for the likelihood function
-                params = (np.array([all_angles[i], self.data_gen.stimuli_correct[n, t, 1]]), self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[t], sampled_feature_index, self.mean_fixed_contrib[t], self.covariance_fixed_contrib)
-            
-                # Give the correct cued second feature
-                llh_2angles[t, i] = loglike_theta_fct_single(all_angles[i], params)
-                # llh_2angles[t, i] = loglike_theta_fct_vect(np.array([all_angles[i], self.data_gen.stimuli_correct[n, t, 1]]), params)
-        
-        llh_2angles = llh_2angles.T
-        
-        # Center loglik
-        llh_2angles -= np.mean(llh_2angles, axis=0)
-        
-        if should_exponentiate:
-            # If desired, plot the likelihood, not the loglik
-            llh_2angles = np.exp(llh_2angles)
+        # Compute the likelihood
+        llh_2angles = self.compute_likelihood_fullspace(n=n, all_angles=all_angles, num_points=num_points, should_exponentiate=should_exponentiate, sampled_feature_index=sampled_feature_index)
 
         # Save it if we need to return it
         if should_return:
@@ -790,7 +817,7 @@ class Sampler:
         for tc in np.arange(self.T):
             # Pack the parameters for the likelihood function.
             #   Here, as the loglike_function only varies one of the input, need to give the rest of the theta vector.
-            params = (self.theta[n], self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[tc], sampled_feature_index, self.mean_fixed_contrib[tc], self.covariance_fixed_contrib)
+            params = (self.theta[n], self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[tc], sampled_feature_index, self.mean_fixed_contrib[tc], self.inv_covariance_fixed_contrib)
             
             # Compute the loglikelihood
             i =0
@@ -827,12 +854,15 @@ class Sampler:
                 return (ll_x, x)
     
 
-    def estimate_fisher_info_from_posterior(self, n=0, num_points=500):
+    def estimate_fisher_info_from_posterior(self, n=0, all_angles=None, num_points=500):
         '''
             Look at the curvature of the posterior to estimate the Fisher Information
         '''
 
-        posterior = self.plot_likelihood_correctlycuedtimes(n=n, num_points=num_points, should_plot=False, should_return=True, should_exponentiate = True, debug=False)[:, 0]
+        if all_angles is None:
+            all_angles = np.linspace(-np.pi, np.pi, num_points)
+
+        posterior = self.compute_likelihood_fullspace(n=n, all_angles=all_angles, num_points=num_points, should_exponentiate=True)[:, 0]
 
         # Look if it seems Gaussian enough
 
@@ -840,10 +870,9 @@ class Sampler:
         log_posterior[np.isinf(log_posterior)] = 0.0
         log_posterior[np.isnan(log_posterior)] = 0.0
 
-        x = np.linspace(-np.pi, np.pi, num_points)
-        dx = np.diff(x)[0]
+        dx = np.diff(all_angles)[0]
 
-        # posterior /= np.sum(posterior*dx)
+        posterior /= np.sum(posterior*dx)
 
         np.seterr(all='raise')
         try:
@@ -874,8 +903,10 @@ class Sampler:
 
         mean_FI = np.zeros(self.N)
 
-        for i in xrange(self.N):
-            mean_FI[i] = self.estimate_fisher_info_from_posterior(n=i, num_points=num_points)
+        all_angles = np.linspace(-np.pi, np.pi, num_points)
+
+        for i in progress.ProgressDisplay(np.arange(self.N), display=progress.SINGLE_LINE):
+            mean_FI[i] = self.estimate_fisher_info_from_posterior(n=i, all_angles=all_angles)
 
         if full_stats:
             return dict(mean=nanmean(mean_FI), std=nanstd(mean_FI), median=nanmedian(mean_FI), all=mean_FI)
@@ -918,8 +949,7 @@ class Sampler:
 
         precisions = np.zeros(self.N)
 
-        for i in xrange(self.N):
-            print i
+        for i in progress.ProgressDisplay(np.arange(self.N), display=progress.SINGLE_LINE):
             precisions[i] = self.estimate_precision_from_posterior(n=i, num_points=num_points)
 
         if full_stats:
@@ -967,6 +997,42 @@ class Sampler:
         else:
             return nanmean(all_precision)
 
+
+    def estimate_truevariance_from_posterior(self, n=0, all_angles=None, num_points=500):
+        '''
+            Estimate the variance from the empirical posterior.
+        '''
+
+        if all_angles is None:
+            all_angles = np.linspace(-np.pi, np.pi, num_points)
+
+        posterior = self.compute_likelihood_fullspace(n=n, all_angles=all_angles, num_points=num_points, should_exponentiate=True, normalize=True)[:, 0]
+
+        mean = np.trapz(posterior*all_angles, all_angles)
+        variance = np.trapz(posterior*(all_angles - mean)**2., all_angles)
+
+        return variance
+
+
+    def estimate_truevariance_from_posterior_avg(self, all_angles=None, num_points=500, full_stats=False):
+        '''
+            Get the mean estimated variance from the empirical posterior
+        '''
+
+        if all_angles is None:
+            all_angles = np.linspace(-np.pi, np.pi, num_points)
+
+        truevariances = np.zeros(self.N)
+
+        for i in progress.ProgressDisplay(np.arange(self.N), display=progress.SINGLE_LINE):
+            # print i
+
+            truevariances[i] = self.estimate_truevariance_from_posterior(n=i, all_angles=all_angles, num_points=num_points)
+
+        if full_stats:
+            return dict(mean=nanmean(truevariances), std=nanstd(truevariances), median=nanmedian(truevariances), all=truevariances)
+        else:
+            return nanmean(truevariances)
 
 
     def plot_comparison_samples_fit_posterior(self, n=0, samples=None, num_samples=1000, num_points=1000, selection_method='median'):
@@ -1098,7 +1164,7 @@ class Sampler:
         return (angle_mean_error, angle_std_dev_error, angle_mean_vector, avg_error)
     
 
-    def get_precision(self, remove_chance_level=False):
+    def get_precision(self, remove_chance_level=False, correction_theo_fit=1.0):
         '''
             Compute the precision, inverse of the std dev of the errors.
             This is our target metric
@@ -1106,6 +1172,7 @@ class Sampler:
 
         # Compute precision
         precision = 1./self.compute_angle_error()[1]**2.
+        precision *= correction_theo_fit
 
         if remove_chance_level:
             # Expected precision under uniform distribution
@@ -1144,7 +1211,7 @@ class Sampler:
                 print "% 4.3f \t\t % 4.3f \t % 4.3f" % (self.theta[i, 0], groundtruth[i], angle_errors[i])           
 
         print "======================================="
-        print "  Precision:\t %.3f" % (1./stats[1])
+        print "  Precision:\t %.3f" % (self.get_precision())
         print "======================================="
     
 
