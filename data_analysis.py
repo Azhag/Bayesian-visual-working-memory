@@ -598,6 +598,22 @@ def combine_multiple_memory_curve():
 #===================================================================================================================================
 
 
+def load_data(dataset_infos, debug=False):
+    '''
+        Load multiple files from a directory. Calls subroutines, depending on where the parameter values are stored.
+
+        dataset_infos['loading_type'] should be defined.
+    '''
+
+    if dataset_infos['loading_type'] == 'regexp':
+        return load_data_fromregexp(dataset_infos, debug=debug)
+    elif dataset_infos['loading_type'] == 'args':
+        return load_data_fromargs(dataset_infos, debug=debug)
+    else:
+        raise ValueError('loading_type unknown: %s' % dataset_infos['loading_type'])
+
+
+
 def load_data_fromregexp(dataset_infos, debug=False):
     '''
         Load multiple files from a directory, where their filename indicates the parameter values used for the dataset.
@@ -687,6 +703,110 @@ def load_data_fromregexp(dataset_infos, debug=False):
             parameters_indirections[param][par_val] = i
 
     return dict(parameters_uniques=parameters_uniques, parameters_complete=parameters_complete, datasets_list=datasets_list, parameters_indirections=parameters_indirections, args_list=args_list)
+
+
+
+def load_data_fromargs(dataset_infos, debug=False):
+    '''
+        Load multiple files from a directory, where the parameter values used for the simulation are stored in the 'args' variable.
+            Assumes that all parameters are float.
+
+        Returns the following:
+            - Dictionary of uniques parameter values
+            - Dictionary of the parameters values for each dataset (list in the same order as the datasets)
+            - List of all datasets
+            - Dictionary associating parameter values to their index in the unique lists.
+
+        Can then be loaded into numpy arrays.
+
+        Takes a description dictionary as input. Example format and keys:
+        dict(
+            label='Samples and sigmax effect on power-law fits',
+            files='Data/effect_num_sample_on_powerlaw/multiple_memory_curve-samples*rcscale*sigmax*.npy',
+            parameters=('samples', 'rcscale', 'sigmax')
+            )
+    '''
+
+    all_output_files = glob.glob(dataset_infos['files'])
+
+    assert len(all_output_files) > 0, "Wrong regular expression"
+
+    # We have to load each dataset, but also associate them with their parameter values.
+    #  let's try and be general:
+    #   - Store the datasets in a big list.
+    #   - Store the associated parameter values in lists (same indexing), in a dictionary indexed by the parameters.
+    datasets_list = []
+    parameters_complete = dict()
+    parameters_uniques = dict()
+    args_list = []
+
+    for curr_file in all_output_files:
+        
+        # Load the data
+        curr_dataset = np.load(curr_file).item()
+        datasets_list.append(curr_dataset)
+
+        # Find out the parameter values
+        if 'args' in curr_dataset:
+            curr_args = curr_dataset['args']
+
+            # Convert it to a dictionary to be able to generically access parameters...
+            if type(curr_args) is argparse.Namespace:
+                curr_args = vars(curr_args)
+
+            assert type(curr_args) is dict, "The args variable should be a dictionary now."
+        else:
+            raise ValueError('No args variable in this dataset, something is wrong. %s' % curr_file)
+
+
+        # Check if all the appropriate parameters were found
+        # assert set(dataset_infos['parameters']) <= set(curr_params), "Couldn't extract the desired parameters from the filename"
+        if not (set(dataset_infos['parameters']) <= set(curr_args.keys())):
+            print set(dataset_infos['parameters'])
+            print set(curr_args)
+            raise ValueError("Couldn't extract the desired parameters from the dataset's args variable")
+
+
+        # Save the arguments of each dataset
+        args_list.append(curr_args)
+
+        # Fill the parameter dictionary
+        for param_name in dataset_infos['parameters']:
+            # Just append the parameter value of the current dataset to the appropriate list
+            # warning: need to use the exact same string in the regexp and in the parameter names list
+            if param_name in parameters_complete:
+                if np.isscalar(curr_args[param_name]):
+                    # Scalar value, just append it
+                    parameters_complete[param_name].append(curr_args[param_name])
+                else:
+                    # Non-scalar, assume its a list and extend...
+                    parameters_complete[param_name].extend(curr_args[param_name])
+            else:
+                # First time we see a parameter value of this parameter
+                parameters_complete[param_name] = []
+                if np.isscalar(curr_args[param_name]):
+                    parameters_complete[param_name].append(curr_args[param_name])
+                else:
+                    parameters_complete[param_name].extend(curr_args[param_name])
+
+        if debug:
+            print curr_file, curr_args
+
+
+    
+    # Extract the unique parameter values
+    for key, val in parameters_complete.items():
+        parameters_uniques[key] = np.unique(val)
+    
+    # Construct an indirection dictionary to give parameter index based on its value
+    parameters_indirections = dict()
+    for param in dataset_infos['parameters']:
+        parameters_indirections[param] = dict()
+        for i, par_val in enumerate(parameters_uniques[param]):
+            parameters_indirections[param][par_val] = i
+
+    return dict(parameters_uniques=parameters_uniques, parameters_complete=parameters_complete, datasets_list=datasets_list, parameters_indirections=parameters_indirections, args_list=args_list)
+
 
 
 def construct_numpyarray_specified_output_from_datasetlists(loaded_data, output_variable_desired, list_parameters):
@@ -781,6 +901,10 @@ def construct_multiple_numpyarrays(loaded_data, list_output_variables, list_para
     return all_results_arrays
 
 
+
+#####
+
+
 def curves_memorypowerlaw_060712(loaded_data, all_results_array):
     # MEMORY CURVES
     # all_precisions: samples . rcscale . number of objects . repetitions
@@ -812,7 +936,7 @@ def curves_memorypowerlaw_060712(loaded_data, all_results_array):
     return locals()
 
 
-def curves_memorypowerlaw_100712(loaded_data, all_results_array, parameters = dict()):
+def curves_memorypowerlaw_100712(loaded_data, all_results_array, parameters = None):
     '''
         Performs a series of plots.
 
@@ -847,20 +971,20 @@ def curves_memorypowerlaw_100712(loaded_data, all_results_array, parameters = di
     print parameters
 
     # First, the list of possible filters over our big data
-    if 'data_filters' in parameters:
+    if parameters and 'data_filters' in parameters:
         data_filters = parameters['data_filters']
     else:
         data_filters = ['numselected50', 'numselectedhalf', 'numselectedall']
 
     # Second, the desired plots to do
-    if 'do_plots' in parameters:
+    if parameters and 'do_plots' in parameters:
         do_plots = parameters['do_plots']
     else:
         # Assume we want all of them
         do_plots = ['numselected50', 'numselectedhalf', 'numselectedall', 'precision_rcscale', 'precision_1obj_maxsamples', 'precision_samples', 'powerlaw_params', 'powerlaw_imshow']
 
     # Third, if we need to add a sqrt to the x values, because of a mismatch between the theory and the RandomFactorialNetwork implementation
-    if 'sqrt_x_values' in parameters:
+    if parameters and 'sqrt_x_values' in parameters:
         sqrt_x_values = parameters['sqrt_x_values']
     else:
         sqrt_x_values = False
@@ -1004,7 +1128,8 @@ def curves_memorypowerlaw_100712(loaded_data, all_results_array, parameters = di
 
     return locals()
 
-def curves_memorypowerlaw_maxll_260712(loaded_data, all_results_array):
+
+def curves_memorypowerlaw_maxll_260712(loaded_data, all_results_array, parameters = None):
     '''
         Similar to curves_memorypowerlaw_100712, but no samples and selectionnumsamples
     '''
@@ -1057,6 +1182,17 @@ def curves_memorypowerlaw_maxll_260712(loaded_data, all_results_array):
     return locals()
 
 
+def curves_constraintbuilding_291012(loaded_data, all_results_array, parameters = None):
+    '''
+        Should do some processing to extract the constraint and do some plots.
+
+        Some functions are already defined in launchers_fisherinformation, try to use them.
+    '''
+
+    return locals()
+
+
+
 def combine_multiple_memory_curve_simult_powerlaw(data_index = 8):
     '''
         Loads simulations of multiple memory curves for simultaneous presentations.
@@ -1067,6 +1203,7 @@ def combine_multiple_memory_curve_simult_powerlaw(data_index = 8):
         dataset_infos = dict(label='Samples and sigmax effect on power-law fits',
                     files='Data/effect_num_sample_on_powerlaw/multiple_memory_curve-samples*rcscale*sigmax*.npy',
                     regexp='^[a-zA-Z_\/0-9]*-samples(?P<samples>[0-9]*)rcscale(?P<rcscale>[0-9.]*)sigmax(?P<sigmax>[0-9.]*)-[0-9a-z\-]*.npy',
+                    loading_type='regexp',
                     parameters=('samples', 'rcscale'),
                     variables_to_load=('all_precisions', 'power_law_params'),
                     variables_description=('number of objects . repetitions', 'exponent, bias'),
@@ -1077,6 +1214,7 @@ def combine_multiple_memory_curve_simult_powerlaw(data_index = 8):
         dataset_infos = dict(label='Samples and sigmax effect on power-law fits, bigger runs, few powerlaw fit errors',
                     files='Data/samples_sigma_powerlaw/samples_100712/samples_sigma_powerlaw-*.npy',
                     regexp='^[a-zA-Z_\/0-9]*-rcscale(?P<rcscale>[0-9.]*)numsamples(?P<numsamples>[0-9]*)selectionnumsamples(?P<selectionnumsamples>[0-9]*).*.npy',
+                    loading_type='regexp',
                     parameters=('rcscale', 'numsamples', 'selectionnumsamples'),
                     variables_to_load=('all_precisions', 'power_law_params'),
                     variables_description=('number of objects . repetitions', 'exponent, bias'),
@@ -1087,6 +1225,7 @@ def combine_multiple_memory_curve_simult_powerlaw(data_index = 8):
         dataset_infos = dict(label='Samples and sigmax effect on power-law fits, less powerlaw fit errors, but less repetitions',
                     files='Data/samples_sigma_powerlaw/samples_110712/samples_sigma_powerlaw-*.npy',
                     regexp='^[a-zA-Z_\/0-9]*-rcscale(?P<rcscale>[0-9.]*)numsamples(?P<numsamples>[0-9]*)selectionnumsamples(?P<selectionnumsamples>[0-9]*).*.npy',
+                    loading_type='regexp',
                     parameters=('rcscale', 'numsamples', 'selectionnumsamples'),
                     variables_to_load=('all_precisions', 'power_law_params'),
                     variables_description=('number of objects . repetitions', 'exponent, bias'),
@@ -1097,6 +1236,7 @@ def combine_multiple_memory_curve_simult_powerlaw(data_index = 8):
         dataset_infos = dict(label='Samples and sigmax effect on power-law fits. Bigger ranger for numsamples and rcscale, to check trend.',
                     files='Data/samples_sigma_powerlaw/biggerrc_110712/samples_sigma_powerlaw-*.npy',
                     regexp='^[a-zA-Z_\/0-9]*-rcscale(?P<rcscale>[0-9.]*)numsamples(?P<numsamples>[0-9]*)selectionnumsamples(?P<selectionnumsamples>[0-9]*).*.npy',
+                    loading_type='regexp',
                     parameters=('rcscale', 'numsamples', 'selectionnumsamples'),
                     variables_to_load=('all_precisions', 'power_law_params'),
                     variables_description=('number of objects . repetitions', 'exponent, bias'),
@@ -1107,6 +1247,7 @@ def combine_multiple_memory_curve_simult_powerlaw(data_index = 8):
         dataset_infos = dict(label='Samples and sigmax effect on power-law fits. Bigger ranger for numsamples and rcscale, to check trend.',
                     files='Data/samples_sigma_powerlaw/biggerrcbis_120712/samples_sigma_powerlaw-*.npy',
                     regexp='^[a-zA-Z_\/0-9]*-rcscale(?P<rcscale>[0-9.]*)numsamples(?P<numsamples>[0-9]*)selectionnumsamples(?P<selectionnumsamples>[0-9]*).*.npy',
+                    loading_type='regexp',
                     parameters=('rcscale', 'numsamples', 'selectionnumsamples'),
                     variables_to_load=('all_precisions', 'power_law_params'),
                     variables_description=('number of objects . repetitions', 'exponent, bias'),
@@ -1117,6 +1258,7 @@ def combine_multiple_memory_curve_simult_powerlaw(data_index = 8):
         dataset_infos = dict(label='Samples and sigmax effect on power-law fits. Small range for rcscale, looking at the effect of sample numbers for T=1 at small scale. Could just be that large number of samples just go to the ML value...',
                     files='Data/samples_sigma_powerlaw/small_rc_samples_effect/samples_sigma_powerlaw-*.npy',
                     regexp='^[a-zA-Z_\/0-9]*-rcscale(?P<rcscale>[0-9.]*)numsamples(?P<numsamples>[0-9]*)selectionnumsamples(?P<selectionnumsamples>[0-9]*).*.npy',
+                    loading_type='regexp',
                     parameters=('rcscale', 'numsamples', 'selectionnumsamples'),
                     variables_to_load=('all_precisions', 'power_law_params'),
                     variables_description=('number of objects . repetitions', 'exponent, bias'),
@@ -1127,6 +1269,7 @@ def combine_multiple_memory_curve_simult_powerlaw(data_index = 8):
         dataset_infos = dict(label='Rc_scale effect for Max-likelihood theta selection. This is to verify if a large number of samples will make the precision go to the ML value.',
                     files='Data/samples_sigma_powerlaw/max_loglik_comparison/sigma_powerlaw-*.npy',
                     regexp='^[a-zA-Z_\/0-9]*-rcscale(?P<rcscale>[0-9.]*)n.*.npy',
+                    loading_type='regexp',
                     parameters=['rcscale'],
                     variables_to_load=('all_precisions', 'power_law_params'),
                     variables_description=('number of objects . repetitions', 'exponent, bias'),
@@ -1137,6 +1280,7 @@ def combine_multiple_memory_curve_simult_powerlaw(data_index = 8):
         dataset_infos = dict(label='New receptive fields, with Bivariate Fisher. Rc_scale effect for Max-likelihood theta selection.',
                     files='Data/samples_sigma_powerlaw/new_receptivefields_maxlik/sigma_powerlaw_newreceptfields-*.npy',
                     regexp='^[a-zA-Z_\/0-9]*-rcscale(?P<rcscale>[0-9.]*).*.npy',
+                    loading_type='regexp',
                     parameters=['rcscale'],
                     variables_to_load=('all_precisions', 'power_law_params'),
                     variables_description=('number of objects . repetitions', 'exponent, bias'),
@@ -1147,6 +1291,7 @@ def combine_multiple_memory_curve_simult_powerlaw(data_index = 8):
         dataset_infos = dict(label='New receptive fields, with Bivariate Fisher. Rc_scale . numsamples . selectionnumsamples, similar to old receptive fields. To check if the weird maximum was really just because of some wrapping around problem....',
                     files='Data/samples_sigma_powerlaw/new_receptivefields_samples/samples_sigma_powerlaw_newreceptfields-*.npy',
                     regexp='^[a-zA-Z_\/0-9]*-rcscale(?P<rcscale>[0-9.]*)numsamples(?P<numsamples>[0-9]*)selectionnumsamples(?P<selectionnumsamples>[0-9]*).*.npy',
+                    loading_type='regexp',
                     parameters=('rcscale', 'numsamples', 'selectionnumsamples'),
                     variables_to_load=('all_precisions', 'power_law_params'),
                     variables_description=('number of objects . repetitions', 'exponent, bias'),
@@ -1158,6 +1303,7 @@ def combine_multiple_memory_curve_simult_powerlaw(data_index = 8):
         dataset_infos = dict(label='Bivariate Fisher receptive fields with normalised receptive fields. Rc_scale . numsamples . selectionnumsamples. Saw some overflow problems in scipy.special.i0, could get weird results.',
                     files='Data/normalised_rf_samples_rcscale_powerlaw/M200/samples_sigma_powerlaw_newreceptfields-*.npy',
                     regexp='^[a-zA-Z_\/0-9]*-rcscale(?P<rcscale>[0-9.]*)numsamples(?P<numsamples>[0-9]*)selectionnumsamples(?P<selectionnumsamples>[0-9]*).*.npy',
+                    loading_type='regexp',
                     parameters=('rcscale', 'numsamples', 'selectionnumsamples'),
                     variables_to_load=('all_precisions', 'power_law_params'),
                     variables_description=('number of objects . repetitions', 'exponent, bias'),
@@ -1169,6 +1315,7 @@ def combine_multiple_memory_curve_simult_powerlaw(data_index = 8):
         dataset_infos = dict(label='Bivariate Fisher receptive fields with normalised receptive fields. Only M=100 neurons here. Rc_scale . numsamples . selectionnumsamples.',
                     files='Data/normalised_rf_samples_rcscale_powerlaw/M100/results_M100/samples_sigma_powerlaw_newreceptfields-*.npy',
                     regexp='^[a-zA-Z_\/0-9]*-rcscale(?P<rcscale>[0-9.]*)numsamples(?P<numsamples>[0-9]*)selectionnumsamples(?P<selectionnumsamples>[0-9]*).*.npy',
+                    loading_type='regexp',
                     parameters=('rcscale', 'numsamples', 'selectionnumsamples'),
                     variables_to_load=('all_precisions', 'power_law_params'),
                     variables_description=('number of objects . repetitions', 'exponent, bias'),
@@ -1176,11 +1323,22 @@ def combine_multiple_memory_curve_simult_powerlaw(data_index = 8):
                     # Choices: do_plots = ['numselected50', 'numselectedhalf', 'numselectedall', 'precision_rcscale', 'precision_samples', 'powerlaw_params', 'powerlaw_imshow', 'precision_1obj_maxsamples']
                     post_processing_parameters=dict(do_plots=['numselectedhalf', 'powerlaw_params', 'precision_1obj_maxsamples'], sqrt_x_values=True, data_filters=['numselected50', 'numselectedhalf', 'numselectedall'])
                     )
+    elif data_index == 12:
+        dataset_infos = dict(label='New PBS runs, different loading method. Uses the 2D fisher information as a constraint between sigma and rcscale. Also checks the ratio between recall precision and FI curve.',
+                    files='Data/constraint/allfi_N200samples300/allfi_*-launcher_do_fisher_information_param_search_pbs-*.npy',
+                    loading_type='args',
+                    parameters=('rc_scale', 'sigmax'),
+                    variables_to_load=('FI_rc_curv', 'FI_rc_precision', 'FI_rc_theo'),
+                    variables_description=('FI curve', 'FI recall precision', 'FI theo'),
+                    post_processing=curves_constraintbuilding_291012,
+                    # Choices: do_plots = ['numselected50', 'numselectedhalf', 'numselectedall', 'precision_rcscale', 'precision_samples', 'powerlaw_params', 'powerlaw_imshow', 'precision_1obj_maxsamples']
+                    post_processing_parameters=dict(do_plots=['numselectedhalf', 'powerlaw_params', 'precision_1obj_maxsamples'], sqrt_x_values=True, data_filters=['numselected50', 'numselectedhalf', 'numselectedall'])
+                    )
     else:
         raise ValueError('Wrong data_index')
 
     # Load everything
-    loaded_data = load_data_fromregexp(dataset_infos, debug=True)
+    loaded_data = load_data(dataset_infos, debug=True)
     all_results_array = construct_multiple_numpyarrays(loaded_data, dataset_infos['variables_to_load'], dataset_infos['parameters'])
 
     # Now we can work with the data.
@@ -1188,6 +1346,7 @@ def combine_multiple_memory_curve_simult_powerlaw(data_index = 8):
 
 
     return locals()
+
 
 
 if __name__ == '__main__':
