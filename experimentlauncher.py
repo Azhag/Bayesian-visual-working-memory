@@ -18,8 +18,9 @@ import launchers_profile
 import launchers_memorycurves
 import launchers_parametersweeps
 import launchers_fisherinformation
+import launchers_experimentalvolume
 
-launchers_modules = [launchers, launchers_profile, launchers_memorycurves, launchers_parametersweeps, launchers_fisherinformation]
+launchers_modules = [launchers, launchers_profile, launchers_memorycurves, launchers_parametersweeps, launchers_fisherinformation, launchers_experimentalvolume]
 
 
 class ExperimentLauncher(object):
@@ -92,6 +93,7 @@ class ExperimentLauncher(object):
         parser.add_argument('--ratio_conj', type=float, default=0.2, help='Ratio of conjunctive/field subpopulations for mixed network')
         parser.add_argument('--inference_method', choices=['sample', 'max_lik', 'none'], default='sample', help='Method used to infer the responses. Either sample (default) or set the maximum likelihood/posterior values directly.')
         parser.add_argument('--subaction', default='', help='Some actions have multiple possibilities.')
+        parser.add_argument('--search_type', choices=['random', 'grid'], default='random', help='When performing a parameter search, should we do a grid-search or random search?')
 
         
         self.args = parser.parse_args()
@@ -116,7 +118,7 @@ if __name__ == '__main__':
 
     # Re-instantiate some variables
     #   Ugly but laziness prevails...
-    variables_to_reinstantiate = ['data_gen', 'sampler', 'stat_meas', 'random_network', 'args']
+    variables_to_reinstantiate = ['data_gen', 'sampler', 'stat_meas', 'random_network', 'args', 'constrained_parameters']
     for var_reinst in variables_to_reinstantiate:
         if var_reinst in experiment_launcher.all_vars:
             vars()[var_reinst] = experiment_launcher.all_vars[var_reinst]
