@@ -182,6 +182,9 @@ def launcher_do_multiple_memory_curve_simult(args):
         (will force alpha=1, and only recall one object for each T, more independent)
     '''
 
+    # Should collect all responses?
+    collect_responses = True
+
     # Build the random network
     alpha = 1.
     time_weights_parameters = dict(weighting_alpha=alpha, weighting_beta=1.0, specific_weighting=0.1, weight_prior='uniform')
@@ -191,8 +194,10 @@ def launcher_do_multiple_memory_curve_simult(args):
     output_string = dataio.filename
 
     # List of variables to save
-    # Try not save when one of those is not set. 
-    variables_to_output = ['all_precisions', 'args', 'num_repetitions', 'output_string', 'power_law_params', 'repet_i']
+    if collect_responses:
+        variables_to_output = ['all_precisions', 'args', 'num_repetitions', 'output_string', 'power_law_params', 'repet_i', 'all_responses', 'all_targets', 'all_nontargets']
+    else:
+        variables_to_output = ['all_precisions', 'args', 'num_repetitions', 'output_string', 'power_law_params', 'repet_i']
 
     print "Doing do_multiple_memory_curve"
     print "max_T: %s" % args.T
@@ -200,6 +205,11 @@ def launcher_do_multiple_memory_curve_simult(args):
 
     all_precisions = np.zeros((args.T, args.num_repetitions))
     power_law_params = np.zeros(2)
+
+    if collect_responses:
+        all_responses = np.zeros((args.T, args.num_repetitions, args.N))
+        all_targets = np.zeros((args.T, args.num_repetitions, args.N))
+        all_nontargets = np.zeros((args.T, args.num_repetitions, args.N, args.T-1))
 
     # Construct different datasets, with t objects
     for repet_i in np.arange(args.num_repetitions):
@@ -246,11 +256,13 @@ def launcher_do_multiple_memory_curve_simult(args):
             # all_precisions[t, repet_i] = 1./sampler.compute_angle_error()[1]
 
             print "-> %.5f" % all_precisions[t, repet_i]
+
+            # Collect responses if needed
+            if collect_responses:
+                (all_responses[t, repet_i], all_targets[t, repet_i], all_nontargets[t, repet_i, :, :t]) = sampler.collect_responses()
             
             # Save to disk, unique filename
             dataio.save_variables(variables_to_output, locals())
-
-            # np.save(output_string, {'all_precisions': all_precisions, 'args': args, 'num_repetitions': args.num_repetitions, 'output_string': output_string, 'power_law_params': power_law_params, 'repet_i': repet_i})
         
         xx = np.tile(np.arange(1, args.T+1, dtype='float'), (repet_i+1, 1)).T
         power_law_params = fit_powerlaw(xx, all_precisions[:, :(repet_i+1)], should_plot=True)
