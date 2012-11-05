@@ -193,6 +193,9 @@ class Sampler:
         self.inv_covariance_fixed_contrib = np.zeros((self.M, self.M))
         self.noise_covariance = self.n_covariances_measured[-1]
 
+        # Set the noise_covariance in the RandomFactorialNetwork as well.
+        self.random_network.noise_covariance = self.noise_covariance
+
         for t in np.arange(self.T):
             (self.ATtcB[t], self.mean_fixed_contrib[t], self.inv_covariance_fixed_contrib) = self.precompute_parameters(t, amplify_diag=amplify_diag)
         
@@ -862,24 +865,24 @@ class Sampler:
         if all_angles is None:
             all_angles = np.linspace(-np.pi, np.pi, num_points)
 
-        posterior = self.compute_likelihood_fullspace(n=n, all_angles=all_angles, num_points=num_points, should_exponentiate=True)[:, 0]
+        log_posterior = self.compute_likelihood_fullspace(n=n, all_angles=all_angles, num_points=num_points, should_exponentiate=False)[:, 0].T
 
         # Look if it seems Gaussian enough
 
-        log_posterior = np.log(posterior.T)
+        # log_posterior = np.log(posterior.T)
         log_posterior[np.isinf(log_posterior)] = 0.0
         log_posterior[np.isnan(log_posterior)] = 0.0
 
         dx = np.diff(all_angles)[0]
 
-        posterior /= np.sum(posterior*dx)
+        # posterior /= np.sum(posterior*dx)
 
         np.seterr(all='raise')
         try:
             # Incorrect here, see Issue #23
             # FI_estim_curv = np.trapz(-np.gradient(np.gradient(log_posterior))*posterior/dx**2., x)
 
-            ml_index = np.argmax(posterior)
+            ml_index = np.argmax(log_posterior)
             curv_logp = -np.gradient(np.gradient(log_posterior))/dx**2.
 
             # take the curvature at the ML value
