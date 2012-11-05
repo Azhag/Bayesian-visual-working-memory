@@ -639,9 +639,12 @@ def plot_fft2_power(data, s=None, axes=(-2, -1), fignum=None):
 def fit_powerlaw(xdata, ydata, should_plot=False, debug=False):
     '''
         Fit a power law to the provided data.
+        y = a x**p
         Actually fit to the mean of the provided data, if multiple columns given (axis 1)
 
         Look for next function in order to fit a powerlaw while taking std dev into account.
+
+        returns (power p, amplitude a)
     '''
 
     ##########

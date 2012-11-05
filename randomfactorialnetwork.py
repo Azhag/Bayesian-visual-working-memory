@@ -57,6 +57,9 @@ class RandomFactorialNetwork():
         # Used to stored cached network response statistics. Mean_theta(mu(theta)) and Cov_theta(mu(theta))
         self.network_response_statistics = None
 
+        # (hacky) Store the noise covariance matrix, for ease of use. Will be set by the Sampler.
+        self.noise_covariance = None
+
         self.network_initialised = True
     
     
@@ -650,7 +653,7 @@ class RandomFactorialNetwork():
         # The actual computation
         covariance = T*beta**2.*network_response_statistics['cov'] + T*sigma_2*np.eye(self.M)
 
-        if should_plot  == True:
+        if should_plot:
             plt.figure()
             plt.imshow(covariance, interpolation='nearest')
             plt.show()
@@ -1359,19 +1362,19 @@ if __name__ == '__main__':
 
         plt.show()
 
-    if False:
+    if True:
         print 'Compute KL approx of mixture by Gausian'
 
-        alpha = 0.9
+        alpha = 1.0
         N_sqrt = 20.
         N = int(N_sqrt**2.)
-        T = 6
-        sigma_x = 1.0
-        sigma_y = 1.0
+        T = 1
+        sigma_x = 0.2
+        sigma_y = 0.001
         beta = 1.0
 
         time_weights_parameters = dict(weighting_alpha=alpha, weighting_beta = beta, specific_weighting = 0.1, weight_prior='uniform')
-        rn = RandomFactorialNetwork.create_full_conjunctive(N, R=2, scale_moments=(1.0, 0.01), ratio_moments=(1.0, 0.01), response_type='bivariate_fisher')
+        rn = RandomFactorialNetwork.create_full_conjunctive(N, R=2, scale_moments=(5.0, 0.01), ratio_moments=(1.0, 0.01), response_type='bivariate_fisher')
         data_gen_noise = DataGeneratorRFN(15000, T, rn, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=T-1, enforce_min_distance=0.0)
         stat_meas = StatisticsMeasurer(data_gen_noise)
 
@@ -1703,7 +1706,7 @@ if __name__ == '__main__':
 
         plt.show()
         
-    if True:
+    if False:
         # See how many neurons respond to a given stimulus, indication for wrong coverage/rc_size.
 
         kappa = 2.0
