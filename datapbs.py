@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-data_pbs.py
+datapbs.py
 
 
 Created by Loic Matthey on 2012-10-29
@@ -28,7 +28,7 @@ class DataPBS:
         self.debug = debug
 
         self.loaded_data = None
-        self.all_results_array = None
+        self.dict_arrays = None
 
         if dataset_infos:
             self.dataset_infos = dataset_infos
@@ -37,7 +37,7 @@ class DataPBS:
             self.loaded_data = self.load_data(dataset_infos)
 
             # Convert to ndarray
-            self.all_results_array = self.construct_multiple_numpyarrays(self.loaded_data, self.dataset_infos['variables_to_load'], self.dataset_infos['parameters'])
+            self.dict_arrays = self.construct_multiple_numpyarrays(self.loaded_data, self.dataset_infos['variables_to_load'], self.dataset_infos['parameters'])
 
 
 
@@ -356,9 +356,6 @@ if __name__ == '__main__':
                     parameters=('rc_scale', 'sigmax'),
                     variables_to_load=('FI_rc_curv', 'FI_rc_precision', 'FI_rc_theo'),
                     variables_description=('FI curve', 'FI recall precision', 'FI theo'),
-                    post_processing=None,
-                    # Choices: do_plots = ['numselected50', 'numselectedhalf', 'numselectedall', 'precision_rcscale', 'precision_samples', 'powerlaw_params', 'powerlaw_imshow', 'precision_1obj_maxsamples']
-                    post_processing_parameters=dict(do_plots=['numselectedhalf', 'powerlaw_params', 'precision_1obj_maxsamples'], sqrt_x_values=True, data_filters=['numselected50', 'numselectedhalf', 'numselectedall'])
                     )
 
     data_pbs = DataPBS(dataset_infos=dataset_infos, debug=False)
