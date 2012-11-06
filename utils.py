@@ -14,6 +14,7 @@ import matplotlib.ticker as plttic
 # import scipy.io as sio
 import scipy.optimize as spopt
 import scipy.stats as spst
+import scipy.interpolate as spint
 import uuid
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
@@ -470,6 +471,50 @@ def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorba
     ax_handle.axis('tight')
 
 
+
+def contourf_interpolate_data(all_points, data, xlabel='', ylabel='', title='', interpolation_numpoints=200, interpolation_method='linear', mask_when_nearest=True, contour_numlevels=20, show_scatter=True, show_colorbar=True, fignum=None):
+    '''
+        Take (x,y) and z tuples, construct an interpolation with them and plot them nicely.
+
+        all_points: Nx2
+        data:       Nx1
+
+        mask_when_nearest: trick to hide points outside the convex hull of points even when using 'nearest' method
+    '''
+
+    # Construct the interpolation
+    param1_space_int = np.linspace(all_points[:, 0].min(), all_points[:, 0].max(), interpolation_numpoints)
+    param2_space_int = np.linspace(all_points[:, 1].min(), all_points[:, 1].max(), interpolation_numpoints)
+
+    data_interpol = spint.griddata(all_points, data, (param1_space_int[None, :], param2_space_int[:, None]), method=interpolation_method)
+
+    if interpolation_method == 'nearest' and mask_when_nearest:
+        # Let's mask the points outside of the convex hull
+
+        # The linear interpolation will have nan's on points outside of the convex hull of the all_points
+        data_interpol_lin = spint.griddata(all_points, data, (param1_space_int[None, :], param2_space_int[:, None]), method='linear')
+
+        # Mask
+        data_interpol[np.isnan(data_interpol_lin)] = np.nan
+
+    # Plot it
+    f1 = plt.figure(fignum)
+    ax1 = f1.add_subplot(111)
+    cs = ax1.contourf(param1_space_int, param2_space_int, data_interpol, contour_numlevels)   # cmap=plt.cm.jet
+    ax1.set_xlabel(xlabel)
+    ax1.set_ylabel(ylabel)
+    ax1.set_title(title)
+
+    if show_scatter:
+        ax1.scatter(all_points[:, 0], all_points[:, 1], marker='o', c='b', s=5)
+    
+    ax1.set_xlim(param1_space_int.min(), param1_space_int.max())
+    ax1.set_ylim(param2_space_int.min(), param2_space_int.max())
+    
+    if show_colorbar:
+        f1.colorbar(cs)
+
+
 def pcolor_square_grid(data, nb_to_plot=-1):
     '''
         Construct a square grid of pcolor
@@ -492,6 +537,7 @@ def pcolor_square_grid(data, nb_to_plot=-1):
                 subaxes[i, j].set_visible(False)
                 
     return (f, subaxes)
+
     
 
 def plot_sphere(theta, gamma, Z, weight_deform=0.5, sphere_radius=1., try_mayavi=True):
