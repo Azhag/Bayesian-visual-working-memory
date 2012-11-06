@@ -34,10 +34,10 @@ class DataPBS:
             self.dataset_infos = dataset_infos
 
             # Load everything
-            self.loaded_data = self.load_data(dataset_infos)
+            self.loaded_data = self.load_data(self.dataset_infos)
 
             # Convert to ndarray
-            self.dict_arrays = self.construct_multiple_numpyarrays(self.loaded_data, self.dataset_infos['variables_to_load'], self.dataset_infos['parameters'])
+            self.dict_arrays = self.construct_multiple_numpyarrays(self.loaded_data, self.dataset_infos)
 
 
 
@@ -251,7 +251,7 @@ class DataPBS:
 
 
 
-    def construct_numpyarray_specified_output_from_datasetlists(self, loaded_data, output_variable_desired, list_parameters):
+    def construct_numpyarray_specified_output_from_datasetlists(self, loaded_data, output_variable_desired, dataset_infos):
         '''
             Construct a big numpy array out of a series of datasets, extracting a specified output variable of each dataset
              (usually, the results of the simulations, let's say)
@@ -270,6 +270,7 @@ class DataPBS:
         parameters_complete = loaded_data['parameters_complete']
         datasets_list = loaded_data['datasets_list']
         parameters_indirections = loaded_data['parameters_indirections']
+        list_parameters = dataset_infos['parameters']
 
         # Assume that we will store the whole desired variable for each parameter setting.
         # Discover the shape
@@ -296,6 +297,10 @@ class DataPBS:
         # Get the array of how many repeats were actually finished
         completed_repeats_array = []
 
+        # Keep the results in a flat array
+        results_flat = []
+        parameters_flat = []
+
         for i, dataset in enumerate(datasets_list):
             # Now put the data at the appropriate position
             #   We construct a variable size index (depends on how many parameters we have),
@@ -308,6 +313,11 @@ class DataPBS:
                         # Save the dataset at the proper position
                         results_array[curr_dataposition] = dataset[output_variable_desired]
                         indices_array.append(curr_dataposition)
+
+                        # For random sampling, it is good to have the results in a flat list.
+                        results_flat.append(dataset[output_variable_desired])
+                        # keep the current parameters as well
+                        parameters_flat.append(np.array([parameters_complete[param][i] for param in list_parameters]))
 
                         if 'repet_i' in dataset:
                             # For newer simulations, we keep the current repetition index. This allows to remove unfinished runs.
@@ -326,11 +336,11 @@ class DataPBS:
                 print curr_dataposition, " not in dataset"
 
         # and we're good
-        return dict(results=results_array, indices=np.array(indices_array), repeats_completed=np.array(completed_repeats_array))
+        return dict(results=results_array, indices=np.array(indices_array), repeats_completed=np.array(completed_repeats_array), results_flat=results_flat, parameters_flat=parameters_flat)
 
 
 
-    def construct_multiple_numpyarrays(self, loaded_data, list_output_variables, list_parameters):
+    def construct_multiple_numpyarrays(self, loaded_data, dataset_infos):
         '''
             Constructs several numpy arrays, for each output variable given.
 
@@ -341,9 +351,9 @@ class DataPBS:
 
         all_results_arrays = dict()
 
-        for output_variable in list_output_variables:
+        for output_variable in dataset_infos['variables_to_load']:
             # Load each variable into a numpy array
-            all_results_arrays[output_variable] = self.construct_numpyarray_specified_output_from_datasetlists(loaded_data, output_variable, list_parameters)
+            all_results_arrays[output_variable] = self.construct_numpyarray_specified_output_from_datasetlists(loaded_data, output_variable, dataset_infos)
 
         return all_results_arrays
 
