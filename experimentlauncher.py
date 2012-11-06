@@ -118,7 +118,7 @@ if __name__ == '__main__':
 
     # Re-instantiate some variables
     #   Ugly but laziness prevails...
-    variables_to_reinstantiate = ['data_gen', 'sampler', 'stat_meas', 'random_network', 'args', 'constrained_parameters']
+    variables_to_reinstantiate = ['data_gen', 'sampler', 'stat_meas', 'random_network', 'args', 'constrained_parameters', 'data_pbs']
     for var_reinst in variables_to_reinstantiate:
         if var_reinst in experiment_launcher.all_vars:
             vars()[var_reinst] = experiment_launcher.all_vars[var_reinst]
