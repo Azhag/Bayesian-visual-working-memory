@@ -35,6 +35,7 @@ def launcher_do_simple_run(args):
     ratio_conj = args.ratio_conj
     sigma_x = args.sigmax
     sigma_y = args.sigmay
+    feat_ratio = args.feat_ratio
 
 
     # Build the random network
@@ -46,12 +47,12 @@ def launcher_do_simple_run(args):
 
     # 'conj', 'feat', 'mixed'
     if code_type == 'conj':
-        random_network = RandomFactorialNetwork.create_full_conjunctive(M, R=R, scale_moments=(rc_scale, 0.0001), ratio_moments=(1.0, 0.0001))
+        random_network = RandomFactorialNetwork.create_full_conjunctive(M, R=R, scale_moments=[rc_scale, 0.0001], ratio_moments=(1.0, 0.0001))
     elif code_type == 'feat':
-        random_network = RandomFactorialNetwork.create_full_features(M, R=R, scale=rc_scale, ratio=40.)
+        random_network = RandomFactorialNetwork.create_full_features(M, R=R, scale=rc_scale, ratio=feat_ratio)
     elif code_type == 'mixed':
-        conj_params = dict(scale_moments=(rc_scale, 0.001), ratio_moments=(1.0, 0.0001))
-        feat_params = dict(scale=rc_scale2, ratio=40.)
+        conj_params = dict(scale_moments=[rc_scale, 0.0001], ratio_moments=[1.0, 0.0001])
+        feat_params = dict(scale=rc_scale2, ratio=feat_ratio)
 
         random_network = RandomFactorialNetwork.create_mixed(M, R=R, ratio_feature_conjunctive=ratio_conj, conjunctive_parameters=conj_params, feature_parameters=feat_params)
     elif code_type == 'wavelet':
