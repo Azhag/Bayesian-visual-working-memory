@@ -316,7 +316,6 @@ class DataGeneratorRFN(DataGenerator):
 
         # assert isinstance(random_network, RandomFactorialNetwork), "Use a RandomFactorialNetwork with this DataGeneratorRFN"
         
-
         DataGenerator.__init__(self, N, T, random_network, sigma_y = sigma_y, time_weights = time_weights, time_weights_parameters = time_weights_parameters)
         
         # This is the noise on specific memories. Belongs here.
@@ -342,6 +341,10 @@ class DataGeneratorRFN(DataGenerator):
             angle_generator = lambda: (np.random.rand(self.T)-0.5)*2.*np.pi
         elif stimuli_generation == 'constant':
             angle_generator = lambda: 1.2*np.ones(self.T)
+        elif stimuli_generation == 'random_smallrange':
+            angle_generator = lambda: (np.random.rand(self.T)-0.5)*np.pi/2.
+        elif stimuli_generation == 'constant_separated':
+            angle_generator = lambda: 1.2*np.ones(self.T)
         else:
             raise ValueError('Unknown stimulus generation technique')
 
@@ -359,16 +362,21 @@ class DataGeneratorRFN(DataGenerator):
                 # self.stimuli_correct[n, :, r] = (np.random.rand(self.T)-0.5)*np.pi
 
                 # Enforce minimal distance between different times
-                if stimuli_generation == 'random' and enforce_min_distance > 0.:
-                    while np.any(pdist(self.stimuli_correct[n, :, r][:, np.newaxis], 'chebyshev') < self.enforce_min_distance):
+                if (stimuli_generation.find('random') >= 0) and enforce_min_distance > 0.:
+                    tries = 0
+                    while np.any(pdist(self.stimuli_correct[n, :, r][:, np.newaxis], 'chebyshev') < self.enforce_min_distance) and tries < 1000:
                         # Some are too close, resample
                         self.stimuli_correct[n, :, r] = angle_generator()
                         # self.stimuli_correct[n, :, r] = (np.random.rand(self.T)-0.5)*np.pi
+                        tries += 1
         
         if enforce_first_stimulus:
             # Force first stimuli to be something specific
-            forced_stimuli = np.array([[-0.4, 0.4], [-0.9, 0.9], [np.pi/2., -np.pi+0.05]])
-            self.stimuli_correct[0, :np.min((self.T, 3))] = forced_stimuli[:np.min((self.T, 3))]
+            forced_stimuli = np.array([[np.pi/2, np.pi/2], [-np.pi/2, -np.pi/2], [np.pi/2, -np.pi/2], [-np.pi/2, np.pi/2.]])
+            self.stimuli_correct[0, :np.min((self.T, 4))] = forced_stimuli[:np.min((self.T, 4))]
+
+            if stimuli_generation == 'constant_separated':
+                self.stimuli_correct[:, :np.min((self.T, 4))] = forced_stimuli[:np.min((self.T, 4))]
 
         
 
@@ -553,7 +561,7 @@ class DataGeneratorRFN(DataGenerator):
         plt.show()
 
 
-    def show_datapoint_flat(self, n=0, t=0):
+    def show_datapoint_flat(self, n=0, t=-1):
         '''
             Show a datapoint in 1d, flatten out.
 
@@ -565,7 +573,7 @@ class DataGeneratorRFN(DataGenerator):
         plt.plot(self.Y[n])
 
         # Put a vertical line at the true answer
-        best_neuron_i = np.argmin(np.sum((self.random_network.neurons_preferred_stimulus - self.stimuli_correct[n])**2., axis=1))
+        best_neuron_i = np.argmin(np.sum((self.random_network.neurons_preferred_stimulus - self.stimuli_correct[n, t])**2., axis=1))
         plt.axvline(x=best_neuron_i, color='r', linewidth=3)
       
 
