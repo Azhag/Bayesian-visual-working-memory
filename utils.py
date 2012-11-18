@@ -434,7 +434,7 @@ def histogram_angular_data(data, bins=20, in_degrees=False, title=None, norm=Non
     plt.xlim([x[0]*1.1, 1.1*x[-1]])
 
 
-def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorbar=True, ax_handle=None, label_format="%.2f", fignum=None):
+def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorbar=True, ax_handle=None, label_format="%.2f", fignum=None, interpolation='nearest'):
     '''
         Plots a Pcolor-like 2d grid plot. Can give x and y arrays, which will provide ticks.
     '''
@@ -444,7 +444,7 @@ def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorba
         ax_handle = f.add_subplot(111)
         ax_handle.clear()
 
-    im = ax_handle.imshow(data.T, interpolation='nearest', origin='lower left')
+    im = ax_handle.imshow(data.T, interpolation=interpolation, origin='lower left')
 
     if not x is None:
         assert data.shape[0] == x.size, 'Wrong x dimension'
