@@ -415,7 +415,7 @@ class Sampler:
             for i in np.arange(num_points):
                 # Give the correct cued second feature
                 llh[i] = loglike_theta_fct_single(all_angles[i], params)
-            
+
             # opt_angles[n] = spopt.fminbound(loglike_theta_fct_single_min, -np.pi, np.pi, params, disp=3)
             # opt_angles[n] = spopt.brent(loglike_theta_fct_single_min, params)
             # opt_angles[n] = wrap_angles(np.array([np.mod(spopt.anneal(loglike_theta_fct_single_min, np.random.random_sample()*np.pi*2. - np.pi, args=params)[0], 2.*np.pi)]))
@@ -682,7 +682,7 @@ class Sampler:
                 return (ll_x, x)
     
     
-    def plot_likelihood_variation_twoangles(self, num_points=100, amplify_diag=1.0, should_plot=True, should_return=False, should_exponentiate = False, n=0, t=0, sampled_feature_index = 0):
+    def plot_likelihood_variation_twoangles(self, num_points=100, amplify_diag=1.0, should_plot=True, should_return=False, should_exponentiate = False, remove_mean=False, n=0, t=0, sampled_feature_index = 0):
         '''
             Compute the likelihood, varying two angles around.
             Plot the result
@@ -702,6 +702,9 @@ class Sampler:
         
                 # llh_2angles[i, j] = loglike_theta_fct_vect(np.array([all_angles[i], all_angles[j]]), params)
                 llh_2angles[i, j] = loglike_theta_fct_single(all_angles[i], params)
+        
+        if remove_mean:
+            llh_2angles -= np.mean(llh_2angles)
         
         if should_exponentiate:
             llh_2angles = np.exp(llh_2angles)
@@ -865,7 +868,7 @@ class Sampler:
         if all_angles is None:
             all_angles = np.linspace(-np.pi, np.pi, num_points)
 
-        log_posterior = self.compute_likelihood_fullspace(n=n, all_angles=all_angles, num_points=num_points, should_exponentiate=False)[:, 0].T
+        log_posterior = self.compute_likelihood_fullspace(n=n, all_angles=all_angles, num_points=num_points, should_exponentiate=False)[:, -1].T
 
         # Look if it seems Gaussian enough
 
@@ -917,6 +920,62 @@ class Sampler:
             return nanmean(mean_FI)
 
 
+    def estimate_fisher_info_from_posterior_avg_randomsubset(self, subset_size=1, num_points=500, full_stats=False):
+        '''
+            Estimate the Fisher Information from the curvature of the posterior.
+
+            Takes the mean over all datapoints.
+        '''
+
+        mean_FI = np.zeros(subset_size)
+        random_subset = np.random.randint(self.N, size=subset_size)
+
+        all_angles = np.linspace(-np.pi, np.pi, num_points)
+
+        for i in progress.ProgressDisplay(np.arange(subset_size), display=progress.SINGLE_LINE):
+            mean_FI[i] = self.estimate_fisher_info_from_posterior(n=random_subset[i], all_angles=all_angles)
+
+        if full_stats:
+            return dict(mean=nanmean(mean_FI), std=nanstd(mean_FI), median=nanmedian(mean_FI), all=mean_FI)
+        else:
+            return nanmean(mean_FI)
+
+
+    def compute_covariance_theoretical(self, precision=50, ignore_cache=False):
+        '''
+            Compute and returns the theoretical covariance, found from KL minimization.
+        '''
+        return self.random_network.compute_covariance_KL(sigma_2=(self.data_gen.sigma_x**2. + self.data_gen.sigma_y**2.), T=self.T, beta=1.0, precision=precision, ignore_cache=ignore_cache)
+
+
+    def estimate_fisher_info_theocov(self, use_theoretical_cov=True, kappa_different=False):
+        '''
+            Compute the theoretical Fisher Information, using the KL-derived covariance matrix if desired
+        '''
+
+        if use_theoretical_cov:
+            # Get the computed covariance
+            computed_cov = self.compute_covariance_theoretical(precision=50, ignore_cache=False)
+
+            # Check if it seems correctly similar to the current measured one.
+            if np.mean((self.noise_covariance-computed_cov)**2.) > 0.01:
+                print np.mean((self.noise_covariance-computed_cov)**2.)
+                print "M: %d, rcscale: %.3f, sigmax: %.3f, sigmay: %.3f" % (self.M, self.random_network.rc_scale, self.data_gen.sigma_x, self.data_gen.sigma_y)
+
+                pcolor_2d_data(computed_cov)
+                pcolor_2d_data(sampler.noise_covariance)
+                plt.show()
+
+                raise ValueError('Big divergence between measured and theoretical divergence!') 
+        else:
+            # Use the measured one...
+            computed_cov = self.noise_covariance
+
+        # Compute the theoretical FI
+        return self.random_network.compute_fisher_information(stimulus_input=(0.0, 0.0), cov_stim=computed_cov, kappa_different=kappa_different)
+
+
+
 
     def estimate_precision_from_posterior(self, n=0, num_points=500):
         '''
@@ -954,6 +1013,26 @@ class Sampler:
 
         for i in progress.ProgressDisplay(np.arange(self.N), display=progress.SINGLE_LINE):
             precisions[i] = self.estimate_precision_from_posterior(n=i, num_points=num_points)
+
+        if full_stats:
+            return dict(mean=nanmean(precisions), std=nanstd(precisions), median=nanmedian(precisions), all=precisions)
+        else:
+            return nanmean(precisions)
+
+
+    def estimate_precision_from_posterior_avg_randomsubset(self, subset_size=1, num_points=1000, full_stats=False):
+        '''
+            Estimate the precision from the posterior.
+
+            Takes the mean over a subset of datapoints.
+        '''
+
+        random_subset = np.random.randint(self.N, size=subset_size)
+
+        precisions = np.zeros(subset_size)
+
+        for i in progress.ProgressDisplay(np.arange(subset_size), display=progress.SINGLE_LINE):
+            precisions[i] = self.estimate_precision_from_posterior(n=random_subset[i], num_points=num_points)
 
         if full_stats:
             return dict(mean=nanmean(precisions), std=nanstd(precisions), median=nanmedian(precisions), all=precisions)
@@ -1001,7 +1080,7 @@ class Sampler:
             return nanmean(all_precision)
 
 
-    def estimate_truevariance_from_posterior(self, n=0, all_angles=None, num_points=500):
+    def estimate_truevariance_from_posterior(self, n=0, t=-1, all_angles=None, num_points=500, return_mean=False):
         '''
             Estimate the variance from the empirical posterior.
         '''
@@ -1009,12 +1088,15 @@ class Sampler:
         if all_angles is None:
             all_angles = np.linspace(-np.pi, np.pi, num_points)
 
-        posterior = self.compute_likelihood_fullspace(n=n, all_angles=all_angles, num_points=num_points, should_exponentiate=True, normalize=True)[:, 0]
+        posterior = self.compute_likelihood_fullspace(n=n, all_angles=all_angles, num_points=num_points, should_exponentiate=True, normalize=True)[:, t]
 
-        mean = np.trapz(posterior*all_angles, all_angles)
-        variance = np.trapz(posterior*(all_angles - mean)**2., all_angles)
+        mean_ = np.trapz(posterior*all_angles, all_angles)
+        variance_ = np.trapz(posterior*(all_angles - mean_)**2., all_angles)
 
-        return variance
+        if return_mean:
+            return (variance_, mean_)
+        else:
+            return variance_
 
 
     def estimate_truevariance_from_posterior_avg(self, all_angles=None, num_points=500, full_stats=False):
@@ -1053,7 +1135,7 @@ class Sampler:
         fit_gaussian_samples(samples)
 
         # Get the posterior
-        posterior = self.plot_likelihood_correctlycuedtimes(n=n, num_points=num_points, should_plot=False, should_return=True, should_exponentiate = True, debug=False)[:, 0]
+        posterior = self.plot_likelihood_correctlycuedtimes(n=n, num_points=num_points, should_plot=False, should_return=True, should_exponentiate = True, debug=False)[:, -1]
 
         x = np.linspace(-np.pi, np.pi, num_points)
 
