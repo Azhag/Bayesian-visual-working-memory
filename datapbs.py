@@ -81,7 +81,7 @@ class DataPBS:
 
         all_output_files = glob.glob(dataset_infos['files'])
 
-        assert len(all_output_files) > 0, "Wrong regular expression"
+        assert len(all_output_files) > 0, "No files founds. Wrong glob?"
 
         # We have to load each dataset, but also associate them with their parameter values.
         #  let's try and be general:
