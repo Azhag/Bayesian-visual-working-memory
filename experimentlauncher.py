@@ -19,8 +19,9 @@ import launchers_memorycurves
 import launchers_parametersweeps
 import launchers_fisherinformation
 import launchers_experimentalvolume
+import launchers_multipleobjectchecker
 
-launchers_modules = [launchers, launchers_profile, launchers_memorycurves, launchers_parametersweeps, launchers_fisherinformation, launchers_experimentalvolume]
+launchers_modules = [launchers, launchers_profile, launchers_memorycurves, launchers_parametersweeps, launchers_fisherinformation, launchers_experimentalvolume, launchers_multipleobjectchecker]
 
 
 class ExperimentLauncher(object):
@@ -83,17 +84,22 @@ class ExperimentLauncher(object):
         parser.add_argument('--num_samples', type=int, default=20, help='Number of samples to use')
         parser.add_argument('--selection_num_samples', type=int, default=1, help='While selecting the new sample from a set of samples, consider the P last samples only. (if =1, return last sample)')
         parser.add_argument('--selection_method', choices=['median', 'last'], default='median', help='How the new sample is chosen from a set of samples. Median is closer to the ML value but could have weird effects.')
-        parser.add_argument('--stimuli_generation', choices=['constant', 'random'], default='random', help='How to generate the dataset.')
+        parser.add_argument('--stimuli_generation', choices=['constant', 'random', 'random_smallrange', 'constant_separated'], default='random', help='How to generate the dataset.')
+        parser.add_argument('--enforce_min_distance', type=float, default=0.17, help='Minimal distance between items of the same array')
         parser.add_argument('--alpha', default=1.0, type=float, help='Weighting of the decay through time')
         parser.add_argument('--code_type', choices=['conj', 'feat', 'mixed', 'wavelet'], default='conj', help='Select the type of code used by the Network')
         parser.add_argument('--rc_scale', type=float, default=0.5, help='Scale of receptive fields')
         parser.add_argument('--rc_scale2', type=float, default=0.4, help='Scale of receptive fields, second population (e.g. feature for mixed population)')
+        parser.add_argument('--feat_ratio', type=float, default=2., help='Ratio between eigenvectors for feature code')
         parser.add_argument('--sigmax', type=float, default=0.2, help='Noise per object')
         parser.add_argument('--sigmay', type=float, default=0.02, help='Noise along time')
         parser.add_argument('--ratio_conj', type=float, default=0.2, help='Ratio of conjunctive/field subpopulations for mixed network')
         parser.add_argument('--inference_method', choices=['sample', 'max_lik', 'none'], default='sample', help='Method used to infer the responses. Either sample (default) or set the maximum likelihood/posterior values directly.')
         parser.add_argument('--subaction', default='', help='Some actions have multiple possibilities.')
         parser.add_argument('--search_type', choices=['random', 'grid'], default='random', help='When performing a parameter search, should we do a grid-search or random search?')
+        parser.add_argument('--use_theoretical_cov', action='store_true', default=False, help='Use the theoretical KL approximation to the noise covariance matrix.')
+        parser.add_argument('--say_completed', action='store_true', default=False, help='Will use the "say" command to indicate when the launcher has completed.')
+
 
         
         self.args = parser.parse_args()
@@ -106,6 +112,15 @@ class ExperimentLauncher(object):
         
         # Run the launcher
         self.all_vars = self.possible_launchers[self.args.action_to_do](self.args)
+
+        # Talk when completed if desired
+        if self.args.say_completed:
+            try:
+                import sh
+                sh.say('Work complete')
+            except Exception:
+                pass
+
 
     
 
