@@ -662,7 +662,7 @@ class RandomFactorialNetwork():
         return covariance
 
 
-    def compute_fisher_information(self, stimulus_input=None, sigma=0.01, cov_stim=None, params={}):
+    def compute_fisher_information(self, stimulus_input=None, sigma=0.01, cov_stim=None, kappa_different=False, params={}):
         '''
             Compute and return the Fisher information for the given stimulus.
             Assume we are looking for the FI in coordinate 1, fixing the other (in 2D).
@@ -674,19 +674,30 @@ class RandomFactorialNetwork():
         if stimulus_input is None:
             stimulus_input = np.array([0.0, 0.0])
 
-
         if cov_stim is None:
             # The covariance for the stimulus
             cov_stim = self.compute_covariance_stimulus(stimulus_input, sigma=sigma, params=params)
 
-        kappa1 = self.rc_scale[0]
-        kappa2 = self.rc_scale[1]
+        if kappa_different:
+            # We need to keep the kappa_i_1 and kappa_i_2 in the sum, more general
+            der_f_0 = self.neurons_sigma[:, 0]*np.sin(stimulus_input[0] - self.neurons_preferred_stimulus[:, 0])*np.exp(self.neurons_sigma[:, 0]*np.cos(stimulus_input[0] - self.neurons_preferred_stimulus[:, 0]) + self.neurons_sigma[:, 1]*np.cos(stimulus_input[1] - self.neurons_preferred_stimulus[:, 1]))/(4.*np.pi**2.0*scsp.i0(self.neurons_sigma[:, 0])*scsp.i0(self.neurons_sigma[:, 1]))
+            
+            der_f_0[self.mask_neurons_unset] = 0.0
 
-        der_f_0 = np.sin(stimulus_input[0] - self.neurons_preferred_stimulus[:, 0])*np.exp(kappa1*np.cos(stimulus_input[0] - self.neurons_preferred_stimulus[:, 0]) + kappa2*np.cos(stimulus_input[1] - self.neurons_preferred_stimulus[:, 1]))
+            return np.dot(der_f_0, np.linalg.solve(cov_stim, der_f_0))
 
-        der_f_0[self.mask_neurons_unset] = 0.0
+        else:
+            # Same kappa for full code, easier.
+            kappa1 = self.rc_scale[0]
+            kappa2 = self.rc_scale[1]
 
-        return (kappa1**2./(16.*np.pi**4.*scsp.i0(kappa1)**2.*scsp.i0(kappa2)**2.))*np.dot(der_f_0, np.linalg.solve(cov_stim, der_f_0))
+            der_f_0 = np.sin(stimulus_input[0] - self.neurons_preferred_stimulus[:, 0])*np.exp(kappa1*np.cos(stimulus_input[0] - self.neurons_preferred_stimulus[:, 0]) + kappa2*np.cos(stimulus_input[1] - self.neurons_preferred_stimulus[:, 1]))
+
+            der_f_0[self.mask_neurons_unset] = 0.0
+
+            return (kappa1**2./(16.*np.pi**4.*scsp.i0(kappa1)**2.*scsp.i0(kappa2)**2.))*np.dot(der_f_0, np.linalg.solve(cov_stim, der_f_0))
+
+        # (kappa1**2./(sigma_x**2.*16.*np.pi**4.0*scsp.i0(kappa1)**2.0*scsp.i0(kappa2)**2.0)*np.sin(stim_space[:, 0] - mu[:, np.newaxis])*np.exp(kappa1*np.cos(stim_space[:, 0] - mu[:, np.newaxis]) + kappa2*np.cos(stim_space[:, 1] - gamma[:, np.newaxis]))*np.linalg.solve(covariances_all[T_i], np.sin(stim_space[:, 0] - mu[:, np.newaxis])*np.exp(kappa1*np.cos(stim_space[:, 0] - mu[:, np.newaxis]) + kappa2*np.cos(stim_space[:, 1] - gamma[:, np.newaxis])))).mean(axis=-1).sum(axis=-1)
 
 
 
@@ -804,7 +815,7 @@ class RandomFactorialNetwork():
 
     ######################## 
 
-    def init_feature_cover_matrices(self, precision=20):
+    def init_feature_cover_matrices(self, precision=20, endpoint=True):
         '''
             Helper function, creating appropriate linspaces, depending on the chosen coordinate system.
         '''
@@ -814,8 +825,8 @@ class RandomFactorialNetwork():
             feature_space2 = np.linspace(0., 2.*np.pi, precision)
             cross_array = np.zeros((feature_space1.size, feature_space2.size))
         if self.coordinates == 'full_angles_sym':
-            feature_space1 = np.linspace(-np.pi, np.pi, precision, endpoint=False)
-            feature_space2 = np.linspace(-np.pi, np.pi, precision, endpoint=False)
+            feature_space1 = np.linspace(-np.pi, np.pi, precision, endpoint=endpoint)
+            feature_space2 = np.linspace(-np.pi, np.pi, precision, endpoint=endpoint)
             cross_array = np.zeros((feature_space1.size, feature_space2.size))
         if self.coordinates == 'spherical':
             # feature_space1 = np.linspace(-np.pi, np.pi, precision)
@@ -833,7 +844,7 @@ class RandomFactorialNetwork():
 
     ######################## PLOTS ######################################
 
-    def plot_coverage_feature_space(self, nb_stddev=0.7, specific_neurons=None, alpha_ellipses=0.5, facecolor='rand', ax=None):
+    def plot_coverage_feature_space(self, nb_stddev=0.7, specific_neurons=None, alpha_ellipses=0.5, facecolor='rand', ax=None, lim_factor=1.0):
         '''
             Show the features (R=2 only)
         '''
@@ -846,7 +857,9 @@ class RandomFactorialNetwork():
             fig = plt.figure()
             ax = fig.add_subplot(111, aspect='equal')
         
-        ells = [Ellipse(xy=self.neurons_preferred_stimulus[m], width=nb_stddev*self.neurons_sigma[m, 0], height=nb_stddev*self.neurons_sigma[m, 1], angle=-np.degrees(self.neurons_angle[m])) for m in specific_neurons if ~self.mask_neurons_unset[m]]
+        A_kappa = lambda kappa: scsp.i1(kappa)/scsp.i0(kappa)
+
+        ells = [Ellipse(xy=self.neurons_preferred_stimulus[m], width=nb_stddev*A_kappa(self.neurons_sigma[m, 0]), height=nb_stddev*A_kappa(self.neurons_sigma[m, 1]), angle=-np.degrees(self.neurons_angle[m])) for m in specific_neurons if ~self.mask_neurons_unset[m]]
         
         for e in ells:
             ax.add_artist(e)
@@ -861,8 +874,10 @@ class RandomFactorialNetwork():
             e.set_transform(ax.transData)
         
         # ax.autoscale_view()
-        ax.set_xlim(-1.4*np.pi, 1.3*np.pi)
-        ax.set_ylim(-1.4*np.pi, 1.3*np.pi)
+        # ax.set_xlim(-1.4*np.pi, 1.3*np.pi)
+        # ax.set_ylim(-1.4*np.pi, 1.3*np.pi)
+        ax.set_xlim(-lim_factor*np.pi, lim_factor*np.pi)
+        ax.set_ylim(-lim_factor*np.pi, lim_factor*np.pi)
         
         ax.set_xlabel('Color', fontsize=14)
         ax.set_ylabel('Orientation', fontsize=14)
@@ -909,7 +924,7 @@ class RandomFactorialNetwork():
         plt.show()
     
     
-    def plot_neuron_activity(self, neuron_index, nb_stddev=1., precision=100, params={}):
+    def plot_neuron_activity(self, neuron_index, nb_stddev=1., precision=100, specific_neurons=None, params={}):
         '''
             Plot the activity of one specific neuron over the whole input space.
         '''
@@ -928,7 +943,9 @@ class RandomFactorialNetwork():
         f.colorbar(im)
         
         # Plot the ellipse showing one standard deviation
-        e = Ellipse(xy=self.neurons_preferred_stimulus[neuron_index], width=nb_stddev*self.neurons_sigma[neuron_index, 0], height=nb_stddev*self.neurons_sigma[neuron_index, 1], angle=-np.degrees(self.neurons_angle[neuron_index]))
+        A_kappa = lambda kappa: scsp.i1(kappa)/scsp.i0(kappa)
+
+        e = Ellipse(xy=self.neurons_preferred_stimulus[neuron_index], width=nb_stddev*A_kappa(self.neurons_sigma[neuron_index, 0]), height=nb_stddev*A_kappa(self.neurons_sigma[neuron_index, 1]), angle=-np.degrees(self.neurons_angle[neuron_index]))
         
         ax.add_artist(e)
         e.set_clip_box(ax.bbox)
@@ -1001,13 +1018,13 @@ class RandomFactorialNetwork():
         
         if self.coordinates == 'spherical':
             plot_sphere(feature_space1, feature_space2, activity, weight_deform=weight_deform)
-        elif self.coordinates == 'full_angles':
+        elif self.coordinates == 'full_angles' or self.coordinates == 'full_angles_sym':
             plot_torus(feature_space1, feature_space2, activity, weight_deform=weight_deform, draw_colorbar=draw_colorbar)
         else:
             raise ValueError('Unsupported self.coordinates')
     
 
-    def plot_mean_activity_3d(self, precision=20, weight_deform=0.5, params={}):
+    def plot_mean_activity_3d(self, precision=20, specific_neurons=None, weight_deform=0.5, params={}):
         '''
             Plot the mean activity of the network on a sphere/torus
         '''
@@ -1015,9 +1032,9 @@ class RandomFactorialNetwork():
         (mean_activity, feature_space1, feature_space2) =  self.get_mean_activity(precision=precision, specific_neurons=specific_neurons, params=params, return_axes_vect=True)
         
         if self.coordinates == 'spherical':
-            plot_sphere(feature_space1, feature_space2, activity, weight_deform=weight_deform)
-        elif self.coordinates == 'full_angles':
-            plot_torus(feature_space1, feature_space2, activity, weight_deform=weight_deform)
+            plot_sphere(feature_space1, feature_space2, mean_activity, weight_deform=weight_deform)
+        elif self.coordinates == 'full_angles' or self.coordinates == 'full_angles_sym':
+            plot_torus(feature_space1, feature_space2, mean_activity, weight_deform=weight_deform)
         else:
             raise ValueError('Unsupported self.coordinates')
 
@@ -1037,11 +1054,12 @@ class RandomFactorialNetwork():
             scale_parameters = (100., 0.01)
             ratio_parameters = (3.33333, 0.3)
         
-        if response_type == 'bivariate_fisher':
-            # For bivariate fisher, we have theory that requires kappa to be of the good scale, not sqrt'ed here.
-            scale_moments = (scale_moments[0]**2., scale_moments[1])
-
         if scale_moments is not None:
+            if response_type == 'bivariate_fisher':
+                # For bivariate fisher, we have theory that requires kappa to be of the good scale, not sqrt'ed here.
+                scale_moments = (scale_moments[0]**2., scale_moments[1])
+
+            
             # We are given the desired mean and variance of the scale. Convert to appropriate Gamma parameters
             scale_parameters = (scale_moments[0]**2./scale_moments[1], scale_moments[1]/scale_moments[0])
         
@@ -1058,7 +1076,7 @@ class RandomFactorialNetwork():
         return rn
     
     @classmethod
-    def create_full_features(cls, M, R=2, scale=0.3, ratio=40., nb_feature_centers=3, response_type = 'wrong_wrap'):
+    def create_full_features(cls, M, R=2, scale=0.3, ratio=40., nb_feature_centers=3, response_type = 'bivariate_fisher'):
         '''
             Create a RandomFactorialNetwork instance, using a pure conjunctive code
 
@@ -1077,7 +1095,7 @@ class RandomFactorialNetwork():
         return rn
     
     @classmethod
-    def create_mixed(cls, M, R=2, ratio_feature_conjunctive = 0.5, conjunctive_parameters=None, feature_parameters=None, response_type = 'wrong_wrap'):
+    def create_mixed(cls, M, R=2, ratio_feature_conjunctive = 0.5, conjunctive_parameters=None, feature_parameters=None, response_type = 'bivariate_fisher'):
         '''
             Create a RandomFactorialNetwork instance, using a pure conjunctive code
         '''
@@ -1089,6 +1107,10 @@ class RandomFactorialNetwork():
             conj_ratio_parameters = (ratio_concentration, 4./(3.*ratio_concentration))
         else:
             if 'scale_moments' in conjunctive_parameters:
+                if response_type == 'bivariate_fisher':
+                    # For bivariate fisher, we have theory that requires kappa to be of the good scale, not sqrt'ed here.
+                    conjunctive_parameters['scale_moments'][0] = conjunctive_parameters['scale_moments'][0]**2.
+
                 conj_scale_parameters = (conjunctive_parameters['scale_moments'][0]**2./conjunctive_parameters['scale_moments'][1], conjunctive_parameters['scale_moments'][1]/conjunctive_parameters['scale_moments'][0])
                 conj_ratio_parameters = (conjunctive_parameters['ratio_moments'][0]**2./conjunctive_parameters['ratio_moments'][1], conjunctive_parameters['ratio_moments'][1]/conjunctive_parameters['ratio_moments'][0])
             else:
@@ -1099,6 +1121,7 @@ class RandomFactorialNetwork():
             feat_scale = 0.3
             feat_ratio = 20.0
         else:
+            
             feat_scale = feature_parameters['scale']
             feat_ratio = feature_parameters['ratio']
 
