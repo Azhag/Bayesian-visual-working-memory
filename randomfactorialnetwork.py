@@ -556,7 +556,7 @@ class RandomFactorialNetwork():
     
     ####
 
-    def compute_network_response_statistics(self, precision = 20, params = {}):
+    def compute_network_response_statistics(self, precision = 20, params = {}, ignore_cache=False):
         '''
             Will compute the mean and covariance of the network output.
             These are used in some analytical expressions.
@@ -564,7 +564,7 @@ class RandomFactorialNetwork():
             They are currently estimated from samples, there might be a closed-form solution...
         '''
 
-        if self.network_response_statistics is None:
+        if ignore_cache or self.network_response_statistics is None:
             # Should compute it
             
             # Get the theta spaces
@@ -640,7 +640,7 @@ class RandomFactorialNetwork():
         return np.cov(samples.T)
 
 
-    def compute_covariance_KL(self, precision=100, sigma_2=0.2, beta=1.0, T=1, params={}, should_plot= False):
+    def compute_covariance_KL(self, precision=100, sigma_2=0.2, beta=1.0, T=1, params={}, should_plot=False, ignore_cache=False):
         '''
             Compute the covariance of the Gaussian approximation (through a KL) to the averaged object.
 
@@ -648,7 +648,7 @@ class RandomFactorialNetwork():
         '''
 
         # Get the statistics of the network population code
-        network_response_statistics = self.compute_network_response_statistics(precision = precision, params=params)
+        network_response_statistics = self.compute_network_response_statistics(precision = precision, params=params, ignore_cache=ignore_cache)
 
         # The actual computation
         covariance = T*beta**2.*network_response_statistics['cov'] + T*sigma_2*np.eye(self.M)
