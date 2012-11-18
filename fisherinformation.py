@@ -315,10 +315,10 @@ if __name__ == '__main__':
             gamma = means[:, 1]
 
             #### See effect of kappa
-            kappa_space = np.linspace(0.01, 30.0, 100.)
+            kappa_space = np.linspace(0.01, 15.0, 10.)
             # kappa_space = np.array([1.0])
 
-            T_all = np.arange(1, 2)
+            T_all = np.arange(1, 6)
 
             kappa_MSE_experimental = np.zeros_like(kappa_space)
             FI_all_kappa = np.zeros((kappa_space.size, T_all.size))
@@ -587,7 +587,7 @@ if __name__ == '__main__':
 
 
     
-    if True:
+    if False:
         ## Redoing everything from scratch.
         # First try the Fisher Info in 1D, and see if the relation on kappa is correct.
         
@@ -896,7 +896,7 @@ if __name__ == '__main__':
 
 
 
-    if False:
+    if True:
         # Now do everything for 2D population code.
         
         N     = (15.)**2
