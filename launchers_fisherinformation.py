@@ -572,9 +572,10 @@ def launcher_do_fisher_information_M_effect(args):
     run_counter = 0
 
     # rcscale_space = np.linspace(0.1, 20.0, 10.)
-    rcscale_space = np.linspace(4., 4., 10.)
+    rcscale_space = np.linspace(4., 4., 3.)
     
-    M_space = np.arange(10, 50, 5, dtype=int)**2.
+    # M_space = np.arange(30, 30, 2, dtype=int)**2.
+    M_space = np.array([900])
 
     FI_rc_curv = np.zeros((rcscale_space.size, M_space.size, 2), dtype=float)
     FI_rc_precision = np.zeros((rcscale_space.size, M_space.size), dtype=float)
@@ -986,7 +987,7 @@ def plots_M_effect_multipleruns(data_to_plot, dataio=None, save_figures=False, f
     ax = plot_mean_std_area(data_to_plot['M_space'], np.mean(data_to_plot['FI_rc_curv'][..., 0], axis=0), np.mean(data_to_plot['FI_rc_curv'][..., 1], axis=0))
     ax = plot_mean_std_area(data_to_plot['M_space'], np.mean(data_to_plot['FI_rc_theo'][..., 0], axis=0), np.std(data_to_plot['FI_rc_theo'][..., 0], axis=0), ax_handle=ax)
     ax = plot_mean_std_area(data_to_plot['M_space'], np.mean(data_to_plot['FI_rc_precision'], axis=0), np.std(data_to_plot['FI_rc_precision'], axis=0), ax_handle=ax)
-    ax = plot_mean_std_area(data_to_plot['M_space'], 1./np.mean(data_to_plot['FI_rc_truevar'][..., 0], axis=0)**2., np.mean(data_to_plot['FI_rc_truevar'][..., 1], axis=0), ax_handle=ax)
+    # ax = plot_mean_std_area(data_to_plot['M_space'], 1./np.mean(data_to_plot['FI_rc_truevar'][..., 0], axis=0)**2., np.mean(data_to_plot['FI_rc_truevar'][..., 1], axis=0), ax_handle=ax)
     
     plt.legend(['Curv', 'Theory', 'Precision', 'True variance'])
     plt.xlabel('M')
@@ -1067,7 +1068,8 @@ def launcher_reload_fisher_information_M_effect_multipleruns(args):
     loaded_data = np.load(input_filename).item()
 
     # Handle unfinished runs
-    variables_to_load = ['FI_rc_curv', 'FI_rc_precision', 'FI_rc_theo', 'FI_rc_truevar']
+    # variables_to_load = ['FI_rc_curv', 'FI_rc_precision', 'FI_rc_theo', 'FI_rc_truevar']
+    variables_to_load = ['FI_rc_curv', 'FI_rc_precision', 'FI_rc_theo']
     for var_load in variables_to_load:
         loaded_data[var_load] = np.ma.masked_equal(loaded_data[var_load], 0.0)
 
@@ -1091,11 +1093,9 @@ def launcher_reload_fisher_information_param_search_pbs(args):
                     # files='Data/constraint/allfi_N200samples300/allfi_*-launcher_do_fisher_information_param_search_pbs-*.npy',
                     loading_type='args',
                     parameters=('rc_scale', 'sigmax'),
-                    variables_to_load=('FI_rc_curv', 'FI_rc_precision', 'FI_rc_theo'),
+                    variables_to_load=['FI_rc_curv', 'FI_rc_precision', 'FI_rc_theo'],
                     variables_description=('FI curve', 'FI recall precision', 'FI theo'),
                     post_processing=None,
-                    # Choices: do_plots = ['numselected50', 'numselectedhalf', 'numselectedall', 'precision_rcscale', 'precision_samples', 'powerlaw_params', 'powerlaw_imshow', 'precision_1obj_maxsamples']
-                    post_processing_parameters=dict(do_plots=['numselectedhalf', 'powerlaw_params', 'precision_1obj_maxsamples'], sqrt_x_values=True, data_filters=['numselected50', 'numselectedhalf', 'numselectedall'])
                     )
     
     # Reload everything
@@ -1118,10 +1118,11 @@ def launcher_reload_fisher_information_param_search_pbs(args):
     # plots_ratio_checkers_fisherinfo(extracted_data, save_figures=False)
 
     max_div = 100.
-    constrained_fi = 36.94
+    # constrained_fi = 36.94
+    constrained_fi = 9.04
     build_constraint(extracted_data['FI_rc_precision'], constrained_value=constrained_fi, max_divergence=max_div, x=dict(space=extracted_data['rcscale_space'], label='Rc scale'), y=dict(space=extracted_data['sigma_space'], label='Sigma'), title='Precision')
 
-    build_constraint(extracted_data['FI_rc_curv'][..., 0], constrained_value=constrained_fi*2., max_divergence=max_div, x=dict(space=extracted_data['rcscale_space'], label='Rc scale'), y=dict(space=extracted_data['sigma_space'], label='Sigma'), title='Theo sum')
+    build_constraint(extracted_data['FI_rc_theo'][..., 0], constrained_value=constrained_fi*2., max_divergence=max_div, x=dict(space=extracted_data['rcscale_space'], label='Rc scale'), y=dict(space=extracted_data['sigma_space'], label='Sigma'), title='Theo sum')
 
 
     return locals()
