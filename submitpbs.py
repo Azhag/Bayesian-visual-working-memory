@@ -287,6 +287,10 @@ class SubmitPBS():
         # Convert them back into dictionaries
         candidate_parameters = [dict(zip(dict_parameters_range.keys(), x)) for x in cross_comb]
 
+        # Some debuging info
+        if self.debug:
+            print "\n=== Generating up to %d candidate parameter sets ===\n" % len(candidate_parameters)
+        
         # Now filter them
         constrained_parameters = []
         for new_parameters in progress.ProgressDisplay(candidate_parameters, display=progress.SINGLE_LINE):

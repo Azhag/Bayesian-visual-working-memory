@@ -72,7 +72,7 @@ class ExperimentLauncher(object):
         parser = argparse.ArgumentParser(description='Sample a model of Visual working memory.')
         parser.add_argument('--label', help='label added to output files', default='')
         parser.add_argument('--output_directory', nargs='?', default='Data/')
-        parser.add_argument('--action_to_do', choices=self.possible_launchers.keys(), default='do_simple_run')
+        parser.add_argument('--action_to_do', choices=self.possible_launchers.keys(), default='launcher_do_simple_run')
         parser.add_argument('--input_filename', default='', help='Some input file, depending on context')
         parser.add_argument('--num_repetitions', type=int, default=1, help='For search actions, number of repetitions to average on')
         parser.add_argument('--N', default=100, type=int, help='Number of datapoints')
