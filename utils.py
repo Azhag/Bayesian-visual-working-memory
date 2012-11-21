@@ -15,6 +15,7 @@ import matplotlib.ticker as plttic
 import scipy.optimize as spopt
 import scipy.stats as spst
 import scipy.interpolate as spint
+import scipy.special as scsp
 import uuid
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
@@ -61,6 +62,16 @@ def wrap_angles(angles, bound=np.pi):
     angles = np.mod(angles + bound, 2*bound) - bound
 
     return angles
+
+def kappa_to_stddev(kappa):
+    '''
+        Convert kappa to wrapped gaussian std dev
+
+        std = 1 - I_1(kappa)/I_0(kappa)
+    '''
+    # return 1.0 - scsp.i1(kappa)/scsp.i0(kappa)
+    return np.sqrt(-2.*np.log(scsp.i1(kappa)/scsp.i0(kappa)))
+
 
 ############################ SPHERICAL/3D COORDINATES ##################################
 
