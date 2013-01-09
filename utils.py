@@ -481,6 +481,8 @@ def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorba
     
     ax_handle.axis('tight')
 
+    return ax_handle, im
+
 
 
 def contourf_interpolate_data(all_points, data, xlabel='', ylabel='', title='', interpolation_numpoints=200, interpolation_method='linear', mask_when_nearest=True, contour_numlevels=20, show_scatter=True, show_colorbar=True, fignum=None):

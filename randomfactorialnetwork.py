@@ -484,16 +484,17 @@ class RandomFactorialNetwork():
         # create_2D_rotation_matrix()
 
         # Get the response
+        output = np.exp(self.neurons_sigma[specific_neurons, 0]*np.cos(dtheta) + self.neurons_sigma[specific_neurons, 1]*np.cos(dgamma))/self.normalisation[specific_neurons]
 
-        if variant == 'cos':
-            # output = normalisation*np.exp(kappas[0]*np.cos(dtheta) + kappas[1]*np.cos(dgamma) - kappas[2]*np.cos(dtheta-dgamma))
-            output = np.exp(self.neurons_sigma[specific_neurons, 0]*np.cos(dtheta) + self.neurons_sigma[specific_neurons, 1]*np.cos(dgamma))/self.normalisation[specific_neurons]
+        # if variant == 'cos':
+        #     # output = normalisation*np.exp(kappas[0]*np.cos(dtheta) + kappas[1]*np.cos(dgamma) - kappas[2]*np.cos(dtheta-dgamma))
+        #     output = np.exp(self.neurons_sigma[specific_neurons, 0]*np.cos(dtheta) + self.neurons_sigma[specific_neurons, 1]*np.cos(dgamma))/self.normalisation[specific_neurons]
 
-        elif variant == 'sin':
-            print "Sin variant untested"
-            output = np.exp(kappas[0]*np.cos(dtheta) + kappas[1]*np.cos(dgamma) + kappas[2]*np.sin(dtheta)*np.sin(dgamma))/self.normalisation[specific_neurons]
-        else:
-            raise ValueError("variant parameter should be either 'cos' or 'sin'")
+        # elif variant == 'sin':
+        #     print "Sin variant untested"
+        #     output = np.exp(kappas[0]*np.cos(dtheta) + kappas[1]*np.cos(dgamma) + kappas[2]*np.sin(dtheta)*np.sin(dgamma))/self.normalisation[specific_neurons]
+        # else:
+        #     raise ValueError("variant parameter should be either 'cos' or 'sin'")
 
         output[self.mask_neurons_unset[specific_neurons]] = 0.0
 
@@ -864,7 +865,7 @@ class RandomFactorialNetwork():
 
     ######################## PLOTS ######################################
 
-    def plot_coverage_feature_space(self, nb_stddev=0.7, specific_neurons=None, alpha_ellipses=0.5, facecolor='rand', ax=None, lim_factor=1.0):
+    def plot_coverage_feature_space(self, nb_stddev=1.0, specific_neurons=None, alpha_ellipses=0.5, facecolor='rand', ax=None, lim_factor=1.0):
         '''
             Show the features (R=2 only)
         '''
@@ -897,6 +898,11 @@ class RandomFactorialNetwork():
         # ax.set_ylim(-1.4*np.pi, 1.3*np.pi)
         ax.set_xlim(-lim_factor*np.pi, lim_factor*np.pi)
         ax.set_ylim(-lim_factor*np.pi, lim_factor*np.pi)
+
+        ax.set_xticks((-np.pi, -np.pi / 2, 0, np.pi / 2., np.pi))
+        ax.set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=17)
+        ax.set_yticks((-np.pi, -np.pi / 2, 0, np.pi / 2., np.pi))
+        ax.set_yticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=17)
         
         ax.set_xlabel('Color', fontsize=14)
         ax.set_ylabel('Orientation', fontsize=14)
@@ -925,6 +931,11 @@ class RandomFactorialNetwork():
         ax.set_ylabel('Orientation')
         # im.set_interpolation('nearest')
         f.colorbar(im)
+
+        ax.set_xticks((-np.pi, -np.pi / 2, 0, np.pi / 2., np.pi))
+        ax.set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=17)
+        ax.set_yticks((-np.pi, -np.pi / 2, 0, np.pi / 2., np.pi))
+        ax.set_yticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=17)
         
         plt.show()
     
@@ -968,7 +979,12 @@ class RandomFactorialNetwork():
         e.set_clip_box(ax.bbox)
         e.set_alpha(0.5)
         e.set_facecolor('white')
-        e.set_transform(ax.transData)        
+        e.set_transform(ax.transData)
+
+        ax.set_xticks((-np.pi, -np.pi / 2, 0, np.pi / 2., np.pi))
+        ax.set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=17)
+        ax.set_yticks((-np.pi, -np.pi / 2, 0, np.pi / 2., np.pi))
+        ax.set_yticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=17)
         
         plt.show()
 
@@ -1196,23 +1212,23 @@ class RandomFactorialNetwork():
                 nb_feature_centers = feature_parameters['nb_feature_centers']
             else:
                 nb_feature_centers = 3
-        
-        conj_subpop_size = int(M*ratio_feature_conjunctive)
-        feat_subpop_size = M - conj_subpop_size
 
-        print "Population sizes: conj: %d, feat: %d" % (conj_subpop_size, feat_subpop_size)
-        
         rn = RandomFactorialNetwork(M, R=R, response_type=response_type)
+        
+        rn.conj_subpop_size = int(M*ratio_feature_conjunctive)
+        rn.feat_subpop_size = M - rn.conj_subpop_size
 
+        print "Population sizes: conj: %d, feat: %d" % (rn.conj_subpop_size, rn.feat_subpop_size)
+        
         # Create the conjunctive subpopulation
-        rn.assign_prefered_stimuli(tiling_type='conjunctive', reset=True, specific_neurons = np.arange(conj_subpop_size))
-        rn.assign_random_eigenvectors(scale_parameters=conj_scale_parameters, ratio_parameters=conj_ratio_parameters, specific_neurons = np.arange(conj_subpop_size), reset=True)
+        rn.assign_prefered_stimuli(tiling_type='conjunctive', reset=True, specific_neurons = np.arange(rn.conj_subpop_size))
+        rn.assign_random_eigenvectors(scale_parameters=conj_scale_parameters, ratio_parameters=conj_ratio_parameters, specific_neurons = np.arange(rn.conj_subpop_size), reset=True)
 
 
         # Create the feature subpopulation        
-        rn.assign_prefered_stimuli(tiling_type='2_features', specific_neurons = np.arange(conj_subpop_size, M), nb_feature_centers=nb_feature_centers)
-        rn.assign_aligned_eigenvectors(scale=feat_scale, ratio=feat_ratio, specific_neurons = np.arange(conj_subpop_size, int(feat_subpop_size/2.+conj_subpop_size)))
-        rn.assign_aligned_eigenvectors(scale=feat_scale, ratio=-feat_ratio, specific_neurons = np.arange(int(feat_subpop_size/2.+conj_subpop_size), M))
+        rn.assign_prefered_stimuli(tiling_type='2_features', specific_neurons = np.arange(rn.conj_subpop_size, M), nb_feature_centers=nb_feature_centers)
+        rn.assign_aligned_eigenvectors(scale=feat_scale, ratio=feat_ratio, specific_neurons = np.arange(rn.conj_subpop_size, int(rn.feat_subpop_size/2.+rn.conj_subpop_size)))
+        rn.assign_aligned_eigenvectors(scale=feat_scale, ratio=-feat_ratio, specific_neurons = np.arange(int(rn.feat_subpop_size/2.+rn.conj_subpop_size), M))
         
         rn.population_code_type = 'mixed'
 

@@ -749,7 +749,7 @@ class Sampler:
             return llh_2angles
     
     
-    def plot_likelihood_correctlycuedtimes(self, n=0, amplify_diag=1.0, all_angles=None, num_points=500, should_plot=True, should_return=False, should_exponentiate = False, sampled_feature_index = 0, debug=True):
+    def plot_likelihood_correctlycuedtimes(self, n=0, amplify_diag=1.0, all_angles=None, num_points=500, should_plot=True, should_return=False, should_exponentiate = False, show_legend=True, sampled_feature_index = 0, debug=True):
         '''
             Plot the log-likelihood function, over the space of the sampled theta, keeping the other thetas fixed to their correct cued value.
         '''
@@ -786,7 +786,8 @@ class Sampler:
             
             for t in np.arange(self.T):
                 # Put the legends
-                ax.legend(lines, legends, loc='upper center', bbox_to_anchor=(0.5, 1.1), ncol=self.T, fancybox=True, shadow=True)
+                if show_legend:
+                    ax.legend(lines, legends, loc='upper center', bbox_to_anchor=(0.5, 1.1), ncol=self.T, fancybox=True, shadow=True)
 
                 # Put a vertical line at the true answer
                 ax.axvline(x=self.data_gen.stimuli_correct[n, t, 0], color=lines[t].get_c())  # ax[t] returns the plotted line
