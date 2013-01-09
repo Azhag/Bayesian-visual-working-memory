@@ -1266,7 +1266,7 @@ if __name__ == '__main__':
         ####
 
         N     = 100
-        kappa = 10.0
+        kappa = 2.0
         sigma = 0.3
         amplitude = 1.0
 
@@ -1283,6 +1283,7 @@ if __name__ == '__main__':
                 pref_angles = np.linspace(0., 2*np.pi, N, endpoint=False)
 
             return amplitude*np.exp(kappa*np.cos(theta - pref_angles))/(2.*np.pi*scsp.i0(kappa))
+
 
         samples = np.zeros(500)
 
@@ -1305,7 +1306,8 @@ if __name__ == '__main__':
         # all_angles = np.linspace(0., 2.*np.pi, num_points, endpoint=False)
         all_angles = np.linspace(-np.pi, np.pi, num_points, endpoint=False)
 
-
+        theta1_space = np.array([0.])
+        theta2_space = all_angles
 
         def likelihood(data, all_angles, N=100, kappa=0.1, sigma=1.0, should_exponentiate=False, remove_mean=False):
 
@@ -1349,128 +1351,139 @@ if __name__ == '__main__':
             return -1./(2.*sigma**2.0)*np.sum((data - population_code_response(angle, pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude))**2.)
 
         ## Theo fisher
-        # SORT OF WORKS
-        # print 1/sigma**2.*np.sum(kappa**2.*np.sin(pref_angles - stimuli_used_1[0])*np.sin(pref_angles - stimuli_used_2[0])*population_code_response(stimuli_used_1[0], pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude)*population_code_response(stimuli_used_2[0], pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude))
-        # print 1/sigma**2.*np.sum(kappa**2.*np.sin(pref_angles - all_angles[:, np.newaxis])*np.sin(pref_angles - all_angles[:, np.newaxis])*population_code_response(all_angles[:, np.newaxis], pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude)*population_code_response(all_angles[:, np.newaxis], pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude))
+        min_distance = 0.1
 
-        FI_all = np.zeros((all_angles.size, all_angles.size, pref_angles.size))
-        search_progress = progress.Progress(all_angles.size*all_angles.size)
+        def enforce_distance(theta1, theta2, min_distance=0.1):
+            return np.abs(wrap_angles(theta1 - theta2)) > min_distance
 
-        for i, theta1 in enumerate(all_angles):
-            for j, theta2 in enumerate(all_angles):
+        search_progress = progress.Progress(theta1_space.size*theta2_space.size)
+
+        inv_FI_all = np.zeros((theta1_space.size, theta2_space.size))
+        for i, theta1 in enumerate(theta1_space):
+            for j, theta2 in enumerate(theta2_space):
                 if search_progress.percentage() % 5.0 < 0.0001:
                     print "%.2f%%, %s left - %s" % (search_progress.percentage(), search_progress.time_remaining_str(), search_progress.eta_str())
 
-                FI_all[i, j] = kappa**2.*np.sin(pref_angles - theta1)*np.sin(pref_angles - theta2)*population_code_response(theta1, pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude)*population_code_response(theta2, pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude)
+                if enforce_distance(theta1, theta2, min_distance=min_distance):
+                    # Only compute if theta1 different enough of theta2
+                    der_1 = kappa/(2.*np.pi*scsp.i0(kappa))*np.sin(pref_angles - theta1)*population_code_response(theta1, pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude)
+                    der_2 = kappa/(2.*np.pi*scsp.i0(kappa))*np.sin(pref_angles - theta2)*population_code_response(theta2, pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude)
+                    
+
+                    inv_FI_all[i, j] = sigma**2./(np.sum(der_1**2.) - np.sum(der_1*der_2)**2./np.sum(der_2**2.))
 
                 search_progress.increment()
 
-        FI_tot = np.sum(FI_all, axis=-1)
+        inv_FI_1 = np.mean(inv_FI_all, axis=-1)
 
-        # Estimate fisher info
-        print "Estimate fisher info"
+        print inv_FI_1[0]
 
-        M = 50
+        # # Estimate fisher info
+        # print "Estimate fisher info"
 
-        fisher_info_curve1 = np.zeros(M)
-        fisher_info_curve2 = np.zeros((M, M))
-        fisher_info_curve2b = np.zeros((M, M))
-        fisher_info_curve3 = np.zeros((M, M))
-        fisher_info_prec = np.zeros((M, M))
-        gauss_fits = np.zeros((M, M, 2))
-        true_fits = np.zeros((M, M, 2))
-        dx = np.diff(all_angles)[0]
+        # M = 50
 
-        samples_all_precisions = []
-        recall_samples = np.zeros(M)
-        recall_samples_gauss = np.zeros(M)
+        # fisher_info_curve1 = np.zeros(M)
+        # fisher_info_curve2 = np.zeros((M, M))
+        # fisher_info_curve2b = np.zeros((M, M))
+        # fisher_info_curve3 = np.zeros((M, M))
+        # fisher_info_prec = np.zeros((M, M))
+        # gauss_fits = np.zeros((M, M, 2))
+        # true_fits = np.zeros((M, M, 2))
+        # dx = np.diff(all_angles)[0]
 
-        stimuli_used_1 = np.linspace(-np.pi, np.pi, M)
-        stimuli_used_2 = np.linspace(-np.pi, np.pi, M)
+        # samples_all_precisions = []
+        # recall_samples = np.zeros(M)
+        # recall_samples_gauss = np.zeros(M)
 
-        dataset1 = np.zeros((M, N))
-        dataset2 = np.zeros((M, M, N))
-        dataset3 = np.zeros((M, M, M, N))
-        for i in np.arange(stimuli_used_1.size):
+        # stimuli_used_1 = np.linspace(-np.pi, np.pi, M)
+        # stimuli_used_2 = np.linspace(-np.pi, np.pi, M)
 
-            dataset1[i] = population_code_response(stimuli_used_1[i], pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude)
-            if put_noise_dataset:
-                dataset1[i] += sigma*np.random.randn(N)
+        # dataset1 = np.zeros((M, N))
+        # dataset2 = np.zeros((M, M, N))
+        # dataset3 = np.zeros((M, M, M, N))
+        # for i in np.arange(stimuli_used_1.size):
+
+        #     dataset1[i] = population_code_response(stimuli_used_1[i], pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude)
+        #     if put_noise_dataset:
+        #         dataset1[i] += sigma*np.random.randn(N)
             
-            for j in np.arange(stimuli_used_2.size):
-                dataset2[i, j] = population_code_response(stimuli_used_1[i], pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude) + population_code_response(stimuli_used_2[j], pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude)
+        #     for j in np.arange(stimuli_used_2.size):
+        #         dataset2[i, j] = population_code_response(stimuli_used_1[i], pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude) + population_code_response(stimuli_used_2[j], pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude)
 
-                if put_noise_dataset:
-                    dataset2[i, j] += sigma*np.random.randn(N)
+        #         if put_noise_dataset:
+        #             dataset2[i, j] += sigma*np.random.randn(N)
 
-                # for k in np.arange(stimuli_used_1.size):
-                #     dataset3[i, j, k] = population_code_response(stimuli_used_1[i], pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude) + population_code_response(stimuli_used_2[j], pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude) + population_code_response(stimuli_used_1[k], pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude)
-                #     if put_noise_dataset:
-                #         dataset3[i, j, k] += sigma*np.random.randn(N)
+        #         # for k in np.arange(stimuli_used_1.size):
+        #         #     dataset3[i, j, k] = population_code_response(stimuli_used_1[i], pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude) + population_code_response(stimuli_used_2[j], pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude) + population_code_response(stimuli_used_1[k], pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude)
+        #         #     if put_noise_dataset:
+        #         #         dataset3[i, j, k] += sigma*np.random.randn(N)
 
 
-        search_progress = progress.Progress(M*M)
-        for i in np.arange(M):
+        # search_progress = progress.Progress(M*M)
+        # for i in np.arange(M):
 
-            log_posterior1 = likelihood(dataset1[i], all_angles, N=N, kappa=kappa, sigma=sigma)
-            ml_index = np.argmax(log_posterior1)
-            curv_logp = -np.gradient(np.gradient(log_posterior1))/dx**2.
-            fisher_info_curve1[i] = curv_logp[ml_index]
+        #     log_posterior1 = likelihood(dataset1[i], all_angles, N=N, kappa=kappa, sigma=sigma)
+        #     ml_index = np.argmax(log_posterior1)
+        #     curv_logp = -np.gradient(np.gradient(log_posterior1))/dx**2.
+        #     fisher_info_curve1[i] = curv_logp[ml_index]
 
-            for j in np.arange(M):
-                if search_progress.percentage() % 5.0 < 0.0001:
-                    print "%.2f%%, %s left - %s" % (search_progress.percentage(), search_progress.time_remaining_str(), search_progress.eta_str())
-                posterior = likelihood(dataset2[i, j], all_angles, N=N, kappa=kappa, sigma=sigma, should_exponentiate=True)
-                log_posterior2 = likelihood2(dataset2[i, j], all_angles, stim2=stimuli_used_2[j], N=N, kappa=kappa, sigma=sigma)
-                # log_posterior = likelihood(data, all_angles, N=N, kappa=kappa, sigma=sigma, should_exponentiate=False)
-                log_posterior = np.log(posterior)
+        #     for j in np.arange(M):
+        #         if search_progress.percentage() % 5.0 < 0.0001:
+        #             print "%.2f%%, %s left - %s" % (search_progress.percentage(), search_progress.time_remaining_str(), search_progress.eta_str())
+        #         posterior = likelihood(dataset2[i, j], all_angles, N=N, kappa=kappa, sigma=sigma, should_exponentiate=True)
+        #         log_posterior2 = likelihood2(dataset2[i, j], all_angles, stim2=stimuli_used_2[j], N=N, kappa=kappa, sigma=sigma)
+        #         # log_posterior = likelihood(data, all_angles, N=N, kappa=kappa, sigma=sigma, should_exponentiate=False)
+        #         log_posterior = np.log(posterior)
                 
-                # log_posterior[np.isinf(log_posterior)] = 0.0
-                # log_posterior[np.isnan(log_posterior)] = 0.0
+        #         # log_posterior[np.isinf(log_posterior)] = 0.0
+        #         # log_posterior[np.isnan(log_posterior)] = 0.0
 
-                # posterior = np.exp(log_posterior)
-                posterior /= np.sum(posterior*dx)
+        #         # posterior = np.exp(log_posterior)
+        #         posterior /= np.sum(posterior*dx)
 
-                # Fails when angles are close to 0/2pi.
-                # Could roll the posterior around to center it, wouldn't be that bad.
-                # fisher_info_curve2[m] = np.trapz(-np.diff(np.diff(log_posterior))*posterior[1:-1]/dx**2., all_angles[1:-1])
+        #         # Fails when angles are close to 0/2pi.
+        #         # Could roll the posterior around to center it, wouldn't be that bad.
+        #         # fisher_info_curve2[m] = np.trapz(-np.diff(np.diff(log_posterior))*posterior[1:-1]/dx**2., all_angles[1:-1])
                 
-                # Actually wrong, see Issue #23
-                # fisher_info_curve2[m] = np.trapz(-np.gradient(np.gradient(log_posterior))*posterior/dx**2., all_angles)
+        #         # Actually wrong, see Issue #23
+        #         # fisher_info_curve2[m] = np.trapz(-np.gradient(np.gradient(log_posterior))*posterior/dx**2., all_angles)
 
-                # Take curvature at ML value
-                ml_index = np.argmax(log_posterior)
-                curv_logp = -np.gradient(np.gradient(log_posterior))/dx**2.
-                fisher_info_curve2[i, j] = curv_logp[ml_index]
-                # fisher_info_curve2[i, j] = 1./curv_logp[ml_index]
+        #         # Take curvature at ML value
+        #         ml_index = np.argmax(log_posterior)
+        #         curv_logp = -np.gradient(np.gradient(log_posterior))/dx**2.
+        #         fisher_info_curve2[i, j] = curv_logp[ml_index]
+        #         # fisher_info_curve2[i, j] = 1./curv_logp[ml_index]
 
-                ml_index2 = np.argmax(log_posterior2)
-                curv_logp2 = -np.gradient(np.gradient(log_posterior2))/dx**2.
-                fisher_info_curve2b[i, j] = curv_logp2[ml_index2]
+        #         ml_index2 = np.argmax(log_posterior2)
+        #         curv_logp2 = -np.gradient(np.gradient(log_posterior2))/dx**2.
+        #         fisher_info_curve2b[i, j] = curv_logp2[ml_index2]
 
-                # Fit a gaussian to it
-                # gauss_fits[i, j] = fit_gaussian(all_angles, posterior, return_fitted_data=False, should_plot = False)[:2]
-                # Sample from this gaussian instead
-                # samples_gauss = gauss_fits[m, 0] + gauss_fits[m, 1]*np.random.randn(500)
-                # fisher_info_prec[i, j] = np.var(samples_gauss)
+        #         # Fit a gaussian to it
+        #         # gauss_fits[i, j] = fit_gaussian(all_angles, posterior, return_fitted_data=False, should_plot = False)[:2]
+        #         # Sample from this gaussian instead
+        #         # samples_gauss = gauss_fits[m, 0] + gauss_fits[m, 1]*np.random.randn(500)
+        #         # fisher_info_prec[i, j] = np.var(samples_gauss)
 
-                search_progress.increment()
+        #         search_progress.increment()
 
+        # # print np.mean(fisher_info_curve2)
+
+        # pcolor_2d_data(FI_tot)
+        # pcolor_2d_data(fisher_info_curve2)
+        # pcolor_2d_data(fisher_info_curve2b)
+        # plt.figure()
+        # plt.plot(fisher_info_curve1)
+
+        # print np.mean(fisher_info_curve1)
         # print np.mean(fisher_info_curve2)
-
-        pcolor_2d_data(FI_tot)
-        pcolor_2d_data(fisher_info_curve2)
-        pcolor_2d_data(fisher_info_curve2b)
-        plt.figure()
-        plt.plot(fisher_info_curve1)
-
-        print np.mean(fisher_info_curve1)
-        print np.mean(fisher_info_curve2)
-        print np.mean(fisher_info_curve2b)
+        # print np.mean(fisher_info_curve2b)
                         
                   
 
 
     plt.show()
+    import sh
+    sh.say('Work complete')
 
 
