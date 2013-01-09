@@ -1021,6 +1021,7 @@ def launcher_reload_fisher_information_param_search(args):
 
     # Plots
     plots_fisher_info_param_search(loaded_data, dataio, save_figures=False)
+    plots_ratio_checkers_fisherinfo(loaded_data, save_figures=False)
 
     return locals()
 
@@ -1089,8 +1090,9 @@ def launcher_reload_fisher_information_param_search_pbs(args):
 
     # Need to find a way to provide the dataset_infos nicely...
     dataset_infos = dict(label='New PBS runs, different loading method. Uses the 2D fisher information as a constraint between sigma and rcscale. Also checks the ratio between recall precision and FI curve.',
-                    files='Data/constraint/allfi_M400N300/allfi_*-launcher_do_fisher_information_param_search_pbs-*.npy',
+                    # files='Data/constraint/allfi_M400N300/allfi_*-launcher_do_fisher_information_param_search_pbs-*.npy',
                     # files='Data/constraint/allfi_N200samples300/allfi_*-launcher_do_fisher_information_param_search_pbs-*.npy',
+                    files='Data/constraint/allfi_M900N300/allfi_*-launcher_do_fisher_information_param_search_pbs-*.npy',
                     loading_type='args',
                     parameters=('rc_scale', 'sigmax'),
                     variables_to_load=['FI_rc_curv', 'FI_rc_precision', 'FI_rc_theo'],
@@ -1114,15 +1116,15 @@ def launcher_reload_fisher_information_param_search_pbs(args):
 
 
     # Plots
-    # plots_fisher_info_param_search(extracted_data, save_figures=False)
-    # plots_ratio_checkers_fisherinfo(extracted_data, save_figures=False)
+    plots_fisher_info_param_search(extracted_data, save_figures=False)
+    plots_ratio_checkers_fisherinfo(extracted_data, save_figures=False)
 
     max_div = 100.
     # constrained_fi = 36.94
     constrained_fi = 9.04
-    build_constraint(extracted_data['FI_rc_precision'], constrained_value=constrained_fi, max_divergence=max_div, x=dict(space=extracted_data['rcscale_space'], label='Rc scale'), y=dict(space=extracted_data['sigma_space'], label='Sigma'), title='Precision')
+    # build_constraint(extracted_data['FI_rc_precision'], constrained_value=constrained_fi, max_divergence=max_div, x=dict(space=extracted_data['rcscale_space'], label='Rc scale'), y=dict(space=extracted_data['sigma_space'], label='Sigma'), title='Precision')
 
-    build_constraint(extracted_data['FI_rc_theo'][..., 0], constrained_value=constrained_fi*2., max_divergence=max_div, x=dict(space=extracted_data['rcscale_space'], label='Rc scale'), y=dict(space=extracted_data['sigma_space'], label='Sigma'), title='Theo sum')
+    # build_constraint(extracted_data['FI_rc_theo'][..., 0], constrained_value=constrained_fi*2., max_divergence=max_div, x=dict(space=extracted_data['rcscale_space'], label='Rc scale'), y=dict(space=extracted_data['sigma_space'], label='Sigma'), title='Theo sum')
 
 
     return locals()

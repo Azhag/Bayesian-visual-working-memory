@@ -73,10 +73,12 @@ def launcher_do_generate_constrained_param_experimental_theo(args):
     # rcscale_space = np.linspace(0.01, 10.0, 51.)
     # sigma_space = np.linspace(0.01, 0.8, 50.)
 
-    pbs_submission_infos = dict(description='Mixed populations. 3D Grid search for FI Theo+var. No filtering.', command='python /nfs/home2/lmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py', other_options=dict(action_to_do='launcher_do_memorycurve_theoretical_pbs', code_type='mixed', output_directory='.', M=625, sigmax=0.1, rc_scale=4.0, N=200, T=5, alpha=1.0, sigmay=0.0001, num_samples=300, selection_method='last', rc_scale2=0.4, ratio_conj=0.5, feat_ratio=-100, selection_num_samples=300, inference_method='sample', num_repetitions=all_parameters['num_repetitions'], label='mixedpop05_3dvolume_memorycurves_theovar_grid_211112_featratio_100'), walltime='10:00:00', memory='2gb', simul_out_dir=os.path.join(os.getcwd(), 'mixedpop05_3dvolume_memcurve_theovar_211112'))
-    rcscale_space = np.linspace(0.01, 20.0, 10.)
-    sigma_space = np.linspace(0.01, 1.2, 10.)
-    rcscale2_space = np.linspace(0.01, 10., 10.)
+    # pbs_submission_infos = dict(description='Mixed populations. 3D Grid search for FI Theo+var. No filtering.', command='python /nfs/home2/lmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py', other_options=dict(action_to_do='launcher_do_memorycurve_theoretical_pbs', code_type='mixed', output_directory='.', M=625, sigmax=0.1, rc_scale=4.0, N=200, T=5, alpha=1.0, sigmay=0.0001, num_samples=300, selection_method='last', rc_scale2=0.4, ratio_conj=0.5, feat_ratio=-100, selection_num_samples=300, inference_method='sample', num_repetitions=all_parameters['num_repetitions'], label='mixedpop05_3dvolume_memorycurves_theovar_grid_211112_featratio_100'), walltime='10:00:00', memory='2gb', simul_out_dir=os.path.join(os.getcwd(), 'mixedpop05_3dvolume_memcurve_theovar_211112_diffspace'))
+    # pbs_submission_infos = dict(description='Mixed populations. 3D Grid search for FI Theo+var. No filtering.', command='python /nfs/home2/lmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py', other_options=dict(action_to_do='launcher_do_memorycurve_theoretical_pbs', code_type='mixed', output_directory='.', M=625, sigmax=0.1, rc_scale=4.0, N=200, T=5, alpha=1.0, sigmay=0.0001, num_samples=300, selection_method='last', rc_scale2=0.4, ratio_conj=0.1, feat_ratio=-100, selection_num_samples=300, inference_method='sample', num_repetitions=all_parameters['num_repetitions'], label='mixedpop01_3dvolume_memorycurves_theovar_grid_221112_featratio_100'), walltime='10:00:00', memory='2gb', simul_out_dir=os.path.join(os.getcwd(), 'mixedpop01_3dvolume_memcurve_theovar_221112'))
+    pbs_submission_infos = dict(description='Mixed populations. 3D Grid search for FI Theo+var. No filtering.', command='python /nfs/home2/lmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py', other_options=dict(action_to_do='launcher_do_memorycurve_theoretical_pbs', code_type='mixed', output_directory='.', M=625, sigmax=0.1, rc_scale=4.0, N=200, T=5, alpha=1.0, sigmay=0.0001, num_samples=300, selection_method='last', rc_scale2=0.4, ratio_conj=0.25, feat_ratio=-100, selection_num_samples=300, inference_method='sample', num_repetitions=all_parameters['num_repetitions'], label='mixedpop025_3dvolume_memorycurves_theovar_grid_231112_featratio_300'), walltime='10:00:00', memory='2gb', simul_out_dir=os.path.join(os.getcwd(), 'mixedpop025_specialspace_3dvolume_memcurve_theovar_231112'))
+    rcscale_space = np.linspace(0.01, 10.0, 10.)
+    sigma_space = np.linspace(0.01, 3.0, 10.)
+    rcscale2_space = np.linspace(0.01, 0.3, 10.)
     # # M_space = np.arange(10, 30, 4, dtype=int)**2.
     # M_space = np.arange(27, 35, 2, dtype=int)**2.
     activate_filtering = False
@@ -345,6 +347,19 @@ def launcher_do_reload_constrained_parameters(args):
                     variables_to_load=['FI_rc_theo_mult', 'FI_rc_var_mult'],
                     variables_description=['FI theory', 'FI var'],
                     post_processing=plots_3dvolume_theovar
+                    )
+    elif args.subaction == '8':
+        dataset_infos = dict(label='Mixed population. 3D volume (rcscale, sigma, rcscale2). Memory curves. Theoretical and Variances.',
+                    # files='Data/param_generator/3dvolume_mixedpop_memcurves_theovar/mixedpop05_3dvolume_memcurve_theovar_211112/mixedpop05_3dvolume_memorycurves_theovar_grid_211112_featratio_100-*.npy',
+                    # files='Data/param_generator/3dvolume_mixedpop_memcurves_theovar/mixedpop05_3dvolume_memcurve_theovar_211112_diffspace/mixedpop05_3dvolume_memorycurves_theovar_grid_211112_featratio_100-*.npy',
+                    # files='Data/param_generator/3dvolume_mixedpop_memcurves_theovar/mixedpop01_3dvolume_memcurve_theovar_221112/mixedpop01_3dvolume_memorycurves_theovar_grid_221112_featratio_100-*.npy',
+                    files='Data/param_generator/3dvolume_mixedpop_memcurves_theovar/mixedpop025_specialspace_3dvolume_memcurve_theovar_231112/mixedpop025_3dvolume_memorycurves_theovar_grid_231112_featratio_300-*.npy',
+                    launcher_file='Data/param_generator/3dvolume_mixedpop_memcurves_theovar/launcher_do_generate_constrained_param_experimental_theo-dfd16533-4151-49c1-b3a4-45f5f50b11f4.npy',
+                    loading_type='args',
+                    parameters=['rc_scale', 'sigmax', 'rc_scale2'],
+                    variables_to_load=['FI_rc_theo_mult', 'FI_rc_var_mult'],
+                    variables_description=['FI theory', 'FI var'],
+                    post_processing=plots_3dvolume_theovar_mixedpop
                     )
     else:
         raise ValueError('Set subaction to the data you want to reload')
@@ -645,13 +660,125 @@ def plots_3dvolume_theo(data_pbs, launcher_variables=None):
 
     data_to_plot = dict(FI_rc_theo_mult=FI_rc_theo_mult, rcscale_space=rcscale_space, sigma_space=sigma_space, M_space=M_space)
 
-    launchers_memorycurves.plots_memorycurve_theoretical_3dvolume(data_to_plot)
+    # launchers_memorycurves.plots_memorycurve_theoretical_3dvolume(data_to_plot)
 
 
     ## Find undone simulations
     # nanparams = np.nonzero(np.any(np.isnan(np.mean(FI_rc_theo_mult, axis=-1)), axis=-1))
     # list_params_dict = [dict(rc_scale=rcscale_space[par[0]], sigmax=sigma_space[par[1]], M=M_space[par[2]]) for par in zip(*nanparams)]
     # this could be resend on PBS...
+
+
+def plots_3dvolume_theovar_mixedpop(data_pbs, launcher_variables=None):
+    '''
+        Reload 3D volume runs from PBS and plot them
+    '''
+
+    FI_rc_theo_mean = np.squeeze(nanmean(data_pbs.dict_arrays['FI_rc_theo_mult']['results'], axis=-1))
+    FI_rc_var_mean = np.squeeze(np.mean(data_pbs.dict_arrays['FI_rc_var_mult']['results'], axis=-1))
+
+
+    rcscale_space = data_pbs.loaded_data['parameters_uniques']['rc_scale']
+    sigma_space = data_pbs.loaded_data['parameters_uniques']['sigmax']
+    rcscale2_space = data_pbs.loaded_data['parameters_uniques']['rc_scale2']
+    
+    
+    exp_target = np.array([ 8.81007762,  4.7976755,   3.61554792,  2.4624979,   1.78252039])*2.
+    interpolation = 'nearest'
+
+    # 3D
+    if False:
+        import launchers_memorycurves
+
+        FI_rc_theo_mult = np.squeeze(data_pbs.dict_arrays['FI_rc_theo_mult']['results'])
+        FI_rc_var_mult = np.squeeze(data_pbs.dict_arrays['FI_rc_var_mult']['results'])[..., 0]
+
+        # data_to_plot = dict(FI_rc_theo_mult=FI_rc_theo_mult, rcscale_space=rcscale_space, sigma_space=sigma_space, M_space=rcscale2_space)
+        # launchers_memorycurves.plots_memorycurve_theoretical_3dvolume(data_to_plot)
+
+        data_to_plot = dict(FI_rc_theo_mult=FI_rc_var_mult, rcscale_space=rcscale_space, sigma_space=sigma_space, M_space=rcscale2_space)
+        launchers_memorycurves.plots_memorycurve_theoretical_3dvolume(data_to_plot)
+
+    if True:
+
+        # Check the fits
+        dist_theo_exp = np.sum((FI_rc_theo_mean - exp_target)**2., axis=-1)
+        log_dist_theo_exp = np.log(dist_theo_exp)
+
+        dist_theo_1obj = (FI_rc_theo_mean[..., 0] - exp_target[0])**2.
+        log_dist_theo_1obj = np.log(dist_theo_1obj)
+        
+        dist_var_exp = np.sum((FI_rc_var_mean[..., 0] - exp_target)**2., axis=-1)
+        log_dist_var_exp = np.log(dist_var_exp)
+
+        ratio_theo_var = np.mean((FI_rc_theo_mean/FI_rc_var_mean[..., 0]), axis=-1)
+
+        for dim3_i, dim3 in enumerate(rcscale2_space):
+            # Do one pcolor per dim3 (rc_scale2)
+
+            pcolor_2d_data(log_dist_theo_exp[..., dim3_i], x=rcscale_space, y=sigma_space, title='Log distance theory to experimental memory curve. dim3: %.2f' % dim3, label_format="%.2f", interpolation=interpolation)
+            pcolor_2d_data(log_dist_var_exp[..., dim3_i], x=rcscale_space, y=sigma_space, title='Log distance variance to experimental memory curve. dim3: %.2f' % dim3, label_format="%.2f", interpolation=interpolation)
+            # pcolor_2d_data(log_dist_theo_1obj[..., dim3_i], x=rcscale_space, y=sigma_space, title='Log distance theory 1 object to experimental 1 object. rc_scale2: %.2f' % rcscale2, label_format="%.2f", interpolation=interpolation)
+            # pcolor_2d_data(ratio_theo_var[..., dim3_i], x=rcscale_space, y=sigma_space, title='Ratio theo/var. rc_scale2: %.2f' % rcscale2, label_format="%.2f", interpolation=interpolation)
+
+            # Best fits plots
+            # Get the list of best values.
+            besttheo_mem_argsort = np.argsort(dist_theo_exp[..., dim3_i], axis=None)
+            bestvar_mem_argsort = np.argsort(dist_var_exp[..., dim3_i], axis=None)
+            besttheo_1obj_argsort = np.argsort(dist_theo_1obj[..., dim3_i], axis=None)
+
+            # Show the results for the best K
+            best_k = 1
+
+            for bk_i in np.arange(best_k):
+                # Convert the flat best index into indices
+                indices_besttheo_mem = np.unravel_index(besttheo_mem_argsort[bk_i], dist_theo_exp[..., dim3_i].shape)
+                indices_bestvar_mem = np.unravel_index(bestvar_mem_argsort[bk_i], dist_var_exp[..., dim3_i].shape)
+                indices_besttheo_1obj = np.unravel_index(besttheo_1obj_argsort[bk_i], dist_theo_1obj[..., dim3_i].shape)
+
+                # Best memory curve for each individual distance function.
+                f = plt.figure()
+                ax = f.add_subplot(111)
+                ax.plot(np.arange(1, 6), exp_target, 'o-', np.arange(1, 6), FI_rc_theo_mean[indices_besttheo_mem][dim3_i, :], 'o-', np.arange(1, 6), FI_rc_var_mean[indices_bestvar_mem][dim3_i, :, 0], 'o-', linewidth=3)
+                current_color = ax.get_lines()[-1].get_c()
+                ax.fill_between(np.arange(1, 6), FI_rc_var_mean[indices_bestvar_mem][dim3_i, :, 0]-FI_rc_var_mean[indices_bestvar_mem][dim3_i, :, 1], FI_rc_var_mean[indices_bestvar_mem][dim3_i, :, 0]+FI_rc_var_mean[indices_bestvar_mem][dim3_i, :, 1], facecolor=current_color, alpha=0.4)
+                plt.title('%d Best fits for dim3=%.2f: kappa_theo %.2f, sigma_theo %.2f | kappa_var %.2f, sigma_var %.2f' % (bk_i+1, dim3, rcscale_space[indices_besttheo_mem[0]], sigma_space[indices_besttheo_mem[1]], rcscale_space[indices_bestvar_mem[0]], sigma_space[indices_bestvar_mem[1]]))
+                plt.legend(['Experimental data', 'best Theoretical FI', 'best Posterior variance'])
+                plt.xticks(np.arange(1, 6))
+                plt.xlim([0.8, 5.2])
+
+                # Optimize based on FI, full memory curves
+                # f = plt.figure()
+                # ax = f.add_subplot(111)
+                # ax.plot(np.arange(1, 6), exp_target, 'o-', np.arange(1, 6), FI_rc_theo_mean[indices_besttheo_mem][dim3_i, :], 'o-', np.arange(1, 6), FI_rc_var_mean[indices_besttheo_mem][dim3_i, :, 0], 'o-', linewidth=3)
+                # current_color = ax.get_lines()[-1].get_c()
+                # ax.fill_between(np.arange(1, 6), FI_rc_var_mean[indices_besttheo_mem][dim3_i, :, 0]-FI_rc_var_mean[indices_besttheo_mem][dim3_i, :, 1], FI_rc_var_mean[indices_besttheo_mem][dim3_i, :, 0]+FI_rc_var_mean[indices_besttheo_mem][dim3_i, :, 1], facecolor=current_color, alpha=0.4)
+                # plt.title('%d Best fits for dim3=%.2f: kappa_theo %.2f, sigma_theo %.2f' % (bk_i+1, dim3, rcscale_space[indices_besttheo_mem[0]], sigma_space[indices_besttheo_mem[1]]))
+                # plt.legend(['Experimental data', 'best Theoretical FI', 'Posterior variance, theo best'])
+                # plt.xticks(np.arange(1, 6))
+                # plt.xlim([0.8, 5.2])
+
+                # # Optimize based on FI, 1obj case. Shouldn't be too different from above.
+                # f = plt.figure()
+                # ax = f.add_subplot(111)
+                # ax.plot(np.arange(1, 6), exp_target, 'o-', np.arange(1, 6), FI_rc_theo_mean[indices_besttheo_1obj][dim3_i, :], 'o-', np.arange(1, 6), FI_rc_var_mean[indices_besttheo_1obj][dim3_i, :, 0], 'o-', linewidth=3)
+                # current_color = ax.get_lines()[-1].get_c()
+                # ax.fill_between(np.arange(1, 6), FI_rc_var_mean[indices_besttheo_1obj][dim3_i, :, 0]-FI_rc_var_mean[indices_besttheo_1obj][dim3_i, :, 1], FI_rc_var_mean[indices_besttheo_1obj][dim3_i, :, 0]+FI_rc_var_mean[indices_besttheo_1obj][dim3_i, :, 1], facecolor=current_color, alpha=0.4)
+                # plt.title('%d Best fits for dim3=%.2f: kappa_1obj %.2f, sigma_1obj %.2f' % (bk_i+1, dim3, rcscale_space[indices_besttheo_1obj[0]], sigma_space[indices_besttheo_1obj[1]]))
+                # plt.legend(['Experimental data', 'Theoretical FI, 1obj', 'Posterior variance, theo 1obj'])
+                # plt.xticks(np.arange(1, 6))
+                # plt.xlim([0.8, 5.2])
+
+                # Best variance to experimental fit only
+                f = plt.figure()
+                ax = f.add_subplot(111)
+                ax.plot(np.arange(1, 6), exp_target, 'o-', np.arange(1, 6), FI_rc_var_mean[indices_bestvar_mem][dim3_i, :, 0], 'o-', linewidth=3)
+                # current_color = ax.get_lines()[-1].get_c()
+                # ax.fill_between(np.arange(1, 6), FI_rc_var_mean[indices_bestvar_mem][dim3_i, :, 0]-FI_rc_var_mean[indices_bestvar_mem][dim3_i, :, 1], FI_rc_var_mean[indices_bestvar_mem][dim3_i, :, 0]+FI_rc_var_mean[indices_bestvar_mem][dim3_i, :, 1], facecolor=current_color, alpha=0.4)
+                plt.title('%d Best var fits for dim3=%.2f: kappa_var %.2f, sigma_var %.2f' % (bk_i+1, dim3, rcscale_space[indices_bestvar_mem[0]], sigma_space[indices_bestvar_mem[1]]))
+                plt.legend(['Experimental data', 'best Posterior variance'])
+                plt.xticks(np.arange(1, 6))
+                plt.xlim([0.8, 5.2])
 
 
 
