@@ -655,7 +655,7 @@ if __name__ == '__main__':
 
 
         ## Redo everything here.
-        if True:
+        if False:
 
             ## Population
             N     = 500
@@ -1269,13 +1269,13 @@ if __name__ == '__main__':
         kappa = 2.0
         sigma = 0.3
         amplitude = 1.0
+        min_distance = 0.1
 
         put_noise_dataset = True
         use_slice_sampler = False
 
         # Dataset size.
         #  Big number required for clean estimate of recall precision...
-        
         
 
         def population_code_response(theta, pref_angles=None, N=100, kappa=0.1, amplitude=1.0):
@@ -1350,34 +1350,52 @@ if __name__ == '__main__':
             pref_angles = params['pref_angles']
             return -1./(2.*sigma**2.0)*np.sum((data - population_code_response(angle, pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude))**2.)
 
-        ## Theo fisher
-        min_distance = 0.1
-
         def enforce_distance(theta1, theta2, min_distance=0.1):
             return np.abs(wrap_angles(theta1 - theta2)) > min_distance
 
-        search_progress = progress.Progress(theta1_space.size*theta2_space.size)
+        ## Compute Theo Inverse Fisher Info
 
-        inv_FI_all = np.zeros((theta1_space.size, theta2_space.size))
-        for i, theta1 in enumerate(theta1_space):
-            for j, theta2 in enumerate(theta2_space):
+        ### Loop over min_distance and kappa
+        min_distance_space = np.linspace(0.0, 1.0, 30.)
+        # min_distance_space = np.array([0.5])
+        kappa_space = np.linspace(0.05, 10., 20.)
+        # kappa_space = np.array([10.0])
+
+        inv_FI_search = np.zeros((min_distance_space.size, kappa_space.size))
+        FI_search = np.zeros((min_distance_space.size, kappa_space.size))
+
+        search_progress = progress.Progress(min_distance_space.size*kappa_space.size)
+
+        for m, min_distance in enumerate(min_distance_space):
+            for k, kappa in enumerate(kappa_space):
+
                 if search_progress.percentage() % 5.0 < 0.0001:
                     print "%.2f%%, %s left - %s" % (search_progress.percentage(), search_progress.time_remaining_str(), search_progress.eta_str())
 
-                if enforce_distance(theta1, theta2, min_distance=min_distance):
-                    # Only compute if theta1 different enough of theta2
-                    der_1 = kappa/(2.*np.pi*scsp.i0(kappa))*np.sin(pref_angles - theta1)*population_code_response(theta1, pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude)
-                    der_2 = kappa/(2.*np.pi*scsp.i0(kappa))*np.sin(pref_angles - theta2)*population_code_response(theta2, pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude)
-                    
+                inv_FI_all = np.zeros((theta1_space.size, theta2_space.size))
+                FI_all = np.zeros((theta1_space.size, theta2_space.size))
 
-                    inv_FI_all[i, j] = sigma**2./(np.sum(der_1**2.) - np.sum(der_1*der_2)**2./np.sum(der_2**2.))
+                # Check inverse FI for given min_distance and kappa
+                for i, theta1 in enumerate(theta1_space):
+                    for j, theta2 in enumerate(theta2_space):
+                        
+                        if enforce_distance(theta1, theta2, min_distance=min_distance):
+                            # Only compute if theta1 different enough of theta2
+                            der_1 = kappa*np.sin(pref_angles - theta1)*population_code_response(theta1, pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude)
+                            der_2 = kappa*np.sin(pref_angles - theta2)*population_code_response(theta2, pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude)
+                            
+                            FI_all[i, j] = np.sum(der_1**2.)/sigma**2.
+
+                            inv_FI_all[i, j] = sigma**2./(np.sum(der_1**2.) - np.sum(der_1*der_2)**2./np.sum(der_2**2.))
+
+                inv_FI_search[m, k] = np.mean(inv_FI_all)
+                FI_search[m, k] = np.mean(FI_all)
 
                 search_progress.increment()
 
-        inv_FI_1 = np.mean(inv_FI_all, axis=-1)
+        pcolor_2d_data(inv_FI_search, x=min_distance_space, y=kappa_space, log_scale=True)
 
-        print inv_FI_1[0]
-
+        
         # # Estimate fisher info
         # print "Estimate fisher info"
 
