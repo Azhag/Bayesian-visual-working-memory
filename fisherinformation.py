@@ -1269,7 +1269,7 @@ if __name__ == '__main__':
         kappa = 2.0
         sigma = 0.3
         amplitude = 1.0
-        min_distance = 0.1
+        min_distance = 2.
 
         put_noise_dataset = True
         use_slice_sampler = False
@@ -1353,49 +1353,133 @@ if __name__ == '__main__':
         def enforce_distance(theta1, theta2, min_distance=0.1):
             return np.abs(wrap_angles(theta1 - theta2)) > min_distance
 
-        ## Compute Theo Inverse Fisher Info
+        #### Compute Theo Inverse Fisher Info
 
-        ### Loop over min_distance and kappa
-        min_distance_space = np.linspace(0.0, 1.0, 30.)
-        # min_distance_space = np.array([0.5])
-        kappa_space = np.linspace(0.05, 10., 20.)
-        # kappa_space = np.array([10.0])
+        if False:
+            ### Loop over min_distance and kappa
+            min_distance_space = np.linspace(0.0, 1.0, 25.)
+            # min_distance_space = np.array([1.])
+            # min_distance_space = np.array([0.001])
+            kappa_space = np.linspace(0.05, 30., 20.)
+            # kappa_space = np.array([10.0])
 
-        inv_FI_search = np.zeros((min_distance_space.size, kappa_space.size))
-        FI_search = np.zeros((min_distance_space.size, kappa_space.size))
+            inv_FI_search = np.zeros((min_distance_space.size, kappa_space.size))
+            FI_search = np.zeros((min_distance_space.size, kappa_space.size))
+            FI_1_search = np.zeros((min_distance_space.size, kappa_space.size))
 
-        search_progress = progress.Progress(min_distance_space.size*kappa_space.size)
+            search_progress = progress.Progress(min_distance_space.size*kappa_space.size)
 
-        for m, min_distance in enumerate(min_distance_space):
-            for k, kappa in enumerate(kappa_space):
+            for m, min_distance in enumerate(min_distance_space):
+                for k, kappa in enumerate(kappa_space):
 
-                if search_progress.percentage() % 5.0 < 0.0001:
-                    print "%.2f%%, %s left - %s" % (search_progress.percentage(), search_progress.time_remaining_str(), search_progress.eta_str())
+                    if search_progress.percentage() % 5.0 < 0.0001:
+                        print "%.2f%%, %s left - %s" % (search_progress.percentage(), search_progress.time_remaining_str(), search_progress.eta_str())
 
-                inv_FI_all = np.zeros((theta1_space.size, theta2_space.size))
-                FI_all = np.zeros((theta1_space.size, theta2_space.size))
+                    inv_FI_all = np.zeros((theta1_space.size, theta2_space.size))
+                    FI_all = np.zeros((theta1_space.size, theta2_space.size))
+                    FI_1 = np.zeros(theta1_space.size)
 
-                # Check inverse FI for given min_distance and kappa
-                for i, theta1 in enumerate(theta1_space):
-                    for j, theta2 in enumerate(theta2_space):
-                        
-                        if enforce_distance(theta1, theta2, min_distance=min_distance):
-                            # Only compute if theta1 different enough of theta2
-                            der_1 = kappa*np.sin(pref_angles - theta1)*population_code_response(theta1, pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude)
-                            der_2 = kappa*np.sin(pref_angles - theta2)*population_code_response(theta2, pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude)
+                    # Check inverse FI for given min_distance and kappa
+                    for i, theta1 in enumerate(theta1_space):
+                        der_1 = kappa*np.sin(pref_angles - theta1)*population_code_response(theta1, pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude)
+
+                        for j, theta2 in enumerate(theta2_space):
                             
-                            FI_all[i, j] = np.sum(der_1**2.)/sigma**2.
+                            if enforce_distance(theta1, theta2, min_distance=min_distance):
+                                # Only compute if theta1 different enough of theta2
+                                
+                                der_2 = kappa*np.sin(pref_angles - theta2)*population_code_response(theta2, pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude)
+                                
+                                # FI for 2 objects
+                                FI_all[i, j] = np.sum(der_1**2.)/sigma**2.
 
-                            inv_FI_all[i, j] = sigma**2./(np.sum(der_1**2.) - np.sum(der_1*der_2)**2./np.sum(der_2**2.))
+                                # Inv FI for 2 objects
+                                inv_FI_all[i, j] = sigma**2./(np.sum(der_1**2.) - np.sum(der_1*der_2)**2./np.sum(der_2**2.))
 
-                inv_FI_search[m, k] = np.mean(inv_FI_all)
-                FI_search[m, k] = np.mean(FI_all)
+                        # FI for 1 object
+                        FI_1[i] = sigma**2./np.sum(der_1**2.)
 
-                search_progress.increment()
+                    # inv_FI_search[m, k] = np.mean(inv_FI_all)
+                    inv_FI_search[m, k] = np.mean(np.ma.masked_equal(inv_FI_all, 0))
+                    FI_search[m, k] = np.mean(FI_all)
 
-        pcolor_2d_data(inv_FI_search, x=min_distance_space, y=kappa_space, log_scale=True)
+                    FI_1_search[m, k] = np.mean(FI_1)
 
-        
+                    search_progress.increment()
+
+            pcolor_2d_data(inv_FI_search, x=min_distance_space, y=kappa_space, log_scale=True)
+
+        if True:
+            ## Compute p(r | theta_1) = \int p(r | theta_1, theta_2) p(theta_2 | theta_1)
+            # by sampling loads of p(r | theta_1, theta_2) and integrating out theta_2 manually
+            # p(theta_2 | theta_1) is uniform if abs(theta_2) > abs(theta_1) + delta
+
+            # Sample multiple {r | theta_1, theta_2}
+            num_samples = 200
+            num_points = 20
+            all_angles = np.linspace(-np.pi, np.pi, num_points, endpoint=False)
+            theta1_space = all_angles
+            theta2_space = all_angles
+
+            dataset1 = np.zeros((num_points, N, num_samples))
+            dataset2 = np.zeros((num_points, num_points, N, num_samples))
+            
+            for i in np.arange(theta1_space.size):
+
+                dataset1[i] = population_code_response(theta1_space[i], pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude)[:, np.newaxis]
+                
+                if put_noise_dataset:
+                    dataset1[i] += sigma*np.random.randn(N, num_samples)
+
+                for j in np.arange(theta2_space.size):
+                    dataset2[i, j] = (population_code_response(theta1_space[i], pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude) + population_code_response(theta2_space[j], pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude))[:, np.newaxis]
+
+                    if put_noise_dataset:
+                        dataset2[i, j] += sigma*np.random.randn(N, num_samples)
+            
+            # Compute p(r | theta_1, theta_2)
+            nb_bins_prob_est = 25
+            bins_prob_est = np.linspace(np.min(dataset2), np.max(dataset2), nb_bins_prob_est+1)
+            prob_r_theta1_theta2 = np.zeros((num_points, num_points, N, nb_bins_prob_est))
+            for i, theta_1 in enumerate(theta1_space):
+                for j, theta_2 in enumerate(theta2_space):
+                    for n in np.arange(N):
+                        # Get histogram estimate of p(r_i | theta_1, theta_2)
+                        prob_r_theta1_theta2[i, j, n] = np.histogram(dataset2[i, j, n], bins=bins_prob_est, density=True)[0]
+
+            # Average out theta_2
+            prob_r_theta1 = np.mean(prob_r_theta1_theta2, axis=1)
+
+            # Check when theta_1 and theta_2 are too close
+            thetas_space = np.array(cross(theta1_space, theta2_space))
+            thetas_too_close = ~enforce_distance(thetas_space[:, 0], thetas_space[:, 1], min_distance=min_distance)
+            thetas_space_valid = np.ma.masked_where(np.c_[thetas_too_close, thetas_too_close], thetas_space)
+
+            # Mask it when too close
+            prob_r_theta1_theta2[np.reshape(thetas_space_valid.mask[:, 0], (num_points, num_points))] = np.nan
+            prob_r_theta1_theta2 = np.ma.masked_invalid(prob_r_theta1_theta2)
+
+            # Average out theta_2, with minimum space between theta_1 and theta_2 enforced
+            prob_r_theta1_delta = np.mean(prob_r_theta1_theta2, axis=1)
+
+            # Check out the effect on the standard deviations (assuming the obtained densities are gaussians)
+            std_theta1_n_delta = np.zeros((num_points, N))
+            std_theta1_n = np.zeros((num_points, N))
+            for i, theta_1 in enumerate(theta1_space):
+                for n in np.arange(N):
+                    std_theta1_n_delta[i, n] = fit_gaussian(bins_prob_est[:-1], prob_r_theta1_delta[i, n], should_plot=False, return_fitted_data=False)[1]
+                    std_theta1_n[i, n] = fit_gaussian(bins_prob_est[:-1], prob_r_theta1[i, n], should_plot=False, return_fitted_data=False)[1]
+
+
+            print np.mean(std_theta1_n)
+            print np.mean(std_theta1_n_delta)
+
+
+
+
+
+
+
         # # Estimate fisher info
         # print "Estimate fisher info"
 
@@ -1501,7 +1585,7 @@ if __name__ == '__main__':
 
 
     plt.show()
-    import sh
-    sh.say('Work complete')
+    # import sh
+    # sh.say('Work complete')
 
 
