@@ -1527,7 +1527,7 @@ if __name__ == '__main__':
             # min_distance = 1.5
 
             # Number of samples
-            num_samples = 20000
+            num_samples = 30000
             
             # num_points = 20
             # all_angles = np.linspace(-np.pi, np.pi, num_points, endpoint=False)
@@ -1557,7 +1557,7 @@ if __name__ == '__main__':
 
             
             # Compute p(r | theta_1), averaging over sampled theta_2 (already enforcing min_distance)
-            nb_bins_prob_est = 50
+            nb_bins_prob_est = 300
             bins_prob_est = np.linspace(1.05*np.min(dataset2), 1.05*np.max(dataset2), nb_bins_prob_est+1)
             dx = np.diff(bins_prob_est)[0]
 
@@ -1600,15 +1600,14 @@ if __name__ == '__main__':
             # plt.title('Mean Stddev, gaussian fit. Kappa %.2f min_distance: %.3f' % (kappa, min_distance))
 
             # Compute Fisher information from this new posterior
-            logprob_r_theta1_1obj = np.log(prob_r_theta1_1obj)
-            logprob_r_theta1_1obj[np.isinf(logprob_r_theta1_1obj)] = 0.0
-            logprob_r_theta1_1obj[np.isnan(logprob_r_theta1_1obj)] = 0.0
+            logprob_r_theta1_1obj = np.sum(np.log(prob_r_theta1_1obj), axis=1)
+            # logprob_r_theta1_1obj[np.isinf(logprob_r_theta1_1obj)] = 0.0
+            # logprob_r_theta1_1obj[np.isnan(logprob_r_theta1_1obj)] = 0.0
 
             # Take curvature at ML value
-            ml_indices = np.argmax(prob_r_theta1_1obj, axis=-1)
-            curv_logp = -np.gradient(np.gradient(np.squeeze(logprob_r_theta1_1obj))[-1])[-1]/dx**2.
-            fisher_info_curve = curv_logp.reshape((theta1_space.size*N, nb_bins_prob_est))
-            fisher_info_curve = fisher_info_curve[np.arange(theta1_space.size*N), ml_indices.flatten()].reshape(theta1_space.size, N)
+            ml_indices = np.argmax(logprob_r_theta1_1obj, axis=-1)
+            curv_logp = -np.gradient(np.gradient(np.squeeze(logprob_r_theta1_1obj)))/dx**2.
+            fisher_info_curve = curv_logp[ml_indices.flatten()]
 
             # Add all neurons together
             # fisher_info_curve = np.sum(fisher_info_curve, axis=-1)
@@ -1616,7 +1615,7 @@ if __name__ == '__main__':
 
             # Fisher info from gaussian fit
 
-
+            print fisher_info_curve
             print np.mean(1./fisher_info_curve)
 
 
