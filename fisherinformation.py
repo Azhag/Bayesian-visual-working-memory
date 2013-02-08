@@ -1356,10 +1356,10 @@ if __name__ == '__main__':
 
         #### Compute Theo Inverse Fisher Info
 
-        if False:
+        if True:
             ### Loop over min_distance and kappa
-            # min_distance_space = np.linspace(0.0, 1.0, 55.)
-            min_distance_space = np.array([min_distance])
+            min_distance_space = np.linspace(0.0, 1.5, 10)
+            # min_distance_space = np.array([min_distance])
             # min_distance_space = np.array([0.001])
             # kappa_space = np.linspace(0.05, 30., 40.)
             kappa_space = np.array([kappa])
@@ -1369,6 +1369,8 @@ if __name__ == '__main__':
             inv_FI_1_search = np.zeros((min_distance_space.size, kappa_space.size))
 
             search_progress = progress.Progress(min_distance_space.size*kappa_space.size)
+
+            print "Doing from marginal FI"
 
             for m, min_distance in enumerate(min_distance_space):
                 for k, kappa in enumerate(kappa_space):
@@ -1524,67 +1526,145 @@ if __name__ == '__main__':
             ## Redo sampling, by putting distance constraint into prior
             # Compute p(r | theta_1) = \int p(r | theta_1, theta_2) p(theta_2 | theta_1)
             
-            # min_distance = 1.5
+            # min_distance_space = np.array([0.0001])
+            min_distance_space = np.array([1.2])
+            # min_distance_space = np.linspace(0.0, 1.5, 10)
+            mean_fisher_info_curve_1obj_mindist = np.zeros(min_distance_space.size)
+            mean_fisher_info_curve_2obj_mindist = np.zeros(min_distance_space.size)
 
-            # Number of samples
-            num_samples = 30000
-            
-            # num_points = 20
-            # all_angles = np.linspace(-np.pi, np.pi, num_points, endpoint=False)
-            # theta1_space = all_angles
+            print "Estimating from marginal probabilities"
 
-            dataset1 = np.zeros((theta1_space.size, N, num_samples))
-            dataset2 = np.zeros((theta1_space.size, N, num_samples))
-            
-            for i in np.arange(theta1_space.size):
-                ## One object
-                dataset1[i] = population_code_response(theta1_space[i], pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude)[:, np.newaxis]
+            for mm, min_distance in enumerate(min_distance_space):
+                print "- min_dist %f" % min_distance
+
+                # Number of samples
+                num_samples = 8000
+                num_samples_test = 300
                 
-                dataset1[i] += sigma*np.random.randn(N, num_samples)
+                num_points = 101
+                all_angles = np.linspace(-np.pi, np.pi, num_points, endpoint=False)
+                theta1_space = all_angles
 
-                ## Two objects
-                for sample_i in np.arange(num_samples):
-                    # Sample new theta2
-                    theta2_rand = 2*np.random.rand()*np.pi - np.pi
+                dataset1 = np.zeros((theta1_space.size, N, num_samples))
+                dataset1_test = np.zeros((theta1_space.size, N, num_samples_test))
+                dataset2 = np.zeros((theta1_space.size, N, num_samples))
+                dataset2_test = np.zeros((theta1_space.size, N, num_samples_test))
+                theta2_used = np.zeros((theta1_space.size, num_samples))
+                
+                for i in progress.ProgressDisplay(np.arange(theta1_space.size), display=progress.SINGLE_LINE):
+                    ## One object
+                    dataset1[i] = population_code_response(theta1_space[i], pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude)[:, np.newaxis]
 
-                    while ~enforce_distance(theta1_space[i], theta2_rand, min_distance=min_distance):
-                        # enforce minimal distance
+                    dataset1[i] += sigma*np.random.randn(N, num_samples)
+
+                    ## Test dataset
+                    dataset1_test[i] = population_code_response(theta1_space[i], pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude)[:, np.newaxis] + sigma*np.random.randn(N, num_samples_test)
+                    
+                    ## Two objects
+                    for sample_i in np.arange(num_samples):
+                        # Sample new theta2
                         theta2_rand = 2*np.random.rand()*np.pi - np.pi
+                    
+                        while ~enforce_distance(theta1_space[i], theta2_rand, min_distance=min_distance):
+                            # enforce minimal distance
+                            theta2_rand = 2*np.random.rand()*np.pi - np.pi
+                        
+                        theta2_used[i, sample_i] = theta2_rand
+                        dataset2[i, :, sample_i] = (population_code_response(theta1_space[i], pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude) + population_code_response(theta2_rand, pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude))
 
-                    dataset2[i, :, sample_i] = (population_code_response(theta1_space[i], pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude) + population_code_response(theta2_rand, pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude))
 
-                dataset2[i] += sigma*np.random.randn(N, num_samples)
+                    dataset2_test[i] = dataset2[i, :, :num_samples_test]
+                    
+                    dataset2[i] += sigma*np.random.randn(N, num_samples)
+                    dataset2_test[i] += sigma*np.random.randn(N, num_samples_test)
 
-            
-            # Compute p(r | theta_1), averaging over sampled theta_2 (already enforcing min_distance)
-            nb_bins_prob_est = 300
-            bins_prob_est = np.linspace(1.05*np.min(dataset2), 1.05*np.max(dataset2), nb_bins_prob_est+1)
-            dx = np.diff(bins_prob_est)[0]
+                theta2_test_used = theta2_used[:, :num_samples_test]
+                
+                # Compute p(r | theta_1), averaging over sampled theta_2 (already enforcing min_distance)
+                nb_bins_prob_est = 75
+                bins_prob_est = np.linspace(1.05*np.min(dataset1), 1.05*np.max(dataset1), nb_bins_prob_est+1)
+                binsmid_prob_est = (bins_prob_est+np.diff(bins_prob_est)[0]/2.)[:-1]
 
-            prob_r_theta1 = np.zeros((theta1_space.size, N, nb_bins_prob_est))
-            mean_theta1_n = np.zeros((theta1_space.size, N))
-            std_theta1_n = np.zeros((theta1_space.size, N))
+                prob_r_theta1_2obj = np.zeros((theta1_space.size, N, nb_bins_prob_est))
+                mean_theta1_n = np.zeros((theta1_space.size, N))
+                std_theta1_n = np.zeros((theta1_space.size, N))
 
-            prob_r_theta1_1obj = np.zeros((theta1_space.size, N, nb_bins_prob_est))
-            mean_theta1_n_1obj = np.zeros((theta1_space.size, N))
-            std_theta1_n_1obj = np.zeros((theta1_space.size, N))
+                prob_r_theta1_1obj = np.zeros((theta1_space.size, N, nb_bins_prob_est))
+                mean_theta1_n_1obj = np.zeros((theta1_space.size, N))
+                std_theta1_n_1obj = np.zeros((theta1_space.size, N))
 
-            for i, theta_1 in enumerate(theta1_space):
-                for n in np.arange(N):
-                    # Get histogram estimate of p(r_i | theta_1, theta_2)
-                    prob_r_theta1[i, n] = np.histogram(dataset2[i, n], bins=bins_prob_est, density=True)[0]
+                for i in progress.ProgressDisplay(np.arange(theta1_space.size), display=progress.SINGLE_LINE):
+                    for n in np.arange(N):
+                        # Get histogram estimate of p(r_i | theta_1, theta_2)
+                        prob_r_theta1_2obj[i, n] = np.histogram(dataset2[i, n], bins=bins_prob_est, density=True)[0]
 
-                    # Compute mean and std
-                    stats = fit_gaussian((bins_prob_est+dx/2.)[:-1], prob_r_theta1[i, n], should_plot=False, return_fitted_data=False)
-                    mean_theta1_n[i, n] = stats[0]
-                    std_theta1_n[i, n] = stats[1]
+                        # # Compute mean and std
+                        stats = fit_gaussian(binsmid_prob_est, prob_r_theta1_2obj[i, n], should_plot=False, return_fitted_data=False)
+                        mean_theta1_n[i, n] = stats[0]
+                        std_theta1_n[i, n] = stats[1]
 
-                    # Do same for 1obj
-                    prob_r_theta1_1obj[i, n] = np.histogram(dataset1[i, n], bins=bins_prob_est, density=True)[0]
-                    stats = fit_gaussian((bins_prob_est+dx/2.)[:-1], prob_r_theta1_1obj[i, n], should_plot=False, return_fitted_data=False)
-                    mean_theta1_n_1obj[i, n] = stats[0]
-                    std_theta1_n_1obj[i, n] = stats[1]
+                        # Do same for 1obj
+                        prob_r_theta1_1obj[i, n] = np.histogram(dataset1[i, n], bins=bins_prob_est, density=True)[0]
+                        stats = fit_gaussian(binsmid_prob_est, prob_r_theta1_1obj[i, n], should_plot=False, return_fitted_data=False)
+                        mean_theta1_n_1obj[i, n] = stats[0]
+                        std_theta1_n_1obj[i, n] = stats[1]
 
+                # Compute data likelihood
+                loglikelihood_theta1_samples_1obj = np.zeros((theta1_space.size, num_samples_test, theta1_space.size))
+                loglikelihood_theta1_samples_2obj = np.zeros((theta1_space.size, num_samples_test, theta1_space.size))
+
+                for i in progress.ProgressDisplay(np.arange(theta1_space.size), display=progress.SINGLE_LINE):
+                    index_probs = np.argmin((binsmid_prob_est[:, np.newaxis, np.newaxis] - dataset1_test[i, :, :])**2, axis=0)
+                    for s in np.arange(num_samples_test):
+                        lik = np.log(prob_r_theta1_1obj[:, np.arange(N), index_probs[:, s]])
+                        lik[np.isinf(lik)] = 0.
+                        # lik = np.ma.masked_invalid(lik)
+
+                        # Now combine likelihood of all neurons
+                        loglikelihood_theta1_samples_1obj[i, s] = np.sum(lik, axis=-1)
+
+                    ## 2 objects
+                    index_probs_2 = np.argmin((binsmid_prob_est[:, np.newaxis, np.newaxis] - dataset2_test[i, :, :])**2, axis=0)
+                    for s in np.arange(num_samples_test):
+                        lik = np.log(prob_r_theta1_2obj[:, np.arange(N), index_probs_2[:, s]])
+                        lik[np.isinf(lik)] = 0.
+                        # lik = np.ma.masked_invalid(lik)
+
+                        # Now combine likelihood of all neurons
+                        loglikelihood_theta1_samples_2obj[i, s] = np.sum(lik, axis=-1)
+
+                # Now the fisher information, taken from the curvature of the likelihood
+                dx = np.diff(theta1_space)[0]
+                fisher_info_curve_1obj = np.zeros(theta1_space.size)
+                fisher_info_curve_2obj = np.zeros(theta1_space.size)
+                ml_indices_1obj = np.zeros(theta1_space.size)
+                ml_indices_2obj = np.zeros(theta1_space.size)
+
+                for i in np.arange(theta1_space.size):
+                    # BELOW: This is wrong, should not get average posterior, but one per sample
+                    likelihood_chosen_theta1_samples_1obj = np.mean(loglikelihood_theta1_samples_1obj[i], axis=0)
+                    ml_indices_1obj[i] = np.argmax(likelihood_chosen_theta1_samples_1obj)
+                    curv_logp = -np.gradient(np.gradient(likelihood_chosen_theta1_samples_1obj))/dx**2.
+                    fisher_info_curve_1obj[i] = curv_logp[ml_indices_1obj[i]]
+
+                    # Same for 2 objects
+                    likelihood_chosen_theta1_samples_2obj = np.mean(loglikelihood_theta1_samples_2obj[i], axis=0)
+                    ml_indices_2obj[i] = np.argmax(likelihood_chosen_theta1_samples_2obj)
+                    curv_logp = -np.gradient(np.gradient(likelihood_chosen_theta1_samples_2obj))/dx**2.
+                    fisher_info_curve_2obj[i] = curv_logp[ml_indices_2obj[i]]
+
+
+                mean_fisher_info_curve_1obj_mindist[mm] = np.mean(fisher_info_curve_1obj[3:-3])
+                mean_fisher_info_curve_2obj_mindist[mm] = np.mean(fisher_info_curve_2obj[3:-3])
+
+
+            theta1_to_plot = int(theta1_space.size/2)
+            theta2_test_used_sorted = np.argsort(theta2_test_used[theta1_to_plot])
+
+            ## First show how the loglikelihoods for all samples vary as a function of the position of theta2
+            loglikelihood_theta1_samples_2obj_sortedfiltered = loglikelihood_theta1_samples_2obj[theta1_to_plot, theta2_test_used_sorted]
+            pcolor_2d_data(loglikelihood_theta1_samples_2obj_sortedfiltered - np.mean(loglikelihood_theta1_samples_2obj_sortedfiltered, axis=1)[:, np.newaxis])
+            plt.plot(np.argmax(loglikelihood_theta1_samples_2obj_sortedfiltered, axis=1), 'bo', markersize=5)
 
             # plt.figure()
             # plt.plot(pref_angles, mean_theta1_n[10])
@@ -1600,14 +1680,14 @@ if __name__ == '__main__':
             # plt.title('Mean Stddev, gaussian fit. Kappa %.2f min_distance: %.3f' % (kappa, min_distance))
 
             # Compute Fisher information from this new posterior
-            logprob_r_theta1_1obj = np.sum(np.log(prob_r_theta1_1obj), axis=1)
+            # logprob_r_theta1_1obj = np.sum(np.log(prob_r_theta1_1obj), axis=1)
             # logprob_r_theta1_1obj[np.isinf(logprob_r_theta1_1obj)] = 0.0
             # logprob_r_theta1_1obj[np.isnan(logprob_r_theta1_1obj)] = 0.0
 
             # Take curvature at ML value
-            ml_indices = np.argmax(logprob_r_theta1_1obj, axis=-1)
-            curv_logp = -np.gradient(np.gradient(np.squeeze(logprob_r_theta1_1obj)))/dx**2.
-            fisher_info_curve = curv_logp[ml_indices.flatten()]
+            # ml_indices = np.argmax(logprob_r_theta1_1obj, axis=-1)
+            # curv_logp = -np.gradient(np.gradient(np.squeeze(logprob_r_theta1_1obj)))/dx**2.
+            # fisher_info_curve = curv_logp[ml_indices.flatten()]
 
             # Add all neurons together
             # fisher_info_curve = np.sum(fisher_info_curve, axis=-1)
@@ -1615,8 +1695,8 @@ if __name__ == '__main__':
 
             # Fisher info from gaussian fit
 
-            print fisher_info_curve
-            print np.mean(1./fisher_info_curve)
+            # print fisher_info_curve
+            # print np.mean(1./fisher_info_curve)
 
 
 
@@ -1683,7 +1763,7 @@ if __name__ == '__main__':
 
 
     plt.show()
-    # import sh
-    # sh.say('Work complete')
+    import sh
+    sh.say('Work complete')
 
 
