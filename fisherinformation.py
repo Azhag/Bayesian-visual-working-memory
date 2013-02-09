@@ -1262,13 +1262,21 @@ if __name__ == '__main__':
 
 
     if True:
+        ########
+        ###
+        ###
+        ### SEE COMPUTATIONS_MARGINALFISHERINFO_MARGINALPOSTERIOR_1D.PY
+        ###
+        ###
+        ######## 
+        
         #### 
         #   1D two stimuli
         ####
 
         N     = 100
-        kappa = 3.0
-        sigma = 0.3
+        kappa = 10.0
+        sigma = 0.1
         amplitude = 1.0
         min_distance = 0.001
 
@@ -1529,19 +1537,23 @@ if __name__ == '__main__':
             # min_distance_space = np.array([0.0001])
             min_distance_space = np.array([1.2])
             # min_distance_space = np.linspace(0.0, 1.5, 10)
+            
+            # Number of samples
+            num_samples = 10000
+            num_samples_test = 500
+                
+            num_points = 101
+
             mean_fisher_info_curve_1obj_mindist = np.zeros(min_distance_space.size)
+            mean_fisher_info_curve_1obj_old_mindist = np.zeros(min_distance_space.size)
             mean_fisher_info_curve_2obj_mindist = np.zeros(min_distance_space.size)
+            mean_fisher_info_curve_2obj_old_mindist = np.zeros(min_distance_space.size)
 
             print "Estimating from marginal probabilities"
 
             for mm, min_distance in enumerate(min_distance_space):
                 print "- min_dist %f" % min_distance
 
-                # Number of samples
-                num_samples = 8000
-                num_samples_test = 300
-                
-                num_points = 101
                 all_angles = np.linspace(-np.pi, np.pi, num_points, endpoint=False)
                 theta1_space = all_angles
 
@@ -1581,7 +1593,7 @@ if __name__ == '__main__':
                 theta2_test_used = theta2_used[:, :num_samples_test]
                 
                 # Compute p(r | theta_1), averaging over sampled theta_2 (already enforcing min_distance)
-                nb_bins_prob_est = 75
+                nb_bins_prob_est = 53
                 bins_prob_est = np.linspace(1.05*np.min(dataset1), 1.05*np.max(dataset1), nb_bins_prob_est+1)
                 binsmid_prob_est = (bins_prob_est+np.diff(bins_prob_est)[0]/2.)[:-1]
 
@@ -1599,22 +1611,22 @@ if __name__ == '__main__':
                         prob_r_theta1_2obj[i, n] = np.histogram(dataset2[i, n], bins=bins_prob_est, density=True)[0]
 
                         # # Compute mean and std
-                        stats = fit_gaussian(binsmid_prob_est, prob_r_theta1_2obj[i, n], should_plot=False, return_fitted_data=False)
-                        mean_theta1_n[i, n] = stats[0]
-                        std_theta1_n[i, n] = stats[1]
+                        # stats = fit_gaussian(binsmid_prob_est, prob_r_theta1_2obj[i, n], should_plot=False, return_fitted_data=False)
+                        # mean_theta1_n[i, n] = stats[0]
+                        # std_theta1_n[i, n] = stats[1]
 
                         # Do same for 1obj
                         prob_r_theta1_1obj[i, n] = np.histogram(dataset1[i, n], bins=bins_prob_est, density=True)[0]
-                        stats = fit_gaussian(binsmid_prob_est, prob_r_theta1_1obj[i, n], should_plot=False, return_fitted_data=False)
-                        mean_theta1_n_1obj[i, n] = stats[0]
-                        std_theta1_n_1obj[i, n] = stats[1]
+                        # stats = fit_gaussian(binsmid_prob_est, prob_r_theta1_1obj[i, n], should_plot=False, return_fitted_data=False)
+                        # mean_theta1_n_1obj[i, n] = stats[0]
+                        # std_theta1_n_1obj[i, n] = stats[1]
 
                 # Compute data likelihood
                 loglikelihood_theta1_samples_1obj = np.zeros((theta1_space.size, num_samples_test, theta1_space.size))
                 loglikelihood_theta1_samples_2obj = np.zeros((theta1_space.size, num_samples_test, theta1_space.size))
 
                 for i in progress.ProgressDisplay(np.arange(theta1_space.size), display=progress.SINGLE_LINE):
-                    index_probs = np.argmin((binsmid_prob_est[:, np.newaxis, np.newaxis] - dataset1_test[i, :, :])**2, axis=0)
+                    index_probs = np.argmin((bins_prob_est[:-1, np.newaxis, np.newaxis] - dataset1_test[i, :, :])**2, axis=0)
                     for s in np.arange(num_samples_test):
                         lik = np.log(prob_r_theta1_1obj[:, np.arange(N), index_probs[:, s]])
                         lik[np.isinf(lik)] = 0.
@@ -1624,7 +1636,7 @@ if __name__ == '__main__':
                         loglikelihood_theta1_samples_1obj[i, s] = np.sum(lik, axis=-1)
 
                     ## 2 objects
-                    index_probs_2 = np.argmin((binsmid_prob_est[:, np.newaxis, np.newaxis] - dataset2_test[i, :, :])**2, axis=0)
+                    index_probs_2 = np.argmin((bins_prob_est[:-1, np.newaxis, np.newaxis] - dataset2_test[i, :, :])**2, axis=0)
                     for s in np.arange(num_samples_test):
                         lik = np.log(prob_r_theta1_2obj[:, np.arange(N), index_probs_2[:, s]])
                         lik[np.isinf(lik)] = 0.
@@ -1635,68 +1647,54 @@ if __name__ == '__main__':
 
                 # Now the fisher information, taken from the curvature of the likelihood
                 dx = np.diff(theta1_space)[0]
-                fisher_info_curve_1obj = np.zeros(theta1_space.size)
-                fisher_info_curve_2obj = np.zeros(theta1_space.size)
-                ml_indices_1obj = np.zeros(theta1_space.size)
-                ml_indices_2obj = np.zeros(theta1_space.size)
+                fisher_info_curve_1obj = np.zeros((theta1_space.size, num_samples_test))
+                fisher_info_curve_1obj_old = np.zeros(theta1_space.size)
+                fisher_info_curve_2obj = np.zeros((theta1_space.size, num_samples_test))
+                fisher_info_curve_2obj_old = np.zeros(theta1_space.size)
+                ml_indices_1obj = np.zeros((theta1_space.size, num_samples_test))
+                ml_indices_1obj_old = np.zeros(theta1_space.size)
+                ml_indices_2obj = np.zeros((theta1_space.size, num_samples_test))
+                ml_indices_2obj_old = np.zeros(theta1_space.size)
 
                 for i in np.arange(theta1_space.size):
-                    # BELOW: This is wrong, should not get average posterior, but one per sample
+                    ml_indices_1obj[i] = np.argmax(loglikelihood_theta1_samples_1obj[i], axis=1)
+                    curv_logp2 = -np.gradient(np.gradient(loglikelihood_theta1_samples_1obj[i])[1])[1]/dx**2.
+                    fisher_info_curve_1obj[i] = curv_logp2[np.arange(num_samples_test), ml_indices_1obj[i].astype(int)]
+
+                    # 1obj save
                     likelihood_chosen_theta1_samples_1obj = np.mean(loglikelihood_theta1_samples_1obj[i], axis=0)
-                    ml_indices_1obj[i] = np.argmax(likelihood_chosen_theta1_samples_1obj)
+                    ml_indices_1obj_old[i] = np.argmax(likelihood_chosen_theta1_samples_1obj)
                     curv_logp = -np.gradient(np.gradient(likelihood_chosen_theta1_samples_1obj))/dx**2.
-                    fisher_info_curve_1obj[i] = curv_logp[ml_indices_1obj[i]]
+                    fisher_info_curve_1obj_old[i] = curv_logp[ml_indices_1obj_old[i]]
 
                     # Same for 2 objects
+                    ml_indices_2obj[i] = np.argmax(loglikelihood_theta1_samples_2obj[i], axis=1)
+                    curv_logp2 = -np.gradient(np.gradient(loglikelihood_theta1_samples_2obj[i])[1])[1]/dx**2.
+                    fisher_info_curve_2obj[i] = curv_logp2[np.arange(num_samples_test), ml_indices_2obj[i].astype(int)]
+
                     likelihood_chosen_theta1_samples_2obj = np.mean(loglikelihood_theta1_samples_2obj[i], axis=0)
-                    ml_indices_2obj[i] = np.argmax(likelihood_chosen_theta1_samples_2obj)
+                    ml_indices_2obj_old[i] = np.argmax(likelihood_chosen_theta1_samples_2obj)
                     curv_logp = -np.gradient(np.gradient(likelihood_chosen_theta1_samples_2obj))/dx**2.
-                    fisher_info_curve_2obj[i] = curv_logp[ml_indices_2obj[i]]
+                    fisher_info_curve_2obj_old[i] = curv_logp[ml_indices_2obj_old[i]]
 
 
-                mean_fisher_info_curve_1obj_mindist[mm] = np.mean(fisher_info_curve_1obj[3:-3])
-                mean_fisher_info_curve_2obj_mindist[mm] = np.mean(fisher_info_curve_2obj[3:-3])
+                mean_fisher_info_curve_1obj_old_mindist[mm] = np.mean(fisher_info_curve_1obj_old[3:-3])
+                mean_fisher_info_curve_2obj_old_mindist[mm] = np.mean(fisher_info_curve_2obj_old[3:-3])
 
 
             theta1_to_plot = int(theta1_space.size/2)
             theta2_test_used_sorted = np.argsort(theta2_test_used[theta1_to_plot])
+            diff_thetas = (theta2_test_used[theta1_to_plot, theta2_test_used_sorted] - theta1_space[theta1_to_plot])
 
             ## First show how the loglikelihoods for all samples vary as a function of the position of theta2
             loglikelihood_theta1_samples_2obj_sortedfiltered = loglikelihood_theta1_samples_2obj[theta1_to_plot, theta2_test_used_sorted]
-            pcolor_2d_data(loglikelihood_theta1_samples_2obj_sortedfiltered - np.mean(loglikelihood_theta1_samples_2obj_sortedfiltered, axis=1)[:, np.newaxis])
+            pcolor_2d_data(loglikelihood_theta1_samples_2obj_sortedfiltered - np.mean(loglikelihood_theta1_samples_2obj_sortedfiltered, axis=1)[:, np.newaxis], y=theta1_space, x=diff_thetas, xlabel='$\\theta_2-\\theta_1$', ylabel='$p(\\theta_1 | r)$', ticks_interpolate=10)
             plt.plot(np.argmax(loglikelihood_theta1_samples_2obj_sortedfiltered, axis=1), 'bo', markersize=5)
 
-            # plt.figure()
-            # plt.plot(pref_angles, mean_theta1_n[10])
-            # plt.plot(pref_angles, mean_theta1_n_1obj[10])
-            # plt.plot(pref_angles, population_code_response(theta1_space[10], pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude))
-            # plt.title('Kappa %.2f, min_distance: %.3f' % (kappa, min_distance))
-            # plt.xlim([-np.pi, np.pi])
-            # plt.legend(['2 objects', '1 obj', 'Population response'])
-
-            # plt.figure()
-            # plt.boxplot([std_theta1_n_1obj.flatten(), std_theta1_n.flatten()])
-            # plt.xticks([1, 2], ['Std 1 obj', 'Std 2 obj'])
-            # plt.title('Mean Stddev, gaussian fit. Kappa %.2f min_distance: %.3f' % (kappa, min_distance))
-
-            # Compute Fisher information from this new posterior
-            # logprob_r_theta1_1obj = np.sum(np.log(prob_r_theta1_1obj), axis=1)
-            # logprob_r_theta1_1obj[np.isinf(logprob_r_theta1_1obj)] = 0.0
-            # logprob_r_theta1_1obj[np.isnan(logprob_r_theta1_1obj)] = 0.0
-
-            # Take curvature at ML value
-            # ml_indices = np.argmax(logprob_r_theta1_1obj, axis=-1)
-            # curv_logp = -np.gradient(np.gradient(np.squeeze(logprob_r_theta1_1obj)))/dx**2.
-            # fisher_info_curve = curv_logp[ml_indices.flatten()]
-
-            # Add all neurons together
-            # fisher_info_curve = np.sum(fisher_info_curve, axis=-1)
-
-
-            # Fisher info from gaussian fit
-
-            # print fisher_info_curve
-            # print np.mean(1./fisher_info_curve)
+            # pcolor_2d_data(curv_logp[theta2_test_used_sorted])
+            # plot(ml_indices_2obj[theta1_to_plot, theta2_test_used_sorted], 'ro', markersize=5)
+            plt.figure()
+            plt.plot(diff_thetas, fisher_info_curve_2obj[theta1_to_plot, theta2_test_used_sorted])
 
 
 
