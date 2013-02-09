@@ -446,7 +446,7 @@ def histogram_angular_data(data, bins=20, in_degrees=False, title=None, norm=Non
     plt.xlim([x[0]*1.1, 1.1*x[-1]])
 
 
-def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorbar=True, ax_handle=None, label_format="%.2f", fignum=None, interpolation='nearest', log_scale=False):
+def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorbar=True, ax_handle=None, label_format="%.2f", fignum=None, interpolation='nearest', log_scale=False, ticks_interpolate=None):
     '''
         Plots a Pcolor-like 2d grid plot. Can give x and y arrays, which will provide ticks.
     '''
@@ -464,12 +464,24 @@ def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorba
     if not x is None:
         assert data.shape[0] == x.size, 'Wrong x dimension'
 
-        ax_handle.set_xticks(np.arange(x.size))
-        ax_handle.set_xticklabels([label_format % curr for curr in x], rotation=90)
+        if ticks_interpolate:
+            selected_ticks = np.array(np.linspace(0, x.size-1, ticks_interpolate), dtype=int)
+            ax_handle.set_xticks(selected_ticks)
+            ax_handle.set_xticklabels([label_format % x[tick_i] for tick_i in selected_ticks], rotation=90)
+        else:
+            ax_handle.set_xticks(np.arange(x.size))
+            ax_handle.set_xticklabels([label_format % curr for curr in x], rotation=90)
+
     if not y is None:
         assert data.shape[1] == y.size, 'Wrong y dimension'
-        ax_handle.set_yticks(np.arange(y.size))
-        ax_handle.set_yticklabels([label_format % curr for curr in y])
+
+        if ticks_interpolate:
+            selected_ticks = np.array(np.linspace(0, y.size-1, ticks_interpolate), dtype=int)
+            ax_handle.set_yticks(selected_ticks)
+            ax_handle.set_yticklabels([label_format % y[tick_i] for tick_i in selected_ticks])
+        else:
+            ax_handle.set_yticks(np.arange(y.size))
+            ax_handle.set_yticklabels([label_format % curr for curr in y])
     
     if xlabel:
         ax_handle.set_xlabel(xlabel)
@@ -484,6 +496,15 @@ def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorba
         ax_handle.set_title(title)
     
     ax_handle.axis('tight')
+
+    # Change mouse over behaviour
+    def report_pixel(x_mouse, y_mouse): 
+        # Extract loglik at that position
+        x_i = int(x_mouse)
+        y_i = int(y_mouse)
+        return "x=%.2f y=%.2f value=%.2f" % (x[x_i], y[y_i], data[x_i, y_i])
+    ax_handle.format_coord = report_pixel
+
 
     return ax_handle, im
 
