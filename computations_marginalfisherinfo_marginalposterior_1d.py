@@ -17,8 +17,8 @@ from utils import *
 # from datagenerator import *
 # from slicesampler import *
 # from gibbs_sampler_continuous_fullcollapsed_randomfactorialnetwork import *
+from dataio import *
 import progress
-import sh
 
 
 if __name__ == '__main__':
@@ -28,12 +28,13 @@ if __name__ == '__main__':
     ####
 
     N     = 100
-    kappa = 10.0
-    sigma = 0.1
+    kappa = 5.0
+    sigma = 0.5
     amplitude = 1.0
     min_distance = 0.001
 
-    
+    dataio = DataIO(label='compute_fimarg', calling_function='')
+
     def population_code_response(theta, pref_angles=None, N=100, kappa=0.1, amplitude=1.0):
         if pref_angles is None:
             pref_angles = np.linspace(0., 2*np.pi, N, endpoint=False)
@@ -60,8 +61,8 @@ if __name__ == '__main__':
 
     if True:
         ### Loop over min_distance and kappa
-        min_distance_space = np.linspace(0.0, 1.5, 10)
-        # min_distance_space = np.array([min_distance])
+        # min_distance_space = np.linspace(0.0, 1., 10)
+        min_distance_space = np.array([min_distance])
         # min_distance_space = np.array([0.001])
         # kappa_space = np.linspace(0.05, 30., 40.)
         kappa_space = np.array([kappa])
@@ -112,18 +113,23 @@ if __name__ == '__main__':
 
                 search_progress.increment()
 
+
+        print 1./inv_FI_search
+        print FI_search
+        print 1./inv_FI_1_search
+
         # Some plots
-        pcolor_2d_data(inv_FI_search, x=min_distance_space, y=kappa_space, log_scale=True)
+        # pcolor_2d_data(inv_FI_search, x=min_distance_space, y=kappa_space, log_scale=True)
 
-        plt.figure()
-        plt.semilogy(min_distance_space, inv_FI_search- inv_FI_1_search)
+        # plt.figure()
+        # plt.semilogy(min_distance_space, inv_FI_search- inv_FI_1_search)
 
-        plt.figure()
-        plt.semilogy(min_distance_space, inv_FI_search)
-        plt.semilogy(min_distance_space, inv_FI_1_search)
+        # plt.figure()
+        # plt.semilogy(min_distance_space, inv_FI_search)
+        # plt.semilogy(min_distance_space, inv_FI_1_search)
 
-        plt.figure()
-        plt.plot(min_distance_space, inv_FI_search)
+        # plt.figure()
+        # plt.plot(min_distance_space, inv_FI_search)
 
         plt.rcParams['font.size'] = 18
 
@@ -136,15 +142,15 @@ if __name__ == '__main__':
         ## Redo sampling, by putting distance constraint into prior
         # Compute p(r | theta_1) = \int p(r | theta_1, theta_2) p(theta_2 | theta_1)
         
-        # min_distance_space = np.array([0.0001])
-        min_distance_space = np.array([1.2])
-        # min_distance_space = np.linspace(0.0, 1.5, 10)
+        min_distance_space = np.array([0.0001])
+        # min_distance_space = np.array([0.5])
+        # min_distance_space = np.linspace(0.0, 1., 5)
         
         # Number of samples
-        num_samples = 10000
-        num_samples_test = 300
-            
-        num_points = 51
+        num_samples = 15000
+        num_samples_test = 500
+
+        num_points = 85
         all_angles = np.linspace(-np.pi, np.pi, num_points, endpoint=False)
         theta1_space = all_angles
 
@@ -154,18 +160,24 @@ if __name__ == '__main__':
         mean_fisher_info_curve_1obj_old_mindist = np.zeros(min_distance_space.size)
         mean_fisher_info_curve_2obj_mindist = np.zeros(min_distance_space.size)
         mean_fisher_info_curve_2obj_old_mindist = np.zeros(min_distance_space.size)
+        fisher_info_curve_1obj_mindist = np.zeros((min_distance_space.size, theta1_space.size, num_samples_test))
+        fisher_info_curve_2obj_mindist = np.zeros((min_distance_space.size, theta1_space.size, num_samples_test))
+        theta2_test_used_sorted_mindist = np.zeros((min_distance_space.size, num_samples_test))
+        diff_thetas_mindist = np.zeros((min_distance_space.size, num_samples_test))
+
+        dataset1 = np.zeros((theta1_space.size, N, num_samples))
+        dataset1_test = np.zeros((theta1_space.size, N, num_samples_test))
+        dataset2 = np.zeros((theta1_space.size, N, num_samples))
+        dataset2_test = np.zeros((theta1_space.size, N, num_samples_test))
+        theta2_used = np.zeros((theta1_space.size, num_samples))
 
         print "Estimating from marginal probabilities"
+        print "kappa: %.2f" % kappa
+        print "sigma: %.2f" % sigma
 
         for mm, min_distance in enumerate(min_distance_space):
             print "- min_dist %f" % min_distance
 
-            dataset1 = np.zeros((theta1_space.size, N, num_samples))
-            dataset1_test = np.zeros((theta1_space.size, N, num_samples_test))
-            dataset2 = np.zeros((theta1_space.size, N, num_samples))
-            dataset2_test = np.zeros((theta1_space.size, N, num_samples_test))
-            theta2_used = np.zeros((theta1_space.size, num_samples))
-            
             for i in progress.ProgressDisplay(np.arange(theta1_space.size), display=progress.SINGLE_LINE):
                 ## One object
                 dataset1[i] = population_code_response(theta1_space[i], pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude)[:, np.newaxis]
@@ -198,10 +210,11 @@ if __name__ == '__main__':
             theta2_test_used = theta2_used[:, :num_samples_test]
             theta2_test_used_sorted = np.argsort(theta2_test_used[theta1_to_plot])
             diff_thetas = (theta2_test_used[theta1_to_plot, theta2_test_used_sorted] - theta1_space[theta1_to_plot])
-
+            theta2_test_used_sorted_mindist[mm] = theta2_test_used_sorted
+            diff_thetas_mindist[mm] = diff_thetas
             
             # Compute p(r | theta_1), averaging over sampled theta_2 (already enforcing min_distance)
-            nb_bins_prob_est = 53
+            nb_bins_prob_est = 75
             bins_prob_est = np.linspace(1.05*np.min(dataset1), 1.05*np.max(dataset1), nb_bins_prob_est+1)
             binsmid_prob_est = (bins_prob_est+np.diff(bins_prob_est)[0]/2.)[:-1]
 
@@ -264,8 +277,8 @@ if __name__ == '__main__':
             ml_indices_2obj = np.zeros((theta1_space.size, num_samples_test))
             ml_indices_2obj_old = np.zeros(theta1_space.size)
 
-            # for i in np.arange(theta1_space.size):
-            for i in np.array([theta1_to_plot]):
+            for i in np.arange(theta1_space.size):
+            # for i in np.array([theta1_to_plot]):
                 ml_indices_1obj[i] = np.argmax(loglikelihood_theta1_samples_1obj[i], axis=1)
                 curv_logp2 = -np.gradient(np.gradient(loglikelihood_theta1_samples_1obj[i])[1])[1]/dx**2.
                 fisher_info_curve_1obj[i] = curv_logp2[np.arange(num_samples_test), ml_indices_1obj[i].astype(int)]
@@ -277,7 +290,8 @@ if __name__ == '__main__':
                 fisher_info_curve_1obj_old[i] = curv_logp[ml_indices_1obj_old[i]]
 
                 # Same for 2 objects
-                ml_indices_2obj[i] = np.argmax(loglikelihood_theta1_samples_2obj[i], axis=1)
+                # ml_indices_2obj[i] = np.argmax(loglikelihood_theta1_samples_2obj[i], axis=1)
+                ml_indices_2obj[i] = i
                 curv_logp2 = -np.gradient(np.gradient(loglikelihood_theta1_samples_2obj[i])[1])[1]/dx**2.
                 fisher_info_curve_2obj[i] = curv_logp2[np.arange(num_samples_test), ml_indices_2obj[i].astype(int)]
 
@@ -287,8 +301,14 @@ if __name__ == '__main__':
                 fisher_info_curve_2obj_old[i] = curv_logp[ml_indices_2obj_old[i]]
 
 
-            mean_fisher_info_curve_1obj_old_mindist[mm] = np.mean(fisher_info_curve_1obj_old[3:-3])
-            mean_fisher_info_curve_2obj_old_mindist[mm] = np.mean(fisher_info_curve_2obj_old[3:-3])
+            mean_fisher_info_curve_1obj_old_mindist[mm] = np.mean(fisher_info_curve_1obj_old[5:-5])
+            mean_fisher_info_curve_2obj_old_mindist[mm] = np.mean(fisher_info_curve_2obj_old[5:-5])
+            fisher_info_curve_1obj_mindist[mm] = fisher_info_curve_1obj
+            fisher_info_curve_2obj_mindist[mm] = fisher_info_curve_2obj
+
+
+        print np.mean(np.mean(fisher_info_curve_1obj_mindist[:, 10:-10], axis=-1), axis=-1)
+        print np.mean(np.mean(fisher_info_curve_2obj_mindist[:, 10:-10], axis=-1), axis=-1)
 
 
         ## First show how the loglikelihoods for all samples vary as a function of the position of theta2
@@ -296,11 +316,22 @@ if __name__ == '__main__':
         pcolor_2d_data(loglikelihood_theta1_samples_2obj_sortedfiltered - np.mean(loglikelihood_theta1_samples_2obj_sortedfiltered, axis=1)[:, np.newaxis], y=theta1_space, x=diff_thetas, xlabel='$\\theta_2-\\theta_1$', ylabel='$p(\\theta_1 | r)$', ticks_interpolate=10)
         plt.plot(np.argmax(loglikelihood_theta1_samples_2obj_sortedfiltered, axis=1), 'bo', markersize=5)
 
+        dataio.save_current_figure('loglik2d_kappa%.1fsigma%.1fmindist%.1f{label}_{unique_id}.pdf' % (kappa, sigma, min_distance))
+
+
         # pcolor_2d_data(curv_logp[theta2_test_used_sorted])
         # plot(ml_indices_2obj[theta1_to_plot, theta2_test_used_sorted], 'ro', markersize=5)
         plt.figure()
         plt.plot(diff_thetas, fisher_info_curve_2obj[theta1_to_plot, theta2_test_used_sorted])
 
+        dataio.save_current_figure('fi2objsorted_kappa%.1fsigma%.1fmindist%.1f{label}_{unique_id}.pdf' % (kappa, sigma, min_distance))
+
+        plt.figure()
+        plt.plot(theta1_space, loglikelihood_theta1_samples_2obj_sortedfiltered[(num_samples_test/2-20):(num_samples_test/2+20):2])
+        dataio.save_current_figure('posterior_2objsorted_kappa%.1fsigma%.1fmindist%.1f{label}_{unique_id}.pdf' % (kappa, sigma, min_distance))        
+
 
     plt.show()
-    sh.say('Work complete')
+
+    say_finished()
+
