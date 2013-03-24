@@ -21,7 +21,9 @@ from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator
 from matplotlib.colors import LogNorm
-
+import smtplib
+from email.mime.text import MIMEText
+import datetime
 
 __maxexp__ = np.finfo('float').maxexp
 
@@ -239,6 +241,43 @@ def nanstd(array, axis=None):
         return np.ma.masked_invalid(array).std(axis=axis)
     else:
         return np.ma.masked_invalid(array).std()
+
+
+def say_finished(text='Work complete', additional_comment='', email_failed=True):
+    '''
+        Uses the text-to-speech capabilities to indicate when
+         something is finished.
+
+        If say doesn't work, try to send an email instead.
+    '''
+    try:
+        import sh
+        sh.say(text)
+    except Exception:
+        if email_failed:
+            email_finished(text=additional_comment, subject=text)
+
+
+def email_finished(text='Work complete', to='loic.matthey@gatsby.ucl.ac.uk', subject='Work complete'):
+    '''
+        Sends an email to the given email address.
+    '''
+
+    sender = 'lmatthey+robot@gatsby.ucl.ac.uk'
+    receivers = [to]
+    
+    msg = MIMEText(text + "\n%s" % str(datetime.datetime.now()))
+    msg['Subject'] = subject
+    msg['From'] = sender
+    msg['To'] = to
+
+    s = smtplib.SMTP('localhost')
+    s.sendmail(sender, receivers, msg.as_string())         
+    s.quit()
+
+    print "Finished email sent"
+
+        
 
 ########################## FILE I/O #################################
 
@@ -502,7 +541,17 @@ def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorba
         # Extract loglik at that position
         x_i = int(x_mouse)
         y_i = int(y_mouse)
-        return "x=%.2f y=%.2f value=%.2f" % (x[x_i], y[y_i], data[x_i, y_i])
+        if x:
+            x_display = x[x_i]
+        else:
+            x_display = x_i
+        if y:
+            y_display = y[y_i]
+        else:
+            y_display = y_i
+
+        return "x=%.2f y=%.2f value=%.2f" % (x_display, y_display, data[x_i, y_i])
+
     ax_handle.format_coord = report_pixel
 
 
