@@ -55,12 +55,13 @@ def do_plots_networks():
     if True:
         # Plot mixed coverage for abstract
         M = 100
-        conj_params = dict(scale_moments=(15., 0.001), ratio_moments=(1.0, 0.2))
+        conj_params = dict(scale_moments=[15., 0.001], ratio_moments=[1.0, 0.2])
         feat_params = dict(scale=0.3, ratio=40., nb_feature_centers=1)
         ratio_conj  = 0.1
         MM = int(np.floor((M * ratio_conj) ** 0.5) ** 2.)
 
         rn = RandomFactorialNetwork.create_mixed(M, R=R, ratio_feature_conjunctive=ratio_conj, conjunctive_parameters=conj_params, feature_parameters=feat_params)
+
         ##
         # ax = rn.plot_coverage_feature_space(nb_stddev=0.7, alpha_ellipses=0.25)
         ##

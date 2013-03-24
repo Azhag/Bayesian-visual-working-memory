@@ -865,7 +865,7 @@ class RandomFactorialNetwork():
 
     ######################## PLOTS ######################################
 
-    def plot_coverage_feature_space(self, nb_stddev=1.0, specific_neurons=None, alpha_ellipses=0.5, facecolor='rand', ax=None, lim_factor=1.0):
+    def plot_coverage_feature_space(self, nb_stddev=1.0, specific_neurons=None, alpha_ellipses=0.5, facecolor='rand', ax=None, lim_factor=1.0, width_factor=1., height_factor=1.0):
         '''
             Show the features (R=2 only)
         '''
@@ -879,7 +879,7 @@ class RandomFactorialNetwork():
             ax = fig.add_subplot(111, aspect='equal')
         
 
-        ells = [Ellipse(xy=self.neurons_preferred_stimulus[m], width=nb_stddev*kappa_to_stddev(self.neurons_sigma[m, 0]), height=nb_stddev*kappa_to_stddev(self.neurons_sigma[m, 1]), angle=-np.degrees(self.neurons_angle[m])) for m in specific_neurons if ~self.mask_neurons_unset[m]]
+        ells = [Ellipse(xy=self.neurons_preferred_stimulus[m], width=width_factor*nb_stddev*kappa_to_stddev(self.neurons_sigma[m, 0]), height=height_factor*nb_stddev*kappa_to_stddev(self.neurons_sigma[m, 1]), angle=-np.degrees(self.neurons_angle[m])) for m in specific_neurons if ~self.mask_neurons_unset[m]]
         
         for e in ells:
             ax.add_artist(e)

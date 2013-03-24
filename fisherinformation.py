@@ -1364,7 +1364,7 @@ if __name__ == '__main__':
 
         #### Compute Theo Inverse Fisher Info
 
-        if True:
+        if False:
             ### Loop over min_distance and kappa
             min_distance_space = np.linspace(0.0, 1.5, 10)
             # min_distance_space = np.array([min_distance])
@@ -1438,7 +1438,7 @@ if __name__ == '__main__':
             # plt.ylabel('$\hat{I_F}^{-1} - {I_F^{(1)}}^{-1}$')
 
 
-        if False:
+        if True:
             ## Compute p(r | theta_1) = \int p(r | theta_1, theta_2) p(theta_2 | theta_1)
             # by sampling loads of p(r | theta_1, theta_2) and integrating out theta_2 manually
             # p(theta_2 | theta_1) is uniform if abs(theta_2) > abs(theta_1) + delta
@@ -1530,7 +1530,7 @@ if __name__ == '__main__':
             plt.plot(mean_theta1_n_delta[10])
             plt.plot(population_code_response(theta1_space[10], pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude))
 
-        if True:
+        if False:
             ## Redo sampling, by putting distance constraint into prior
             # Compute p(r | theta_1) = \int p(r | theta_1, theta_2) p(theta_2 | theta_1)
             
