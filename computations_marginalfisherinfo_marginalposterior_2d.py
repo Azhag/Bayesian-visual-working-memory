@@ -85,10 +85,12 @@ if __name__ == '__main__':
         item2_theta1_space = all_angles_1D
         item2_theta2_space = all_angles_1D
 
+        deriv_mu = np.zeros((4, N))
+
         FI_2d_1obj_search = np.zeros((item1_theta1_space.size, item1_theta2_space.size, 2, 2))
         inv_FI_2d_1obj_search = np.zeros((item1_theta1_space.size, item1_theta2_space.size, 2, 2))
-        FI_2d_search = np.zeros((item1_theta1_space.size, item1_theta2_space.size, item2_theta1_space.size, item2_theta2_space.size, 3, 3))
-        inv_FI_2d_search = np.zeros((item1_theta1_space.size, item1_theta2_space.size, item2_theta1_space.size, item2_theta2_space.size, 3, 3))
+        FI_2d_search = np.zeros((item1_theta1_space.size, item1_theta2_space.size, item2_theta1_space.size, item2_theta2_space.size, 4, 4))
+        inv_FI_2d_search = np.zeros((item1_theta1_space.size, item1_theta2_space.size, item2_theta1_space.size, item2_theta2_space.size, 4, 4))
 
         search_progress = progress.Progress(item1_theta1_space.size*item1_theta2_space.size*item2_theta1_space.size*item2_theta2_space.size)
 
@@ -97,8 +99,8 @@ if __name__ == '__main__':
         for i, item1_theta1 in enumerate(item1_theta1_space):
             for j, item1_theta2 in enumerate(item1_theta2_space):
 
-                der_theta1 = -kappa*np.sin(pref_angles[:, 0] - item1_theta1)*population_code_response_2D(item1_theta1, item1_theta2, pref_angles, N=N, kappa=kappa, amplitude=amplitude)
-                der_psi1 = -kappa*np.sin(pref_angles[:, 1] - item1_theta2)*population_code_response_2D(item1_theta1, item1_theta2, pref_angles, N=N, kappa=kappa, amplitude=amplitude)
+                deriv_mu[0] = -kappa*np.sin(pref_angles[:, 0] - item1_theta1)*population_code_response_2D(item1_theta1, item1_theta2, pref_angles, N=N, kappa=kappa, amplitude=amplitude)
+                deriv_mu[1] = -kappa*np.sin(pref_angles[:, 1] - item1_theta2)*population_code_response_2D(item1_theta1, item1_theta2, pref_angles, N=N, kappa=kappa, amplitude=amplitude)
 
 
                 for k, item2_theta1 in enumerate(item2_theta1_space):
@@ -110,20 +112,27 @@ if __name__ == '__main__':
                         if (enforce_distance(item1_theta1, item2_theta1, min_distance=min_distance) and enforce_distance(item1_theta2, item2_theta2, min_distance=min_distance)):
                             # Only compute if items are sufficiently different
                         
-                            der_theta2 = -kappa*np.sin(pref_angles[:, 0] - item2_theta1)*population_code_response_2D(item2_theta1, item2_theta2, pref_angles, N=N, kappa=kappa, amplitude=amplitude)
-                            der_psi2 = -kappa*np.sin(pref_angles[:, 1] - item2_theta2)*population_code_response_2D(item2_theta1, item2_theta2, pref_angles, N=N, kappa=kappa, amplitude=amplitude)
+                            deriv_mu[2] = -kappa*np.sin(pref_angles[:, 0] - item2_theta1)*population_code_response_2D(item2_theta1, item2_theta2, pref_angles, N=N, kappa=kappa, amplitude=amplitude)
+                            deriv_mu[3] = -kappa*np.sin(pref_angles[:, 1] - item2_theta2)*population_code_response_2D(item2_theta1, item2_theta2, pref_angles, N=N, kappa=kappa, amplitude=amplitude)
                             
                             # FI, 2 items, 2 features per item
-                            FI_2d_search[i, j, k, l, 0, 0] = np.sum(der_theta1**2.)/(2.*sigma**2.)
-                            FI_2d_search[i, j, k, l, 0, 1] = np.sum(der_theta1*der_theta2)/(2.*sigma**2.)
-                            FI_2d_search[i, j, k, l, 0, 2] = np.sum(der_theta1*der_psi2)/(2.*sigma**2.)
-                            FI_2d_search[i, j, k, l, 1, 1] = np.sum(der_theta2*der_theta2)/(2.*sigma**2.)
-                            FI_2d_search[i, j, k, l, 1, 2] = np.sum(der_theta2*der_psi2)/(2.*sigma**2.)
-                            FI_2d_search[i, j, k, l, 2, 2] = np.sum(der_psi2*der_psi2)/(2.*sigma**2.)
+                            for ii in np.arange(4):
+                                for jj in np.arange(4):
+                                    FI_2d_search[i, j, k, l, ii, jj] = np.sum(deriv_mu[ii]*deriv_mu[jj])/(sigma**2.)
 
-                            FI_2d_search[i, j, k, l, 1, 0] = FI_2d_search[i, j, k, l, 0, 1]
-                            FI_2d_search[i, j, k, l, 2, 0] = FI_2d_search[i, j, k, l, 0, 2]
-                            FI_2d_search[i, j, k, l, 2, 1] = FI_2d_search[i, j, k, l, 1, 2]
+                            # FI_2d_search[i, j, k, l, 0, 0] = np.sum(der_0*der_0)/(2.*sigma**2.)
+                            # FI_2d_search[i, j, k, l, 0, 1] = np.sum(der_0*der_1)/(2.*sigma**2.)
+                            # FI_2d_search[i, j, k, l, 0, 2] = np.sum(der_0*der_2)/(2.*sigma**2.)
+                            # FI_2d_search[i, j, k, l, 0, 3] = np.sum(der_0*der_3)/(2.*sigma**2.)
+                            # FI_2d_search[i, j, k, l, 1, 1] = np.sum(der_1*der_1)/(2.*sigma**2.)
+                            # FI_2d_search[i, j, k, l, 1, 2] = np.sum(der_1*der_2)/(2.*sigma**2.)
+                            # FI_2d_search[i, j, k, l, 1, 3] = np.sum(der_1*der_3)/(2.*sigma**2.)
+                            # FI_2d_search[i, j, k, l, 2, 2] = np.sum(der_2*der_2)/(2.*sigma**2.)
+                            # FI_2d_search[i, j, k, l, 2, 3] = np.sum(der_2*der_3)/(2.*sigma**2.)
+                            # FI_2d_search[i, j, k, l, 3, 3] = np.sum(der_3*der_3)/(2.*sigma**2.)
+
+                            # Complete matrix
+                            # triu_2_tril(FI_2d_search[i, j, k, l])
 
                             inv_FI_2d_search[i, j, k, l] = np.linalg.inv(FI_2d_search[i, j, k, l])
                             
@@ -131,9 +140,9 @@ if __name__ == '__main__':
 
 
                 # FI for 1 object
-                FI_2d_1obj_search[i, j, 0, 0] = np.sum(der_theta1**2.)/sigma**2.
-                FI_2d_1obj_search[i, j, 0, 1] = np.sum(der_theta1*der_psi1)/sigma**2.
-                FI_2d_1obj_search[i, j, 1, 1] = np.sum(der_psi1**2.)/sigma**2.
+                FI_2d_1obj_search[i, j, 0, 0] = np.sum(deriv_mu[0]**2.)/sigma**2.
+                FI_2d_1obj_search[i, j, 0, 1] = np.sum(deriv_mu[0]*deriv_mu[1])/sigma**2.
+                FI_2d_1obj_search[i, j, 1, 1] = np.sum(deriv_mu[1]**2.)/sigma**2.
                 FI_2d_1obj_search[i, j, 1, 0] = FI_2d_1obj_search[i, j, 0, 1]
 
                 inv_FI_2d_1obj_search[i, j] = np.linalg.inv(FI_2d_1obj_search[i, j])

@@ -26,11 +26,11 @@ if __name__ == '__main__':
     #   1D two stimuli
     ####
 
-    N     = 100
-    kappa = 5.0
-    sigma = 0.3
+    N     = 50
+    kappa = 3.0
+    sigma = 0.5
     amplitude = 1.0
-    min_distance = 0.001
+    min_distance = 0.0001
 
     dataio = DataIO(label='compute_fimarg', calling_function='')
     additional_comment = ''
@@ -59,12 +59,15 @@ if __name__ == '__main__':
 
     #### Compute Theo Inverse Fisher Info
 
-    if True:
+    if False:
         ### Loop over min_distance and kappa
-        # min_distance_space = np.linspace(0.0, 1.5, 10)
+        # min_distance_space = np.linspace(0.0001, np.pi, 20, endpoint=False)
+        # min_distance_space = np.logspace(-5., 0.99, 20, base=np.pi)
         min_distance_space = np.array([min_distance])
         # min_distance_space = np.array([0.001])
-        # kappa_space = np.linspace(0.05, 30., 40.)
+        
+        kappa_space = np.linspace(0.0005, 30., 25)
+        # kappa_space = np.logspace(-2, 2.0, 25, base=30.)
         # kappa_space = np.array([kappa])
 
         sigma_space = np.array([sigma])
@@ -72,26 +75,30 @@ if __name__ == '__main__':
         # sigma_space = np.linspace(0.1, 1.0, 11)
 
         dim1_size = min_distance_space.size
-        dim2_size = sigma_space.size
+        # dim2_size = sigma_space.size
+        dim2_size = kappa_space.size
 
         inv_FI_search = np.zeros((dim1_size, dim2_size))
         FI_search = np.zeros((dim1_size, dim2_size))
+        FI_search_inv = np.zeros((dim1_size, dim2_size))
         inv_FI_1_search = np.zeros((dim1_size, dim2_size))
+        inv_FI_search_full = np.zeros((dim1_size, dim2_size, theta1_space.size, theta2_space.size))
 
         search_progress = progress.Progress(dim1_size*dim2_size)
 
         print "Doing from marginal FI"
 
         for m, min_distance in enumerate(min_distance_space):
-            # for k, kappa in enumerate(kappa_space):
-            for k, sigma in enumerate(sigma_space):
+            for k, kappa in enumerate(kappa_space):
+            # for k, sigma in enumerate(sigma_space):
 
                 if search_progress.percentage() % 5.0 < 0.0001:
                     print "%.2f%%, %s left - %s" % (search_progress.percentage(), search_progress.time_remaining_str(), search_progress.eta_str())
 
-                inv_FI_all = np.zeros((theta1_space.size, theta2_space.size))
-                FI_all = np.zeros((theta1_space.size, theta2_space.size))
-                inv_FI_1 = np.zeros(theta1_space.size)
+                inv_FI_all = np.ones((theta1_space.size, theta2_space.size))*np.nan
+                FI_all = np.ones((theta1_space.size, theta2_space.size, 2, 2))*np.nan
+                inv_FI_1 = np.ones(theta1_space.size)*np.nan
+                FI_all_inv = np.ones((theta1_space.size, theta2_space.size, 2, 2))*np.nan
 
                 # Check inverse FI for given min_distance and kappa
                 for i, theta1 in enumerate(theta1_space):
@@ -105,29 +112,51 @@ if __name__ == '__main__':
                             der_2 = kappa*np.sin(pref_angles - theta2)*population_code_response(theta2, pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude)
                             
                             # FI for 2 objects
-                            FI_all[i, j] = np.sum(der_1**2.)/sigma**2.
+                            FI_all[i, j, 0, 0] = np.sum(der_1**2.)/(2.*sigma**2.)
+                            FI_all[i, j, 0, 1] = np.sum(der_1*der_2)/(2.*sigma**2.)
+                            FI_all[i, j, 1, 0] = np.sum(der_1*der_2)/(2.*sigma**2.)
+                            FI_all[i, j, 1, 1] = np.sum(der_2**2.)/(2.*sigma**2.)
+                            FI_all_inv[i, j] = np.linalg.inv(FI_all[i, j])
 
                             # Inv FI for 2 objects
-                            inv_FI_all[i, j] = sigma**2./(np.sum(der_1**2.) - np.sum(der_1*der_2)**2./np.sum(der_2**2.))
+                            inv_FI_all[i, j] = (2.*sigma**2.)/(np.sum(der_1**2.) - np.sum(der_1*der_2)**2./np.sum(der_2**2.))
+
+                    inv_FI_search_full[m, k, i] = inv_FI_all[i]
 
                     # FI for 1 object
                     inv_FI_1[i] = sigma**2./np.sum(der_1**2.)
 
                 # inv_FI_search[m, k] = np.mean(inv_FI_all)
-                inv_FI_search[m, k] = np.mean(np.ma.masked_equal(inv_FI_all, 0))
-                FI_search[m, k] = np.mean(np.ma.masked_equal(FI_all, 0))
+                inv_FI_search[m, k] = np.mean(np.ma.masked_invalid(inv_FI_all))
+                FI_search[m, k] = np.mean(np.ma.masked_invalid(FI_all[..., 0, 0]))
+                FI_search_inv[m, k] = np.mean(np.ma.masked_invalid(FI_all_inv[..., 0, 0]))
 
                 inv_FI_1_search[m, k] = np.mean(inv_FI_1)
 
                 search_progress.increment()
 
 
-        print 1./inv_FI_search
-        print FI_search
-        print 1./inv_FI_1_search
+        print "FI_2obj_invtheo: ", inv_FI_search
+        print "inv(FI_2obj_theo): ", FI_search_inv
+        print "FI_2obj_theo[0,0]^-1 (wrong): ", 1./FI_search
+        print "FI_1obj_theoinv: ", inv_FI_1_search
+        print "2 obj effects: ", inv_FI_search/inv_FI_1_search
+
+        # Bar plot
+        plt.figure()
+        kappa_target = 3.0
+        index_kappa_target = np.argmin(np.abs(kappa_space - kappa_target))
+        plt.plot(min_distance_space, inv_FI_search[:, index_kappa_target], min_distance_space, inv_FI_1_search[:, index_kappa_target])
 
         # Some plots
-        # pcolor_2d_data(inv_FI_search, x=min_distance_space, y=kappa_space, log_scale=True)
+        pcolor_2d_data(inv_FI_search/inv_FI_1_search, x=min_distance_space, y=kappa_space, log_scale=True)
+
+        plt.figure()
+        plt.plot(inv_FI_all[0])
+
+        pcolor_2d_data(inv_FI_search_full[0, 1:, 0, :], log_scale=True)
+
+        pcolor_2d_data((inv_FI_search_full[0, :, 0, :]/np.nansum(inv_FI_search_full[0, :, 0, :], axis=-1)[:, np.newaxis])[1:], log_scale=True)
 
         # plt.figure()
         # plt.semilogy(min_distance_space, inv_FI_search- inv_FI_1_search)
@@ -146,7 +175,7 @@ if __name__ == '__main__':
         # plt.xlabel('Minimum distance')
         # plt.ylabel('$\hat{I_F}^{-1} - {I_F^{(1)}}^{-1}$')
 
-    if False:
+    if True:
         ## Redo sampling, by putting distance constraint into prior
         # Compute p(r | theta_1) = \int p(r | theta_1, theta_2) p(theta_2 | theta_1)
         
@@ -155,7 +184,7 @@ if __name__ == '__main__':
         # min_distance_space = np.linspace(0.0, 1.5, 3)
         
         # Number of samples
-        num_samples = 30000
+        num_samples = 10000
         num_samples_test = 1000
 
         num_points = 85
@@ -370,6 +399,13 @@ if __name__ == '__main__':
         plt.plot(theta1_space, loglikelihood_theta1_samples_2obj_sortedfiltered[(num_samples_test/2-20):(num_samples_test/2+20):2].T)
         dataio.save_current_figure('posterior_2objsorted_kappa%.1fsigma%.1fmindist%.1f{label}_{unique_id}.pdf' % (kappa, sigma, min_distance))        
 
+    def avg_mindist(x, data, min_dist=0.1):
+        mask_tooclose = np.abs(x) <= min_dist
+
+        data_masked = np.ma.masked_where(mask_tooclose, data)
+
+        return np.mean(data_masked)
+    
 
     plt.show()
 

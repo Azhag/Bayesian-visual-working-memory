@@ -188,6 +188,10 @@ def list_2_tuple(arg):
     return a
 
 def cross(*args):
+    '''
+        Compute the cross product between multiple arrays
+        Quite intensive, be careful...
+    '''
     ans = [[]]
     for arg in args:
         if isinstance(arg[0], list) or isinstance(arg[0], tuple):
@@ -241,6 +245,41 @@ def nanstd(array, axis=None):
         return np.ma.masked_invalid(array).std(axis=axis)
     else:
         return np.ma.masked_invalid(array).std()
+
+def tril_set(array, vector_input, check_sizes=False):
+    '''
+        Sets the lower triangular part of array with vector_input
+
+        Hope all sizes work...
+    '''
+
+    if check_sizes:
+        num_elements = np.sum(np.fromfunction(lambda i,j: i>j, array.shape))
+        assert vector_input.size == num_elements, "Wrong number of inputs, need %d" % num_elements
+
+    array[np.fromfunction(lambda i,j: i>j, array.shape)] = vector_input
+
+
+def triu_set(array, vector_input, check_sizes=False):
+    '''
+        Sets the upper triangular part of array with vector_input
+
+        Hope all sizes work...
+    '''
+
+    if check_sizes:
+        num_elements = np.sum(np.fromfunction(lambda i,j: i<j, array.shape))
+        assert vector_input.size == num_elements, "Wrong number of inputs, need %d" % num_elements
+
+    array[np.fromfunction(lambda i,j: i<j, array.shape)] = vector_input
+
+    
+def triu_2_tril(array):
+    '''
+        Copy the upper triangular part of an array into its lower triangular part
+    '''
+    
+    array[np.fromfunction(lambda i,j: i>j, array.shape)] = array[np.fromfunction(lambda i,j: i<j, array.shape)]
 
 
 def say_finished(text='Work complete', additional_comment='', email_failed=True):
@@ -488,6 +527,13 @@ def histogram_angular_data(data, bins=20, in_degrees=False, title=None, norm=Non
 def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorbar=True, ax_handle=None, label_format="%.2f", fignum=None, interpolation='nearest', log_scale=False, ticks_interpolate=None):
     '''
         Plots a Pcolor-like 2d grid plot. Can give x and y arrays, which will provide ticks.
+
+        Options:
+         x                  array for x values
+         y                  array for y values
+         {x,y}_label        labels for axes
+         log_scale          True for log scale of axis
+         ticks_interpolate  If set, number of ticks to use instead of the x/y values directly
     '''
 
     if ax_handle is None:

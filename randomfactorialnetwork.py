@@ -9,11 +9,15 @@ Copyright (c) 2011 Gatsby Unit. All rights reserved.
 
 import pylab as plt
 import numpy as np
+import scipy as sp
 from matplotlib.patches import Ellipse
 # from mpl_toolkits.mplot3d import Axes3D
 # from matplotlib import cm
 # from matplotlib.ticker import LinearLocator
 import scipy.special as scsp
+from scipy.spatial.distance import pdist
+
+import progress
 
 from utils import *
 from statisticsmeasurer import *
@@ -570,14 +574,10 @@ class RandomFactorialNetwork():
         if ignore_cache or self.network_response_statistics is None:
             # Should compute it
             
-            # Get the theta spaces
-            feature_space1 = np.linspace(-np.pi, np.pi, precision, endpoint=False)
-
             # Sample responses to measure the statistics on
-            responses = np.zeros((feature_space1.size**2, self.M))
-            for theta1_i in xrange(feature_space1.size):
-                for theta2_i in xrange(feature_space1.size):
-                    responses[theta1_i*feature_space1.size + theta2_i] = self.get_network_response((feature_space1[theta1_i], feature_space1[theta2_i]), params=params)
+            responses = self.collect_network_responses(precision=precision, params=params)
+
+            responses.shape = (precision**2., self.M)
 
             # Compute the mean and covariance
             computed_mean = np.mean(responses, axis=0)
@@ -588,8 +588,71 @@ class RandomFactorialNetwork():
 
         # Return the cached values
         return self.network_response_statistics
-        
     
+
+    def collect_network_responses(self, precision = 20, params = {}):
+        '''
+            Sample network responses (population code outputs) over the entire space, to be used for empirical estimates
+        '''
+
+        feature_space1 = np.linspace(-np.pi, np.pi, precision, endpoint=False)
+
+        responses = np.zeros((feature_space1.size, feature_space1.size, self.M))
+        for theta1_i in progress.ProgressDisplay(xrange(feature_space1.size), display=progress.SINGLE_LINE):
+            for theta2_i in xrange(feature_space1.size):
+                responses[theta1_i, theta2_i] = self.get_network_response((feature_space1[theta1_i], feature_space1[theta2_i]), params=params)
+
+        return responses
+
+
+    def compute_network_response_statistics_theoretical(self, marginalise_both_feature=False, theta2=0.0):
+        '''
+            Uses the theoretical expressions for the mean and covariance of the population code
+
+            Either marginalise over 2 features, or only one with the other kept constant.
+        '''
+
+        if marginalise_both_feature:
+            return self.compute_network_response_statistics_theoretical_marginalise_both()
+        else:
+            return self.compute_network_response_statistics_theoretical_marginalise_theta2(theta2=theta2)
+
+
+    def compute_network_response_statistics_theoretical_marginalise_both(self):
+        '''
+            Uses the theoretical expressions for the mean and covariance of the population code
+
+            Marginalize over the two features
+        '''
+
+        raise NotImplementedError()
+
+
+    def compute_network_response_statistics_theoretical_marginalise_theta2(self, theta2=0.0):
+        '''
+            Uses the theoretical expressions for the mean and covariance of the population code
+
+            Marginalize over theta1, keeping theta2 constant
+        '''
+        kappa1, kappa2 = self.rc_scale
+
+        # Marginalize over theta1, keeping theta2 fixed
+        mean_theoretical = np.exp(kappa2*np.cos(self.neurons_preferred_stimulus[:, 1] - theta2))/(4.*np.pi**2.*scsp.i0(kappa2))
+
+        phij_minus_phii_2 = (self.neurons_preferred_stimulus[:, 0][:, np.newaxis] - self.neurons_preferred_stimulus[:, 0])/2.
+        psij_minus_psii_2 = (self.neurons_preferred_stimulus[:, 1][:, np.newaxis] - self.neurons_preferred_stimulus[:, 1])/2.
+        cov_theoretical = (scsp.i0(2*kappa1*np.cos(phij_minus_phii_2)) - scsp.i0(kappa1)**2.)/(16.*np.pi**4.*scsp.i0(kappa1)**2.*scsp.i0(kappa2)**2.) * np.exp(2.*kappa2*np.cos(theta2 - psij_minus_psii_2)*np.cos(psij_minus_psii_2))
+
+        # cov_theoretical = np.zeros((self.M, self.M))
+        # for i in xrange(self.M):
+        #     for j in xrange(self.M):
+        #         cov_theoretical[i, j] = (scsp.i0(2*kappa1*np.cos((self.neurons_preferred_stimulus[i, 0]-self.neurons_preferred_stimulus[j, 0])/2.)) - scsp.i0(kappa1)**2.)/(16.*np.pi**4.*scsp.i0(kappa1)**2.*scsp.i0(kappa2)**2.)*np.exp(2.*kappa2*np.cos(theta2 - (self.neurons_preferred_stimulus[i, 1] - self.neurons_preferred_stimulus[j, 1])/2.)*np.cos((self.neurons_preferred_stimulus[j, 1] - self.neurons_preferred_stimulus[i, 1])/2.))
+
+        network_response_statistics = {'mean': mean_theoretical, 'cov': cov_theoretical}
+
+        return network_response_statistics
+
+
     ########################################################################################################################
 
 
@@ -627,7 +690,27 @@ class RandomFactorialNetwork():
         
         return net_samples
 
+
+    def get_derivative_network_response(self, derivative_feature_target = 0, stimulus_input=None, kappa1=None, kappa2=None):
+        '''
+            Compute and return the derivative of the network response.
+        '''
+
+        if stimulus_input is None:
+            stimulus_input = (0., 0.)
+
+        if kappa1 is None:
+            kappa1 = self.rc_scale[0]
+        if kappa2 is None:
+            kappa2 = self.rc_scale[1]
+
+        der_f_0 = np.sin(stimulus_input[derivative_feature_target] - self.neurons_preferred_stimulus[:, derivative_feature_target])*np.exp(kappa1*np.cos(stimulus_input[0] - self.neurons_preferred_stimulus[:, 0]) + kappa2*np.cos(stimulus_input[1] - self.neurons_preferred_stimulus[:, 1]))
+
+        der_f_0[self.mask_neurons_unset] = 0.0
+
+        return der_f_0
     
+
     def compute_covariance_stimulus(self, stimulus_input, N=2000, sigma=0.2, params={}):
         '''
             Compute the covariance for a given stimulus.
@@ -694,9 +777,7 @@ class RandomFactorialNetwork():
             kappa1 = self.rc_scale[0]
             kappa2 = self.rc_scale[1]
 
-            der_f_0 = np.sin(stimulus_input[0] - self.neurons_preferred_stimulus[:, 0])*np.exp(kappa1*np.cos(stimulus_input[0] - self.neurons_preferred_stimulus[:, 0]) + kappa2*np.cos(stimulus_input[1] - self.neurons_preferred_stimulus[:, 1]))
-
-            der_f_0[self.mask_neurons_unset] = 0.0
+            der_f_0 = self.get_derivative_network_response(stimulus_input=stimulus_input)
 
             return (kappa1**2./(16.*np.pi**4.*scsp.i0(kappa1)**2.*scsp.i0(kappa2)**2.))*np.dot(der_f_0, np.linalg.solve(cov_stim, der_f_0))
 
@@ -1270,7 +1351,7 @@ if __name__ == '__main__':
     
     
     # Pure conjunctive code
-    if True:
+    if False:
 
         rn = RandomFactorialNetwork.create_full_conjunctive(M, R=R, rcscale=100)
 
@@ -1469,21 +1550,24 @@ if __name__ == '__main__':
 
         plt.show()
 
-    if False:
+    if True:
         print 'Compute KL approx of mixture by Gausian'
 
         alpha = 1.0
-        N_sqrt = 20.
+        N_sqrt = 30.
         N = int(N_sqrt**2.)
         T = 1
         sigma_x = 0.2
         sigma_y = 0.001
         beta = 1.0
+        rc_scale = 5.0
 
         time_weights_parameters = dict(weighting_alpha=alpha, weighting_beta = beta, specific_weighting = 0.1, weight_prior='uniform')
-        rn = RandomFactorialNetwork.create_full_conjunctive(N, R=2, scale_moments=(5.0, 0.01), ratio_moments=(1.0, 0.01), response_type='bivariate_fisher')
+        rn = RandomFactorialNetwork.create_full_conjunctive(N, R=2, scale_moments=(rc_scale, 0.01), ratio_moments=(1.0, 0.01), response_type='bivariate_fisher')
         data_gen_noise = DataGeneratorRFN(15000, T, rn, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=T-1, enforce_min_distance=0.0)
         stat_meas = StatisticsMeasurer(data_gen_noise)
+
+        assert False
 
         measured_cov = stat_meas.model_parameters['covariances'][-1][-1]
         computed_cov = rn.compute_covariance_KL(sigma_2=(beta**2.0*sigma_x**2. + sigma_y**2.), T=T, beta=beta, precision=50)
@@ -1594,6 +1678,70 @@ if __name__ == '__main__':
         # Adjust the spacing between subplots for readability 
         plt.subplots_adjust(hspace=0.32)
         plt.show()
+
+
+        # Check if measured covariance is Toeplitz
+        # A_{i,j} == A_{i+1, j+1} (constant along all diagonals)
+        toeplitz_std_all = np.zeros(2*N-1)
+        toeplitz_pdist_all = np.zeros(2*N-1)
+        for i, diag_i in enumerate(np.arange(-N+2, N-1)):
+            toeplitz_std_all[i] = np.std(np.diag(measured_cov, diag_i))
+            toeplitz_pdist_all[i] = np.mean(pdist(np.diag(measured_cov, diag_i)[:, np.newaxis]))
+
+        print "Toeplitz: std: %f, dist: %f" % (np.mean(toeplitz_std_all), np.mean(toeplitz_pdist_all))
+
+        # Check if measured covariance is circulant
+        # A_{1, n} = A_{2, 1}
+        # roll everything back, should get a row constant matrix
+        measured_cov_rollback = np.zeros((N, N))
+        for roll_amount in xrange(N):
+            measured_cov_rollback[roll_amount] = np.roll(measured_cov[roll_amount], -roll_amount)
+
+        circulant_dist = np.sum(np.diff(measured_cov_rollback, axis=0)**2.)
+
+        print "Circulant: MSE %f" % circulant_dist
+        
+        plt.plot(np.mean(np.abs(np.fft.fft(measured_cov)), axis=0))
+
+        c_tilde = np.fft.fft(computed_cov[0])
+        freqs = np.fft.fftfreq(N)
+        mu_tilde = np.fft.fft(rn.get_derivative_network_response())
+
+        w, v = np.linalg.eig(computed_cov)
+
+        # Theoretical eigendecomposition of circulant matrix
+        c_tilde_ordered = np.sort((c_tilde))[::-1]
+        F = np.exp(-1j*2.0*np.pi/N)**np.outer(np.arange(N, dtype=float), np.arange(N, dtype=float))
+        
+        # Construct true circulant
+        c = computed_cov[0]
+        circ_c = sp.linalg.circulant(c)
+        circ_c_tilde = np.fft.fft(c)
+        circ_c_tilde_bis = np.dot(F, c)
+        circ_c_reconst = np.abs((np.dot(F.conj(), np.dot(np.diag(circ_c_tilde_bis), F))/N))
+
+        # ISSUE: weird mirroring, plus diagonal off by 1. USE conj() and not .T ...
+        cov_reconst_theo = np.abs((np.dot(F, np.dot(np.diag(c_tilde), F.conj()))/N))
+
+        IF_original = np.dot(rn.get_derivative_network_response(), np.linalg.solve(computed_cov, rn.get_derivative_network_response()))
+        IF_eigendec = np.abs(np.dot(rn.get_derivative_network_response(), np.dot(v, np.dot(np.diag(w**-1), np.dot(v.T, rn.get_derivative_network_response())))))
+        IF_fourier_bis = np.abs(np.dot(mu_tilde.conj(), c_tilde**-1*mu_tilde))
+        IF_fourier = np.abs(np.dot(rn.get_derivative_network_response(), np.fft.ifft(c_tilde**-1*mu_tilde)))
+
+        IF_fourier_theo = np.abs(np.dot(mu_tilde.conj(), np.dot(np.diag(c_tilde**-1), mu_tilde)))/N
+
+        # ## Verifying math for 2 feature cases. Here the mean of the Gaussian approx.
+        # def mu_theta2(theta2, preferred_angles, kappa=3.0):
+        #     return np.exp(kappa*np.cos(preferred_angles - theta2))/(4.*np.pi**2.*scsp.i0(kappa))
+
+        # responses = np.array([rn.get_network_response(stimulus_input=(x, 0.0)) for x in np.linspace(-np.pi, np.pi, 1000.)])
+
+        # plt.figure()
+        # plt.plot(np.mean(responses, axis=0))
+        # plt.plot(mu_theta2(0.0, rn.neurons_preferred_stimulus[:, 1], kappa=rc_scale))
+
+        # plt.legend(['Empirical mean', 'Theoretical'])
+        # plt.title('Comparison between empirical and theoretical conditional mean E[mu(theta1, theta2)]_{theta1} | theta2')
 
     if False:
         print 'Check evolution of diagonal elements of measured covariance matrix'
