@@ -428,6 +428,28 @@ if __name__ == '__main__':
         plt.xlabel('1/sqrt(n)')
         plt.ylabel('Std dev')
         plt.title('Std Dev goes as 1/sqrt(n)')
+
+    if True:
+        # Test the new hiearchical random network
+        alpha = 1.0
+        M = 100
+        T = 5
+        sigma_x = 0.05
+        sigma_y = 0.001
+        rc_scale = 5.0
+        num_samples = 3000
+
+        time_weights_parameters = dict(weighting_alpha=alpha, weighting_beta = 1.0, weight_prior='uniform')
+        hrn = HierarchialRandomNetwork(M, sparsity_weights=0.1)
+        
+        data_gen_noise = DataGeneratorRFN(num_samples, T, hrn, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=T-1, enforce_min_distance=0.0)
+        # data_gen_noise = DataGeneratorRFN(num_samples, T, rn, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=T-1, enforce_min_distance=0.0, stimuli_generation='random_smallrange')
+        # data_gen_noise = DataGeneratorRFN(num_samples, T, rn, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=T-1, enforce_min_distance=0.0, stimuli_generation=lambda T:np.linspace(-np.pi*0.8, np.pi*0.8, T))
+        stat_meas = StatisticsMeasurer(data_gen_noise)
+        measured_cov = stat_meas.model_parameters['covariances'][-1][-1]
+
+
+
     
     plt.show()
 

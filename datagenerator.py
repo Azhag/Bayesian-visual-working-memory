@@ -337,36 +337,43 @@ class DataGeneratorRFN(DataGenerator):
                 self.stimuli_correct:   N x T x R    
         '''
 
-        if stimuli_generation == 'random':
-            angle_generator = lambda: (np.random.rand(self.T)-0.5)*2.*np.pi
-        elif stimuli_generation == 'constant':
-            angle_generator = lambda: 1.2*np.ones(self.T)
-        elif stimuli_generation == 'random_smallrange':
-            angle_generator = lambda: (np.random.rand(self.T)-0.5)*np.pi/2.
-        elif stimuli_generation == 'constant_separated':
-            angle_generator = lambda: 1.2*np.ones(self.T)
+        random_generation = False
+
+        if is_function(stimuli_generation):
+            angle_generator = stimuli_generation
         else:
-            raise ValueError('Unknown stimulus generation technique')
+            if stimuli_generation == 'random':
+                angle_generator = lambda T: (np.random.rand(T)-0.5)*2.*np.pi
+                random_generation = True
+            elif stimuli_generation == 'constant':
+                angle_generator = lambda T: 1.2*np.ones(T)
+            elif stimuli_generation == 'random_smallrange':
+                angle_generator = lambda: (np.random.rand(T)-0.5)*np.pi/2.
+                # angle_generator = lambda T: (np.random.rand(T)-0.5)*np.pi
+                random_generation = True
+            elif stimuli_generation == 'constant_separated':
+                angle_generator = lambda T: 1.2*np.ones(T)
+            else:
+                raise ValueError('Unknown stimulus generation technique')
 
         self.enforce_min_distance = enforce_min_distance
         
         # This gives all the true stimuli
-        self.stimuli_correct = np.zeros((self.N, self.T, self.R), dtype='float')
+        self.stimuli_correct = np.zeros((self.N, self.T, self.R), dtype=float)
 
         ## Get stimuli with a minimum enforced distance. 
         # Sample stimuli uniformly
         # Enforce differences on all dimensions (P. Bays: 10° for orientations).
-        for n in np.arange(self.N):
-            for r in np.arange(self.R):
-                self.stimuli_correct[n, :, r] = angle_generator()
-                # self.stimuli_correct[n, :, r] = (np.random.rand(self.T)-0.5)*np.pi
+        for n in xrange(self.N):
+            for r in xrange(self.R):
+                self.stimuli_correct[n, :, r] = angle_generator(self.T)
 
                 # Enforce minimal distance between different times
-                if (stimuli_generation.find('random') >= 0) and enforce_min_distance > 0.:
+                if random_generation and enforce_min_distance > 0.:
                     tries = 0
                     while np.any(pdist(self.stimuli_correct[n, :, r][:, np.newaxis], 'chebyshev') < self.enforce_min_distance) and tries < 1000:
                         # Some are too close, resample
-                        self.stimuli_correct[n, :, r] = angle_generator()
+                        self.stimuli_correct[n, :, r] = angle_generator(self.T)
                         # self.stimuli_correct[n, :, r] = (np.random.rand(self.T)-0.5)*np.pi
                         tries += 1
         
