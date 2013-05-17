@@ -454,6 +454,8 @@ class DataGeneratorRFN(DataGenerator):
         elif display_type == 'mixed':
             # TODO mixed population datapoint method.
             raise NotImplementedError('show_datapoint for mixed network, not done.')
+        elif display_type == 'hierarchical':
+            self.show_datapoint_hierarchical(n=n)
     
 
     def show_datapoint_conjunctive(self, n=0):
@@ -576,6 +578,61 @@ class DataGeneratorRFN(DataGenerator):
         # Put a vertical line at the true answer
         best_neuron_i = np.argmin(np.sum((self.random_network.neurons_preferred_stimulus - self.stimuli_correct[n, t])**2., axis=1))
         plt.axvline(x=best_neuron_i, color='r', linewidth=3)
+
+
+    def show_datapoint_hierarchical(self, n=0):
+        '''
+            Show a datapoint from a hiearchical random network
+
+            Shows the activity of the first level on the different objects, and on top the activity of the second random level
+        '''
+
+        # Collect first level activities for the current datapoint
+        level_one_activities = np.empty((self.T, self.random_network.M_layer_one))
+        level_two_activities = np.empty((self.T, self.random_network.M))
+        for t in xrange(self.T):
+            level_two_activities[t] = self.random_network.get_network_response(self.stimuli_correct[n, t])
+            level_one_activities[t] = self.random_network.current_layer_one_response
+
+        # Now construct the plot. Use gridspec
+        plt.figure()
+        ax_leveltwo_global = plt.subplot2grid((3, self.T), (0, 0), colspan=self.T)
+        axes_levelone = []
+        axes_leveltwo = []
+        for t in xrange(self.T):
+            axes_leveltwo.append(plt.subplot2grid((3, self.T), (1, t)))
+            axes_levelone.append(plt.subplot2grid((3, self.T), (2, t)))
+
+        # Plot the level two activation, use a bar, easier to read
+        ax_leveltwo_global.bar(np.arange(self.random_network.M), self.Y[n])
+
+        # Plot the activation of the level one subnetwork (and of the individual responses at level two)
+        M_sqrt = int(self.random_network.M_layer_one**0.5)
+        for t in xrange(self.T):
+            # Level two, on individual items
+            axes_leveltwo[t].bar(np.arange(self.random_network.M), level_two_activities[t])
+
+            # Level one
+            im = axes_levelone[t].imshow(level_one_activities[t].reshape(M_sqrt, M_sqrt).T, origin='lower', aspect='equal', interpolation='nearest')
+            im.set_extent((-np.pi, np.pi, -np.pi, np.pi))
+            axes_levelone[t].set_xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
+            axes_levelone[t].set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'))
+            axes_levelone[t].set_yticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
+            axes_levelone[t].set_yticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'))
+
+            e = Ellipse(xy=self.stimuli_correct[n, t], width=0.4, height=0.4)
+            
+            axes_levelone[t].add_artist(e)
+            e.set_clip_box(axes_levelone[t].bbox)
+            e.set_alpha(0.5)
+            e.set_facecolor('white')
+            e.set_transform(axes_levelone[t].transData)
+
+        plt.show()
+
+
+
+
       
 
 

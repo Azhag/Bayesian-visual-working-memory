@@ -11,6 +11,7 @@ Copyright (c) 2012 . All rights reserved.
 import matplotlib.pyplot as plt
 
 from datagenerator import *
+from hierarchicalrandomnetwork import *
 from randomfactorialnetwork import *
 from statisticsmeasurer import *
 from slicesampler import *
@@ -20,53 +21,52 @@ from gibbs_sampler_continuous_fullcollapsed_randomfactorialnetwork import *
 
 
 def launcher_do_simple_run(args):
+    ''' 
+        Basic use-case when playing around with the components.
+
+        Instantiate a simple network and sampler
+
+            inference_method:
+                - sample
+                - max_lik
+    '''
     
     print "Simple run"
     
-    N = args.N
-    T = args.T
-    # K = args.K
-    M = args.M
-    R = args.R
-    weighting_alpha = args.alpha
-    code_type = args.code_type
-    rc_scale = args.rc_scale
-    rc_scale2 = args.rc_scale2
-    ratio_conj = args.ratio_conj
-    sigma_x = args.sigmax
-    sigma_y = args.sigmay
-    feat_ratio = args.feat_ratio
-
 
     # Build the random network
     # sigma_y = 0.02
     # sigma_y = 0.2
     # sigma_x = 0.1
-    time_weights_parameters = dict(weighting_alpha=weighting_alpha, weighting_beta=1.0, specific_weighting=0.1, weight_prior='uniform')
-    cued_feature_time = T-1
+    time_weights_parameters = dict(weighting_alpha=args.alpha, weighting_beta=1.0, specific_weighting=0.1, weight_prior='uniform')
+    cued_feature_time = args.T-1
+
 
     # 'conj', 'feat', 'mixed'
-    if code_type == 'conj':
-        random_network = RandomFactorialNetwork.create_full_conjunctive(M, R=R, scale_moments=[rc_scale, 0.0001], ratio_moments=(1.0, 0.0001))
-    elif code_type == 'feat':
-        random_network = RandomFactorialNetwork.create_full_features(M, R=R, scale=rc_scale, ratio=feat_ratio)
-    elif code_type == 'mixed':
-        conj_params = dict(scale_moments=[rc_scale, 0.0001], ratio_moments=[1.0, 0.0001])
-        feat_params = dict(scale=rc_scale2, ratio=feat_ratio)
+    if args.code_type == 'conj':
 
-        random_network = RandomFactorialNetwork.create_mixed(M, R=R, ratio_feature_conjunctive=ratio_conj, conjunctive_parameters=conj_params, feature_parameters=feat_params)
-    elif code_type == 'wavelet':
-        random_network = RandomFactorialNetwork.create_wavelet(M, R=R, scales_number=5)
+        random_network = RandomFactorialNetwork.create_full_conjunctive(args.M, R=args.R, rcscale=args.rc_scale, rcscale_autoset=args.rcscale_auto)
+    elif args.code_type == 'feat':
+        random_network = RandomFactorialNetwork.create_full_features(args.M, R=args.R, scale=args.rc_scale, ratio=args.feat_ratio)
+    elif args.code_type == 'mixed':
+        conj_params = dict(scale_moments=[args.rc_scale, 0.0001], ratio_moments=[1.0, 0.0001])
+        feat_params = dict(scale=args.rc_scale2, ratio=args.feat_ratio)
+        random_network = RandomFactorialNetwork.create_mixed(args.M, R=args.R, ratio_feature_conjunctive=args.ratio_conj, conjunctive_parameters=conj_params, feature_parameters=feat_params)
+    elif args.code_type == 'wavelet':
+        random_network = RandomFactorialNetwork.create_wavelet(args.M, R=args.R, scales_number=5)
+    elif args.code_type == 'hierarchical':
+        random_network = HierarchialRandomNetwork(args.M, sigma_weights=0.5, sparsity_weights=0.5, M_layer_one=args.M_layer_one, rcscale_layer_one='optimal')
+        # random_network = HierarchialRandomNetwork(args.M, sigma_weights=2.0, sparsity_weights=1.0, normalise_weights=True, type_layer_one='feature', rcscale_layer_one=0.1, ratio_layer_one=200., M_layer_one=args.M_layer_one)
     else:
         raise ValueError('Code_type is wrong!')
     
     # Construct the real dataset
     print "Building the database"
-    data_gen = DataGeneratorRFN(N, T, random_network, sigma_y=sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation=args.stimuli_generation)
+    data_gen = DataGeneratorRFN(args.N, args.T, random_network, sigma_y=args.sigmay, sigma_x=args.sigmax, time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation=args.stimuli_generation)
     
     # Measure the noise structure
     print "Measuring noise structure"
-    data_gen_noise = DataGeneratorRFN(3000, T, random_network, sigma_y=sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation=args.stimuli_generation)
+    data_gen_noise = DataGeneratorRFN(3000, args.T, random_network, sigma_y=args.sigmay, sigma_x=args.sigmax, time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation=args.stimuli_generation)
     stat_meas = StatisticsMeasurer(data_gen_noise)
     # stat_meas = StatisticsMeasurer(data_gen)
     

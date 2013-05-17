@@ -350,7 +350,16 @@ def email_finished(text='Work complete', to='loic.matthey@gatsby.ucl.ac.uk', sub
 
     print "Finished email sent"
 
-        
+
+def is_function(arg):
+    '''
+        Checks if the argument looks like a function
+
+        It looks like a function if it can be called.
+    '''
+
+    return hasattr(arg, '__call__')
+
 
 ########################## FILE I/O #################################
 
@@ -550,6 +559,8 @@ def histogram_angular_data(data, bins=20, in_degrees=False, title=None, norm=Non
         bar_heights = bar_heights/np.max(bar_heights).astype('float')
     elif norm == 'sum':
         bar_heights = bar_heights/np.sum(bar_heights.astype('float'))
+    elif norm == 'density':
+        bar_heights, _ = np.histogram(data, bins=x_edges, density=True)
     
     plt.figure(fignum)
     plt.bar(x, bar_heights, alpha=0.75, width=2.*bound_x/(bins-1), align='center')
@@ -619,21 +630,26 @@ def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorba
     # Change mouse over behaviour
     def report_pixel(x_mouse, y_mouse): 
         # Extract loglik at that position
-        x_i = int(x_mouse)
-        y_i = int(y_mouse)
-        if x:
-            x_display = x[x_i]
-        else:
-            x_display = x_i
-        if y:
-            y_display = y[y_i]
-        else:
-            y_display = y_i
 
-        return "x=%.2f y=%.2f value=%.2f" % (x_display, y_display, data[x_i, y_i])
+        try:
+            x_i = int(x_mouse)
+            y_i = int(y_mouse)
+            
+            if x is not None:
+                x_display = x[x_i]
+            else:
+                x_display = x_i
+            
+            if y is not None:
+                y_display = y[y_i]
+            else:
+                y_display = y_i
 
+            return "x=%.2f y=%.2f value=%.2f" % (x_display, y_display, data[x_i, y_i])
+        except:
+            return ""
+    
     ax_handle.format_coord = report_pixel
-
 
     return ax_handle, im
 
@@ -1056,14 +1072,103 @@ def fit_line(xdata, ydata, title='', should_plot=True, fignum=None):
     return p
 
 
+def fit_gamma_samples(samples, num_points=500, bound=np.pi, fix_location=False, return_fitted_data=True, should_plot=True, normalise=True, debug=True):
+    '''
+        Fit a Gamma distribution on the samples, optionaly plotting the fit
+    '''
+
+    if fix_location:
+        fit_alpha, fit_loc, fit_beta = spst.gamma.fit(samples, floc=1e-18)
+    else:
+        fit_alpha, fit_loc, fit_beta = spst.gamma.fit(samples)
+
+    # x = np.linspace(samples.min()*1.5, samples.max()*1.5, 1000)
+    x = np.linspace(-bound, bound, num_points)
+    dx = 2.*bound/(num_points-1.)
+
+    fitted_data = spst.gamma.pdf(x, fit_alpha, fit_loc, fit_beta)
+
+    if debug:
+        print "Alpha: %.3f, Location: %.3f, Beta: %.3f" % (fit_alpha, fit_loc, fit_beta)
+
+    if should_plot:
+        if normalise:
+            histogram_angular_data(samples, norm='max', bins=num_points)
+            plt.plot(x, fitted_data/np.max(fitted_data), 'r')
+        else:
+            histogram_angular_data(samples, bins=num_points)
+            plt.plot(x, fitted_data, 'r')
+
+        plt.show()
+
+    if return_fitted_data:
+        return dict(parameters=np.array([fit_alpha, fit_loc, fit_beta]), fitted_data=fitted_data)
+    else:
+        return np.array([fit_alpha, fit_loc, fit_beta])
 
 
+def fit_beta_samples(samples, num_points=500, bound=np.pi, fix_location=False, return_fitted_data=True, should_plot=True, normalise=True, debug=True):
+    '''
+        Fit a Beta distribution on the samples, optionaly plotting the fit
+    '''
 
-    
+    fit_a, fit_b, fit_loc, fit_shape = spst.beta.fit(samples)
+
+    # x = np.linspace(samples.min()*1.5, samples.max()*1.5, 1000)
+    x = np.linspace(-bound, bound, num_points)
+    dx = 2.*bound/(num_points-1.)
+
+    fitted_data = spst.beta.pdf(x, fit_a, fit_b, fit_loc, fit_shape)
+
+    if debug:
+        print "A: %.3f, B: %.3f" % (fit_a, fit_b)
+
+    if should_plot:
+        if normalise:
+            histogram_angular_data(samples, norm='max', bins=num_points)
+            plt.plot(x, fitted_data/np.max(fitted_data), 'r')
+        else:
+            histogram_angular_data(samples, bins=num_points)
+            plt.plot(x, fitted_data, 'r')
+
+        plt.show()
+
+    if return_fitted_data:
+        return dict(parameters=np.array([fit_a, fit_b]), fitted_data=fitted_data)
+    else:
+        return np.array([fit_a, fit_b])
 
 
-        
+def fit_vonmises_samples(samples, num_points=500, return_fitted_data=True, should_plot=True, normalise=True, debug=True):
+    '''
+        Fit a Von Mises distribution on samples, optionaly plotting the fit.
+    '''
 
+    fit_kappa, fit_mu, fit_scale = spst.vonmises.fit(samples, fscale=1.0)
+
+    # x = np.linspace(samples.min()*1.5, samples.max()*1.5, 1000)
+    x = np.linspace(-np.pi, np.pi, num_points)
+    # dx = 2.*np.pi/(num_points-1.)
+
+    fitted_data = spst.vonmises.pdf(x, fit_kappa, loc=fit_mu, scale=fit_scale)
+
+    if debug:
+        print "mu: %.3f, kappa: %.3f" % (fit_mu, fit_kappa)
+
+    if should_plot:
+        if normalise:
+            histogram_angular_data(samples, norm='density', bins=num_points)
+            plt.plot(x, fitted_data, 'r')
+        else:
+            histogram_angular_data(samples, bins=num_points)
+            plt.plot(x, fitted_data, 'r')
+
+        plt.show()
+
+    if return_fitted_data:
+        return dict(parameters=np.array([fit_mu, fit_kappa]), fitted_data=fitted_data, support=x)
+    else:
+        return np.array([fit_mu, fit_kappa])
 
 
 
