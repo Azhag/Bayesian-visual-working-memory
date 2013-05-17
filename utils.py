@@ -73,7 +73,41 @@ def kappa_to_stddev(kappa):
         std = 1 - I_1(kappa)/I_0(kappa)
     '''
     # return 1.0 - scsp.i1(kappa)/scsp.i0(kappa)
-    return np.sqrt(-2.*np.log(scsp.i1(kappa)/scsp.i0(kappa)))
+    return np.sqrt(-2.*np.log(scsp.i1e(kappa)/scsp.i0e(kappa)))
+
+def stddev_to_kappa(stddev):
+    '''
+        Converts stddev to kappa
+
+        No closed-form, does a line optimisation
+    '''
+
+    errfunc = lambda kappa, stddev: (np.exp(-0.5*stddev**2.) - scsp.i1e(kappa)/scsp.i0e(kappa))**2.
+    kappa_init = 1.0
+    kappa_opt = spopt.fmin(errfunc, kappa_init, args=(stddev, ), disp=False)
+
+    return kappa_opt[0]
+
+
+def test_stability_stddevtokappa(target_kappa=2.):
+    '''
+        Small test, shows how stable the inverse relationship between stddev and kappa is
+    '''
+
+    nb_iterations = 1000
+    kappa_evolution = np.empty(nb_iterations)
+    for i in xrange(nb_iterations):
+        if i == 0:
+            kappa_evolution[i] = stddev_to_kappa(kappa_to_stddev(target_kappa))
+        else:
+            kappa_evolution[i] = stddev_to_kappa(kappa_to_stddev(kappa_evolution[i-1]))
+
+
+    print kappa_evolution[-1]
+    
+    plt.figure()
+    plt.plot(kappa_evolution)
+    plt.show()
 
 
 ############################ SPHERICAL/3D COORDINATES ##################################
