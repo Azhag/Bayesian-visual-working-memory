@@ -1,4 +1,4 @@
-    #!/usr/bin/env python
+#!/usr/bin/env python
 # encoding: utf-8
 """
 computations_marginalfisherinfo_marginalposterior_2d_nstim.py

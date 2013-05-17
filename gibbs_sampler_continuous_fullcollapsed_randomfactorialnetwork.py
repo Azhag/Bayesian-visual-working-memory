@@ -736,7 +736,7 @@ class Sampler:
             correct_angles = self.data_gen.stimuli_correct[n]
             
             colmap = plt.get_cmap('gist_rainbow')
-            color_gen = [colmap(1.*(i)/self.T) for i in range(self.T)]  # use 22 colors
+            color_gen = [colmap(1.*(i)/self.T) for i in xrange(self.T)]  # use 22 colors
 
             for t in np.arange(self.T):
                 w = plt_patches.Wedge((correct_angles[t, 0], correct_angles[t, 1]), 0.25, 0, 360, 0.03, color=color_gen[t], alpha=0.7)

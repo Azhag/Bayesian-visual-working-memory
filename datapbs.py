@@ -327,7 +327,7 @@ class DataPBS:
                             completed_repeats_array.append(fullarray_shape[-1])
                     else:
                         # Something is wrong with the result shapes... Just put as much as possible.
-                        smallest_sizes = tuple([slice(None, min(results_shape[i], dataset[output_variable_desired].shape[i])) for i in range(len(results_shape))])
+                        smallest_sizes = tuple([slice(None, min(results_shape[i], dataset[output_variable_desired].shape[i])) for i in xrange(len(results_shape))])
                         results_array[curr_dataposition+smallest_sizes] = dataset[output_variable_desired][smallest_sizes]
                 else:
                     # Duplicate entry
