@@ -1251,11 +1251,11 @@ class RandomFactorialNetwork():
         '''
         print "create feature network"
 
-        rn = RandomFactorialNetwork(M, R=R, response_type=response_type)
+        rn = RandomFactorialNetwork(M, R=R, response_type=response_type, gain=gain)
 
         rn.assign_prefered_stimuli(tiling_type='2_features', reset=True, nb_feature_centers=nb_feature_centers)
-        rn.assign_aligned_eigenvectors(scale=scale, ratio=ratio, specific_neurons = np.arange(M/2), reset=True)
-        rn.assign_aligned_eigenvectors(scale=scale, ratio=-ratio, specific_neurons = np.arange(M/2, M))
+        rn.assign_aligned_eigenvectors(scale=scale, ratio=-ratio, specific_neurons = np.arange(M/2), reset=True)
+        rn.assign_aligned_eigenvectors(scale=scale, ratio=ratio, specific_neurons = np.arange(M/2, M))
 
         rn.population_code_type = 'features'
 
