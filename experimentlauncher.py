@@ -21,6 +21,8 @@ import launchers_fisherinformation
 import launchers_experimentalvolume
 import launchers_multipleobjectchecker
 
+from utils import say_finished
+
 launchers_modules = [launchers, launchers_profile, launchers_memorycurves, launchers_parametersweeps, launchers_fisherinformation, launchers_experimentalvolume, launchers_multipleobjectchecker]
 
 
@@ -118,11 +120,7 @@ class ExperimentLauncher(object):
 
         # Talk when completed if desired
         if self.args.say_completed:
-            try:
-                import sh
-                sh.say('Work complete')
-            except Exception:
-                pass
+            say_finished()
 
 
     
