@@ -563,7 +563,7 @@ def plots_3dvolume_theovar(data_pbs, launcher_variables=None):
         # Show the results for the best K
         best_k = 3
 
-        for bk_i in np.arange(best_k):
+        for bk_i in xrange(best_k):
             # Convert the flat best index into indices
             indices_besttheo_mem = np.unravel_index(besttheo_mem_argsort[bk_i], dist_theo_exp[..., m_i].shape)
             indices_bestvar_mem = np.unravel_index(bestvar_mem_argsort[bk_i], dist_var_exp[..., m_i].shape)
@@ -730,7 +730,7 @@ def plots_3dvolume_theovar_mixedpop(data_pbs, launcher_variables=None):
             # Show the results for the best K
             best_k = 1
 
-            for bk_i in np.arange(best_k):
+            for bk_i in xrange(best_k):
                 # Convert the flat best index into indices
                 indices_besttheo_mem = np.unravel_index(besttheo_mem_argsort[bk_i], dist_theo_exp[..., dim3_i].shape)
                 indices_bestvar_mem = np.unravel_index(bestvar_mem_argsort[bk_i], dist_var_exp[..., dim3_i].shape)

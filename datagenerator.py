@@ -91,8 +91,8 @@ class DataGenerator:
         
         f = plt.figure()
         N_sqrt = np.sqrt(nb_to_plot).astype(np.int32)
-        for i in np.arange(N_sqrt):
-            for j in np.arange(N_sqrt):
+        for i in xrange(N_sqrt):
+            for j in xrange(N_sqrt):
                 print "Plotting %d" % (N_sqrt*i+j+1)
                 subax = f.add_subplot(N_sqrt, N_sqrt, N_sqrt*i+j+1)
                 subax.plot(np.linspace(0., np.pi, self.random_network.M, endpoint=False), self.Y[N_sqrt*i+j])
@@ -146,20 +146,20 @@ class DataGeneratorBinary(DataGenerator):
         
         #print self.time_weights
         
-        for i in np.arange(self.N):
+        for i in xrange(self.N):
             
             # Choose T random orientations, uniformly
             self.chosen_orientations[i] = np.random.permutation(self.random_network.possible_objects_indices)[:self.T]
             
             # Activate those features for the current datapoint
-            for r in np.arange(self.R):
+            for r in xrange(self.R):
                 self.Z_true[i, np.arange(self.T), r, self.chosen_orientations[i][:,r]] = 1.0
             
             # Get the 'x' samples (here from the population code, with correlated covariance, but whatever)
             x_samples_sum = self.random_network.sample_network_response_indices(self.chosen_orientations[i].T)
             
             # Combine them together
-            for t in np.arange(self.T):
+            for t in xrange(self.T):
                 self.Y[i] = self.time_weights[0, t]*self.Y[i].copy() + self.time_weights[1, t]*x_samples_sum[t] + self.sigma_y*np.random.randn(self.random_network.M)
                 self.all_Y[i, t] = self.Y[i]
             
@@ -209,7 +209,7 @@ class DataGeneratorDiscrete(DataGenerator):
         
         #print self.time_weights
         
-        for i in np.arange(self.N):
+        for i in xrange(self.N):
             
             # Choose T random orientations, uniformly
             self.chosen_orientations[i] = np.random.permutation(self.random_network.possible_objects_indices)[:self.T]
@@ -220,7 +220,7 @@ class DataGeneratorDiscrete(DataGenerator):
             x_samples_sum = self.random_network.sample_network_response_indices(self.chosen_orientations[i].T)
             
             # Combine them together
-            for t in np.arange(self.T):
+            for t in xrange(self.T):
                 self.Y[i] = self.time_weights[0, t]*self.Y[i].copy() + self.time_weights[1, t]*x_samples_sum[t] + self.sigma_y*np.random.randn(self.random_network.M)
                 self.all_Y[i, t] = self.Y[i]
             
@@ -233,7 +233,7 @@ class DataGeneratorDiscrete(DataGenerator):
     #         '''
     #         f = plt.figure()
     #         
-    #         for k in np.arange(self.K):
+    #         for k in xrange(self.K):
     #             subaxe=f.add_subplot(1, self.K, k)
     #             scaledimage(self.features[k], ax=subaxe)
     
@@ -282,7 +282,7 @@ class DataGeneratorContinuous(DataGenerator):
         # TODO Hack for now, add the time contribution
         # self.time_contribution = 0.06*np.random.randn(self.T, self.random_network.M)
         
-        for i in np.arange(self.N):
+        for i in xrange(self.N):
             
             if input_orientations is None:
                 # Choose T random orientations, uniformly
@@ -299,7 +299,7 @@ class DataGeneratorContinuous(DataGenerator):
             x_samples_sum = self.random_network.sample_network_response(self.chosen_orientations[i])
             
             # Combine them together
-            for t in np.arange(self.T):
+            for t in xrange(self.T):
                 self.Y[i] = self.time_weights[0, t]*self.Y[i].copy() + self.time_weights[1, t]*x_samples_sum[t] + self.sigma_y*np.random.randn(self.random_network.M)
                 # self.Y[i] /= np.sum(np.abs(self.Y[i]))
                 # self.Y[i] /= fast_1d_norm(self.Y[i])
@@ -418,7 +418,7 @@ class DataGeneratorRFN(DataGenerator):
         # TODO Hack for now, add the time contribution
         # self.time_contribution = 0.06*np.random.randn(self.T, self.random_network.M)
         
-        for i in np.arange(self.N):
+        for i in xrange(self.N):
             
             # For now, always cued the second feature (i.e. color) and retrieve the first feature (i.e. orientation)
             self.cued_features[i, 0] = 1
@@ -428,7 +428,7 @@ class DataGeneratorRFN(DataGenerator):
             self.cued_features[i, 1] = cued_feature_time
 
             # Create the memory
-            for t in np.arange(self.T):
+            for t in xrange(self.T):
                 # Get the 'x' sample (here from the population code)
                 x_sample = self.random_network.sample_network_response(self.stimuli_correct[i, t], sigma=self.sigma_x)
             
@@ -439,7 +439,7 @@ class DataGeneratorRFN(DataGenerator):
                 self.all_X[i, t] = x_sample
         
         # For convenience, store the list of nontargets objects.
-        self.nontargets_indices = np.array([[t for t in np.arange(self.T) if t != self.cued_features[n, 1]] for n in np.arange(self.N)], dtype='int')
+        self.nontargets_indices = np.array([[t for t in xrange(self.T) if t != self.cued_features[n, 1]] for n in xrange(self.N)], dtype='int')
             
 
     
@@ -494,7 +494,7 @@ class DataGeneratorRFN(DataGenerator):
             e.set_clip_box(ax.bbox)
             e.set_alpha(0.5)
             e.set_facecolor('white')
-            e.set_transform(ax.transData)        
+            e.set_transform(ax.transData)
     
 
     def show_datapoint_features(self, n=0):
@@ -546,7 +546,7 @@ class DataGeneratorRFN(DataGenerator):
             f, axes = plt.subplots(nb_subplots_sqrt, nb_subplots_sqrt)
             axes = axes.flatten()
 
-        for curr_scale_i in np.arange(all_scales.size):
+        for curr_scale_i in xrange(all_scales.size):
             # Use this as grid side
             scale_sqrt = np.floor(np.sum(self.random_network.neurons_scales == all_scales[curr_scale_i])**0.5)
 

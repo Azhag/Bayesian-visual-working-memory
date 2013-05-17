@@ -241,7 +241,7 @@ def strcat(*strings):
 
 def fast_dot_1D(x, y):
     out = 0
-    for i in np.arange(x.size):
+    for i in xrange(x.size):
         out += x[i]*y[i]
     return out
 
@@ -529,8 +529,8 @@ def plot_square_grid(x, y, nb_to_plot=-1):
     nb_plots_sqrt = np.round(np.sqrt(nb_to_plot)).astype(np.int32)
     f, subaxes = plt.subplots(nb_plots_sqrt, nb_plots_sqrt)
     
-    for i in np.arange(nb_plots_sqrt):
-        for j in np.arange(nb_plots_sqrt):
+    for i in xrange(nb_plots_sqrt):
+        for j in xrange(nb_plots_sqrt):
             try:
                 subaxes[i, j].plot(x[nb_plots_sqrt*i+j], y[nb_plots_sqrt*i+j])
                 subaxes[i, j].xaxis.set_major_locator(plttic.NullLocator())
@@ -710,8 +710,8 @@ def pcolor_square_grid(data, nb_to_plot=-1):
     nb_plots_sqrt = np.ceil(np.sqrt(nb_to_plot)).astype(int)
     f, subaxes = plt.subplots(nb_plots_sqrt, nb_plots_sqrt)
     
-    for i in np.arange(nb_plots_sqrt):
-        for j in np.arange(nb_plots_sqrt):
+    for i in xrange(nb_plots_sqrt):
+        for j in xrange(nb_plots_sqrt):
             try:
                 subaxes[i, j].imshow(data[nb_plots_sqrt*i+j], interpolation='nearest')
                 subaxes[i, j].xaxis.set_major_locator(plttic.NullLocator())

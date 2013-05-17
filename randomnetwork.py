@@ -31,7 +31,7 @@ class RandomNetwork:
         self.R = R
         
         # Create the population codes
-        self.popcodes = [PopulationCodeAngle(D, sigma=sigma_pop, rho=rho_pop, gamma=gamma_pop, max_angle=max_angle) for r in np.arange(R)]
+        self.popcodes = [PopulationCodeAngle(D, sigma=sigma_pop, rho=rho_pop, gamma=gamma_pop, max_angle=max_angle) for r in xrange(R)]
         
         # Initialise the possible representations of the orientations and colors
         self.network_representations = None
@@ -56,16 +56,16 @@ class RandomNetwork:
         
         # Those are the "clean" orientations from the population code
         self.popcodes_representations = np.zeros((self.R, self.K, self.D))
-        for r in np.arange(self.R):
+        for r in xrange(self.R):
             self.popcodes_representations[r] = self.popcodes[r].mean_response(possible_angles)
         
         # Those are the network representations
         self.network_representations = np.zeros((self.R, self.K, self.M))
-        for r in np.arange(self.R):
+        for r in xrange(self.R):
             self.network_representations[r] = np.dot(self.popcodes_representations[r], self.W[r].T)
         
         # Define the possible objects
-        self.possible_objects_indices = np.array(cross([[x for x in np.arange(self.K)]]*self.R))
+        self.possible_objects_indices = np.array(cross([[x for x in xrange(self.K)]]*self.R))
         self.possible_objects = np.array(cross([[x for x in self.possible_angles]]*self.R))
         
         self.network_initialised = True
@@ -95,7 +95,7 @@ class RandomNetwork:
     
     def build_W_identity(self):
         if self.M >= 2*self.D:
-            for r in np.arange(self.R):
+            for r in xrange(self.R):
                 self.W[r, self.D*r:self.D*(r+1), :self.D] = np.eye(self.D)
         else:
             self.W[:, :self.D, :self.D] = np.tile(np.eye(self.D), (self.R, 1, 1))
@@ -114,7 +114,7 @@ class RandomNetwork:
         self.W = np.random.rand(self.R, self.M, self.D)
         
         self.W = self.W*mask
-        for r in np.arange(self.R):
+        for r in xrange(self.R):
             self.W[r] = (self.W[r].T/np.sum(self.W[r], axis=1)).T
     
     def build_W_dirichlet(self, W_parameters):
@@ -145,8 +145,8 @@ class RandomNetwork:
         self.number_connections = np.round(self.ratio_connections*mean_number_connections).astype(int)
         
         # Now connect neurons to features accordingly. Choose K_i_n features uniformly.
-        for m in np.arange(self.M):
-            for r in np.arange(self.R):
+        for m in xrange(self.M):
+            for r in xrange(self.R):
                 indices = np.random.permutation(np.arange(self.D))[:self.number_connections[m, r]]
                 # self.W[r, m, indices] = sigma_W*np.random.randn(np.min((self.D, self.number_connections[m, r])))
                 self.W[r, m, indices] = sigma_W
@@ -171,7 +171,7 @@ class RandomNetwork:
         else:
             net_samples = np.zeros((self.R, dim[0], self.M))
         
-        for r in np.arange(self.R):
+        for r in xrange(self.R):
             if np.size(dim) > 1:
                 # We have different orientations for the different population codes. It should be on the first dimension.
                 net_samples[r] = np.dot(self.popcodes[r].sample_random_response(self.possible_angles[chosen_orientations[r]]), self.W[r].T)
@@ -196,7 +196,7 @@ class RandomNetwork:
         else:
             net_samples = np.zeros((self.R, dim[0], self.M))
         
-        for r in np.arange(self.R):
+        for r in xrange(self.R):
             if np.size(dim) > 1:
                 # We have different orientations for the different population codes. It should be on the first dimension.
                 net_samples[r] = np.dot(self.popcodes[r].sample_random_response(chosen_orientations[r]), self.W[r].T)
@@ -220,7 +220,7 @@ class RandomNetwork:
         elif Z.ndim == 3:
             (N, T, R) = Z.shape
             sum_features = np.zeros((N, T, self.M))
-            for r in np.arange(self.R):
+            for r in xrange(self.R):
                 sum_features += self.network_representations[r, Z[:,:,r], :]
         else:
             raise ValueError('Wrong dimensionality for Z')
@@ -259,7 +259,7 @@ class RandomNetwork:
             Plot the response of the population codes
         '''
         
-        for r in np.arange(self.R):
+        for r in xrange(self.R):
             self.popcodes[r].plot_population_representation(self.possible_angles)
         
     
@@ -273,7 +273,7 @@ class RandomNetwork:
         
         # Retrieve the representations
         all_objects_repr_r = np.zeros((self.R, self.possible_objects_indices.shape[0], self.M))
-        for r in np.arange(self.R):
+        for r in xrange(self.R):
             all_objects_repr_r[r] = self.network_representations[r, self.possible_objects_indices[:,r]]
         
         # They get summed up
@@ -291,7 +291,7 @@ class RandomNetwork:
         colors_groups = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
         colors_interpolation = np.linspace(0.,1., all_objects_pc.shape[0])
         
-        # for k in np.arange(self.K):
+        # for k in xrange(self.K):
             # ax.scatter(all_objects_pc[k*self.K:(k+1)*self.K, 0], all_objects_pc[k*self.K:(k+1)*self.K,1], all_objects_pc[k*self.K:(k+1)*self.K,2], c=colors_groups[k%len(colors_groups)])
             
         ax.scatter(all_objects_pc[:, 0], all_objects_pc[:,1], all_objects_pc[:,2], c=colors_interpolation)
@@ -326,7 +326,7 @@ class RandomNetwork:
         
         fig1, ax1 = plt.subplots(1)
         
-        for r in np.arange(self.R):
+        for r in xrange(self.R):
             ax1.plot(self.network_representations[r, :, balanced_indices_neurons] + np.arange(self.K)*plot_separation_y + r*(self.K+0.5)*plot_separation_y)
             
         ax1.autoscale(tight=True)
@@ -334,7 +334,7 @@ class RandomNetwork:
         # Plot Hinton graphs
         sf, ax = plt.subplots(self.R, 1)
         
-        for r in np.arange(self.R):
+        for r in xrange(self.R):
             hinton(self.W[r, balanced_indices_neurons].T, ax=ax[r])
         
     
@@ -379,7 +379,7 @@ class RandomNetworkFactorialCode(RandomNetwork):
         self.possible_angles = possible_angles
         
         # Define the possible objects
-        self.possible_objects_indices = np.array(cross([[x for x in np.arange(self.K)]]*self.R))
+        self.possible_objects_indices = np.array(cross([[x for x in xrange(self.K)]]*self.R))
         self.possible_objects = np.array(cross([[x for x in self.possible_angles]]*self.R))
         
         # Each representation is a (K)^R matrix. From the outside though, it will be flattened
@@ -437,7 +437,7 @@ class RandomNetworkFactorialCode(RandomNetwork):
             # Find all the closest objects as well
             closest_objects = np.argmin(np.abs(chosen_orientations - self.possible_angles[:, np.newaxis, np.newaxis]), axis=0)
             
-            for orientations_i in np.arange(T):
+            for orientations_i in xrange(T):
                 response[orientations_i] = self.network_representations[tuple(closest_objects[orientations_i])] + self.sigma*np.random.randn(self.M)
             
         
@@ -462,7 +462,7 @@ class RandomNetworkFactorialCode(RandomNetwork):
             
             closest_objects = np.argmin(np.abs(Z - self.possible_angles[:, np.newaxis, np.newaxis]), axis=0)
             
-            for orientations_i in np.arange(N):
+            for orientations_i in xrange(N):
                 sum_features[orientations_i] = self.network_representations[tuple(closest_objects[orientations_i])]
             
         else:
@@ -506,7 +506,7 @@ class RandomNetworkFactorialCode(RandomNetwork):
         ax = fig.add_subplot(111, projection='3d')
         
         colors_groups = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
-        for k in np.arange(self.K):
+        for k in xrange(self.K):
             ax.scatter(all_objects_pc[k*self.K:(k+1)*self.K, 0], all_objects_pc[k*self.K:(k+1)*self.K,1], all_objects_pc[k*self.K:(k+1)*self.K,2], c=colors_groups[k%len(colors_groups)])
         
         ax.set_xlabel('PC 1')
@@ -571,7 +571,7 @@ class RandomNetworkContinuous(RandomNetwork):
             else: 
                 net_samples = np.zeros((self.R, dim[0], self.M))
         
-        for r in np.arange(self.R):
+        for r in xrange(self.R):
             if np.size(dim) > 1 or dim[0] == self.R:
                 # We have different orientations for the different population codes. It should be on the first dimension.
                 net_samples[r] = np.dot(self.popcodes[r].sample_random_response(chosen_orientations[r]), self.W[r].T)
@@ -595,7 +595,7 @@ class RandomNetworkContinuous(RandomNetwork):
         elif Z.ndim == 2:
             (N, R) = Z.shape
             sum_features = np.zeros((N, self.M))
-            for r in np.arange(self.R):
+            for r in xrange(self.R):
                 sum_features += np.dot(self.popcodes[r].mean_response(Z[:,r]), self.W[r].T)
         else:
             raise ValueError('Wrong dimensionality for Z')
@@ -618,7 +618,7 @@ class RandomNetworkContinuous(RandomNetwork):
                                                 np.dot(self.W[1], np.dot(self.popcodes[1].covariance, self.W[1].T))
             else:
                 self.covariance_network_combined = np.zeros((self.M, self.M))
-                for r in np.arange(self.R):
+                for r in xrange(self.R):
                     self.covariance_network_combined += np.dot(self.W[r], np.dot(self.popcodes[r].covariance, self.W[r].T))
                 
             return self.covariance_network_combined
@@ -667,7 +667,7 @@ if __name__ == '__main__':
     
     # net_samples = rn.sample_network_response_indices(np.array([[5], [2]]))
     # plt.figure()
-    # for r in np.arange(1):
+    # for r in xrange(1):
         # plt.plot(np.linspace(0, np.pi, M), net_samples[r].T, 'g')
     # plt.autoscale(tight=True)
     

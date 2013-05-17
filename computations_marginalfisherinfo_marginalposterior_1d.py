@@ -239,7 +239,7 @@ if __name__ == '__main__':
                 dataset1_test[i] = population_code_response(theta1_space[i], pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude)[:, np.newaxis] + sigma*np.random.randn(N, num_samples_test)
                 
                 ## Two objects
-                for sample_i in np.arange(num_samples):
+                for sample_i in xrange(num_samples):
                     # Sample new theta2
                     theta2_rand = 2*np.random.rand()*np.pi - np.pi
                 
@@ -261,7 +261,7 @@ if __name__ == '__main__':
                     binsmid_prob_est = (bins_prob_est+np.diff(bins_prob_est)[0]/2.)[:-1]
 
                 # Get histogram estimate of p(r_i | theta_1, theta_2)
-                for n in np.arange(N):
+                for n in xrange(N):
                     prob_r_theta1_2obj[i, n] = np.histogram(dataset2_samples[:, n], bins=bins_prob_est, density=True)[0]
                     prob_r_theta1_1obj[i, n] = np.histogram(dataset1_samples[n], bins=bins_prob_est, density=True)[0]
             
@@ -279,7 +279,7 @@ if __name__ == '__main__':
 
             for i in progress.ProgressDisplay(np.arange(theta1_space.size), display=progress.SINGLE_LINE):
                 index_probs = np.argmin((binsmid_prob_est[:, np.newaxis, np.newaxis] - dataset1_test[i, :, :])**2, axis=0)
-                for s in np.arange(num_samples_test):
+                for s in xrange(num_samples_test):
                     lik = np.log(prob_r_theta1_1obj[:, np.arange(N), index_probs[:, s]])
                     lik[np.isinf(lik)] = 0.0
                     # lik = np.ma.masked_invalid(lik)
@@ -295,7 +295,7 @@ if __name__ == '__main__':
 
                 ## 2 objects
                 index_probs_2 = np.argmin((binsmid_prob_est[:, np.newaxis, np.newaxis] - dataset2_test[i, :, :])**2, axis=0)
-                for s in np.arange(num_samples_test):
+                for s in xrange(num_samples_test):
                     lik = np.log(prob_r_theta1_2obj[:, np.arange(N), index_probs_2[:, s]])
                     lik[np.isinf(lik)] = 0.0
                     # lik = np.ma.masked_invalid(lik)
@@ -320,7 +320,7 @@ if __name__ == '__main__':
             ml_indices_2obj = np.zeros((theta1_space.size, num_samples_test))
             ml_indices_2obj_old = np.zeros(theta1_space.size)
 
-            for i in np.arange(theta1_space.size):
+            for i in xrange(theta1_space.size):
             # for i in np.array([theta1_to_plot]):
                 ml_indices_1obj[i] = np.argmax(loglikelihood_theta1_samples_1obj[i], axis=1)
                 curv_logp2 = -np.gradient(np.gradient(loglikelihood_theta1_samples_1obj[i])[1])[1]/dx**2.
@@ -354,7 +354,7 @@ if __name__ == '__main__':
             posteriormeanvar_singlebump_2obj[mm, 0] = np.trapz(singlebump_post*theta1_space, theta1_space)
             posteriormeanvar_singlebump_2obj[mm, 1] = np.trapz(singlebump_post*(theta1_space - posteriormeanvar_singlebump_2obj[mm, 0][:, np.newaxis])**2., theta1_space)
 
-            for s in np.arange(num_samples_test):
+            for s in xrange(num_samples_test):
                 # Compare with gaussian fit
                 stats = fit_gaussian(theta1_space, singlebump_post[s], should_plot=False, return_fitted_data=False)
                 posteriormeanvar_singlebump_gauss_2obj[mm, 0, s] = stats[0]

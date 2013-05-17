@@ -56,8 +56,8 @@ def launcher_do_neuron_number_precision(args):
     print "File: %s" % output_string
 
     all_precisions = np.zeros((param1_space.size, num_repetitions))
-    for param1_i in np.arange(param1_space.size):
-        for repet_i in np.arange(num_repetitions):
+    for param1_i in xrange(param1_space.size):
+        for repet_i in xrange(num_repetitions):
             #### Get multiple examples of precisions, for different number of neurons. #####
             print "Doing M=%d, %d/%d" % (param1_space[param1_i], repet_i+1, num_repetitions)
 
@@ -201,8 +201,8 @@ def launcher_do_size_receptive_field(args):
     print "File: %s" % output_string
 
     all_precisions = np.zeros((param1_space.size, num_repetitions))
-    for param1_i in np.arange(param1_space.size):
-        for repet_i in np.arange(num_repetitions):
+    for param1_i in xrange(param1_space.size):
+        for repet_i in xrange(num_repetitions):
             #### Get multiple examples of precisions, for different number of neurons. #####
             print "Doing Scale=%.2f, %d/%d" % (param1_space[param1_i], repet_i+1, num_repetitions)
 
@@ -316,9 +316,9 @@ def launcher_do_size_receptive_field_number_neurons(args):
     print "File: %s" % output_string
 
     all_precisions = np.zeros((param1_space.size, param2_space.size, num_repetitions))
-    for param1_i in np.arange(param1_space.size):
-        for param2_i in np.arange(param2_space.size):
-            for repet_i in np.arange(num_repetitions):
+    for param1_i in xrange(param1_space.size):
+        for param2_i in xrange(param2_space.size):
+            for repet_i in xrange(num_repetitions):
                 #### Get multiple examples of precisions, for different number of neurons. #####
                 print "Doing M=%d, Scale=%.2f, %d/%d" % (param1_space[param1_i], param2_space[param2_i], repet_i+1, num_repetitions)
 
@@ -428,7 +428,7 @@ def launcher_plot_size_receptive_field_number_neurons(args):
 
     ### Print the 1D plot for each N
     
-    for i in np.arange(param1_space.size):
+    for i in xrange(param1_space.size):
         f = plt.figure()
         ax = f.add_subplot(111)
         plot_mean_std_area(param2_space, np.mean(1./all_precisions[i], 1), np.std(1./all_precisions[i], 1), ax_handle=ax)
@@ -485,8 +485,8 @@ def launcher_do_mixed_ratioconj(args):
     print "File: %s" % output_string
 
     all_precisions = np.zeros((param1_space.size, num_repetitions))
-    for param1_i in np.arange(param1_space.size):
-        for repet_i in np.arange(num_repetitions):
+    for param1_i in xrange(param1_space.size):
+        for repet_i in xrange(num_repetitions):
             #### Get multiple examples of precisions, for different number of neurons. #####
             print "Doing M=%.3f, %d/%d" % (param1_space[param1_i], repet_i+1, num_repetitions)
 
@@ -571,9 +571,9 @@ def launcher_do_mixed_two_scales(args):
     print "File: %s" % output_string
 
     all_precisions = np.zeros((param1_space.size, param2_space.size, num_repetitions))
-    for param1_i in np.arange(param1_space.size):
-        for param2_i in np.arange(param2_space.size):
-            for repet_i in np.arange(num_repetitions):
+    for param1_i in xrange(param1_space.size):
+        for param2_i in xrange(param2_space.size):
+            for repet_i in xrange(num_repetitions):
                 #### Get multiple examples of precisions, for different number of neurons. #####
                 print "Doing scales=(%.3f, %.3f), %d/%d" % (param1_space[param1_i], param2_space[param2_i], repet_i+1, num_repetitions)
 

@@ -115,10 +115,10 @@ def launcher_do_save_responses_simultaneous(args):
     all_targets = np.zeros((args.T, args.T, args.num_repetitions, args.N))
     all_nontargets = np.zeros((args.T, args.T, args.num_repetitions, args.N, args.T-1))
     
-    for repet_i in np.arange(args.num_repetitions):
+    for repet_i in xrange(args.num_repetitions):
         
         # Construct different datasets, with t objects
-        for t in np.arange(args.T):
+        for t in xrange(args.T):
             
             if args.code_type == 'conj':
                 random_network = RandomFactorialNetwork.create_full_conjunctive(args.M, R=args.R, scale_moments=(args.rc_scale, 0.0001), ratio_moments=(1.0, 0.001))
@@ -173,7 +173,7 @@ def launcher_do_save_responses_simultaneous(args):
 
     f = plt.figure()
     ax = f.add_subplot(111)
-    for t in np.arange(args.T):
+    for t in xrange(args.T):
         t_space_aligned_right = (args.T - np.arange(t+1))[::-1]
         semilogy_mean_std_area(t_space_aligned_right, np.mean(1./all_precisions[t], 1)[:t+1], np.std(1./all_precisions[t], 1)[:t+1], ax_handle=ax)
     ax.set_xlabel('Recall time')

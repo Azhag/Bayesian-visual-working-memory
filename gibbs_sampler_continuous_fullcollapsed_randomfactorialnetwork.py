@@ -129,7 +129,7 @@ class Sampler:
         self.theta[np.arange(self.N), self.data_gen.cued_features[:, 0]] = self.data_gen.stimuli_correct[np.arange(self.N), self.data_gen.cued_features[:, 1], self.data_gen.cued_features[:, 0]]
         
         # Construct the list of uncued features, which should be sampled
-        self.theta_to_sample = np.array([[r for r in np.arange(self.R) if r != self.data_gen.cued_features[n, 0]] for n in np.arange(self.N)], dtype='int')
+        self.theta_to_sample = np.array([[r for r in xrange(self.R) if r != self.data_gen.cued_features[n, 0]] for n in xrange(self.N)], dtype='int')
         
         if self.R == 2:
             # Just for convenience (in compute_angle_error), flatten the theta_to_sample
@@ -158,7 +158,7 @@ class Sampler:
         self.n_means_measured = n_parameters['means'][2]
         self.n_covariances_measured = n_parameters['covariances'][2]
         
-        # for t in np.arange(self.T):
+        # for t in xrange(self.T):
         #             try:
         #                 self.n_covariances_start_chol[t] = np.linalg.cholesky(self.n_covariances_start[t])
         #             except np.linalg.linalg.LinAlgError:
@@ -196,7 +196,7 @@ class Sampler:
         # Set the noise_covariance in the RandomFactorialNetwork as well.
         self.random_network.noise_covariance = self.noise_covariance
 
-        for t in np.arange(self.T):
+        for t in xrange(self.T):
             (self.ATtcB[t], self.mean_fixed_contrib[t], self.inv_covariance_fixed_contrib) = self.precompute_parameters(t, amplify_diag=amplify_diag)
         
     
@@ -380,7 +380,7 @@ class Sampler:
         '''    
 
         samples_integratedout = []
-        for tc in np.arange(self.T):
+        for tc in xrange(self.T):
             params = (self.theta[n], self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[tc], sampled_feature_index, self.mean_fixed_contrib[tc], self.inv_covariance_fixed_contrib)
             
             # TODO> Should be starting from the previous sample here.
@@ -412,7 +412,7 @@ class Sampler:
                 
             # Compute the loglikelihood for all possible first feature
             # Use this as initial value for the optimisation routine
-            for i in np.arange(num_points):
+            for i in xrange(num_points):
                 # Give the correct cued second feature
                 llh[i] = loglike_theta_fct_single(all_angles[i], params)
 
@@ -436,16 +436,16 @@ class Sampler:
         llh = np.zeros(num_points)
         inferred_angles = np.zeros(self.T)
         
-        for n in np.arange(self.N):
+        for n in xrange(self.N):
 
-            for tc in np.arange(self.T):
+            for tc in xrange(self.T):
 
                 # Pack the parameters for the likelihood function
                 params = (self.theta[n], self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[tc], sampled_feature_index, self.mean_fixed_contrib[tc], self.inv_covariance_fixed_contrib)
                     
                 # Compute the loglikelihood for all possible first feature
                 # Use this as initial value for the optimisation routine
-                for i in np.arange(num_points):
+                for i in xrange(num_points):
                     # Give the correct cued second feature
                     llh[i] = loglike_theta_fct_single(all_angles[i], params)
                 
@@ -505,7 +505,7 @@ class Sampler:
         #                     # Update the counts
         #                     self.Akr[self.Z[n, t, r], r] -= 1
         #                     
-        #                     for k in np.arange(self.K):
+        #                     for k in xrange(self.K):
         #                         # Get the prior prob of z_n_t_k
         #                         self.lprob_zntrk[k] = np.log(self.dir_alpha + self.Akr[k, r]) - np.log(self.K*self.dir_alpha + self.N - 1.)
         #                         
@@ -597,8 +597,8 @@ class Sampler:
         
         l = self.R*scsp.gammaln(self.K*self.dir_alpha) - self.R*self.K*scsp.gammaln(self.dir_alpha)
         
-        for r in np.arange(self.R):            
-            for k in np.arange(self.K):
+        for r in xrange(self.R):            
+            for k in xrange(self.K):
                 l += scsp.gammaln(self.dir_alpha + self.Akr[k, r])
             l -= scsp.gammaln(self.K*self.dir_alpha + self.N)
         
@@ -618,10 +618,10 @@ class Sampler:
         likelihood = np.zeros((self.T, num_points))
         
         # Compute the array
-        for t in np.arange(self.T):
+        for t in xrange(self.T):
 
             # Compute the loglikelihood for all possible first feature
-            for i in np.arange(num_points):
+            for i in xrange(num_points):
 
                 # Pack the parameters for the likelihood function
                 params = (np.array([all_angles[i], self.data_gen.stimuli_correct[n, t, 1]]), self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[t], sampled_feature_index, self.mean_fixed_contrib[t], self.inv_covariance_fixed_contrib)
@@ -693,9 +693,9 @@ class Sampler:
         llh_2angles = np.zeros((num_points, num_points))
         
         # Compute the array
-        for i in np.arange(num_points):
+        for i in xrange(num_points):
             print "%d%%" % (i/float(num_points)*100)
-            for j in np.arange(num_points):
+            for j in xrange(num_points):
 
                 # Pack the parameters for the likelihood function
                 params = (np.array([all_angles[i], all_angles[j]]), self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[t], sampled_feature_index, self.mean_fixed_contrib[t], self.inv_covariance_fixed_contrib)
@@ -738,7 +738,7 @@ class Sampler:
             colmap = plt.get_cmap('gist_rainbow')
             color_gen = [colmap(1.*(i)/self.T) for i in xrange(self.T)]  # use 22 colors
 
-            for t in np.arange(self.T):
+            for t in xrange(self.T):
                 w = plt_patches.Wedge((correct_angles[t, 0], correct_angles[t, 1]), 0.25, 0, 360, 0.03, color=color_gen[t], alpha=0.7)
                 ax.add_patch(w)
 
@@ -781,10 +781,10 @@ class Sampler:
             lines = ax.plot(all_angles, llh_2angles)
             ax.set_xlim((-np.pi, np.pi))
 
-            legends = ['-%d' % x for x in np.arange(self.T)[::-1]]
+            legends = ['-%d' % x for x in xrange(self.T)[::-1]]
             legends[-1] = 'Last'
             
-            for t in np.arange(self.T):
+            for t in xrange(self.T):
                 # Put the legends
                 if show_legend:
                     ax.legend(lines, legends, loc='upper center', bbox_to_anchor=(0.5, 1.1), ncol=self.T, fancybox=True, shadow=True)
@@ -821,7 +821,7 @@ class Sampler:
         ll_x = np.zeros((self.T, num_points))
 
         # Do everything for all tc = 1:T.
-        for tc in np.arange(self.T):
+        for tc in xrange(self.T):
             # Pack the parameters for the likelihood function.
             #   Here, as the loglike_function only varies one of the input, need to give the rest of the theta vector.
             params = (self.theta[n], self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[tc], sampled_feature_index, self.mean_fixed_contrib[tc], self.inv_covariance_fixed_contrib)
@@ -1167,7 +1167,7 @@ class Sampler:
         if verbose:
             print "Initialisation: likelihoods = y %.3f, z %.3f, joint: %.3f" % (log_y[0], log_z[0], log_joint[0])
         
-        for i in np.arange(iterations):
+        for i in xrange(iterations):
             # Do a full sampling sweep
             self.sample_all()
             
@@ -1289,11 +1289,11 @@ class Sampler:
 
             print "Target " + ''.join(["\t NT %d " % x for x in (np.arange(nontargets.shape[1])+1)]) + "\t Inferred \t Error"
 
-            for i in np.arange(self.N):
+            for i in xrange(self.N):
                 print "% 4.3f" % (groundtruth[i]) + ''.join(["\t\t% 4.3f" % x for x in nontargets[i]]) + "\t\t % 4.3f \t % 4.3f" % (self.theta[i, 0], angle_errors[i])
         else:
             print "Target \t Inferred \t Error"
-            for i in np.arange(self.N):
+            for i in xrange(self.N):
                 print "% 4.3f \t\t % 4.3f \t % 4.3f" % (self.theta[i, 0], groundtruth[i], angle_errors[i])           
 
         print "======================================="

@@ -173,10 +173,10 @@ def do_plot_effect_conj():
 
         # Now have to put everything in a nice 4D array...
         results_array = np.zeros((all_ratioconj.size, param1_space.size, param2_space.size, nb_repeats*nb_experiments))
-        for ratioconj_i in np.arange(all_ratioconj.size):
-            for par1 in np.arange(param1_space.size):
-                for par2 in np.arange(param2_space.size):
-                    for exp in np.arange(nb_experiments):
+        for ratioconj_i in xrange(all_ratioconj.size):
+            for par1 in xrange(param1_space.size):
+                for par2 in xrange(param2_space.size):
+                    for exp in xrange(nb_experiments):
                         try:
                             results_array[ratioconj_i, par1, par2, nb_repeats*(exp):nb_repeats*(exp+1)] = all_precisions[all_ratioconj[ratioconj_i]][exp][par1][par2]
                         except IndexError:
@@ -204,22 +204,22 @@ def do_plot_effect_conj():
     all_optcurve = np.zeros((T_max, nb_ratios))
     all_optcurve_std = np.zeros((T_max, nb_ratios))
 
-    for i in np.arange(T_max):
+    for i in xrange(T_max):
         (all_optcurve[i], all_optcurve_std[i]) = combine_mixed_two_scales(i, should_plot=False)
         
     x = 0.1*np.arange(nb_ratios)
     f = plt.figure()
     ax = f.add_subplot(111)
     # ax = plot_mean_std_area(x, all_optcurve[0], all_optcurve_std[0])
-    # for i in np.arange(1, 3):
+    # for i in xrange(1, 3):
         # ax = plot_mean_std_area(x, all_optcurve[i], all_optcurve_std[i], ax_handle=ax)
-    for i in np.arange(T_max):
+    for i in xrange(T_max):
         ax.plot(x, all_optcurve[i], linewidth=2)
     
     plt.rcParams['font.size'] = 17
     plt.rcParams['legend.fontsize'] = 20
     
-    legends=['%d items' % (x+1) for x in np.arange(T_max)]
+    legends=['%d items' % (x+1) for x in xrange(T_max)]
     legends[0] = '1 item'
     
     # plt.legend(legends, loc='upper center', bbox_to_anchor=(0.5, 1.01), ncol=4, shadow=True)
@@ -291,7 +291,7 @@ def plot_probabilities_mixtures():
         # goodenough_mse = np.sort(mse_precisions[mse_precisions<5])
         goodenough_indices_list = []
 
-        for ge_mse_i in np.arange(goodenough_mse.size):
+        for ge_mse_i in xrange(goodenough_mse.size):
             goodenough_indices_list.append(np.nonzero(mse_precisions == goodenough_mse[ge_mse_i]))
         goodenough_indices = np.array(goodenough_indices_list)[:, :, 0]
 
@@ -389,7 +389,7 @@ def plot_probabilities_mixtures():
         # goodenough_mse = np.sort(mse_precisions[mse_precisions<5])
         goodenough_indices_list = []
         
-        for ge_mse_i in np.arange(goodenough_mse.size):
+        for ge_mse_i in xrange(goodenough_mse.size):
             goodenough_indices_list.append(np.nonzero(mse_precisions == goodenough_mse[ge_mse_i]))
         goodenough_indices = np.array(goodenough_indices_list)[:, :, 0]
 
@@ -448,7 +448,7 @@ def plot_probabilities_mixtures():
         goodenough_mse = np.sort(mse_precisions[mse_precisions<5])
         goodenough_indices_list = []
         
-        for ge_mse_i in np.arange(goodenough_mse.size):
+        for ge_mse_i in xrange(goodenough_mse.size):
             goodenough_indices_list.append(np.nonzero(mse_precisions == goodenough_mse[ge_mse_i]))
         goodenough_indices = np.array(goodenough_indices_list)[:, :, 0]
 

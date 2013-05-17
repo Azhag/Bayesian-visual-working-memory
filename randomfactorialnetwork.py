@@ -149,7 +149,7 @@ class RandomFactorialNetwork():
         # coverage_1D = np.linspace( -np.pi, np.pi, sub_N, endpoint=False)
         coverage_1D = np.linspace( -np.pi + np.pi/sub_N, np.pi + np.pi/sub_N, sub_N, endpoint=False)
 
-        for center_i in np.arange(nb_feature_centers):
+        for center_i in xrange(nb_feature_centers):
             self.neurons_preferred_stimulus[neurons_indices[center_i*sub_N:(center_i+1)*sub_N], 0] = coverage_1D
             self.neurons_preferred_stimulus[neurons_indices[center_i*sub_N:(center_i+1)*sub_N], 1] = centers[center_i]
             self.neurons_preferred_stimulus[neurons_indices[N+center_i*sub_N:(N+(center_i+1)*sub_N)], 0] = centers[center_i]
@@ -166,7 +166,7 @@ class RandomFactorialNetwork():
         centers = []
         new_stim = None
         new_scales = None
-        for k in np.arange(scales_number):
+        for k in xrange(scales_number):
             centers.append(np.linspace(-np.pi + np.pi/(2.**k), np.pi - np.pi/(2.**k), 2**k))
 
             crossed_centers = np.array(cross(self.R*[centers[k].tolist()]))
@@ -332,7 +332,7 @@ class RandomFactorialNetwork():
         self.neurons_params = np.zeros((self.M, 3))
 
         # Compute the 3 components of the covariance of the gaussian filter [a, b; b, c]
-        for m in np.arange(specific_neurons.size):
+        for m in xrange(specific_neurons.size):
             
             self.neurons_params[specific_neurons[m], 0] = np.cos(self.neurons_angle[specific_neurons[m]])**2./(2.*self.neurons_sigma[specific_neurons[m], 0]**2.) + np.sin(self.neurons_angle[specific_neurons[m]])**2./(2.*self.neurons_sigma[specific_neurons[m], 1]**2.)
             self.neurons_params[specific_neurons[m], 1] = -np.sin(2.*self.neurons_angle[specific_neurons[m]])/(4.*self.neurons_sigma[specific_neurons[m], 0]**2.) + np.sin(2.*self.neurons_angle[specific_neurons[m]])/(4.*self.neurons_sigma[specific_neurons[m], 1]**2.)
@@ -667,7 +667,7 @@ class RandomFactorialNetwork():
         net_samples = np.zeros((nb_samples, self.M))
 
 
-        for i in np.arange(nb_samples):
+        for i in xrange(nb_samples):
             net_samples[i] = self.sample_network_response(stimuli_input[i], sigma=sigma, params=params)
         
         return net_samples
@@ -793,8 +793,8 @@ class RandomFactorialNetwork():
             cov_stim = self.compute_covariance_stimulus((0., 0.), sigma=sigma, params=params)
 
         # Compute the activity of that neuron over the whole space
-        for i in np.arange(feature_space.size):
-            for j in np.arange(feature_space.size):
+        for i in xrange(feature_space.size):
+            for j in xrange(feature_space.size):
                 activity[i, j] = self.compute_fisher_information(stimulus_input=np.array((feature_space[i], feature_space[j])), sigma=sigma, cov_stim=cov_stim, params=params)
             
         return activity
@@ -808,8 +808,8 @@ class RandomFactorialNetwork():
         (feature_space1, feature_space2, activity) = self.init_feature_cover_matrices(precision)
         
         # Compute the activity of that neuron over the whole space
-        for i in np.arange(feature_space1.size):
-            for j in np.arange(feature_space2.size):
+        for i in xrange(feature_space1.size):
+            for j in xrange(feature_space2.size):
                 activity[i, j] = self.get_neuron_response(neuron_index, (feature_space1[i], feature_space2[j]), params=params)
         
         
@@ -824,13 +824,11 @@ class RandomFactorialNetwork():
             Returns the mean activity of the network.
         '''
 
-        if specific_neurons is None:
-            specific_neurons = self._ALL_NEURONS
-
+        
         (feature_space1, feature_space2, mean_activity) = self.init_feature_cover_matrices(precision)
         
-        for feat1_i in np.arange(feature_space1.size):
-            for feat2_i in np.arange(feature_space2.size):
+        for feat1_i in xrange(feature_space1.size):
+            for feat2_i in xrange(feature_space2.size):
                 mean_activity[feat1_i, feat2_i] = np.mean(self.get_network_response((feature_space1[feat1_i], feature_space2[feat2_i]), specific_neurons=specific_neurons, params=params))
 
         if return_axes_vect:
@@ -849,8 +847,8 @@ class RandomFactorialNetwork():
         (feature_space1, feature_space2, _) = self.init_feature_cover_matrices(precision)
         network_activity = np.zeros((precision, precision, self.M))
 
-        for feat1_i in np.arange(feature_space1.size):
-            for feat2_i in np.arange(feature_space2.size):
+        for feat1_i in xrange(feature_space1.size):
+            for feat2_i in xrange(feature_space2.size):
                 network_activity[feat1_i, feat2_i] = self.get_network_response((feature_space1[feat1_i], feature_space2[feat2_i]))
 
         num_responsive_neurons = np.sum(network_activity > network_activity.max()*percent_max, axis=-1)
@@ -1086,7 +1084,7 @@ class RandomFactorialNetwork():
             stimulus = np.zeros(self.R)
 
         # Compute the response.
-        for i in np.arange(feature_space.size):
+        for i in xrange(feature_space.size):
             stimulus[axis_to_vary] = feature_space[i]
             activity[i] = self.get_neuron_response(neuron_index, stimulus, params=params)
 
@@ -1162,8 +1160,8 @@ class RandomFactorialNetwork():
         (feature_space1, feature_space2, activity) = self.init_feature_cover_matrices(precision)
         
         # Compute the activity of that neuron over the whole space
-        for i in np.arange(feature_space1.size):
-            for j in np.arange(feature_space2.size):
+        for i in xrange(feature_space1.size):
+            for j in xrange(feature_space2.size):
                 activity[i, j] = self.get_neuron_response(neuron_index, (feature_space1[i], feature_space2[j]), params=params)
                 # activity[i,j] = self.get_neuron_response(neuron_index, (feature_space[i], feature_space[j]))
         

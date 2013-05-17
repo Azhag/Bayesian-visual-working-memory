@@ -116,8 +116,8 @@ if __name__ == '__main__':
                             deriv_mu[3] = -kappa*np.sin(pref_angles[:, 1] - item2_theta2)*population_code_response_2D(item2_theta1, item2_theta2, pref_angles, N=N, kappa=kappa, amplitude=amplitude)
                             
                             # FI, 2 items, 2 features per item
-                            for ii in np.arange(4):
-                                for jj in np.arange(4):
+                            for ii in xrange(4):
+                                for jj in xrange(4):
                                     FI_2d_search[i, j, k, l, ii, jj] = np.sum(deriv_mu[ii]*deriv_mu[jj])/(sigma**2.)
 
                             # FI_2d_search[i, j, k, l, 0, 0] = np.sum(der_0*der_0)/(2.*sigma**2.)

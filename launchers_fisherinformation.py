@@ -670,7 +670,7 @@ def launcher_do_fisher_information_param_search_pbs(args):
     # Show the progress in a nice way
     search_progress = progress.Progress(rcscale_space.size*sigma_space.size*num_repetitions)
 
-    for repet_i in np.arange(num_repetitions):
+    for repet_i in xrange(num_repetitions):
         for j, sigma in enumerate(sigma_space):
             for i, rc_scale in enumerate(rcscale_space):
                 ### Estimate the Fisher Information

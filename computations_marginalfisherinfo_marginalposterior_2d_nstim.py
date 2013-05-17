@@ -122,8 +122,8 @@ if __name__ == '__main__':
                         deriv_mu[3] = -kappa*np.sin(pref_angles[:, 1] - item2_theta2)*population_code_response_2D(item2_theta1, item2_theta2, pref_angles, N=N, kappa=kappa, amplitude=amplitude)
 
                         # FI, 2 items, 2 features per item
-                        for ii in np.arange(4):
-                            for jj in np.arange(4):
+                        for ii in xrange(4):
+                            for jj in xrange(4):
                                 FI_2d_2obj_search[i, j, ii, jj] = np.sum(deriv_mu[ii]*deriv_mu[jj])/(1.*sigma**2.)
 
                         inv_FI_2d_2obj_search[i, j] = np.linalg.inv(FI_2d_2obj_search[i, j])
@@ -143,8 +143,8 @@ if __name__ == '__main__':
                                         deriv_mu[5] = -kappa*np.sin(pref_angles[:, 1] - item3_theta2)*population_code_response_2D(item3_theta1, item3_theta2, pref_angles, N=N, kappa=kappa, amplitude=amplitude)
                                         
                                         # FI, 2 items, 2 features per item
-                                        for ii in np.arange(6):
-                                            for jj in np.arange(6):
+                                        for ii in xrange(6):
+                                            for jj in xrange(6):
                                                 FI_2d_3obj_search[i, j, k, l, ii, jj] = np.sum(deriv_mu[ii]*deriv_mu[jj])/(1.*sigma**2.)
 
                                         inv_FI_2d_3obj_search[i, j, k, l] = np.linalg.inv(FI_2d_3obj_search[i, j, k, l])

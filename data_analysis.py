@@ -86,10 +86,10 @@ def combine_pbs_effectT():
     
     # Now have to put everything in a nice 4D array...
     results_array = np.zeros((all_T.size, param1_space.size, param2_space.size, nb_repeats*nb_experiments))
-    for Ti in np.arange(all_T.size):
-        for par1 in np.arange(param1_space.size):
-            for par2 in np.arange(param2_space.size):
-                for exp in np.arange(nb_experiments):
+    for Ti in xrange(all_T.size):
+        for par1 in xrange(param1_space.size):
+            for par2 in xrange(param2_space.size):
+                for exp in xrange(nb_experiments):
                     try:
                         results_array[Ti, par1, par2, nb_repeats*(exp):nb_repeats*(exp+1)] = all_precisions[all_T[Ti]][exp][par1][par2]
                     except IndexError:
@@ -100,7 +100,7 @@ def combine_pbs_effectT():
     var_precisions = np.std(1./results_array, 3)
 
     # Some quick/dirty plots
-    for t in np.arange(all_T.size):
+    for t in xrange(all_T.size):
         f = plt.figure()
         ax = f.add_subplot(111)
         im = ax.imshow(mean_precisions[t].T, origin='lower', aspect='auto')
@@ -159,10 +159,10 @@ def combine_plot_size_receptive_field_number_neurons():
     
     # Now have to put everything in a nice 4D array...
     results_array = np.zeros((all_T.size, param1_space.size, param2_space.size, nb_repeats*nb_experiments))
-    for Ti in np.arange(all_T.size):
-        for par1 in np.arange(param1_space.size):
-            for par2 in np.arange(param2_space.size):
-                for exp in np.arange(nb_experiments):
+    for Ti in xrange(all_T.size):
+        for par1 in xrange(param1_space.size):
+            for par2 in xrange(param2_space.size):
+                for exp in xrange(nb_experiments):
                     try:
                         results_array[Ti, par1, par2, nb_repeats*(exp):nb_repeats*(exp+1)] = all_precisions[all_T[Ti]][exp][par1][par2]
                     except IndexError:
@@ -173,7 +173,7 @@ def combine_plot_size_receptive_field_number_neurons():
     var_precisions = np.std(1./results_array, 3)
 
     # Some quick/dirty plots
-    for t in np.arange(all_T.size):
+    for t in xrange(all_T.size):
         f = plt.figure()
         ax = f.add_subplot(111)
         im = ax.imshow(mean_precisions[t].T, origin='lower', aspect='auto')
@@ -293,10 +293,10 @@ def combine_mixed_two_scales(data_to_use = 0, should_plot=True):
 
     # Now have to put everything in a nice 4D array...
     results_array = np.zeros((all_ratioconj.size, param1_space.size, param2_space.size, nb_repeats*nb_experiments))
-    for ratioconj_i in np.arange(all_ratioconj.size):
-        for par1 in np.arange(param1_space.size):
-            for par2 in np.arange(param2_space.size):
-                for exp in np.arange(nb_experiments):
+    for ratioconj_i in xrange(all_ratioconj.size):
+        for par1 in xrange(param1_space.size):
+            for par2 in xrange(param2_space.size):
+                for exp in xrange(nb_experiments):
                     try:
                         results_array[ratioconj_i, par1, par2, nb_repeats*(exp):nb_repeats*(exp+1)] = all_precisions[all_ratioconj[ratioconj_i]][exp][par1][par2]
                     except IndexError:
@@ -311,7 +311,7 @@ def combine_mixed_two_scales(data_to_use = 0, should_plot=True):
 
     # Some quick/dirty plots
     if False:
-        for ratioconj_i in np.arange(all_ratioconj.size):
+        for ratioconj_i in xrange(all_ratioconj.size):
             f = plt.figure()
             ax = f.add_subplot(111)
             im = ax.imshow(mean_precisions[ratioconj_i, :, 0:].T, origin='lower', aspect='auto')
@@ -437,7 +437,7 @@ def combine_mixed_two_scales(data_to_use = 0, should_plot=True):
         # optcurve = np.zeros(all_ratioconj.size)
         stdcurve = np.zeros(all_ratioconj.size)
 
-        for r in np.arange(all_ratioconj.size):
+        for r in xrange(all_ratioconj.size):
         #     # indmax = argmax_indices(mean_precisions[r])
             indmax = argmax_indices(mean_precisions[r])
             # indmax = argmin_indices(mean_invprecisions[r])
@@ -469,7 +469,7 @@ def plot_effect_ratioconj():
     all_optcurve = np.zeros((T_max, nb_ratios))
     all_optcurve_std = np.zeros((T_max, nb_ratios))
 
-    for i in np.arange(T_max):
+    for i in xrange(T_max):
         all_vars = combine_mixed_two_scales(i, should_plot=False)
         all_optcurve[i] = all_vars['optcurve']
         all_optcurve_std[i] = all_vars['stdcurve']
@@ -478,14 +478,14 @@ def plot_effect_ratioconj():
     f = plt.figure()
     ax = f.add_subplot(111)
     # ax = plot_mean_std_area(x, all_optcurve[0], all_optcurve_std[0])
-    # for i in np.arange(1,3):
+    # for i in xrange(1,3):
         # ax = plot_mean_std_area(x, all_optcurve[i], all_optcurve_std[i], ax_handle=ax)
-    for i in np.arange(T_max):
+    for i in xrange(T_max):
         ax.plot(x, all_optcurve[i], linewidth=2)
     
     plt.rcParams['font.size'] = 17
     
-    legends=['%d items' % (x+1) for x in np.arange(T_max)]
+    legends=['%d items' % (x+1) for x in xrange(T_max)]
     legends[0] = '1 item'
     
     # plt.legend(legends, loc='upper center', bbox_to_anchor=(0.5, 1.01), ncol=4, shadow=True)
@@ -541,7 +541,7 @@ def combine_multiple_memory_curve():
 
     # Now have to put everything in a nice 4D array...
     results_array = np.zeros((T, T, nb_repeats*nb_experiments))
-    for exp_i in np.arange(nb_experiments):
+    for exp_i in xrange(nb_experiments):
         try:
             results_array[:, :, nb_repeats*(exp_i):nb_repeats*(exp_i+1)] = all_precisions[exp_i]
         except IndexError:
@@ -551,8 +551,8 @@ def combine_multiple_memory_curve():
 
     mean_precision = np.zeros((T,T))
     std_precision = np.zeros((T,T))
-    for t1 in np.arange(T):
-        for t2 in np.arange(T):
+    for t1 in xrange(T):
+        for t2 in xrange(T):
             precisions = 1./results_array[t1, t2]
             precisions[np.isinf(precisions)] = np.nan
             mean_precision[t1, t2]  = np.mean(precisions[~np.isnan(precisions)])
@@ -570,7 +570,7 @@ def combine_multiple_memory_curve():
     
     f = plt.figure()
     ax = f.add_subplot(111)
-    for t in np.arange(T):
+    for t in xrange(T):
         t_space_aligned_right = (T - np.arange(t+1))[::-1]
         # plot_mean_std_area(t_space_aligned_right, np.mean(1./all_precisions[t],1)[:t+1], np.std(1./all_precisions[t],1)[:t+1], ax_handle=ax)
         # semilogy_mean_std_area(t_space_aligned_right, np.mean(1./all_precisions[t],1)[:t+1], np.std(1./all_precisions[t],1)[:t+1], ax_handle=ax)
@@ -580,7 +580,7 @@ def combine_multiple_memory_curve():
         plt.plot(t_space_aligned_right, mean_results[t, :t+1], 'o-', markersize=8, linewidth=2)
         # plot_mean_std_area(t_space_aligned_right, mean_precision[t, :t+1], std_precision[t, :t+1], ax_handle=ax)
 
-    x_labels = ['-%d' % x for x in np.arange(T)[::-1]]
+    x_labels = ['-%d' % x for x in xrange(T)[::-1]]
     x_labels[-1] = 'Last'
 
     ax.set_xticks(t_space_aligned_right)
@@ -589,7 +589,7 @@ def combine_multiple_memory_curve():
     ax.set_yticks((1, 2,3, 4,5))
     # ax.set_xlabel('Recall time')
     # ax.set_ylabel('Precision [rad]')
-    plt.legend(['%d items' % (x+1) for x in np.arange(T)], loc='best', numpoints=1)
+    plt.legend(['%d items' % (x+1) for x in xrange(T)], loc='best', numpoints=1)
 
     return locals()
 
