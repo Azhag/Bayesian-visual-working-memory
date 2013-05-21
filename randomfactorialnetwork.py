@@ -641,6 +641,8 @@ class RandomFactorialNetwork():
     def get_neuron_response(self, neuron_index, stimulus_input, params={}):
         '''
             Get the output of one specific neuron, for a specific stimulus
+
+            returns: Mx1 vector
         '''
 
         return self.get_network_response(stimulus_input, params=params, specific_neurons=np.array([neuron_index]))
@@ -650,7 +652,7 @@ class RandomFactorialNetwork():
         '''
             Get a random response for the given stimulus.
             
-            return: M
+            return: Mx1
         '''
         
         return self.get_network_response(stimulus_input, params=params) + sigma*np.random.randn(self.M)
@@ -1015,7 +1017,7 @@ class RandomFactorialNetwork():
         plt.show()
     
     
-    def plot_neuron_activity(self, neuron_index, nb_stddev=1., precision=100, params={}):
+    def plot_neuron_activity(self, neuron_index=0, nb_stddev=1., precision=100, params={}):
         '''
             Plot the activity of one specific neuron over the whole input space.
         '''
@@ -1066,7 +1068,7 @@ class RandomFactorialNetwork():
         plt.show()
 
 
-    def plot_neuron_activity_1d(self, neuron_index, axis_to_vary=0, fix_preferred_stim=True, fixed_stim=None, precision=100., params={}, normalise=True):
+    def plot_neuron_activity_1d(self, neuron_index=0, axis_to_vary=0, fix_preferred_stim=True, fixed_stim=None, precision=100., params={}, normalise=True):
         '''
             Plot the activity of a neuron along one dimension. Either provide the stimulus to fix, or let it
             be at its preferred stimulus.
@@ -1106,7 +1108,7 @@ class RandomFactorialNetwork():
 
 
 
-    def plot_network_activity(self, stimulus_input, nb_stddev=1., params={}):
+    def plot_network_activity(self, stimulus_input=(0.0, 0.0), nb_stddev=1., ax_handle=None, params={}):
         '''
             Plot the activity of the network to a specific stimulus.
         '''
@@ -1116,13 +1118,15 @@ class RandomFactorialNetwork():
         activity = np.reshape(self.get_network_response(stimulus_input, params=params)[:int(M_sqrt**2.)], (M_sqrt, M_sqrt))
         
         # Plot it
-        f = plt.figure()
-        ax = f.add_subplot(111)
-        im= ax.imshow(activity.T, origin='lower')
+        if ax_handle is None:
+            f = plt.figure()
+            ax_handle = f.add_subplot(111)
+
+        im= ax_handle.imshow(activity.T, origin='lower')
         im.set_extent((-np.pi, np.pi, -np.pi, np.pi))
         # im.set_extent((feature_space1.min(), feature_space1.max(), feature_space2.min(), feature_space2.max()))
-        ax.set_xlabel('Color')
-        ax.set_ylabel('Orientation')
+        ax_handle.set_xlabel('Color')
+        ax_handle.set_ylabel('Orientation')
         im.set_interpolation('nearest')
         f.colorbar(im)
         
@@ -1152,7 +1156,7 @@ class RandomFactorialNetwork():
         plt.show()  
     
     
-    def plot_neuron_activity_3d(self, neuron_index, precision=20, weight_deform=0.5, params={}, draw_colorbar=True):
+    def plot_neuron_activity_3d(self, neuron_index=0, precision=20, weight_deform=0.5, params={}, draw_colorbar=True):
         '''
             Plot the activity of a neuron on the sphere/torus
         '''
@@ -1191,7 +1195,7 @@ class RandomFactorialNetwork():
     ##########################
 
     @classmethod
-    def create_full_conjunctive(cls, M, R=2, rcscale=None, rcscale_autoset=False, scale_parameters = None, ratio_parameters = None, scale_moments=None, ratio_moments=None, debug=False, response_type = 'bivariate_fisher', gain=1.0):
+    def create_full_conjunctive(cls, M, R=2, rcscale=None, autoset_parameters=False, scale_parameters = (100., 0.01), ratio_parameters = (3.333, 0.3), scale_moments=None, ratio_moments=None, debug=True, response_type = 'bivariate_fisher', gain=1.0):
         '''
             Create a RandomFactorialNetwork instance, using a pure conjunctive code
         '''
@@ -1199,27 +1203,20 @@ class RandomFactorialNetwork():
         if debug:
             print "create conjunctive network"
 
-        if rcscale_autoset:
-            # Attempt to automatically set the appropriate rc_scale, for a given population size.
-            # assumes uniform covering of receptive fields, with circles of radius = 2 * std_dev(rcscale)
+        rn = RandomFactorialNetwork(M, R=R, response_type=response_type, gain=gain)
+        rn.population_code_type = 'conjunctive'
+
+        ## Create receptive fields
+
+        if autoset_parameters:
+            # We use the optimum heuristic for the rc_scale: try to cover the space fully, assuming uniform coverage with squares of size 2*(2*kappa_to_stddev(kappa)). We assume that 2*stddev gives a good approximation to the appropriate coverage required.
             rcscale = stddev_to_kappa(2.*np.pi/int(M**0.5))
 
         if rcscale:
-            # Assume we construct a conjunctive with ratio 1
-            scale_moments = [rcscale, 0.00001]
-            ratio_moments = [1.0, 0.0001]
+            # Assume we construct a conjunctive with ratio 1, no need to get random eigenvectors
+            rn.assign_aligned_eigenvectors(scale=rcscale, ratio=1.0, reset=True)
 
-            if response_type == 'bivariate_fisher':
-                scale_moments[0] = rcscale**2.
-
-            # We are given the desired mean and variance of the scale. Convert to appropriate Gamma parameters
-            scale_parameters = (scale_moments[0]**2./scale_moments[1], scale_moments[1]/scale_moments[0])
-            ratio_parameters = (ratio_moments[0]**2./ratio_moments[1], ratio_moments[1]/ratio_moments[0])
         else:
-            if scale_parameters is None or ratio_parameters is None:
-                scale_parameters = (100., 0.01)
-                ratio_parameters = (3.33333, 0.3)
-
             if scale_moments is not None:
                 if response_type == 'bivariate_fisher':
                     # For bivariate fisher, we have theory that requires kappa to be of the good scale, not sqrt'ed here.
@@ -1232,16 +1229,13 @@ class RandomFactorialNetwork():
                 # same
                 ratio_parameters = (ratio_moments[0]**2./ratio_moments[1], ratio_moments[1]/ratio_moments[0])
             
-        rn = RandomFactorialNetwork(M, R=R, response_type=response_type, gain=gain)
-
-        rn.assign_random_eigenvectors(scale_parameters=scale_parameters, ratio_parameters=ratio_parameters, reset=True)
+            # Create random eigenvectors
+            rn.assign_random_eigenvectors(scale_parameters=scale_parameters, ratio_parameters=ratio_parameters, reset=True)
         
-        rn.population_code_type = 'conjunctive'
-
         return rn
     
     @classmethod
-    def create_full_features(cls, M, R=2, scale=0.3, ratio=40., nb_feature_centers=3, response_type = 'bivariate_fisher', gain=1.0):
+    def create_full_features(cls, M, R=2, scale=0.3, ratio=40., autoset_parameters=False, nb_feature_centers=3, response_type = 'bivariate_fisher', gain=1.0):
         '''
             Create a RandomFactorialNetwork instance, using a pure conjunctive code
 
@@ -1250,6 +1244,15 @@ class RandomFactorialNetwork():
         print "create feature network"
 
         rn = RandomFactorialNetwork(M, R=R, response_type=response_type, gain=gain)
+
+        if autoset_parameters:
+            # Use optimal values for the parameters. Be careful, this assumes M/2 and coverage of full 2 pi space
+            # Assume one direction should cover width = pi, the other should cover M/2 * width/2. = 2pi
+            # width = stddev_to_kappa(stddev)
+
+            scale = stddev_to_kappa(np.pi)
+            scale2 = stddev_to_kappa(2.*np.pi/int(M/2.))
+            ratio = scale2/scale
 
         rn.assign_prefered_stimuli(tiling_type='2_features', reset=True, nb_feature_centers=nb_feature_centers)
         rn.assign_aligned_eigenvectors(scale=scale, ratio=-ratio, specific_neurons = np.arange(M/2), reset=True)
@@ -1567,7 +1570,7 @@ if __name__ == '__main__':
         rc_scale = 5.0
 
         time_weights_parameters = dict(weighting_alpha=alpha, weighting_beta = beta, specific_weighting = 0.1, weight_prior='uniform')
-        rn = RandomFactorialNetwork.create_full_conjunctive(N, R=2, scale_moments=(rc_scale, 0.0000001), ratio_moments=(1.0, 0.01), response_type='bivariate_fisher', gain=4*np.pi**2.)
+        rn = RandomFactorialNetwork.create_full_conjunctive(N, R=2, rcscale=rc_scale, response_type='bivariate_fisher', gain=4*np.pi**2.)
         data_gen_noise = DataGeneratorRFN(15000, T, rn, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=T-1, enforce_min_distance=0.0)
         stat_meas = StatisticsMeasurer(data_gen_noise)
 
