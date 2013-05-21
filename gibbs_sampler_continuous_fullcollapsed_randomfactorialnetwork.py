@@ -781,7 +781,7 @@ class Sampler:
             lines = ax.plot(all_angles, llh_2angles)
             ax.set_xlim((-np.pi, np.pi))
 
-            legends = ['-%d' % x for x in xrange(self.T)[::-1]]
+            legends = ['-%d' % x for x in np.arange(self.T)[::-1]]
             legends[-1] = 'Last'
             
             for t in xrange(self.T):
