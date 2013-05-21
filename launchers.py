@@ -20,6 +20,58 @@ from dataio import *
 from gibbs_sampler_continuous_fullcollapsed_randomfactorialnetwork import *
 
 
+
+################### INITIALISERS ####################
+# Define everything here, so that other launchers can call them directly (unless they do something funky)
+
+def init_everything(parameters):
+
+    # Build the random network
+    random_network = init_random_network(parameters)
+        
+    # Construct the real dataset
+    time_weights_parameters = dict(weighting_alpha=parameters['alpha'], weighting_beta=1.0, specific_weighting=0.1, weight_prior='uniform')
+    cued_feature_time = parameters['T']-1
+
+    # print "Building the database"
+    data_gen = DataGeneratorRFN(parameters['N'], parameters['T'], random_network, sigma_y=parameters['sigmay'], sigma_x=parameters['sigmax'], time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation=parameters['stimuli_generation'])
+    
+    # Measure the noise structure
+    # print "Measuring noise structure"
+    data_gen_noise = DataGeneratorRFN(5000, parameters['T'], random_network, sigma_y=parameters['sigmay'], sigma_x=parameters['sigmax'], time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation=parameters['stimuli_generation'])
+    stat_meas = StatisticsMeasurer(data_gen_noise)
+    
+    sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters=stat_meas.model_parameters, tc=cued_feature_time)
+
+    return (random_network, data_gen, stat_meas, sampler)
+
+
+
+def init_random_network(parameters):
+
+    # Build the random network
+    
+    if parameters['code_type'] == 'conj':
+        random_network = RandomFactorialNetwork.create_full_conjunctive(parameters['M'], R=parameters['R'], rcscale=parameters['rc_scale'], autoset_parameters=parameters['autoset_parameters'])
+    elif parameters['code_type'] == 'feat':
+        random_network = RandomFactorialNetwork.create_full_features(parameters['M'], R=parameters['R'], scale=parameters['rc_scale'], ratio=args.feat_ratio, autoset_parameters=parameters['autoset_parameters'])
+    elif parameters['code_type'] == 'mixed':
+        conj_params = dict(scale_moments=(parameters['rc_scale'], 0.001), ratio_moments=(1.0, 0.0001))
+        feat_params = dict(scale=parameters['rc_scale2'], ratio=40.)
+
+        random_network = RandomFactorialNetwork.create_mixed(parameters['M'], R=parameters['R'], ratio_feature_conjunctive=ratio_conj, conjunctive_parameters=conj_params, feature_parameters=feat_params)
+    elif parameters['code_type'] == 'wavelet':
+        random_network = RandomFactorialNetwork.create_wavelet(parameters['M'], R=parameters['R'], scales_number=5)
+    elif parameters['code_type'] == 'hierarchical':
+        random_network = HierarchialRandomNetwork(parameters['M'], M_layer_one=parameters['M_layer_one'], optimal_coverage=True, sparsity_weights=parameters['sparsity'], normalise_weights=True, sigma_weights=parameters['sigma_weights'], type_layer_one=parameters['type_layer_one'], distribution_weights='exponential')
+    else:
+        raise ValueError('Code_type is wrong!')
+
+    return random_network
+
+
+
+
 def launcher_do_simple_run(args):
     ''' 
         Basic use-case when playing around with the components.
@@ -32,46 +84,10 @@ def launcher_do_simple_run(args):
     '''
     
     print "Simple run"
-    
 
-    # Build the random network
-    # sigma_y = 0.02
-    # sigma_y = 0.2
-    # sigma_x = 0.1
-    time_weights_parameters = dict(weighting_alpha=args.alpha, weighting_beta=1.0, specific_weighting=0.1, weight_prior='uniform')
-    cued_feature_time = args.T-1
-
-
-    # 'conj', 'feat', 'mixed'
-    if args.code_type == 'conj':
-
-        random_network = RandomFactorialNetwork.create_full_conjunctive(args.M, R=args.R, rcscale=args.rc_scale, rcscale_autoset=args.rcscale_auto)
-    elif args.code_type == 'feat':
-        random_network = RandomFactorialNetwork.create_full_features(args.M, R=args.R, scale=args.rc_scale, ratio=args.feat_ratio)
-    elif args.code_type == 'mixed':
-        conj_params = dict(scale_moments=[args.rc_scale, 0.0001], ratio_moments=[1.0, 0.0001])
-        feat_params = dict(scale=args.rc_scale2, ratio=args.feat_ratio)
-        random_network = RandomFactorialNetwork.create_mixed(args.M, R=args.R, ratio_feature_conjunctive=args.ratio_conj, conjunctive_parameters=conj_params, feature_parameters=feat_params)
-    elif args.code_type == 'wavelet':
-        random_network = RandomFactorialNetwork.create_wavelet(args.M, R=args.R, scales_number=5)
-    elif args.code_type == 'hierarchical':
-        random_network = HierarchialRandomNetwork(args.M, sigma_weights=0.5, sparsity_weights=0.5, M_layer_one=args.M_layer_one, rcscale_layer_one='optimal')
-        # random_network = HierarchialRandomNetwork(args.M, sigma_weights=2.0, sparsity_weights=1.0, normalise_weights=True, type_layer_one='feature', rcscale_layer_one=0.1, ratio_layer_one=200., M_layer_one=args.M_layer_one)
-    else:
-        raise ValueError('Code_type is wrong!')
+    all_parameters = vars(args)
     
-    # Construct the real dataset
-    print "Building the database"
-    data_gen = DataGeneratorRFN(args.N, args.T, random_network, sigma_y=args.sigmay, sigma_x=args.sigmax, time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation=args.stimuli_generation)
-    
-    # Measure the noise structure
-    print "Measuring noise structure"
-    data_gen_noise = DataGeneratorRFN(3000, args.T, random_network, sigma_y=args.sigmay, sigma_x=args.sigmax, time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation=args.stimuli_generation)
-    stat_meas = StatisticsMeasurer(data_gen_noise)
-    # stat_meas = StatisticsMeasurer(data_gen)
-    
-    print "Building sampler..."
-    sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters=stat_meas.model_parameters, tc=cued_feature_time)
+    (random_network, data_gen, stat_meas, sampler) = init_everything(all_parameters)
     
     print "Inferring optimal angles, for t=%d" % sampler.tc[0]
     # sampler.set_theta_max_likelihood(num_points=500, post_optimise=True)
@@ -79,11 +95,11 @@ def launcher_do_simple_run(args):
     if args.inference_method == 'sample':
         # Sample thetas
         print "-> Sampling theta"
-        sampler.sample_theta(num_samples=args.num_samples, burn_samples=20, selection_method='median', selection_num_samples=args.num_samples, integrate_tc_out=False, debug=False)
+        sampler.sample_theta(num_samples=all_parameters['num_samples'], burn_samples=20, selection_method='median', selection_num_samples=args.num_samples, integrate_tc_out=False, debug=False)
     elif args.inference_method == 'max_lik':
         # Just use the ML value for the theta
         print "-> Setting theta to ML values"
-        sampler.set_theta_max_likelihood(num_points=200, post_optimise=True)
+        sampler.set_theta_max_likelihood(num_points=100, post_optimise=True)
     elif args.inference_method == 'none':
         # Do nothing
         print "do nothing"
