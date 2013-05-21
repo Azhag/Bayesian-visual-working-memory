@@ -13,6 +13,8 @@ import os
 import matplotlib.pyplot as plt
 import scipy.interpolate as spint
 
+import imp
+
 from datagenerator import *
 from randomfactorialnetwork import *
 from statisticsmeasurer import *
@@ -25,6 +27,38 @@ from submitpbs import *
 
 import progress
 
+
+def launcher_do_generate_submit_pbs_from_param_files(args):
+    '''
+        Generate a series of parameters to be run with PBS.
+
+        Quite general, takes its parameters from a provided parameter_files file.
+        (assume this is a .py file, which will be imported dynamically)
+
+        If this parameter_file defines a filtering function, uses it.
+    '''
+
+    print "launcher_do_generate_submit_pbs_from_param_files, generating parameters..."
+
+
+    all_parameters = vars(args)
+    
+    # Load the parameters from the specific file, fancyyyyy
+    assert 'parameters_filename' in all_parameters and len(all_parameters['parameters_filename'])>0, "Parameters_filename is not set properly..."
+    parameters_file = imp.load_source('params', all_parameters['parameters_filename'])
+
+    ##### Now generate the parameters combinations and submit everything to PBS
+    submit_pbs = SubmitPBS(pbs_submission_infos=parameters_file.pbs_submission_infos, debug=True)
+    constrained_parameters = submit_pbs.generate_submit_constrained_parameters_from_module_parameters(parameters_file)
+
+    dataio = DataIO(output_folder=all_parameters['output_directory'], label=os.path.splitext(all_parameters['parameters_filename'])[0])
+    variables_to_save = ['constrained_parameters', 'all_parameters']
+    dataio.save_variables(variables_to_save, locals())
+
+    return locals()
+
+    
+
 def launcher_do_generate_constrained_param_experimental_theo(args):
     '''
         Generate parameters consistent with the experimentally found FI.
@@ -35,7 +69,7 @@ def launcher_do_generate_constrained_param_experimental_theo(args):
 
     all_parameters = vars(args)
     
-    variables_to_save = ['dict_parameters_range', 'constrained_parameters', 'pbs_submission_infos', 'filtering_function_params']
+    variables_to_save = ['dict_parameters_range', 'constrained_parameters', 'pbs_submission_infos', 'filtering_function_params', 'all_parameters']
     dataio = DataIO(output_folder=args.output_directory, label=args.label)
 
     num_samples = all_parameters['num_samples']
@@ -109,7 +143,7 @@ def launcher_do_generate_constrained_param_experimental_theo(args):
         # Generate the parameters
         # Submit during the generation, when we find a new set of parameters.
 
-        constrained_parameters = submit_pbs.generate_submit_constrained_parameters_random(num_samples, dict_parameters_range, filtering_function=check_experimental_constraint, filtering_function_parameters=filtering_function_params, pbs_submission_infos=pbs_submission_infos, submit_jobs=pbs_submit_during_parameters_generation)
+        constrained_parameters = submit_pbs.generate_submit_constrained_parameters_random(dict_parameters_range, num_samples=num_samples, filtering_function=check_experimental_constraint, filtering_function_parameters=filtering_function_params, pbs_submission_infos=pbs_submission_infos, submit_jobs=pbs_submit_during_parameters_generation)
      
     elif all_parameters['search_type'] == 'grid':
         print "Launching grid!"
@@ -180,7 +214,7 @@ def init_random_network(parameters):
     # Build the random network
     
     if parameters['code_type'] == 'conj':
-        random_network = RandomFactorialNetwork.create_full_conjunctive(parameters['M'], R=parameters['R'], scale_moments=(parameters['rc_scale'], 0.0001), ratio_moments=(1.0, 0.0001))
+        random_network = RandomFactorialNetwork.create_full_conjunctive(parameters['M'], R=parameters['R'], rcscale=parameters['rc_scale'])
     elif parameters['code_type'] == 'feat':
         random_network = RandomFactorialNetwork.create_full_features(parameters['M'], R=parameters['R'], scale=parameters['rc_scale'], ratio=40.)
     elif parameters['code_type'] == 'mixed':
@@ -188,8 +222,10 @@ def init_random_network(parameters):
         feat_params = dict(scale=parameters['rc_scale2'], ratio=40.)
 
         random_network = RandomFactorialNetwork.create_mixed(parameters['M'], R=parameters['R'], ratio_feature_conjunctive=ratio_conj, conjunctive_parameters=conj_params, feature_parameters=feat_params)
-    elif code_type == 'wavelet':
+    elif parameters['code_type'] == 'wavelet':
         random_network = RandomFactorialNetwork.create_wavelet(parameters['M'], R=parameters['R'], scales_number=5)
+    elif parameters['code_type'] == 'hierarchical':
+        random_network = HierarchialRandomNetwork(args.M, sigma_weights=0.5, sparsity_weights=0.5, M_layer_one=args.M_layer_one, rcscale_layer_one='optimal')
     else:
         raise ValueError('Code_type is wrong!')
 

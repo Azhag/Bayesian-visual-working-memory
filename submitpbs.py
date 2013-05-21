@@ -227,7 +227,47 @@ class SubmitPBS():
             self.make_script(sim_cmd)
 
 
-    def generate_submit_constrained_parameters_random(self, num_samples, dict_parameters_range, filtering_function=None, filtering_function_parameters=None, pbs_submission_infos=None, submit_jobs=True):
+    def generate_submit_constrained_parameters_from_module_parameters(self, module_parameters):
+        '''
+            Entry-point for general parameter tuples creation. Optionally submits to PBS directly.
+
+            Uses the new system that loads .py files as modules, which can contain parameters/functions directly.
+
+            Loads generate_submit_constrained_parameters next, which then loads generate_submit_constrained_parameters_grid/generate_submit_constrained_parameters_random accordingly.
+        '''
+
+
+        # If no filtering function given, just set it to None for the rest of the script
+        if 'filtering_function' not in module_parameters.__dict__:
+            module_parameters.__dict__['filtering_function'] = None
+        if 'filtering_function_parameters' not in module_parameters.__dict__:
+            module_parameters.__dict__['filtering_function_parameters'] = None
+        if 'num_samples' not in module_parameters.__dict__:
+            module_parameters.__dict__['num_samples'] = 100
+
+        self.generate_submit_constrained_parameters(module_parameters.dict_parameters_range, parameter_generation=module_parameters.parameter_generation, num_samples=module_parameters.num_samples, filtering_function=module_parameters.filtering_function, filtering_function_parameters=module_parameters.filtering_function_parameters, pbs_submission_infos=module_parameters.pbs_submission_infos, submit_jobs=module_parameters.submit_jobs)
+
+
+
+    def generate_submit_constrained_parameters(self, dict_parameters_range, parameter_generation='grid', num_samples=100, filtering_function=None, filtering_function_parameters=None, pbs_submission_infos=None, submit_jobs=True):
+        '''
+            Easy entry-point for general parameter tuples creation. Optionally submits to PBS directly.
+            Depending on parameter_generation, runs either:
+                - generate_submit_constrained_parameters_grid for 'grid'
+                - generate_submit_constrained_parameters_random for 'random'
+
+            Returns a list of the generated parameters
+        '''
+
+        if parameter_generation == 'grid':
+            return self.generate_submit_constrained_parameters_grid(dict_parameters_range, filtering_function=filtering_function, filtering_function_parameters=filtering_function_parameters, pbs_submission_infos=pbs_submission_infos, submit_jobs=submit_jobs)
+        elif parameter_generation == 'random':
+            return self.generate_submit_constrained_parameters_random(dict_parameters_range, num_samples=num_samples, filtering_function=filtering_function, filtering_function_parameters=filtering_function_parameters, pbs_submission_infos=pbs_submission_infos, submit_jobs=submit_jobs)
+
+
+
+
+    def generate_submit_constrained_parameters_random(self, dict_parameters_range, num_samples=100, filtering_function=None, filtering_function_parameters=None, pbs_submission_infos=None, submit_jobs=True):
         '''
             Takes a dictionary of parameters (which should contain low/high values for each or generator function), and 
             generates num_samples possible parameters randomly.
@@ -282,8 +322,9 @@ class SubmitPBS():
 
         candidate_parameters = []
 
-        # Get all cross combinations of parameters
-        cross_comb = cross([dict_parameters_range[param]['range'].tolist() for param in dict_parameters_range])
+        # Get all cross combinations of parameters.
+        # Also converts the type on the fly to correspond with the specified dtype.
+        cross_comb = cross([[dict_parameters_range[param]['dtype'](param_elem) for param_elem in dict_parameters_range[param]['range'].tolist()] for param in dict_parameters_range])
         # Convert them back into dictionaries
         candidate_parameters = [dict(zip(dict_parameters_range.keys(), x)) for x in cross_comb]
 
@@ -294,7 +335,7 @@ class SubmitPBS():
         # Now filter them
         constrained_parameters = []
         for new_parameters in progress.ProgressDisplay(candidate_parameters, display=progress.SINGLE_LINE):
-            if (filtering_function and filtering_function(new_parameters, dict_parameters_range, filtering_function_parameters)) or (filtering_function is None):
+            if (filtering_function is None) or (filtering_function and filtering_function(new_parameters, dict_parameters_range, filtering_function_parameters)):
 
                 constrained_parameters.append(new_parameters)
 
@@ -345,7 +386,7 @@ if __name__ == '__main__':
     filtering_function = lambda parameters, dict_parameters_range, other_options: parameters['param1'] > 1.0
 
     submit_pbs = SubmitPBS(pbs_submission_infos=pbs_submission_infos, debug=True)
-    submit_pbs.generate_submit_constrained_parameters_random(num_samples, dict_parameters_range, filtering_function=filtering_function, filtering_function_parameters=None, pbs_submission_infos=pbs_submission_infos, submit_jobs=False)
+    submit_pbs.generate_submit_constrained_parameters_random(dict_parameters_range, num_samples=num_samples, filtering_function=filtering_function, filtering_function_parameters=None, pbs_submission_infos=pbs_submission_infos, submit_jobs=False)
 
 
 
