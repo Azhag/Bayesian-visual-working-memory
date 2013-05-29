@@ -91,8 +91,8 @@ class DataGenerator:
         
         f = plt.figure()
         N_sqrt = np.sqrt(nb_to_plot).astype(np.int32)
-        for i in np.arange(N_sqrt):
-            for j in np.arange(N_sqrt):
+        for i in xrange(N_sqrt):
+            for j in xrange(N_sqrt):
                 print "Plotting %d" % (N_sqrt*i+j+1)
                 subax = f.add_subplot(N_sqrt, N_sqrt, N_sqrt*i+j+1)
                 subax.plot(np.linspace(0., np.pi, self.random_network.M, endpoint=False), self.Y[N_sqrt*i+j])
@@ -146,20 +146,20 @@ class DataGeneratorBinary(DataGenerator):
         
         #print self.time_weights
         
-        for i in np.arange(self.N):
+        for i in xrange(self.N):
             
             # Choose T random orientations, uniformly
             self.chosen_orientations[i] = np.random.permutation(self.random_network.possible_objects_indices)[:self.T]
             
             # Activate those features for the current datapoint
-            for r in np.arange(self.R):
+            for r in xrange(self.R):
                 self.Z_true[i, np.arange(self.T), r, self.chosen_orientations[i][:,r]] = 1.0
             
             # Get the 'x' samples (here from the population code, with correlated covariance, but whatever)
             x_samples_sum = self.random_network.sample_network_response_indices(self.chosen_orientations[i].T)
             
             # Combine them together
-            for t in np.arange(self.T):
+            for t in xrange(self.T):
                 self.Y[i] = self.time_weights[0, t]*self.Y[i].copy() + self.time_weights[1, t]*x_samples_sum[t] + self.sigma_y*np.random.randn(self.random_network.M)
                 self.all_Y[i, t] = self.Y[i]
             
@@ -209,7 +209,7 @@ class DataGeneratorDiscrete(DataGenerator):
         
         #print self.time_weights
         
-        for i in np.arange(self.N):
+        for i in xrange(self.N):
             
             # Choose T random orientations, uniformly
             self.chosen_orientations[i] = np.random.permutation(self.random_network.possible_objects_indices)[:self.T]
@@ -220,7 +220,7 @@ class DataGeneratorDiscrete(DataGenerator):
             x_samples_sum = self.random_network.sample_network_response_indices(self.chosen_orientations[i].T)
             
             # Combine them together
-            for t in np.arange(self.T):
+            for t in xrange(self.T):
                 self.Y[i] = self.time_weights[0, t]*self.Y[i].copy() + self.time_weights[1, t]*x_samples_sum[t] + self.sigma_y*np.random.randn(self.random_network.M)
                 self.all_Y[i, t] = self.Y[i]
             
@@ -233,7 +233,7 @@ class DataGeneratorDiscrete(DataGenerator):
     #         '''
     #         f = plt.figure()
     #         
-    #         for k in np.arange(self.K):
+    #         for k in xrange(self.K):
     #             subaxe=f.add_subplot(1, self.K, k)
     #             scaledimage(self.features[k], ax=subaxe)
     
@@ -282,7 +282,7 @@ class DataGeneratorContinuous(DataGenerator):
         # TODO Hack for now, add the time contribution
         # self.time_contribution = 0.06*np.random.randn(self.T, self.random_network.M)
         
-        for i in np.arange(self.N):
+        for i in xrange(self.N):
             
             if input_orientations is None:
                 # Choose T random orientations, uniformly
@@ -299,7 +299,7 @@ class DataGeneratorContinuous(DataGenerator):
             x_samples_sum = self.random_network.sample_network_response(self.chosen_orientations[i])
             
             # Combine them together
-            for t in np.arange(self.T):
+            for t in xrange(self.T):
                 self.Y[i] = self.time_weights[0, t]*self.Y[i].copy() + self.time_weights[1, t]*x_samples_sum[t] + self.sigma_y*np.random.randn(self.random_network.M)
                 # self.Y[i] /= np.sum(np.abs(self.Y[i]))
                 # self.Y[i] /= fast_1d_norm(self.Y[i])
@@ -337,36 +337,43 @@ class DataGeneratorRFN(DataGenerator):
                 self.stimuli_correct:   N x T x R    
         '''
 
-        if stimuli_generation == 'random':
-            angle_generator = lambda: (np.random.rand(self.T)-0.5)*2.*np.pi
-        elif stimuli_generation == 'constant':
-            angle_generator = lambda: 1.2*np.ones(self.T)
-        elif stimuli_generation == 'random_smallrange':
-            angle_generator = lambda: (np.random.rand(self.T)-0.5)*np.pi/2.
-        elif stimuli_generation == 'constant_separated':
-            angle_generator = lambda: 1.2*np.ones(self.T)
+        random_generation = False
+
+        if is_function(stimuli_generation):
+            angle_generator = stimuli_generation
         else:
-            raise ValueError('Unknown stimulus generation technique')
+            if stimuli_generation == 'random':
+                angle_generator = lambda T: (np.random.rand(T)-0.5)*2.*np.pi
+                random_generation = True
+            elif stimuli_generation == 'constant':
+                angle_generator = lambda T: 1.2*np.ones(T)
+            elif stimuli_generation == 'random_smallrange':
+                angle_generator = lambda: (np.random.rand(T)-0.5)*np.pi/2.
+                # angle_generator = lambda T: (np.random.rand(T)-0.5)*np.pi
+                random_generation = True
+            elif stimuli_generation == 'constant_separated':
+                angle_generator = lambda T: 1.2*np.ones(T)
+            else:
+                raise ValueError('Unknown stimulus generation technique')
 
         self.enforce_min_distance = enforce_min_distance
         
         # This gives all the true stimuli
-        self.stimuli_correct = np.zeros((self.N, self.T, self.R), dtype='float')
+        self.stimuli_correct = np.zeros((self.N, self.T, self.R), dtype=float)
 
         ## Get stimuli with a minimum enforced distance. 
         # Sample stimuli uniformly
         # Enforce differences on all dimensions (P. Bays: 10° for orientations).
-        for n in np.arange(self.N):
-            for r in np.arange(self.R):
-                self.stimuli_correct[n, :, r] = angle_generator()
-                # self.stimuli_correct[n, :, r] = (np.random.rand(self.T)-0.5)*np.pi
+        for n in xrange(self.N):
+            for r in xrange(self.R):
+                self.stimuli_correct[n, :, r] = angle_generator(self.T)
 
                 # Enforce minimal distance between different times
-                if (stimuli_generation.find('random') >= 0) and enforce_min_distance > 0.:
+                if random_generation and enforce_min_distance > 0.:
                     tries = 0
                     while np.any(pdist(self.stimuli_correct[n, :, r][:, np.newaxis], 'chebyshev') < self.enforce_min_distance) and tries < 1000:
                         # Some are too close, resample
-                        self.stimuli_correct[n, :, r] = angle_generator()
+                        self.stimuli_correct[n, :, r] = angle_generator(self.T)
                         # self.stimuli_correct[n, :, r] = (np.random.rand(self.T)-0.5)*np.pi
                         tries += 1
         
@@ -411,7 +418,7 @@ class DataGeneratorRFN(DataGenerator):
         # TODO Hack for now, add the time contribution
         # self.time_contribution = 0.06*np.random.randn(self.T, self.random_network.M)
         
-        for i in np.arange(self.N):
+        for i in xrange(self.N):
             
             # For now, always cued the second feature (i.e. color) and retrieve the first feature (i.e. orientation)
             self.cued_features[i, 0] = 1
@@ -421,7 +428,7 @@ class DataGeneratorRFN(DataGenerator):
             self.cued_features[i, 1] = cued_feature_time
 
             # Create the memory
-            for t in np.arange(self.T):
+            for t in xrange(self.T):
                 # Get the 'x' sample (here from the population code)
                 x_sample = self.random_network.sample_network_response(self.stimuli_correct[i, t], sigma=self.sigma_x)
             
@@ -432,7 +439,7 @@ class DataGeneratorRFN(DataGenerator):
                 self.all_X[i, t] = x_sample
         
         # For convenience, store the list of nontargets objects.
-        self.nontargets_indices = np.array([[t for t in np.arange(self.T) if t != self.cued_features[n, 1]] for n in np.arange(self.N)], dtype='int')
+        self.nontargets_indices = np.array([[t for t in xrange(self.T) if t != self.cued_features[n, 1]] for n in xrange(self.N)], dtype='int')
             
 
     
@@ -454,6 +461,8 @@ class DataGeneratorRFN(DataGenerator):
         elif display_type == 'mixed':
             # TODO mixed population datapoint method.
             raise NotImplementedError('show_datapoint for mixed network, not done.')
+        elif display_type == 'hierarchical':
+            self.show_datapoint_hierarchical(n=n)
     
 
     def show_datapoint_conjunctive(self, n=0):
@@ -485,7 +494,7 @@ class DataGeneratorRFN(DataGenerator):
             e.set_clip_box(ax.bbox)
             e.set_alpha(0.5)
             e.set_facecolor('white')
-            e.set_transform(ax.transData)        
+            e.set_transform(ax.transData)
     
 
     def show_datapoint_features(self, n=0):
@@ -537,7 +546,7 @@ class DataGeneratorRFN(DataGenerator):
             f, axes = plt.subplots(nb_subplots_sqrt, nb_subplots_sqrt)
             axes = axes.flatten()
 
-        for curr_scale_i in np.arange(all_scales.size):
+        for curr_scale_i in xrange(all_scales.size):
             # Use this as grid side
             scale_sqrt = np.floor(np.sum(self.random_network.neurons_scales == all_scales[curr_scale_i])**0.5)
 
@@ -576,6 +585,61 @@ class DataGeneratorRFN(DataGenerator):
         # Put a vertical line at the true answer
         best_neuron_i = np.argmin(np.sum((self.random_network.neurons_preferred_stimulus - self.stimuli_correct[n, t])**2., axis=1))
         plt.axvline(x=best_neuron_i, color='r', linewidth=3)
+
+
+    def show_datapoint_hierarchical(self, n=0):
+        '''
+            Show a datapoint from a hiearchical random network
+
+            Shows the activity of the first level on the different objects, and on top the activity of the second random level
+        '''
+
+        # Collect first level activities for the current datapoint
+        level_one_activities = np.empty((self.T, self.random_network.M_layer_one))
+        level_two_activities = np.empty((self.T, self.random_network.M))
+        for t in xrange(self.T):
+            level_two_activities[t] = self.random_network.get_network_response(self.stimuli_correct[n, t])
+            level_one_activities[t] = self.random_network.current_layer_one_response
+
+        # Now construct the plot. Use gridspec
+        plt.figure()
+        ax_leveltwo_global = plt.subplot2grid((3, self.T), (0, 0), colspan=self.T)
+        axes_levelone = []
+        axes_leveltwo = []
+        for t in xrange(self.T):
+            axes_leveltwo.append(plt.subplot2grid((3, self.T), (1, t)))
+            axes_levelone.append(plt.subplot2grid((3, self.T), (2, t)))
+
+        # Plot the level two activation, use a bar, easier to read
+        ax_leveltwo_global.bar(np.arange(self.random_network.M), self.Y[n])
+
+        # Plot the activation of the level one subnetwork (and of the individual responses at level two)
+        M_sqrt = int(self.random_network.M_layer_one**0.5)
+        for t in xrange(self.T):
+            # Level two, on individual items
+            axes_leveltwo[t].bar(np.arange(self.random_network.M), level_two_activities[t])
+
+            # Level one
+            im = axes_levelone[t].imshow(level_one_activities[t].reshape(M_sqrt, M_sqrt).T, origin='lower', aspect='equal', interpolation='nearest')
+            im.set_extent((-np.pi, np.pi, -np.pi, np.pi))
+            axes_levelone[t].set_xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
+            axes_levelone[t].set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'))
+            axes_levelone[t].set_yticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
+            axes_levelone[t].set_yticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'))
+
+            e = Ellipse(xy=self.stimuli_correct[n, t], width=0.4, height=0.4)
+            
+            axes_levelone[t].add_artist(e)
+            e.set_clip_box(axes_levelone[t].bbox)
+            e.set_alpha(0.5)
+            e.set_facecolor('white')
+            e.set_transform(axes_levelone[t].transData)
+
+        plt.show()
+
+
+
+
       
 
 

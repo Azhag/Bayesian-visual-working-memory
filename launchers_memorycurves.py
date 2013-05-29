@@ -40,7 +40,7 @@ def launcher_do_memory_curve(args):
     print "File: %s" % output_string
 
     all_precisions = np.ones((args.T, args.num_repetitions))*np.nan
-    for repet_i in np.arange(args.num_repetitions):
+    for repet_i in xrange(args.num_repetitions):
         #### Get multiple examples of precisions, for different number of neurons. #####
         
         if args.code_type == 'conj':
@@ -65,7 +65,7 @@ def launcher_do_memory_curve(args):
         
         sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters=stat_meas.model_parameters)
         
-        for t in np.arange(args.T):
+        for t in xrange(args.T):
             print "Doing T=%d,  %d/%d" % (t, repet_i+1, args.num_repetitions)
 
             # Change the cued feature
@@ -117,9 +117,9 @@ def launcher_do_multiple_memory_curve(args):
     all_precisions = np.zeros((args.T, args.T, args.num_repetitions))
 
     # Construct different datasets, with t objects
-    for t in np.arange(args.T):
+    for t in xrange(args.T):
 
-        for repet_i in np.arange(args.num_repetitions):
+        for repet_i in xrange(args.num_repetitions):
             #### Get multiple examples of precisions, for different number of neurons. #####
             
             if args.code_type == 'conj':
@@ -170,7 +170,7 @@ def launcher_do_multiple_memory_curve(args):
 
     f = plt.figure()
     ax = f.add_subplot(111)
-    for t in np.arange(args.T):
+    for t in xrange(args.T):
         t_space_aligned_right = (args.T - np.arange(t+1))[::-1]
         plot_mean_std_area(t_space_aligned_right, np.mean(all_precisions[t], 1)[:t+1], np.std(all_precisions[t], 1)[:t+1], ax_handle=ax)
     ax.set_xlabel('Recall time')
@@ -216,9 +216,9 @@ def launcher_do_multiple_memory_curve_simult(args):
         all_nontargets = np.zeros((args.T, args.num_repetitions, args.N, args.T-1))
 
     # Construct different datasets, with t objects
-    for repet_i in np.arange(args.num_repetitions):
+    for repet_i in xrange(args.num_repetitions):
 
-        for t in np.arange(args.T):
+        for t in xrange(args.T):
 
             #### Get multiple examples of precisions, for different number of neurons. #####
             
@@ -307,13 +307,13 @@ def launcher_plot_multiple_memory_curve(args):
     
     f = plt.figure()
     ax = f.add_subplot(111)
-    for t in np.arange(T):
+    for t in xrange(T):
         t_space_aligned_right = (T - np.arange(t+1))[::-1]
         # plot_mean_std_area(t_space_aligned_right, np.mean(1./all_precisions[t], 1)[:t+1], np.std(1./all_precisions[t], 1)[:t+1], ax_handle=ax)
         # semilogy_mean_std_area(t_space_aligned_right, np.mean(1./all_precisions[t], 1)[:t+1], np.std(1./all_precisions[t], 1)[:t+1], ax_handle=ax)
         # plt.semilogy(t_space_aligned_right, np.mean(1./all_precisions[t], 1)[:t+1], 'o-', linewidth=2, markersize=8)
         plt.plot(t_space_aligned_right, np.mean(1./all_precisions[t], 1)[:t+1], 'o-')
-    x_labels = ['-%d' % x for x in np.arange(T)[::-1]]
+    x_labels = ['-%d' % x for x in xrange(T)[::-1]]
     x_labels[-1] = 'Last'
 
     ax.set_xticks(t_space_aligned_right)
@@ -322,7 +322,7 @@ def launcher_plot_multiple_memory_curve(args):
     ax.set_ylim((1.01, 40))
     # ax.set_xlabel('Recall time')
     # ax.set_ylabel('Precision [rad]')
-    legends=['%d items' % (x+1) for x in np.arange(T)]
+    legends=['%d items' % (x+1) for x in xrange(T)]
     legends[0] = '1 item'
     plt.legend(legends, loc='best', numpoints=1, fancybox=True)
 
@@ -344,7 +344,7 @@ def launcher_plot_multiple_memory_curve_simult(args):
     # Average over repetitions, and then get mean across T
     # mean_precision = np.zeros(T)
     # std_precision = np.zeros(T)
-    # for t in np.arange(T):
+    # for t in xrange(T):
         # mean_precision[t] = np.mean(all_precisions[t][:t+1])
         # std_precision[t] = np.std(all_precisions[t][:t+1])
 
@@ -421,7 +421,7 @@ def launcher_do_memorycurve_theoretical(args):
     print rcscale_space
     print sigma_space
 
-    for repet_i in np.arange(num_repetitions):
+    for repet_i in xrange(num_repetitions):
         for j, sigma in enumerate(sigma_space):
             for i, rc_scale in enumerate(rcscale_space):
                 for t_i, t in enumerate(T_space):
@@ -567,7 +567,7 @@ def launcher_do_memorycurve_theoretical_pbs(args):
     print M_space
     print T_space
 
-    for repet_i in np.arange(num_repetitions):
+    for repet_i in xrange(num_repetitions):
         for j, sigma in enumerate(sigma_space):
             for i, rc_scale in enumerate(rcscale_space):
                 for m_i, M in enumerate(M_space):
@@ -710,7 +710,7 @@ def launcher_do_memorycurve_theoretical_pbs_theoonly(args):
     print M_space
     print T_space
 
-    for repet_i in np.arange(num_repetitions):
+    for repet_i in xrange(num_repetitions):
         for j, sigma in enumerate(sigma_space):
             for i, rc_scale in enumerate(rcscale_space):
                 for m_i, M in enumerate(M_space):
@@ -949,7 +949,7 @@ def launcher_do_memorycurve_theoretical_3d_volume(args):
     print sigma_space
     print M_space
 
-    for repet_i in np.arange(num_repetitions):
+    for repet_i in xrange(num_repetitions):
         for j, sigma in enumerate(sigma_space):
             for i, rc_scale in enumerate(rcscale_space):
                 for m_i, M in enumerate(M_space):

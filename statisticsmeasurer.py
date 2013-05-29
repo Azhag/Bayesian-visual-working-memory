@@ -8,11 +8,11 @@ Copyright (c) 2011 Gatsby Unit. All rights reserved.
 """
 
 import numpy as np
-from datagenerator import *
-from randomnetwork import *
 from utils import *
+from hierarchicalrandomnetwork import *
+from datagenerator import *
 import pylab as plt
-import matplotlib.mlab as mlab
+# import matplotlib.mlab as mlab
 
 class StatisticsMeasurer:
     def __init__(self, data_gen):
@@ -36,7 +36,7 @@ class StatisticsMeasurer:
         self.means = np.zeros((self.T, self.M))
         self.covariances = np.zeros((self.T, self.M, self.M))
         
-        for t in np.arange(self.T):
+        for t in xrange(self.T):
             self.means[t] = np.mean(self.Y[:, t, :], axis=0)
             self.covariances[t] = np.cov(self.Y[:, t, :].T)
         
@@ -66,13 +66,13 @@ class StatisticsMeasurer:
         model_covariances = np.zeros((3, self.T, self.M, self.M))
         
         # Mean and covariance of the starting noise is easy, just take the measured marginals of the previous time, transform them once.
-        for t in np.arange(1, self.T):
+        for t in xrange(1, self.T):
             model_means[0, t] = np.dot(self.data_gen.time_weights[0][t], self.means[t-1])
             model_covariances[0, t] = np.dot(self.data_gen.time_weights[0][t], np.dot(self.covariances[t-1], self.data_gen.time_weights[0][t].T))
         
         
         # Mean and covariance of the ending noise requires a small mapping
-        for t in np.arange(self.T-1):
+        for t in xrange(self.T-1):
             ATmtc = np.power(self.data_gen.time_weights[0][t], self.T-1-t)
             model_means[1, t] = self.means[self.T-1] - np.dot(ATmtc,  self.means[t])
             model_covariances[1, t] = self.covariances[self.T-1] - np.dot(ATmtc,  np.dot(self.covariances[t], ATmtc.T))
@@ -106,8 +106,8 @@ class StatisticsMeasurer:
         
         # For now, assumes t' < tc
         mut_inf = np.zeros((self.T, self.T))
-        for tp in np.arange(self.T):
-            for tc in np.arange(self.T):
+        for tp in xrange(self.T):
+            for tc in xrange(self.T):
                 if False:
                 # if tp==tc:
                     # Special case, assume that I(xtc | yT, xtc) = h(xtc | yT) - 0
@@ -138,7 +138,7 @@ class StatisticsMeasurer:
                     sigma_T_nottptc_inv = np.linalg.inv(sigma_T_nottptc)
                     
                     # sigma_T_nottptc = np.zeros_like(sigma_T_nottptc)
-                    #                     for t in np.arange(self.T):
+                    #                     for t in xrange(self.T):
                     #                         if t != tp and t != tc:
                     #                             sigma_T_nottptc += A**(self.T-1-t)*sigma_tc*A**(self.T-1-t)
                     #                     sigma_T_nottptc_inv = np.linalg.inv(sigma_T_nottptc)
@@ -229,7 +229,7 @@ if __name__ == '__main__':
             cov_one_item = np.dot(random_network.W[0], np.dot(cov_x_meanangle, random_network.W[0].T)) + np.dot(random_network.W[1], np.dot(cov_x_meanangle, random_network.W[1].T)) + sigma_y**2.*np.eye(M)
             
             # Check if covariance at time T is correct
-            for t in np.arange(T):
+            for t in xrange(T):
                 ATmtc = np.power(data_gen.time_weights[0][t], T-1-t)
                 covariance_fixed_contrib_wrong = n_covariances_end[t] + ATmtc*ATmtc*(n_covariances_start[t]) + ATmtc*ATmtc*(random_network.get_network_covariance_combined() + sigma_y**2.*np.eye(M))
                 covariance_fixed_contrib_correct = n_covariances_end[t] + ATmtc*ATmtc*(n_covariances_start[t]) + ATmtc*ATmtc*cov_one_item
@@ -242,7 +242,7 @@ if __name__ == '__main__':
         # stat_meas.plot_moments()
         #     
         #     plt.figure()
-        #     for t in np.arange(T)[::-1]:
+        #     for t in xrange(T)[::-1]:
         #         plt.hist(np.mean(stat_meas.Y[:,t,:] - np.mean(stat_meas.Y[:,t, :], axis=0), axis=1), bins=50)
         #     
         #     
@@ -287,8 +287,8 @@ if __name__ == '__main__':
         
         mut_inf = np.zeros((T, T))
         
-        for tc in np.arange(T):
-            for tp in np.arange(T):
+        for tc in xrange(T):
+            for tp in xrange(T):
                 sigma_yTpost = np.sum(np.power(alpha, 2*np.arange(T)))*(sigma_y_2+sigma_x_2) - sigma_x_2*np.sum(np.power(alpha, 2.*np.array([T-1-tc, T-1-tp])))
                 sigma_yTpost_inv = sigma_yTpost**-1.
                 
@@ -333,7 +333,7 @@ if __name__ == '__main__':
         all_y = np.zeros((T, M))
         yT = beta*x_possible[chosen_x[0]] + sigma_y*np.random.randn(M)
         all_y[0] = yT
-        for t in np.arange(1, T):
+        for t in xrange(1, T):
             yT *= alpha
             yT += beta*x_possible[chosen_x[t]] + sigma_y*np.random.randn(M)
             all_y[t] = yT
@@ -369,7 +369,7 @@ if __name__ == '__main__':
                 Sigma = np.linalg.inv(Sigmainv)
             
             
-            for pat in np.arange(M):
+            for pat in xrange(M):
                 mu_yT_xtc[tc-1, pat] = alpha**(T-tc)*beta*x_possible[pat] + alpha**(T-tc+1)*(1-alpha**(tc-1))/(1-alpha)*beta*(x_mean - 1/M*x_possible[pat]) + (1-alpha**(T-tc))/(1-alpha)*beta*(x_mean - 1/M*x_possible[pat])
                 
                 mu_yT_xtc_uncorr[tc-1, pat] = alpha**(T-tc)*beta*x_possible[pat] + alpha**(T-tc+1)*(1-alpha**(tc-1))/(1-alpha)*beta*x_mean + (1-alpha**(T-tc))/(1-alpha)*beta*x_mean
@@ -390,11 +390,12 @@ if __name__ == '__main__':
         # TODO ERROR HERE, we add a contribution when we shouldn't => this biases everything towards the "end magnitude"
         # TODO Actually not the problem...
     
-    if True:
+    if False:
         # See how much of background noise is still present as a function of number of samples
 
         # sample_sizes = np.logspace(1, 4.7, num=5).astype(int)
         sample_sizes = np.logspace(1, 2.5, num=5).astype(int)
+        # sample_sizes = np.array([3000])
         background_std_observed = np.zeros_like(sample_sizes).astype(float)
 
         alpha = 1.0
@@ -403,9 +404,10 @@ if __name__ == '__main__':
         T = 1
         sigma_x = 3.0
         sigma_y = 1.5
+        rc_scale = 3.0
 
-        time_weights_parameters = dict(weighting_alpha=alpha, weighting_beta = 2.0, weight_prior='uniform')
-        rn = RandomFactorialNetwork.create_full_conjunctive(N, R=2, sigma=sigma_x, scale_moments=(2.0, 0.01), ratio_moments=(1.0, 0.01))
+        time_weights_parameters = dict(weighting_alpha=alpha, weighting_beta = 1.0, weight_prior='uniform')
+        rn = RandomFactorialNetwork.create_full_conjunctive(N, R=2, sigma=sigma_x, scale_moments=(rc_scale, 0.00001), ratio_moments=(1.0, 0.01))
         
         print "Measuring background std dev as function of number of samples"
         print sample_sizes
@@ -428,6 +430,28 @@ if __name__ == '__main__':
         plt.xlabel('1/sqrt(n)')
         plt.ylabel('Std dev')
         plt.title('Std Dev goes as 1/sqrt(n)')
+
+    if True:
+        # Test the new hiearchical random network
+        alpha = 1.0
+        M = 100
+        T = 5
+        sigma_x = 0.05
+        sigma_y = 0.001
+        rc_scale = 5.0
+        num_samples = 3000
+
+        time_weights_parameters = dict(weighting_alpha=alpha, weighting_beta = 1.0, weight_prior='uniform')
+        hrn = HierarchialRandomNetwork(M, sparsity_weights=0.1)
+        
+        data_gen_noise = DataGeneratorRFN(num_samples, T, hrn, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=T-1, enforce_min_distance=0.0)
+        # data_gen_noise = DataGeneratorRFN(num_samples, T, rn, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=T-1, enforce_min_distance=0.0, stimuli_generation='random_smallrange')
+        # data_gen_noise = DataGeneratorRFN(num_samples, T, rn, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=T-1, enforce_min_distance=0.0, stimuli_generation=lambda T:np.linspace(-np.pi*0.8, np.pi*0.8, T))
+        stat_meas = StatisticsMeasurer(data_gen_noise)
+        measured_cov = stat_meas.model_parameters['covariances'][-1][-1]
+
+
+
     
     plt.show()
 

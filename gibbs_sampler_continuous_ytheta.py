@@ -112,7 +112,7 @@ class Sampler:
         self.theta[np.arange(self.N), self.data_gen.cued_features[:,0]] = self.data_gen.chosen_orientations[np.arange(self.N), self.data_gen.cued_features[:,1], self.data_gen.cued_features[:,0]]
         
         # Construct the list of uncued features, which should be sampled
-        self.theta_to_sample = np.array([[r for r in np.arange(self.R) if r != self.data_gen.cued_features[n,0]] for n in np.arange(self.N)], dtype='int')
+        self.theta_to_sample = np.array([[r for r in xrange(self.R) if r != self.data_gen.cued_features[n,0]] for n in xrange(self.N)], dtype='int')
         
     
     
@@ -135,7 +135,7 @@ class Sampler:
         
         # self.n_covariances_start_chol = np.zeros_like(self.n_covariances_start)
         # self.n_covariances_end_chol = np.zeros_like(self.n_covariances_end)
-        # for t in np.arange(self.T):
+        # for t in xrange(self.T):
         #             try:
         #                 self.n_covariances_start_chol[t] = np.linalg.cholesky(self.n_covariances_start[t])
         #             except np.linalg.linalg.LinAlgError:
@@ -164,7 +164,7 @@ class Sampler:
         # Use some predefined matrices for speedup
         self.P = self.n_covariances_measured
         self.P_inv = np.zeros_like(self.P)
-        for t in np.arange(self.T):
+        for t in xrange(self.T):
             self.P_inv[t] = np.linalg.inv(self.P[t])
         self.APA_Sigtcp = self.n_covariances_measured[self.T-1] # Weird... Doesn't depend on tc?
         self.APA_Sigtcp_inv = np.linalg.inv(self.APA_Sigtcp)
@@ -176,7 +176,7 @@ class Sampler:
         Y_mean = self.n_means_start[self.tc] + B_Wmu
         Y_mean_b = (self.NT - self.n_means_end[self.tc] - (Y_mean.T*self.ATmtc).T)
         
-        for n in np.arange(self.N):
+        for n in xrange(self.N):
             if self.tc[n] != (self.T-1):
                 Y_mean[n] += np.dot(self.P[self.tc[n]]*self.ATmtc[n], np.dot(self.APA_Sigtcp_inv, Y_mean_b[n]))
             
@@ -187,7 +187,7 @@ class Sampler:
         self.Y_covariance = np.zeros((self.T, self.M, self.M))
         self.Y_covariance_chol = np.zeros((self.T, self.M, self.M))
         
-        for t in np.arange(self.T-1):
+        for t in xrange(self.T-1):
             # Different versions of the covariance. Checked now, they work.
             # covariance[n] = P[n] - np.dot(P[n]*self.ATmtc[n], np.dot(APA_Sigtcp_inv, P[n]*self.ATmtc[n]))
             # self.Y_covariance[t] = np.linalg.inv(self.P_inv[t] + self.ATmtc_t[t]*np.linalg.inv(self.n_covariances_end[t])*self.ATmtc_t[t])
@@ -200,7 +200,7 @@ class Sampler:
         
         # Sample new Y now
         self.Y = np.zeros((self.N, self.M))
-        for n in np.arange(self.N):
+        for n in xrange(self.N):
             self.Y[n] = Y_mean[n] + np.dot(self.Y_covariance_chol[self.tc[n]], np.random.randn(self.M))
         
         
@@ -428,9 +428,9 @@ class Sampler:
         llh_2angles = np.zeros((num_points, num_points))
         
         # Compute the array
-        for i in np.arange(num_points):
+        for i in xrange(num_points):
             print "%d%%" % (i/float(num_points)*100)
-            for j in np.arange(num_points):
+            for j in xrange(num_points):
                 llh_2angles[i, j] = loglike_theta_fct(np.array([all_angles[i], all_angles[j]]), params)
         
         if should_plot:
@@ -528,7 +528,7 @@ class Sampler:
         #                     # Update the counts
         #                     self.Akr[self.Z[n,t,r], r] -= 1
         #                     
-        #                     for k in np.arange(self.K):
+        #                     for k in xrange(self.K):
         #                         # Get the prior prob of z_n_t_k
         #                         self.lprob_zntrk[k] = np.log(self.dir_alpha + self.Akr[k,r]) - np.log(self.K*self.dir_alpha + self.N - 1.)
         #                         
@@ -615,8 +615,8 @@ class Sampler:
         
         l = self.R*scsp.gammaln(self.K*self.dir_alpha) - self.R*self.K*scsp.gammaln(self.dir_alpha)
         
-        for r in np.arange(self.R):            
-            for k in np.arange(self.K):
+        for r in xrange(self.R):            
+            for k in xrange(self.K):
                 l += scsp.gammaln(self.dir_alpha + self.Akr[k, r])
             l -= scsp.gammaln(self.K*self.dir_alpha + self.N)
         
@@ -642,7 +642,7 @@ class Sampler:
         if verbose:
             print "Initialisation: likelihoods = y %.3f, z %.3f, joint: %.3f" % (log_y[0], log_z[0], log_joint[0])
         
-        for i in np.arange(iterations):
+        for i in xrange(iterations):
             # Do a full sampling sweep
             self.sample_all()
             
@@ -922,10 +922,10 @@ def do_search_dirichlet_alpha(args):
     mean_last_precision = np.zeros((dir_alpha_space.size, nb_repetitions))
     avg_precision = np.zeros((dir_alpha_space.size, nb_repetitions))
     
-    for dir_alpha_i in np.arange(dir_alpha_space.size):
+    for dir_alpha_i in xrange(dir_alpha_space.size):
         print "Doing Dir_alpha %.3f" % dir_alpha_space[dir_alpha_i]
         
-        for repet_i in np.arange(nb_repetitions):
+        for repet_i in xrange(nb_repetitions):
             print "%d/%d" % (repet_i+1, nb_repetitions)
             
             random_network = RandomNetwork.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[0.1, dir_alpha_space[dir_alpha_i]], sigma=0.2, gamma=0.005, rho=0.005)
@@ -976,10 +976,10 @@ def do_search_alphat(args):
     mean_last_precision = np.zeros((alphat_space.size, nb_repetitions))
     other_precision = np.zeros((alphat_space.size, nb_repetitions))
     
-    for alpha_i in np.arange(alphat_space.size):
+    for alpha_i in xrange(alphat_space.size):
         print "Doing alpha_t %.3f" % alphat_space[alpha_i]
         
-        for repet_i in np.arange(nb_repetitions):
+        for repet_i in xrange(nb_repetitions):
             print "%d/%d" % (repet_i+1, nb_repetitions)
             
             random_network = RandomNetwork.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[0.1, 0.5], sigma=0.2, gamma=0.005, rho=0.005)

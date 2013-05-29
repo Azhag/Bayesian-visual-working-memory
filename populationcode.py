@@ -98,7 +98,7 @@ class PopulationCodeAngle(PopulationCode):
             response = np.random.multivariate_normal(self.mean_response(theta_input), self.covariance, size=nb_samples)
         else:
             response = np.zeros((nb_samples, theta_input.size, self.N))
-            for theta_i in np.arange(theta_input.size):
+            for theta_i in xrange(theta_input.size):
                 response[:, theta_i, :] = np.random.multivariate_normal(self.mean_response(theta_input[theta_i]), self.covariance, size=nb_samples)
             
         

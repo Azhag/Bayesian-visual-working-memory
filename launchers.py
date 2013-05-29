@@ -11,6 +11,7 @@ Copyright (c) 2012 . All rights reserved.
 import matplotlib.pyplot as plt
 
 from datagenerator import *
+from hierarchicalrandomnetwork import *
 from randomfactorialnetwork import *
 from statisticsmeasurer import *
 from slicesampler import *
@@ -19,59 +20,74 @@ from dataio import *
 from gibbs_sampler_continuous_fullcollapsed_randomfactorialnetwork import *
 
 
-def launcher_do_simple_run(args):
-    
-    print "Simple run"
-    
-    N = args.N
-    T = args.T
-    # K = args.K
-    M = args.M
-    R = args.R
-    weighting_alpha = args.alpha
-    code_type = args.code_type
-    rc_scale = args.rc_scale
-    rc_scale2 = args.rc_scale2
-    ratio_conj = args.ratio_conj
-    sigma_x = args.sigmax
-    sigma_y = args.sigmay
-    feat_ratio = args.feat_ratio
 
+################### INITIALISERS ####################
+# Define everything here, so that other launchers can call them directly (unless they do something funky)
+
+def init_everything(parameters):
 
     # Build the random network
-    # sigma_y = 0.02
-    # sigma_y = 0.2
-    # sigma_x = 0.1
-    time_weights_parameters = dict(weighting_alpha=weighting_alpha, weighting_beta=1.0, specific_weighting=0.1, weight_prior='uniform')
-    cued_feature_time = T-1
-
-    # 'conj', 'feat', 'mixed'
-    if code_type == 'conj':
-        random_network = RandomFactorialNetwork.create_full_conjunctive(M, R=R, scale_moments=[rc_scale, 0.0001], ratio_moments=(1.0, 0.0001))
-    elif code_type == 'feat':
-        random_network = RandomFactorialNetwork.create_full_features(M, R=R, scale=rc_scale, ratio=feat_ratio)
-    elif code_type == 'mixed':
-        conj_params = dict(scale_moments=[rc_scale, 0.0001], ratio_moments=[1.0, 0.0001])
-        feat_params = dict(scale=rc_scale2, ratio=feat_ratio)
-
-        random_network = RandomFactorialNetwork.create_mixed(M, R=R, ratio_feature_conjunctive=ratio_conj, conjunctive_parameters=conj_params, feature_parameters=feat_params)
-    elif code_type == 'wavelet':
-        random_network = RandomFactorialNetwork.create_wavelet(M, R=R, scales_number=5)
-    else:
-        raise ValueError('Code_type is wrong!')
-    
+    random_network = init_random_network(parameters)
+        
     # Construct the real dataset
-    print "Building the database"
-    data_gen = DataGeneratorRFN(N, T, random_network, sigma_y=sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation=args.stimuli_generation)
+    time_weights_parameters = dict(weighting_alpha=parameters['alpha'], weighting_beta=1.0, specific_weighting=0.1, weight_prior='uniform')
+    cued_feature_time = parameters['T']-1
+
+    # print "Building the database"
+    data_gen = DataGeneratorRFN(parameters['N'], parameters['T'], random_network, sigma_y=parameters['sigmay'], sigma_x=parameters['sigmax'], time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation=parameters['stimuli_generation'])
     
     # Measure the noise structure
-    print "Measuring noise structure"
-    data_gen_noise = DataGeneratorRFN(3000, T, random_network, sigma_y=sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation=args.stimuli_generation)
+    # print "Measuring noise structure"
+    data_gen_noise = DataGeneratorRFN(5000, parameters['T'], random_network, sigma_y=parameters['sigmay'], sigma_x=parameters['sigmax'], time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation=parameters['stimuli_generation'])
     stat_meas = StatisticsMeasurer(data_gen_noise)
-    # stat_meas = StatisticsMeasurer(data_gen)
     
-    print "Building sampler..."
     sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters=stat_meas.model_parameters, tc=cued_feature_time)
+
+    return (random_network, data_gen, stat_meas, sampler)
+
+
+
+def init_random_network(parameters):
+
+    # Build the random network
+    
+    if parameters['code_type'] == 'conj':
+        random_network = RandomFactorialNetwork.create_full_conjunctive(parameters['M'], R=parameters['R'], rcscale=parameters['rc_scale'], autoset_parameters=parameters['autoset_parameters'])
+    elif parameters['code_type'] == 'feat':
+        random_network = RandomFactorialNetwork.create_full_features(parameters['M'], R=parameters['R'], scale=parameters['rc_scale'], ratio=args.feat_ratio, autoset_parameters=parameters['autoset_parameters'])
+    elif parameters['code_type'] == 'mixed':
+        conj_params = dict(scale_moments=(parameters['rc_scale'], 0.001), ratio_moments=(1.0, 0.0001))
+        feat_params = dict(scale=parameters['rc_scale2'], ratio=40.)
+
+        random_network = RandomFactorialNetwork.create_mixed(parameters['M'], R=parameters['R'], ratio_feature_conjunctive=ratio_conj, conjunctive_parameters=conj_params, feature_parameters=feat_params)
+    elif parameters['code_type'] == 'wavelet':
+        random_network = RandomFactorialNetwork.create_wavelet(parameters['M'], R=parameters['R'], scales_number=5)
+    elif parameters['code_type'] == 'hierarchical':
+        random_network = HierarchialRandomNetwork(parameters['M'], M_layer_one=parameters['M_layer_one'], optimal_coverage=True, sparsity_weights=parameters['sparsity'], normalise_weights=parameters['normalise_weights'], sigma_weights=parameters['sigma_weights'], type_layer_one=parameters['type_layer_one'], distribution_weights=parameters['distribution_weights'], threshold=parameters['threshold'])
+    else:
+        raise ValueError('Code_type is wrong!')
+
+    return random_network
+
+
+
+
+def launcher_do_simple_run(args):
+    ''' 
+        Basic use-case when playing around with the components.
+
+        Instantiate a simple network and sampler
+
+            inference_method:
+                - sample
+                - max_lik
+    '''
+    
+    print "Simple run"
+
+    all_parameters = vars(args)
+    
+    (random_network, data_gen, stat_meas, sampler) = init_everything(all_parameters)
     
     print "Inferring optimal angles, for t=%d" % sampler.tc[0]
     # sampler.set_theta_max_likelihood(num_points=500, post_optimise=True)
@@ -79,11 +95,11 @@ def launcher_do_simple_run(args):
     if args.inference_method == 'sample':
         # Sample thetas
         print "-> Sampling theta"
-        sampler.sample_theta(num_samples=args.num_samples, burn_samples=20, selection_method='median', selection_num_samples=args.num_samples, integrate_tc_out=False, debug=False)
+        sampler.sample_theta(num_samples=all_parameters['num_samples'], burn_samples=20, selection_method='median', selection_num_samples=args.num_samples, integrate_tc_out=False, debug=False)
     elif args.inference_method == 'max_lik':
         # Just use the ML value for the theta
         print "-> Setting theta to ML values"
-        sampler.set_theta_max_likelihood(num_points=200, post_optimise=True)
+        sampler.set_theta_max_likelihood(num_points=100, post_optimise=True)
     elif args.inference_method == 'none':
         # Do nothing
         print "do nothing"
@@ -115,10 +131,10 @@ def launcher_do_save_responses_simultaneous(args):
     all_targets = np.zeros((args.T, args.T, args.num_repetitions, args.N))
     all_nontargets = np.zeros((args.T, args.T, args.num_repetitions, args.N, args.T-1))
     
-    for repet_i in np.arange(args.num_repetitions):
+    for repet_i in xrange(args.num_repetitions):
         
         # Construct different datasets, with t objects
-        for t in np.arange(args.T):
+        for t in xrange(args.T):
             
             if args.code_type == 'conj':
                 random_network = RandomFactorialNetwork.create_full_conjunctive(args.M, R=args.R, scale_moments=(args.rc_scale, 0.0001), ratio_moments=(1.0, 0.001))
@@ -173,7 +189,7 @@ def launcher_do_save_responses_simultaneous(args):
 
     f = plt.figure()
     ax = f.add_subplot(111)
-    for t in np.arange(args.T):
+    for t in xrange(args.T):
         t_space_aligned_right = (args.T - np.arange(t+1))[::-1]
         semilogy_mean_std_area(t_space_aligned_right, np.mean(1./all_precisions[t], 1)[:t+1], np.std(1./all_precisions[t], 1)[:t+1], ax_handle=ax)
     ax.set_xlabel('Recall time')

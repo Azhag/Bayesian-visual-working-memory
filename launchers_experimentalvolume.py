@@ -13,6 +13,8 @@ import os
 import matplotlib.pyplot as plt
 import scipy.interpolate as spint
 
+import imp
+
 from datagenerator import *
 from randomfactorialnetwork import *
 from statisticsmeasurer import *
@@ -25,6 +27,7 @@ from submitpbs import *
 
 import progress
 
+
 def launcher_do_generate_constrained_param_experimental_theo(args):
     '''
         Generate parameters consistent with the experimentally found FI.
@@ -35,7 +38,7 @@ def launcher_do_generate_constrained_param_experimental_theo(args):
 
     all_parameters = vars(args)
     
-    variables_to_save = ['dict_parameters_range', 'constrained_parameters', 'pbs_submission_infos', 'filtering_function_params']
+    variables_to_save = ['dict_parameters_range', 'constrained_parameters', 'pbs_submission_infos', 'filtering_function_params', 'all_parameters']
     dataio = DataIO(output_folder=args.output_directory, label=args.label)
 
     num_samples = all_parameters['num_samples']
@@ -109,7 +112,7 @@ def launcher_do_generate_constrained_param_experimental_theo(args):
         # Generate the parameters
         # Submit during the generation, when we find a new set of parameters.
 
-        constrained_parameters = submit_pbs.generate_submit_constrained_parameters_random(num_samples, dict_parameters_range, filtering_function=check_experimental_constraint, filtering_function_parameters=filtering_function_params, pbs_submission_infos=pbs_submission_infos, submit_jobs=pbs_submit_during_parameters_generation)
+        constrained_parameters = submit_pbs.generate_submit_constrained_parameters_random(dict_parameters_range, num_samples=num_samples, filtering_function=check_experimental_constraint, filtering_function_parameters=filtering_function_params, pbs_submission_infos=pbs_submission_infos, submit_jobs=pbs_submit_during_parameters_generation)
      
     elif all_parameters['search_type'] == 'grid':
         print "Launching grid!"
@@ -180,7 +183,7 @@ def init_random_network(parameters):
     # Build the random network
     
     if parameters['code_type'] == 'conj':
-        random_network = RandomFactorialNetwork.create_full_conjunctive(parameters['M'], R=parameters['R'], scale_moments=(parameters['rc_scale'], 0.0001), ratio_moments=(1.0, 0.0001))
+        random_network = RandomFactorialNetwork.create_full_conjunctive(parameters['M'], R=parameters['R'], rcscale=parameters['rc_scale'])
     elif parameters['code_type'] == 'feat':
         random_network = RandomFactorialNetwork.create_full_features(parameters['M'], R=parameters['R'], scale=parameters['rc_scale'], ratio=40.)
     elif parameters['code_type'] == 'mixed':
@@ -188,8 +191,10 @@ def init_random_network(parameters):
         feat_params = dict(scale=parameters['rc_scale2'], ratio=40.)
 
         random_network = RandomFactorialNetwork.create_mixed(parameters['M'], R=parameters['R'], ratio_feature_conjunctive=ratio_conj, conjunctive_parameters=conj_params, feature_parameters=feat_params)
-    elif code_type == 'wavelet':
+    elif parameters['code_type'] == 'wavelet':
         random_network = RandomFactorialNetwork.create_wavelet(parameters['M'], R=parameters['R'], scales_number=5)
+    elif parameters['code_type'] == 'hierarchical':
+        random_network = HierarchialRandomNetwork(args.M, sigma_weights=0.5, sparsity_weights=0.5, M_layer_one=args.M_layer_one, rcscale_layer_one='optimal')
     else:
         raise ValueError('Code_type is wrong!')
 
@@ -261,7 +266,7 @@ def check_experimental_constraint(parameters, dict_parameters_range, function_pa
 
 #########
 
-def launcher_do_reload_constrained_parameters(args):
+def launcher_do_reload_constrained_parameters_from_args(args):
     '''
         Reload outputs run with the automatic parameter generator.
 
@@ -372,9 +377,17 @@ def launcher_do_reload_constrained_parameters(args):
     launcher_variables = np.load(dataset_infos['launcher_file']).item()
 
     # Do the plots
-    if dataset_infos['post_processing']:
-        dataset_infos['post_processing'](data_pbs, launcher_variables)
-
+    if dataset_infos['post_processing'] is not None:
+        try:
+            # Duck typing to check if we have a list of post_processings
+            iterator = iter(dataset_infos['post_processing'])
+        except TypeError:
+            # Not a list... just call it
+            dataset_infos['post_processing'](data_pbs, launcher_variables)
+        else:
+            for post_process in iterator:
+                # Call each one one after the other
+                post_process(data_pbs, launcher_variables)
 
     return locals()
 
@@ -563,7 +576,7 @@ def plots_3dvolume_theovar(data_pbs, launcher_variables=None):
         # Show the results for the best K
         best_k = 3
 
-        for bk_i in np.arange(best_k):
+        for bk_i in xrange(best_k):
             # Convert the flat best index into indices
             indices_besttheo_mem = np.unravel_index(besttheo_mem_argsort[bk_i], dist_theo_exp[..., m_i].shape)
             indices_bestvar_mem = np.unravel_index(bestvar_mem_argsort[bk_i], dist_var_exp[..., m_i].shape)
@@ -730,7 +743,7 @@ def plots_3dvolume_theovar_mixedpop(data_pbs, launcher_variables=None):
             # Show the results for the best K
             best_k = 1
 
-            for bk_i in np.arange(best_k):
+            for bk_i in xrange(best_k):
                 # Convert the flat best index into indices
                 indices_besttheo_mem = np.unravel_index(besttheo_mem_argsort[bk_i], dist_theo_exp[..., dim3_i].shape)
                 indices_bestvar_mem = np.unravel_index(bestvar_mem_argsort[bk_i], dist_var_exp[..., dim3_i].shape)

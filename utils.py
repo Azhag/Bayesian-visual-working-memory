@@ -20,7 +20,10 @@ import uuid
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator
-
+from matplotlib.colors import LogNorm
+import smtplib
+from email.mime.text import MIMEText
+import datetime
 
 __maxexp__ = np.finfo('float').maxexp
 
@@ -70,7 +73,41 @@ def kappa_to_stddev(kappa):
         std = 1 - I_1(kappa)/I_0(kappa)
     '''
     # return 1.0 - scsp.i1(kappa)/scsp.i0(kappa)
-    return np.sqrt(-2.*np.log(scsp.i1(kappa)/scsp.i0(kappa)))
+    return np.sqrt(-2.*np.log(scsp.i1e(kappa)/scsp.i0e(kappa)))
+
+def stddev_to_kappa(stddev):
+    '''
+        Converts stddev to kappa
+
+        No closed-form, does a line optimisation
+    '''
+
+    errfunc = lambda kappa, stddev: (np.exp(-0.5*stddev**2.) - scsp.i1e(kappa)/scsp.i0e(kappa))**2.
+    kappa_init = 1.0
+    kappa_opt = spopt.fmin(errfunc, kappa_init, args=(stddev, ), disp=False)
+
+    return kappa_opt[0]
+
+
+def test_stability_stddevtokappa(target_kappa=2.):
+    '''
+        Small test, shows how stable the inverse relationship between stddev and kappa is
+    '''
+
+    nb_iterations = 1000
+    kappa_evolution = np.empty(nb_iterations)
+    for i in xrange(nb_iterations):
+        if i == 0:
+            kappa_evolution[i] = stddev_to_kappa(kappa_to_stddev(target_kappa))
+        else:
+            kappa_evolution[i] = stddev_to_kappa(kappa_to_stddev(kappa_evolution[i-1]))
+
+
+    print kappa_evolution[-1]
+    
+    plt.figure()
+    plt.plot(kappa_evolution)
+    plt.show()
 
 
 ############################ SPHERICAL/3D COORDINATES ##################################
@@ -185,6 +222,10 @@ def list_2_tuple(arg):
     return a
 
 def cross(*args):
+    '''
+        Compute the cross product between multiple arrays
+        Quite intensive, be careful...
+    '''
     ans = [[]]
     for arg in args:
         if isinstance(arg[0], list) or isinstance(arg[0], tuple):
@@ -200,7 +241,7 @@ def strcat(*strings):
 
 def fast_dot_1D(x, y):
     out = 0
-    for i in np.arange(x.size):
+    for i in xrange(x.size):
         out += x[i]*y[i]
     return out
 
@@ -238,6 +279,87 @@ def nanstd(array, axis=None):
         return np.ma.masked_invalid(array).std(axis=axis)
     else:
         return np.ma.masked_invalid(array).std()
+
+def tril_set(array, vector_input, check_sizes=False):
+    '''
+        Sets the lower triangular part of array with vector_input
+
+        Hope all sizes work...
+    '''
+
+    if check_sizes:
+        num_elements = np.sum(np.fromfunction(lambda i,j: i>j, array.shape))
+        assert vector_input.size == num_elements, "Wrong number of inputs, need %d" % num_elements
+
+    array[np.fromfunction(lambda i,j: i>j, array.shape)] = vector_input
+
+
+def triu_set(array, vector_input, check_sizes=False):
+    '''
+        Sets the upper triangular part of array with vector_input
+
+        Hope all sizes work...
+    '''
+
+    if check_sizes:
+        num_elements = np.sum(np.fromfunction(lambda i,j: i<j, array.shape))
+        assert vector_input.size == num_elements, "Wrong number of inputs, need %d" % num_elements
+
+    array[np.fromfunction(lambda i,j: i<j, array.shape)] = vector_input
+
+    
+def triu_2_tril(array):
+    '''
+        Copy the upper triangular part of an array into its lower triangular part
+    '''
+    
+    array[np.fromfunction(lambda i,j: i>j, array.shape)] = array[np.fromfunction(lambda i,j: i<j, array.shape)]
+
+
+def say_finished(text='Work complete', additional_comment='', email_failed=True):
+    '''
+        Uses the text-to-speech capabilities to indicate when
+         something is finished.
+
+        If say doesn't work, try to send an email instead.
+    '''
+    try:
+        import sh
+        sh.say(text)
+    except Exception:
+        if email_failed:
+            email_finished(text=additional_comment, subject=text)
+
+
+def email_finished(text='Work complete', to='loic.matthey@gatsby.ucl.ac.uk', subject='Work complete'):
+    '''
+        Sends an email to the given email address.
+    '''
+
+    sender = 'lmatthey+robot@gatsby.ucl.ac.uk'
+    receivers = [to]
+    
+    msg = MIMEText(text + "\n%s" % str(datetime.datetime.now()))
+    msg['Subject'] = subject
+    msg['From'] = sender
+    msg['To'] = to
+
+    s = smtplib.SMTP('localhost')
+    s.sendmail(sender, receivers, msg.as_string())         
+    s.quit()
+
+    print "Finished email sent"
+
+
+def is_function(arg):
+    '''
+        Checks if the argument looks like a function
+
+        It looks like a function if it can be called.
+    '''
+
+    return hasattr(arg, '__call__')
+
 
 ########################## FILE I/O #################################
 
@@ -407,8 +529,8 @@ def plot_square_grid(x, y, nb_to_plot=-1):
     nb_plots_sqrt = np.round(np.sqrt(nb_to_plot)).astype(np.int32)
     f, subaxes = plt.subplots(nb_plots_sqrt, nb_plots_sqrt)
     
-    for i in np.arange(nb_plots_sqrt):
-        for j in np.arange(nb_plots_sqrt):
+    for i in xrange(nb_plots_sqrt):
+        for j in xrange(nb_plots_sqrt):
             try:
                 subaxes[i, j].plot(x[nb_plots_sqrt*i+j], y[nb_plots_sqrt*i+j])
                 subaxes[i, j].xaxis.set_major_locator(plttic.NullLocator())
@@ -437,6 +559,8 @@ def histogram_angular_data(data, bins=20, in_degrees=False, title=None, norm=Non
         bar_heights = bar_heights/np.max(bar_heights).astype('float')
     elif norm == 'sum':
         bar_heights = bar_heights/np.sum(bar_heights.astype('float'))
+    elif norm == 'density':
+        bar_heights, _ = np.histogram(data, bins=x_edges, density=True)
     
     plt.figure(fignum)
     plt.bar(x, bar_heights, alpha=0.75, width=2.*bound_x/(bins-1), align='center')
@@ -445,9 +569,16 @@ def histogram_angular_data(data, bins=20, in_degrees=False, title=None, norm=Non
     plt.xlim([x[0]*1.1, 1.1*x[-1]])
 
 
-def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorbar=True, ax_handle=None, label_format="%.2f", fignum=None, interpolation='nearest'):
+def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorbar=True, ax_handle=None, label_format="%.2f", fignum=None, interpolation='nearest', log_scale=False, ticks_interpolate=None):
     '''
         Plots a Pcolor-like 2d grid plot. Can give x and y arrays, which will provide ticks.
+
+        Options:
+         x                  array for x values
+         y                  array for y values
+         {x,y}_label        labels for axes
+         log_scale          True for log scale of axis
+         ticks_interpolate  If set, number of ticks to use instead of the x/y values directly
     '''
 
     if ax_handle is None:
@@ -455,17 +586,32 @@ def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorba
         ax_handle = f.add_subplot(111)
         ax_handle.clear()
 
-    im = ax_handle.imshow(data.T, interpolation=interpolation, origin='lower left')
+    if log_scale:
+        im = ax_handle.imshow(data.T, interpolation=interpolation, origin='lower left', norm=LogNorm())
+    else:
+        im = ax_handle.imshow(data.T, interpolation=interpolation, origin='lower left')
 
     if not x is None:
         assert data.shape[0] == x.size, 'Wrong x dimension'
 
-        ax_handle.set_xticks(np.arange(x.size))
-        ax_handle.set_xticklabels([label_format % curr for curr in x], rotation=90)
+        if ticks_interpolate:
+            selected_ticks = np.array(np.linspace(0, x.size-1, ticks_interpolate), dtype=int)
+            ax_handle.set_xticks(selected_ticks)
+            ax_handle.set_xticklabels([label_format % x[tick_i] for tick_i in selected_ticks], rotation=90)
+        else:
+            ax_handle.set_xticks(np.arange(x.size))
+            ax_handle.set_xticklabels([label_format % curr for curr in x], rotation=90)
+
     if not y is None:
         assert data.shape[1] == y.size, 'Wrong y dimension'
-        ax_handle.set_yticks(np.arange(y.size))
-        ax_handle.set_yticklabels([label_format % curr for curr in y])
+
+        if ticks_interpolate:
+            selected_ticks = np.array(np.linspace(0, y.size-1, ticks_interpolate), dtype=int)
+            ax_handle.set_yticks(selected_ticks)
+            ax_handle.set_yticklabels([label_format % y[tick_i] for tick_i in selected_ticks])
+        else:
+            ax_handle.set_yticks(np.arange(y.size))
+            ax_handle.set_yticklabels([label_format % curr for curr in y])
     
     if xlabel:
         ax_handle.set_xlabel(xlabel)
@@ -480,6 +626,30 @@ def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorba
         ax_handle.set_title(title)
     
     ax_handle.axis('tight')
+
+    # Change mouse over behaviour
+    def report_pixel(x_mouse, y_mouse): 
+        # Extract loglik at that position
+
+        try:
+            x_i = int(x_mouse)
+            y_i = int(y_mouse)
+            
+            if x is not None:
+                x_display = x[x_i]
+            else:
+                x_display = x_i
+            
+            if y is not None:
+                y_display = y[y_i]
+            else:
+                y_display = y_i
+
+            return "x=%.2f y=%.2f value=%.2f" % (x_display, y_display, data[x_i, y_i])
+        except:
+            return ""
+    
+    ax_handle.format_coord = report_pixel
 
     return ax_handle, im
 
@@ -540,8 +710,8 @@ def pcolor_square_grid(data, nb_to_plot=-1):
     nb_plots_sqrt = np.ceil(np.sqrt(nb_to_plot)).astype(int)
     f, subaxes = plt.subplots(nb_plots_sqrt, nb_plots_sqrt)
     
-    for i in np.arange(nb_plots_sqrt):
-        for j in np.arange(nb_plots_sqrt):
+    for i in xrange(nb_plots_sqrt):
+        for j in xrange(nb_plots_sqrt):
             try:
                 subaxes[i, j].imshow(data[nb_plots_sqrt*i+j], interpolation='nearest')
                 subaxes[i, j].xaxis.set_major_locator(plttic.NullLocator())
@@ -902,14 +1072,103 @@ def fit_line(xdata, ydata, title='', should_plot=True, fignum=None):
     return p
 
 
+def fit_gamma_samples(samples, num_points=500, bound=np.pi, fix_location=False, return_fitted_data=True, should_plot=True, normalise=True, debug=True):
+    '''
+        Fit a Gamma distribution on the samples, optionaly plotting the fit
+    '''
+
+    if fix_location:
+        fit_alpha, fit_loc, fit_beta = spst.gamma.fit(samples, floc=1e-18)
+    else:
+        fit_alpha, fit_loc, fit_beta = spst.gamma.fit(samples)
+
+    # x = np.linspace(samples.min()*1.5, samples.max()*1.5, 1000)
+    x = np.linspace(-bound, bound, num_points)
+    dx = 2.*bound/(num_points-1.)
+
+    fitted_data = spst.gamma.pdf(x, fit_alpha, fit_loc, fit_beta)
+
+    if debug:
+        print "Alpha: %.3f, Location: %.3f, Beta: %.3f" % (fit_alpha, fit_loc, fit_beta)
+
+    if should_plot:
+        if normalise:
+            histogram_angular_data(samples, norm='max', bins=num_points)
+            plt.plot(x, fitted_data/np.max(fitted_data), 'r')
+        else:
+            histogram_angular_data(samples, bins=num_points)
+            plt.plot(x, fitted_data, 'r')
+
+        plt.show()
+
+    if return_fitted_data:
+        return dict(parameters=np.array([fit_alpha, fit_loc, fit_beta]), fitted_data=fitted_data)
+    else:
+        return np.array([fit_alpha, fit_loc, fit_beta])
 
 
+def fit_beta_samples(samples, num_points=500, bound=np.pi, fix_location=False, return_fitted_data=True, should_plot=True, normalise=True, debug=True):
+    '''
+        Fit a Beta distribution on the samples, optionaly plotting the fit
+    '''
 
-    
+    fit_a, fit_b, fit_loc, fit_shape = spst.beta.fit(samples)
+
+    # x = np.linspace(samples.min()*1.5, samples.max()*1.5, 1000)
+    x = np.linspace(-bound, bound, num_points)
+    dx = 2.*bound/(num_points-1.)
+
+    fitted_data = spst.beta.pdf(x, fit_a, fit_b, fit_loc, fit_shape)
+
+    if debug:
+        print "A: %.3f, B: %.3f" % (fit_a, fit_b)
+
+    if should_plot:
+        if normalise:
+            histogram_angular_data(samples, norm='max', bins=num_points)
+            plt.plot(x, fitted_data/np.max(fitted_data), 'r')
+        else:
+            histogram_angular_data(samples, bins=num_points)
+            plt.plot(x, fitted_data, 'r')
+
+        plt.show()
+
+    if return_fitted_data:
+        return dict(parameters=np.array([fit_a, fit_b]), fitted_data=fitted_data)
+    else:
+        return np.array([fit_a, fit_b])
 
 
-        
+def fit_vonmises_samples(samples, num_points=500, return_fitted_data=True, should_plot=True, normalise=True, debug=True):
+    '''
+        Fit a Von Mises distribution on samples, optionaly plotting the fit.
+    '''
 
+    fit_kappa, fit_mu, fit_scale = spst.vonmises.fit(samples, fscale=1.0)
+
+    # x = np.linspace(samples.min()*1.5, samples.max()*1.5, 1000)
+    x = np.linspace(-np.pi, np.pi, num_points)
+    # dx = 2.*np.pi/(num_points-1.)
+
+    fitted_data = spst.vonmises.pdf(x, fit_kappa, loc=fit_mu, scale=fit_scale)
+
+    if debug:
+        print "mu: %.3f, kappa: %.3f" % (fit_mu, fit_kappa)
+
+    if should_plot:
+        if normalise:
+            histogram_angular_data(samples, norm='density', bins=num_points)
+            plt.plot(x, fitted_data, 'r')
+        else:
+            histogram_angular_data(samples, bins=num_points)
+            plt.plot(x, fitted_data, 'r')
+
+        plt.show()
+
+    if return_fitted_data:
+        return dict(parameters=np.array([fit_mu, fit_kappa]), fitted_data=fitted_data, support=x)
+    else:
+        return np.array([fit_mu, fit_kappa])
 
 
 

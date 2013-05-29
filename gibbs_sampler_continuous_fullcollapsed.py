@@ -105,7 +105,7 @@ class Sampler:
             self.data_gen.chosen_orientations[np.arange(self.N), self.data_gen.cued_features[:,1], self.data_gen.cued_features[:,0]]
         
         # Construct the list of uncued features, which should be sampled
-        self.theta_to_sample = np.array([[r for r in np.arange(self.R) if r != self.data_gen.cued_features[n,0]] for n in np.arange(self.N)], dtype='int')
+        self.theta_to_sample = np.array([[r for r in xrange(self.R) if r != self.data_gen.cued_features[n,0]] for n in xrange(self.N)], dtype='int')
         
     
     
@@ -126,7 +126,7 @@ class Sampler:
         self.n_covariances_start_chol = np.zeros_like(self.n_covariances_start)
         self.n_covariances_end_chol = np.zeros_like(self.n_covariances_end)
         
-        # for t in np.arange(self.T):
+        # for t in xrange(self.T):
         #             try:
         #                 self.n_covariances_start_chol[t] = np.linalg.cholesky(self.n_covariances_start[t])
         #             except np.linalg.linalg.LinAlgError:
@@ -308,7 +308,7 @@ class Sampler:
         #                     # Update the counts
         #                     self.Akr[self.Z[n,t,r], r] -= 1
         #                     
-        #                     for k in np.arange(self.K):
+        #                     for k in xrange(self.K):
         #                         # Get the prior prob of z_n_t_k
         #                         self.lprob_zntrk[k] = np.log(self.dir_alpha + self.Akr[k,r]) - np.log(self.K*self.dir_alpha + self.N - 1.)
         #                         
@@ -393,8 +393,8 @@ class Sampler:
         
         l = self.R*scsp.gammaln(self.K*self.dir_alpha) - self.R*self.K*scsp.gammaln(self.dir_alpha)
         
-        for r in np.arange(self.R):            
-            for k in np.arange(self.K):
+        for r in xrange(self.R):            
+            for k in xrange(self.K):
                 l += scsp.gammaln(self.dir_alpha + self.Akr[k, r])
             l -= scsp.gammaln(self.K*self.dir_alpha + self.N)
         
@@ -420,7 +420,7 @@ class Sampler:
         if verbose:
             print "Initialisation: likelihoods = y %.3f, z %.3f, joint: %.3f" % (log_y[0], log_z[0], log_joint[0])
         
-        for i in np.arange(iterations):
+        for i in xrange(iterations):
             # Do a full sampling sweep
             self.sample_all()
             
@@ -699,10 +699,10 @@ def do_search_dirichlet_alpha(args):
     mean_last_precision = np.zeros((dir_alpha_space.size, nb_repetitions))
     avg_precision = np.zeros((dir_alpha_space.size, nb_repetitions))
     
-    for dir_alpha_i in np.arange(dir_alpha_space.size):
+    for dir_alpha_i in xrange(dir_alpha_space.size):
         print "Doing Dir_alpha %.3f" % dir_alpha_space[dir_alpha_i]
         
-        for repet_i in np.arange(nb_repetitions):
+        for repet_i in xrange(nb_repetitions):
             print "%d/%d" % (repet_i+1, nb_repetitions)
             
             random_network = RandomNetwork.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[0.1, dir_alpha_space[dir_alpha_i]], sigma=0.2, gamma=0.005, rho=0.005)
@@ -752,10 +752,10 @@ def do_search_alphat(args):
     mean_last_precision = np.zeros((alphat_space.size, nb_repetitions))
     other_precision = np.zeros((alphat_space.size, nb_repetitions))
     
-    for alpha_i in np.arange(alphat_space.size):
+    for alpha_i in xrange(alphat_space.size):
         print "Doing alpha_t %.3f" % alphat_space[alpha_i]
         
-        for repet_i in np.arange(nb_repetitions):
+        for repet_i in xrange(nb_repetitions):
             print "%d/%d" % (repet_i+1, nb_repetitions)
             
             random_network = RandomNetwork.create_instance_uniform(K, M, D=D, R=R, W_type='dirichlet', W_parameters=[0.1, 0.5], sigma=0.2, gamma=0.005, rho=0.005)

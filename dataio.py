@@ -44,6 +44,9 @@ class DataIO:
         self.git_infos = None
         self.debug = debug
 
+        # Setup the output directory
+        self.make_dirs()
+
         # Initialize unique_filename
         self.create_filename()
 
@@ -52,6 +55,18 @@ class DataIO:
 
         if debug:
             print "=== FileIO ready: %s ===" % self.filename
+
+
+    
+    def make_dirs(self):
+        '''
+            Create the directory for the output
+        '''
+
+        try:
+            os.makedirs(self.output_folder)
+        except:
+            pass
 
 
     def create_filename(self):

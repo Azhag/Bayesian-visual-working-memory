@@ -172,7 +172,7 @@ class DataPBS:
 
         all_output_files = glob.glob(dataset_infos['files'])
 
-        assert len(all_output_files) > 0, "Wrong regular expression"
+        assert len(all_output_files) > 0, "Wrong regular expression: " + dataset_infos['files']
 
         # We have to load each dataset, but also associate them with their parameter values.
         #  let's try and be general:
@@ -327,13 +327,13 @@ class DataPBS:
                             completed_repeats_array.append(fullarray_shape[-1])
                     else:
                         # Something is wrong with the result shapes... Just put as much as possible.
-                        smallest_sizes = tuple([slice(None, min(results_shape[i], dataset[output_variable_desired].shape[i])) for i in range(len(results_shape))])
+                        smallest_sizes = tuple([slice(None, min(results_shape[i], dataset[output_variable_desired].shape[i])) for i in xrange(len(results_shape))])
                         results_array[curr_dataposition+smallest_sizes] = dataset[output_variable_desired][smallest_sizes]
                 else:
                     # Duplicate entry
-                    print "duplicate for %s" % curr_dataposition
+                    print "duplicate for", curr_dataposition
             else:
-                print curr_dataposition, " not in dataset"
+                print curr_dataposition, " not in dataset. Output variable %s not found." % output_variable_desired
 
         # and we're good
         return dict(results=results_array, indices=np.array(indices_array), repeats_completed=np.array(completed_repeats_array), results_flat=results_flat, parameters_flat=parameters_flat)

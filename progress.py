@@ -80,7 +80,7 @@ def time_string(seconds):
         return "--"
     units = [(60*60*24, "d"), (60*60, "h"), (60, "m"), (1, "s")]
     parts = []
-    for i in range(len(units)):
+    for i in xrange(len(units)):
         unit = units[i]
         if seconds >= unit[0]:
             break
@@ -415,7 +415,7 @@ class Progress:
         # Ignore the first entry, since no prediction can be made based on
         # just one entry.
         for entry in self.log[1:-1]:
-            for i in range(algorithms):
+            for i in xrange(algorithms):
                 predicted = entry[1] + (end[0] - entry[0]) / entry[2][i] - \
                             self.start[1]
                 actual = end[1] - self.start[1]
@@ -425,7 +425,7 @@ class Progress:
             entry_count += 1
         if entry_count == 0:
             return []
-        for i in range(algorithms):
+        for i in xrange(algorithms):
             average[i] = total[i] / entry_count
             stddev[i] = math.sqrt(squares[i] / entry_count - \
                     average[i]*average[i])

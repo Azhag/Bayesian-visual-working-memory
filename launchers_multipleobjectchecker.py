@@ -196,7 +196,7 @@ def launcher_do_separation_rcdependence(args):
     
     search_progress = progress.Progress(rcscale_space.size*num_repetitions)
 
-    for r_i in np.arange(num_repetitions):
+    for r_i in xrange(num_repetitions):
         for i, rc_scale in enumerate(rcscale_space):
             
             all_parameters['rc_scale'] = rc_scale
