@@ -11,20 +11,12 @@ Copyright (c) 2011 . All rights reserved.
 import argparse
 import sys
 import matplotlib.pyplot as plt
+import glob
 import inspect
+import imp
 
-import launchers
-import launchers_profile
-import launchers_memorycurves
-import launchers_parametersweeps
-import launchers_fisherinformation
-import launchers_experimentalvolume
-import launchers_multipleobjectchecker
-import launchers_hierarchicalnetwork
 
 from utils import say_finished
-
-launchers_modules = [launchers, launchers_profile, launchers_memorycurves, launchers_parametersweeps, launchers_fisherinformation, launchers_experimentalvolume, launchers_multipleobjectchecker, launchers_hierarchicalnetwork]
 
 
 class ExperimentLauncher(object):
@@ -57,7 +49,11 @@ class ExperimentLauncher(object):
         self.possible_launchers = {}
 
         # Get all the launchers available
-        for launch_module in launchers_modules:
+        # Do that by just globbing for launchers*.py files
+        for launch_module_filename in glob.glob('launchers*.py'):
+            # Load the current module (splitext to remove the .py)
+            # imp.load_source(os.path.splitext(launcher)[0], launcher)
+            launch_module = imp.load_source(launch_module_filename, launch_module_filename)
 
             # Getmembers returns a list of tuples (f.__name__, f)
             all_functions = inspect.getmembers(launch_module, inspect.isfunction)
@@ -68,7 +64,6 @@ class ExperimentLauncher(object):
                     
                     # Fill the dictionary of callable launchers
                     self.possible_launchers[func_name] = func
-
 
 
     def create_argument_parser(self):
