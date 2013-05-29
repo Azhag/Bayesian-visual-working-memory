@@ -26,7 +26,7 @@ class HierarchialRandomNetwork(RandomFactorialNetwork):
 
     #### Constructors
 
-    def __init__(self, M, R=2, gain=1.0, M_layer_one=100, type_layer_one='conjunctive', optimal_coverage=False, rcscale_layer_one=5.0, ratio_layer_one=200.0, gain_layer_one=4.*np.pi**2., nonlinearity_fct='positive_linear', sparsity_weights=0.7, distribution_weights='exponential', sigma_weights=0.5, normalise_weights=True):
+    def __init__(self, M, R=2, gain=1.0, M_layer_one=100, type_layer_one='conjunctive', optimal_coverage=False, rcscale_layer_one=5.0, ratio_layer_one=200.0, gain_layer_one=4.*np.pi**2., nonlinearity_fct='positive_linear', threshold=0.0, sparsity_weights=0.7, distribution_weights='exponential', sigma_weights=0.5, normalise_weights=True, debug=True):
         assert R == 2, 'HiearchialRandomNetwork defined over two features for now'
 
         self.M = M
@@ -35,6 +35,10 @@ class HierarchialRandomNetwork(RandomFactorialNetwork):
         self.ratio_layer_one = ratio_layer_one
         self.gain_layer_one = gain_layer_one
         self.optimal_coverage = optimal_coverage
+        self.sigma_weights = sigma_weights
+        self.normalise_weights = normalise_weights
+        self.distribution_weights = distribution_weights
+        self.type_layer_one = type_layer_one
 
         self._ALL_NEURONS = np.arange(M)
 
@@ -45,9 +49,14 @@ class HierarchialRandomNetwork(RandomFactorialNetwork):
         self.current_layer_one_response = None
         self.current_layer_two_response = None
 
+        self.debug = debug
+
+        if self.debug:
+            print "-> Building HierarchicalRandomNetwork"
+
         # Initialise everything
         self.construct_layer_one(type_layer=type_layer_one)
-        self.construct_nonlinearity_fct(fct=nonlinearity_fct)
+        self.construct_nonlinearity_fct(fct=nonlinearity_fct, threshold=threshold)
         self.construct_A_sampling(sparsity=sparsity_weights, distribution_weights=distribution_weights, sigma_weights=sigma_weights, normalise=normalise_weights)
 
         self.population_code_type = 'hierarchical'
@@ -72,7 +81,7 @@ class HierarchialRandomNetwork(RandomFactorialNetwork):
             raise NotImplementedError('type_layer is conjunctive only for now')
 
 
-    def construct_nonlinearity_fct(self, fct='exponential'):
+    def construct_nonlinearity_fct(self, fct='exponential', threshold=0.0):
         '''
             Set a nonlinearity function for the second layer. Not sure if needed, but let's do it.
 
@@ -92,9 +101,10 @@ class HierarchialRandomNetwork(RandomFactorialNetwork):
             elif fct == 'identity':
                 self.nonlinearity_fct = lambda x: x
             elif fct == 'positive_linear':
+                self.threshold = threshold
+                
                 def positive_linear(x):
-                    x[x<0.0] = 0.0
-                    return x
+                    return (x - self.threshold).clip(0.0)
 
                 self.nonlinearity_fct = positive_linear
 
@@ -113,10 +123,13 @@ class HierarchialRandomNetwork(RandomFactorialNetwork):
         else:
             raise ValueError('distribution_weights should be randn/exponential')
 
-        if normalise:
+        if normalise == 1:
             # Normalise the rows to get a maximum activation level per neuron
             # self.A_sampling = self.A_sampling/np.sum(self.A_sampling, axis=0)
             self.A_sampling = (self.A_sampling.T/(np.sum(self.A_sampling, axis=1))).T
+        elif normalise == 2:
+            # Normalise the network activity by the number of layer one neurons
+            self.gain /= self.M_layer_one*sigma_weights
 
 
     ##### Network behaviour
@@ -233,6 +246,8 @@ class HierarchialRandomNetwork(RandomFactorialNetwork):
         pcolor_2d_data(activity, x=feature_space1, y=feature_space2, ticks_interpolate=5)
 
 
+
+
 def test_hierarchical_conjunctive():
     print 'Small test of the components of the hierarchical network'
 
@@ -254,7 +269,7 @@ if __name__ == '__main__':
     hrn1 = HierarchialRandomNetwork(M, optimal_coverage=True, M_layer_one=100)
     hrn2 = HierarchialRandomNetwork(M, optimal_coverage=True, M_layer_one=30*30)
 
-    hrn_feat = HierarchialRandomNetwork(M, sigma_weights=1.0, sparsity_weights=0.5, normalise_weights=True, type_layer_one='feature', optimal_coverage=True, M_layer_one=7*7, distribution_weights='randn')
+    hrn_feat = HierarchialRandomNetwork(M, sigma_weights=1.0, sparsity_weights=0.5, normalise_weights=True, type_layer_one='feature', optimal_coverage=True, M_layer_one=7*7, distribution_weights='randn', threshold=0.5)
 
     hrn1.plot_neuron_activity()
     hrn1.plot_network_activity()

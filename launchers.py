@@ -63,7 +63,7 @@ def init_random_network(parameters):
     elif parameters['code_type'] == 'wavelet':
         random_network = RandomFactorialNetwork.create_wavelet(parameters['M'], R=parameters['R'], scales_number=5)
     elif parameters['code_type'] == 'hierarchical':
-        random_network = HierarchialRandomNetwork(parameters['M'], M_layer_one=parameters['M_layer_one'], optimal_coverage=True, sparsity_weights=parameters['sparsity'], normalise_weights=True, sigma_weights=parameters['sigma_weights'], type_layer_one=parameters['type_layer_one'], distribution_weights='exponential')
+        random_network = HierarchialRandomNetwork(parameters['M'], M_layer_one=parameters['M_layer_one'], optimal_coverage=True, sparsity_weights=parameters['sparsity'], normalise_weights=parameters['normalise_weights'], sigma_weights=parameters['sigma_weights'], type_layer_one=parameters['type_layer_one'], distribution_weights=parameters['distribution_weights'], threshold=parameters['threshold'])
     else:
         raise ValueError('Code_type is wrong!')
 
