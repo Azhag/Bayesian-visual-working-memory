@@ -13,6 +13,7 @@ import stat
 import os
 import progress
 import functools
+import time
 
 from utils import cross
 
@@ -27,6 +28,13 @@ nice -n 15 {cmd}
 """
 
 
+### Random unix commands
+# - Rerun some pbs scripts that failed:
+# find ../pbs_output/ -name "script.*.e*" -size +1k -exec sh -c "basename {} | cut -d "." -f1-2 | qsub" \;
+# (error logs bigger than 1K had to be rerun)
+#
+
+
 class SubmitPBS():
     """
         Class creating scripts to be submitted to PBS and sending them.
@@ -36,7 +44,7 @@ class SubmitPBS():
         Adapted from J. Gasthaus's run_pbs script.
     """
 
-    def __init__(self, pbs_submission_infos=None, working_directory=None, memory='2gb', walltime='1:00:00', set_env=True, scripts_dir='pbs_scripts', output_dir='pbs_output', debug=False):
+    def __init__(self, pbs_submission_infos=None, working_directory=None, memory='2gb', walltime='1:00:00', set_env=True, scripts_dir='pbs_scripts', output_dir='pbs_output', wait_submitting=False, submit_label='', debug=False):
 
         self.debug = debug
 
@@ -46,8 +54,16 @@ class SubmitPBS():
             memory              = pbs_submission_infos['memory']
             walltime            = pbs_submission_infos['walltime']
 
+            if 'wait_submitting' in pbs_submission_infos:
+                wait_submitting = pbs_submission_infos['wait_submitting']
+
+            if 'submit_label' in pbs_submission_infos:
+                submit_label = pbs_submission_infos['submit_label']
+
         self.pbs_options = {'mem': memory, 'pmem': memory, 'walltime': walltime, 'ncpus': '1'}
         self.set_env = set_env
+        self.wait_submitting = wait_submitting
+        self.submit_label = submit_label
 
         # Initialise the directories
         if working_directory is None:
@@ -178,10 +194,23 @@ class SubmitPBS():
         os.chdir(self.output_dir)
 
         # Submit the job
-        os.popen("qsub " + new_script_filename)
+        if self.submit_label:
+            os.popen("qsub -N %s %s" % (self.submit_label, new_script_filename))
+        else:
+            os.popen("qsub " + new_script_filename)
+        
 
         # Change back to the working directory
         os.chdir(self.working_directory)
+
+        # Wait a bit, randomly
+        if self.wait_submitting:
+            try:
+                sleeping_time = np.random.normal(1.0, 0.5)
+                if sleeping_time < 10.:
+                    time.sleep(sleeping_time)
+            except:
+                pass
 
 
     def create_simulation_command(self, pbs_command_infos, parameters):
@@ -245,7 +274,7 @@ class SubmitPBS():
         if 'num_samples' not in module_parameters.__dict__:
             module_parameters.__dict__['num_samples'] = 100
 
-        self.generate_submit_constrained_parameters(module_parameters.dict_parameters_range, parameter_generation=module_parameters.parameter_generation, num_samples=module_parameters.num_samples, filtering_function=module_parameters.filtering_function, filtering_function_parameters=module_parameters.filtering_function_parameters, pbs_submission_infos=module_parameters.pbs_submission_infos, submit_jobs=module_parameters.submit_jobs)
+        return self.generate_submit_constrained_parameters(module_parameters.dict_parameters_range, parameter_generation=module_parameters.parameter_generation, num_samples=module_parameters.num_samples, filtering_function=module_parameters.filtering_function, filtering_function_parameters=module_parameters.filtering_function_parameters, pbs_submission_infos=module_parameters.pbs_submission_infos, submit_jobs=module_parameters.submit_jobs)
 
 
 

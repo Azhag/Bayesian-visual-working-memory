@@ -1,5 +1,5 @@
 """
-    PBS reloader for hierarchicalrandomnetwork parameter sweep.
+    ExperimentDescriptor for hierarchicalrandomnetwork parameter sweep.
 """
 
 import os
@@ -59,14 +59,14 @@ def plots_3dvolume_hierarchical_M_sparsity_sigmaweights(data_pbs, generator_modu
 
 
 
-generator_script='generator_sweep_feature_code_210513.py'
+generator_script='generator_sweep_feature_code_randnweights_220513.py'
 generator_module = imp.load_source(os.path.splitext(generator_script)[0], generator_script)
 
-dataset_infos = dict(label='HierarchicalRandomNetwork initial characterisation. Feature layer one. 3D volume (sparsity, sigma_weights, M). Precision.', 
+dataset_infos = dict(label='HierarchicalRandomNetwork initial characterisation. Feature layer one. Randn weights. 3D volume (sparsity, sigma_weights, M). Precision.', 
                      files="%s/%s-*.npy" % (generator_module.pbs_submission_infos['simul_out_dir'], generator_module.pbs_submission_infos['other_options']['label']),
                      launcher_module=generator_module,
                      loading_type='args',
-                     parameters=generator_module.dict_parameters_range.keys(),
+                     parameters=['sparsity', 'sigma_weights', 'M'],
                      variables_to_load=['results_precision_M_T'],
                      variables_description=['Precision volume'],
                      post_processing=plots_3dvolume_hierarchical_M_sparsity_sigmaweights,
@@ -94,5 +94,4 @@ if __name__ == '__main__':
     for var_reinst in variables_to_reinstantiate:
         if var_reinst in experiment_launcher.all_vars:
             vars()[var_reinst] = experiment_launcher.all_vars[var_reinst]
-
 

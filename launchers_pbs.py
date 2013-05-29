@@ -46,32 +46,33 @@ def launcher_do_generate_submit_pbs_from_param_files(args):
     return locals()
 
 
-def launcher_do_reload_constrained_parameters(dataset_infos):
+def launcher_do_reload_constrained_parameters(args):
     '''
         Reload outputs run with the automatic parameter generator for PBS
 
         Should handle random sampling of the parameter space.
     '''
 
+    all_parameters = vars(args)
+
+    # Load the parameters from the specific file
+    parameters_file = imp.load_source('params', all_parameters['parameters_filename'])
+
     # Reload everything
-    data_pbs = DataPBS(dataset_infos=dataset_infos, debug=True)
-
-    # Reload the outputs of launcher used.
-    # To be adapted, now have a file directly
-    # launcher_variables = np.load(dataset_infos['launcher_file']).item()
-
+    data_pbs = DataPBS(dataset_infos=parameters_file.dataset_infos, debug=True)
+    
     # Do the plots
-    if dataset_infos['post_processing'] is not None:
+    if parameters_file.dataset_infos['post_processing'] is not None:
         try:
             # Duck typing to check if we have a list of post_processings
-            iterator = iter(dataset_infos['post_processing'])
+            iterator = iter(parameters_file.dataset_infos['post_processing'])
         except TypeError:
             # Not a list... just call it
-            dataset_infos['post_processing'](data_pbs, launcher_variables)
+            parameters_file.dataset_infos['post_processing'](data_pbs, parameters_file.dataset_infos['launcher_module'])
         else:
             for post_process in iterator:
                 # Call each one one after the other
-                post_process(data_pbs, launcher_variables)
+                post_process(data_pbs, parameters_file.dataset_infos['launcher_module'])
 
     return locals()
 
