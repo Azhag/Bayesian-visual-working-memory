@@ -1263,7 +1263,7 @@ class RandomFactorialNetwork():
         return rn
     
     @classmethod
-    def create_mixed(cls, M, R=2, ratio_feature_conjunctive = 0.5, conjunctive_parameters=None, feature_parameters=None, response_type = 'bivariate_fisher'):
+    def create_mixed(cls, M, R=2, ratio_feature_conjunctive = 0.5, conjunctive_parameters=None, feature_parameters=None, response_type = 'bivariate_fisher', autoset_parameters=False):
         '''
             Create a RandomFactorialNetwork instance, using a pure conjunctive code
         '''
@@ -1303,11 +1303,24 @@ class RandomFactorialNetwork():
         rn.conj_subpop_size = int(M*ratio_feature_conjunctive)
         rn.feat_subpop_size = M - rn.conj_subpop_size
 
+
+        if autoset_parameters:
+            # Use optimal values for the parameters. Be careful, this assumes M/2 and coverage of full 2 pi space
+            # Assume one direction should cover width = pi, the other should cover M/2 * width/2. = 2pi
+            # width = stddev_to_kappa(stddev)
+            conj_scale = stddev_to_kappa(2.*np.pi/int(M**0.5))
+            feat_scale = stddev_to_kappa(np.pi)
+            feat_ratio = -stddev_to_kappa(2.*np.pi/int(rn.feat_subpop_size/2.))/feat_scale
+
+
         print "Population sizes: conj: %d, feat: %d" % (rn.conj_subpop_size, rn.feat_subpop_size)
         
         # Create the conjunctive subpopulation
         rn.assign_prefered_stimuli(tiling_type='conjunctive', reset=True, specific_neurons = np.arange(rn.conj_subpop_size))
-        rn.assign_random_eigenvectors(scale_parameters=conj_scale_parameters, ratio_parameters=conj_ratio_parameters, specific_neurons = np.arange(rn.conj_subpop_size), reset=True)
+        if autoset_parameters:
+            rn.assign_aligned_eigenvectors(scale=conj_scale, ratio=1.0, specific_neurons = np.arange(rn.conj_subpop_size), reset=True)    
+        else:
+            rn.assign_random_eigenvectors(scale_parameters=conj_scale_parameters, ratio_parameters=conj_ratio_parameters, specific_neurons = np.arange(rn.conj_subpop_size), reset=True)
 
 
         # Create the feature subpopulation        
