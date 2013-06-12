@@ -14,7 +14,7 @@ parameters_entryscript=dict(action_to_do='launcher_do_generate_submit_pbs_from_p
 submit_jobs = True
 parameter_generation = 'grid'
 
-pbs_submission_infos = dict(description='Hierarchical network. Assume we want to allocate a fixed number of neurons between the two layers. Do that by constraining the sum of M and M_layer_one to be some constant.', 
+pbs_submission_infos = dict(description='Hierarchical network. Assume we want to allocate a fixed number of neurons between the two layers. Do that by constraining the sum of M and M_layer_one to be some constant. Corrected logic so that whole population is accessible now', 
                             command='python /nfs/home2/lmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py', 
                             other_options=dict(action_to_do='launcher_do_hierarchical_precision_M_Mlower_pbs', 
                                                code_type='hierarchical', 
@@ -26,12 +26,13 @@ pbs_submission_infos = dict(description='Hierarchical network. Assume we want to
                                                N=500, 
                                                T=6, 
                                                sigmay=0.0001, 
+                                               output_both_layers=1,
                                                inference_method='max_lik', 
                                                num_repetitions=3, 
-                                               label='hierarchical_const_tot_M_Mlower_volume_conjunctivelayer'), 
+                                               label='hierarchical_const_tot_M_Mlower_fullaccess_volume_conjunctivelayer'), 
                             walltime='10:00:00', 
                             memory='2gb', 
-                            simul_out_dir=os.path.join(os.getcwd(), 'hierarchical_constant_total_MMlower_volume_conjunctivelayer_230513'),
+                            simul_out_dir=os.path.join(os.getcwd(), 'hierarchical_constant_total_MMlower_fullaccess_volume_conjunctivelayer_300513'),
                             submit_label='hier_MMl_cst')
 
 M_range           =   dict(range=np.arange(1, 201), dtype=int)
@@ -40,6 +41,7 @@ M_lower_range     =   dict(range=np.arange(2, 16, 1)**2., dtype=int)
 # M_lower_range     =   dict(range=np.arange(5, 6, 2)**2., dtype=int)
 
 dict_parameters_range = dict(M=M_range, M_layer_one=M_lower_range)
+
 
 
 ## Define our filtering function 
@@ -60,7 +62,7 @@ filtering_function_parameters = {'target_M_total': 200., 'comparison_type': 'equ
 ## Tests for sums smaller than 200, given that M_layer_one > M
 if v2:
     filtering_function_parameters['comparison_type'] = 'smaller_equal'
-    pbs_submission_infos['simul_out_dir'] = os.path.join(os.getcwd(), 'hierarchical_constant_total_smaller_M_Mlower_volume_conjunctivelayer_230513')
+    pbs_submission_infos['simul_out_dir'] = os.path.join(os.getcwd(), 'hierarchical_const_tot_smaller_M_Mlower_fullaccess_volume_conjunctivelayer')
 
 
 if __name__ == '__main__':

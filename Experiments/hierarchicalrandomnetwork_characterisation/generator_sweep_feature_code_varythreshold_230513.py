@@ -12,9 +12,14 @@ parameters_entryscript=dict(action_to_do='launcher_do_generate_submit_pbs_from_p
 submit_jobs = True
 parameter_generation = 'grid'
 
-run_label = 'hierarchical_M_sparsity_sigmaweight_volume_featurelayer_varythreshold_230513'
+normalise_weights = 2
 
-pbs_submission_infos = dict(description='Hierarchical network, testing effect of M and M_layer_one. No filtering.', 
+if normalise_weights == 1:
+    run_label = 'hierarchical_M_sparsity_sigmaweight_volume_featurelayer_varythreshold_230513'
+elif normalise_weights == 2:
+    run_label = 'hierarchical_M_sparsity_sigmaweight_volume_featurelayer_varythreshold_othernorm_300513'
+
+pbs_submission_infos = dict(description='Hierarchical network, feature layer one, testing effect of M, sparsity, sigma weights and now threshold as well. No filtering.', 
                             command='python /nfs/home2/lmatthey/Documents/work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py', 
                             other_options=dict(action_to_do='launcher_do_hierarchical_precision_M_sparsity_sigmaweight_feature_pbs', 
                                                code_type='hierarchical', 
@@ -27,7 +32,8 @@ pbs_submission_infos = dict(description='Hierarchical network, testing effect of
                                                T=6, 
                                                sigmay=0.0001, 
                                                inference_method='max_lik', 
-                                               num_repetitions=3, 
+                                               num_repetitions=3,
+                                               normalise_weights=normalise_weights,
                                                label=run_label), 
                             walltime='10:00:00', 
                             memory='2gb', 
