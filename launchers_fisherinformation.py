@@ -44,6 +44,7 @@ def launcher_do_fisher_information_estimation(args):
     selection_method = args.selection_method
 
     stimuli_generation = 'constant'
+    # stimuli_generation = 'random'
 
     dataio = DataIO(output_folder=args.output_directory, label=args.label)
 
@@ -259,12 +260,13 @@ def launcher_do_fisher_information_estimation(args):
 
     elif args.subaction == 'rcscale_dependence':
         single_point_estimate = False
-        num_repet_sample_estimate = 1
+        num_repet_sample_estimate = 5
 
         print "stimuli_generation: %s" % stimuli_generation
 
-        rcscale_space = np.linspace(0.5, 10.0, 10)
-        # rcscale_space = np.linspace(4., 4., 1.)
+        # rcscale_space = np.linspace(0.5, 10.0, 10)
+        rcscale_space = np.linspace(args.rc_scale, args.rc_scale, 1.)
+
         FI_rc_curv = np.zeros((rcscale_space.size, 3), dtype=float)
         FI_rc_curv_quantiles = np.zeros((rcscale_space.size, 3), dtype=float)
         FI_rc_curv_all = []
@@ -332,7 +334,7 @@ def launcher_do_fisher_information_estimation(args):
             # prec_samples = sampler.estimate_precision_from_samples(n=0, num_samples=1000, num_repetitions=10)
             # (FI_rc_samples[i, 0], FI_rc_samples[i, 1])=(prec_samples['mean'], prec_samples['std'])
             
-            if False:
+            if True:
                 print "from samples..."
                 
                 if single_point_estimate:
@@ -410,7 +412,9 @@ def launcher_do_fisher_information_estimation(args):
                 # Show the precision from posterior estimate against the FI from posterior estimate
                 plt.figure()
 
-                # plt.plot(FI_rc_curv_all[rc_scale_i], FI_rc_samples_all[rc_scale_i], 'x')
+                plt.rcParams['font.size'] = 16
+
+                plt.plot(FI_rc_curv_all[rc_scale_i], FI_rc_samples_all[rc_scale_i], 'bx')
 
                 idx = np.linspace(FI_rc_curv_all[rc_scale_i].min()*0.95, FI_rc_curv_all[rc_scale_i].max()*1.05, 100.)
 
@@ -418,19 +422,22 @@ def launcher_do_fisher_information_estimation(args):
                 plt.axis('tight')
                 plt.xlabel('Curvature estimate')
                 plt.ylabel('Samples estimate')
-                plt.title('Comparison Curvature vs samples estimate of FI. Rscale: %d' % rc_scale)
+                plt.title('Comparison Curvature vs samples estimate of FI. Rscale: %.2f' % rc_scale)
 
                 dataio.save_current_figure('FI_rc_comparison_curv_samples_allpoints_%d-{unique_id}.pdf' % rc_scale)
 
                 # Show the boxplot of each estimate, per number of samples
                 plt.figure()
-                # plt.boxplot([FI_rc_curv_all[rc_scale_i], FI_rc_samples_all[rc_scale_i].flatten(), FI_rc_precision_all[rc_scale_i], FI_rc_theo_all[rc_scale_i, 0], FI_rc_theo_all[rc_scale_i, 1]])
-                plt.boxplot([FI_rc_curv_all[rc_scale_i], FI_rc_precision_all[rc_scale_i], FI_rc_theo_all[rc_scale_i, 0], FI_rc_theo_all[rc_scale_i, 1]])
-                plt.title('Comparison Curvature vs samples estimate. Rscale: %d' % rc_scale)
-                # plt.xticks([1, 2, 3, 5], ['Curvature', 'Samples', 'Precision', 'Theo', 'Theo large N'], rotation=45)
-                plt.xticks([1, 2, 3, 4], ['Curvature', 'Precision', 'Theo', 'Theo large N'], rotation=45)
+                b = plt.boxplot([FI_rc_curv_all[rc_scale_i], FI_rc_samples_all[rc_scale_i].flatten(), FI_rc_precision_all[rc_scale_i], FI_rc_theo_all[rc_scale_i, 0], FI_rc_theo_all[rc_scale_i, 1]])
+                # plt.boxplot([FI_rc_curv_all[rc_scale_i], FI_rc_precision_all[rc_scale_i], FI_rc_theo_all[rc_scale_i, 0], FI_rc_theo_all[rc_scale_i, 1]])
+                for key in ['medians', 'boxes', 'whiskers', 'caps']:
+                    for line in b[key]:
+                        line.set_linewidth(2)
+                plt.title('Comparison Curvature vs samples estimate. Rscale: %.2f' % rc_scale)
+                plt.xticks([1, 2, 3, 4, 5], ['Curvature', 'Samples', 'Precision', 'Theo', 'Theo large N'], rotation=45)
+                # plt.xticks([1, 2, 3, 4], ['Curvature', 'Precision', 'Theo', 'Theo large N'], rotation=45)
 
-                dataio.save_current_figure('FI_rc_comparison_curv_samples_%d-{unique_id}.pdf' % rc_scale)
+                dataio.save_current_figure('FI_rc_comparison_curv_samples_%d-{label}_{unique_id}.pdf' % rc_scale)
     
     else:
         raise ValueError('Wrong subaction!')

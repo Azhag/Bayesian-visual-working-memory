@@ -59,11 +59,11 @@ if __name__ == '__main__':
 
     #### Compute Theo Inverse Fisher Info
 
-    if False:
+    if True:
         ### Loop over min_distance and kappa
-        # min_distance_space = np.linspace(0.0001, np.pi, 20, endpoint=False)
-        # min_distance_space = np.logspace(-5., 0.99, 20, base=np.pi)
-        min_distance_space = np.array([min_distance])
+        min_distance_space = np.linspace(0.0001, np.pi/2., 60, endpoint=False)
+        # min_distance_space = np.logspace(-5., 0.99, 10, base=np.pi)
+        # min_distance_space = np.array([min_distance])
         # min_distance_space = np.array([0.001])
         
         kappa_space = np.linspace(0.0005, 30., 25)
@@ -170,12 +170,16 @@ if __name__ == '__main__':
 
         plt.rcParams['font.size'] = 18
 
-        # plt.figure()
-        # plt.semilogy(min_distance_space, (inv_FI_search- inv_FI_1_search)[:, 1:])
-        # plt.xlabel('Minimum distance')
-        # plt.ylabel('$\hat{I_F}^{-1} - {I_F^{(1)}}^{-1}$')
+        plt.figure()
+        plt.semilogy(min_distance_space, (inv_FI_search/inv_FI_1_search)[:, 1:], linewidth=2)
+        plt.plot(np.linspace(0.0, 1.6, 100), np.ones(100)*2.0, 'k:', linewidth=2)
+        plt.xlabel('Minimum distance')
+        plt.ylabel('$\hat{I_F}^{-1}/{I_F^{(1)}}^{-1}$')
 
-    if True:
+        # plt.figure()
+        # pcolor_2d_data((inv_FI_search- inv_FI_1_search)[:, 1:], x=min_distance_space, y=kappa_space)
+
+    if False:
         ## Redo sampling, by putting distance constraint into prior
         # Compute p(r | theta_1) = \int p(r | theta_1, theta_2) p(theta_2 | theta_1)
         

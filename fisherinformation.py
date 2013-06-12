@@ -655,27 +655,27 @@ if __name__ == '__main__':
 
 
         ## Redo everything here.
-        if False:
+        if True:
 
             ## Population
             N     = 100
             kappa = 3.0
-            sigma = 0.3
+            sigma = 0.2
             amplitude = 1.0
 
             put_noise_dataset = True
-            use_slice_sampler = False
+            use_slice_sampler = True
 
-            # kappa_space = np.linspace(0.01, 5., 10)
+            kappa_space = np.linspace(0.01, 5., 10)
             # kappa_space = np.linspace(5.0, 5.0, 1.)
-            kappa_space = np.array([3.0])
+            # kappa_space = np.array([3.0])
             
             # N_space = np.array([100, 200, 300, 500])
             N_space = np.array([100])
 
             # Dataset size.
             #  Big number required for clean estimate of recall precision...
-            M = 20
+            M = 100
             
 
             def population_code_response(theta, pref_angles=None, N=100, kappa=0.1, amplitude=1.0):
@@ -875,7 +875,7 @@ if __name__ == '__main__':
                 plt.figure()
                 plt.boxplot([fisher_info_curve, samples_all_precisions, recall_samples_precision, recall_samples_gauss_precision])
                 plt.title('Comparison Curvature vs samples estimate vs recall precision. 1D pop code')
-                plt.xticks([1, 2, 3], ['Curvature', 'Samples', 'Precision', 'Precision gauss'], rotation=45)
+                plt.xticks([1, 2, 3, 4], ['Curvature', 'Samples', 'Precision', 'Precision gauss'], rotation=45)
 
 
                 plt.figure()
@@ -897,7 +897,7 @@ if __name__ == '__main__':
 
 
 
-    if False:
+    if True:
         # Now do everything for 2D population code.
         
         N     = (15.)**2
@@ -1030,8 +1030,7 @@ if __name__ == '__main__':
             dx = np.diff(all_angles[:, 0]).max()
             dx_clamped = np.diff(angles_clamped_fi)[0]
 
-            for m, data in enumerate(dataset):
-                print m
+            for m, data in progress.ProgressDisplay(enumerate(dataset), display=progress.SINGLE_LINE):
                 
                 # posterior = likelihood_2D(data, all_angles, pref_angles=pref_angles, N=N, kappa1=kappa1, kappa2=kappa2, sigma=sigma)
                 # # posterior += 1e-310
@@ -1261,7 +1260,7 @@ if __name__ == '__main__':
 
 
 
-    if True:
+    if False:
         ########
         ###
         ###
