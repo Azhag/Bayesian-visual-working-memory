@@ -11,6 +11,7 @@ import numpy as np
 import hashlib
 import stat
 import os
+import subprocess
 import progress
 import functools
 import time
@@ -25,6 +26,7 @@ echo "Job execution host: $hostn"
 echo "Filename: {filename}"
 cd {working_dir}
 nice -n 15 {cmd}
+echo "+++ Job completed +++"
 """
 
 
@@ -33,6 +35,8 @@ nice -n 15 {cmd}
 # find ../pbs_output/ -name "script.*.e*" -size +1k -exec sh -c "basename {} | cut -d "." -f1-2 | qsub" \;
 # (error logs bigger than 1K had to be rerun)
 #
+# - Rerun unfinished scripts: (run in pbs_output)
+# for f in ../pbs_scripts/script.*; do basef=`basename $f`; if grep -Fq $basef *; then echo "$basef ok"; else echo "$basef rerun"; qsub $f; fi; done;
 
 
 class SubmitPBS():
@@ -44,7 +48,7 @@ class SubmitPBS():
         Adapted from J. Gasthaus's run_pbs script.
     """
 
-    def __init__(self, pbs_submission_infos=None, working_directory=None, memory='2gb', walltime='1:00:00', set_env=True, scripts_dir='pbs_scripts', output_dir='pbs_output', wait_submitting=False, submit_label='', debug=False):
+    def __init__(self, pbs_submission_infos=None, working_directory=None, memory='2gb', walltime='1:00:00', set_env=True, scripts_dir='pbs_scripts', output_dir='pbs_output', wait_submitting=False, submit_label='', pbs_submit_cmd='qsub', debug=False):
 
         self.debug = debug
 
@@ -60,10 +64,14 @@ class SubmitPBS():
             if 'submit_label' in pbs_submission_infos:
                 submit_label = pbs_submission_infos['submit_label']
 
+            if 'pbs_submit_cmd' in pbs_submission_infos:
+                pbs_submit_cmd = pbs_submission_infos['pbs_submit_cmd']
+
         self.pbs_options = {'mem': memory, 'pmem': memory, 'walltime': walltime, 'ncpus': '1'}
         self.set_env = set_env
         self.wait_submitting = wait_submitting
         self.submit_label = submit_label
+        self.pbs_submit_cmd = pbs_submit_cmd
 
         # Initialise the directories
         if working_directory is None:
@@ -138,7 +146,7 @@ class SubmitPBS():
         '''
 
         with open(self.submit_fn, 'a') as submit_f:
-            submit_f.write("qsub " + new_script_filename + " #" + command + '\n')
+            submit_f.write(self.pbs_submit_cmd + " " + new_script_filename + " #" + command + '\n')
 
 
 
@@ -156,10 +164,14 @@ class SubmitPBS():
             # Construct the pbs options
             pbs_options = '\n'.join(["#PBS -l " + k + "=" + v for (k, v) in self.pbs_options.items()]) 
 
+            # Add the label
+            if self.submit_label:
+                pbs_options += "\n#PBS -N " + self.submit_label
+            
             # Add the environment
             if self.set_env:
                 pbs_options = pbs_options + "\n" + self.getEnvCommandString()
-
+            
             # Fill in the template script
             filled_script = PBS_SCRIPT.format(pbs_options=pbs_options, working_dir=self.working_directory, cmd=command, filename=fn)
 
@@ -194,11 +206,10 @@ class SubmitPBS():
         os.chdir(self.output_dir)
 
         # Submit the job
-        if self.submit_label:
-            os.popen("qsub -N %s %s" % (self.submit_label, new_script_filename))
-        else:
-            os.popen("qsub " + new_script_filename)
-        
+        # print "---- new submit"
+        # print [self.pbs_submit_cmd, new_script_filename]
+        # subprocess.Popen([self.pbs_submit_cmd, new_script_filename], shell=True, env=os.environ, stderr=subprocess.STDOUT, stdout=subprocess.STDOUT)
+        os.popen(self.pbs_submit_cmd + " " + new_script_filename)
 
         # Change back to the working directory
         os.chdir(self.working_directory)
