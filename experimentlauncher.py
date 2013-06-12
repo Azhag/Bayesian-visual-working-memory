@@ -103,6 +103,7 @@ class ExperimentLauncher(object):
         parser.add_argument('--distribution_weights', choices=['exponential', 'randn'], default='exponential', help='Select the distribution of the sampling weights for an hierarchical network')
         parser.add_argument('--normalise_weights', type=int, default=1, help='Decide if the sampling weights should normalise to 1 for an hierarchical network. Ill-defined for positive+negative weights distributions.')
         parser.add_argument('--threshold', type=float, default=0.0, help='Sets the threshold of the hierarchical network activation function')
+        parser.add_argument('--output_both_layers', type=bool, default=False, help='Allow both layers of hierarchical network to be read')
         parser.add_argument('--feat_ratio', type=float, default=40., help='Ratio between eigenvectors for feature code')
         parser.add_argument('--sigmax', type=float, default=0.2, help='Noise per object')
         parser.add_argument('--sigmay', type=float, default=0.02, help='Noise along time')

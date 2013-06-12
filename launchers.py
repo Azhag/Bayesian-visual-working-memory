@@ -54,16 +54,16 @@ def init_random_network(parameters):
     if parameters['code_type'] == 'conj':
         random_network = RandomFactorialNetwork.create_full_conjunctive(parameters['M'], R=parameters['R'], rcscale=parameters['rc_scale'], autoset_parameters=parameters['autoset_parameters'])
     elif parameters['code_type'] == 'feat':
-        random_network = RandomFactorialNetwork.create_full_features(parameters['M'], R=parameters['R'], scale=parameters['rc_scale'], ratio=args.feat_ratio, autoset_parameters=parameters['autoset_parameters'])
+        random_network = RandomFactorialNetwork.create_full_features(parameters['M'], R=parameters['R'], scale=parameters['rc_scale'], ratio=parameters['feat_ratio'], autoset_parameters=parameters['autoset_parameters'], nb_feature_centers=1)
     elif parameters['code_type'] == 'mixed':
-        conj_params = dict(scale_moments=(parameters['rc_scale'], 0.001), ratio_moments=(1.0, 0.0001))
-        feat_params = dict(scale=parameters['rc_scale2'], ratio=40.)
+        conj_params = dict(scale_moments=[parameters['rc_scale'], 0.001], ratio_moments=[1.0, 0.0001])
+        feat_params = dict(scale=parameters['rc_scale2'], ratio=parameters['feat_ratio'], nb_feature_centers=1)
 
-        random_network = RandomFactorialNetwork.create_mixed(parameters['M'], R=parameters['R'], ratio_feature_conjunctive=ratio_conj, conjunctive_parameters=conj_params, feature_parameters=feat_params)
+        random_network = RandomFactorialNetwork.create_mixed(parameters['M'], R=parameters['R'], ratio_feature_conjunctive=parameters['ratio_conj'], conjunctive_parameters=conj_params, feature_parameters=feat_params, autoset_parameters=parameters['autoset_parameters'])
     elif parameters['code_type'] == 'wavelet':
         random_network = RandomFactorialNetwork.create_wavelet(parameters['M'], R=parameters['R'], scales_number=5)
     elif parameters['code_type'] == 'hierarchical':
-        random_network = HierarchialRandomNetwork(parameters['M'], M_layer_one=parameters['M_layer_one'], optimal_coverage=True, sparsity_weights=parameters['sparsity'], normalise_weights=parameters['normalise_weights'], sigma_weights=parameters['sigma_weights'], type_layer_one=parameters['type_layer_one'], distribution_weights=parameters['distribution_weights'], threshold=parameters['threshold'])
+        random_network = HierarchialRandomNetwork(parameters['M'], M_layer_one=parameters['M_layer_one'], optimal_coverage=True, sparsity_weights=parameters['sparsity'], normalise_weights=parameters['normalise_weights'], sigma_weights=parameters['sigma_weights'], type_layer_one=parameters['type_layer_one'], distribution_weights=parameters['distribution_weights'], threshold=parameters['threshold'], output_both_layers=parameters['output_both_layers'])
     else:
         raise ValueError('Code_type is wrong!')
 

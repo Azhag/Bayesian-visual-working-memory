@@ -26,11 +26,16 @@ class HierarchialRandomNetwork(RandomFactorialNetwork):
 
     #### Constructors
 
-    def __init__(self, M, R=2, gain=1.0, M_layer_one=100, type_layer_one='conjunctive', optimal_coverage=False, rcscale_layer_one=5.0, ratio_layer_one=200.0, gain_layer_one=4.*np.pi**2., nonlinearity_fct='positive_linear', threshold=0.0, sparsity_weights=0.7, distribution_weights='exponential', sigma_weights=0.5, normalise_weights=True, debug=True):
+    def __init__(self, M, R=2, gain=1.0, M_layer_one=100, type_layer_one='conjunctive', output_both_layers=False, optimal_coverage=False, rcscale_layer_one=5.0, ratio_layer_one=200.0, gain_layer_one=4.*np.pi**2., nonlinearity_fct='positive_linear', threshold=0.0, sparsity_weights=0.7, distribution_weights='exponential', sigma_weights=0.5, normalise_weights=True, debug=True):
         assert R == 2, 'HiearchialRandomNetwork defined over two features for now'
 
-        self.M = M
+        self.M_layer_two = M
         self.M_layer_one = M_layer_one
+        if output_both_layers:
+            self.M = self.M_layer_two + self.M_layer_one
+        else:
+            self.M = self.M_layer_two
+
         self.rcscale_layer_one = rcscale_layer_one
         self.ratio_layer_one = ratio_layer_one
         self.gain_layer_one = gain_layer_one
@@ -39,6 +44,7 @@ class HierarchialRandomNetwork(RandomFactorialNetwork):
         self.normalise_weights = normalise_weights
         self.distribution_weights = distribution_weights
         self.type_layer_one = type_layer_one
+        self.output_both_layers = output_both_layers
 
         self._ALL_NEURONS = np.arange(M)
 
@@ -117,9 +123,9 @@ class HierarchialRandomNetwork(RandomFactorialNetwork):
         '''
 
         if distribution_weights == 'randn':
-            self.A_sampling = sigma_weights*np.random.randn(self.M, self.M_layer_one)*(np.random.rand(self.M, self.M_layer_one) <= sparsity)
+            self.A_sampling = sigma_weights*np.random.randn(self.M_layer_two, self.M_layer_one)*(np.random.rand(self.M_layer_two, self.M_layer_one) <= sparsity)
         elif distribution_weights == 'exponential':
-            self.A_sampling = np.random.exponential(sigma_weights, (self.M, self.M_layer_one))*(np.random.rand(self.M, self.M_layer_one) <= sparsity)
+            self.A_sampling = np.random.exponential(sigma_weights, (self.M_layer_two, self.M_layer_one))*(np.random.rand(self.M_layer_two, self.M_layer_one) <= sparsity)
         else:
             raise ValueError('distribution_weights should be randn/exponential')
 
@@ -136,7 +142,9 @@ class HierarchialRandomNetwork(RandomFactorialNetwork):
 
     def get_network_response(self, stimulus_input=None, specific_neurons=None, params={}):
         '''
-            Function hook for the current way to get the network response.
+            Output the activity of the network for the provided input.
+
+            Can return either layer 2 or layer 1+2.
         '''
 
         if stimulus_input is None:
@@ -148,16 +156,22 @@ class HierarchialRandomNetwork(RandomFactorialNetwork):
         # Combine those responses according the the sampling matrices
         layer_two_response = self.get_layer_two_response(layer_one_response, specific_neurons=specific_neurons)
 
-        return layer_two_response
+        if self.output_both_layers and specific_neurons is None:
+            # Should return the activity of both layers collated
+            # (handle stupid specific_neurons filter case in the cheapest way possible: don't support it)
+            return np.r_[layer_two_response, layer_one_response]
+        else:
+            # Only layer two is relevant
+            return layer_two_response
 
 
-    def get_layer_one_response(self, stimulus_input=None):
+    def get_layer_one_response(self, stimulus_input=None, specific_neurons=None):
         '''
             Compute/updates the response of the first layer to the given stimulus
 
             The first layer is a normal RFN, so simply query it for its response
         '''
-        self.current_layer_one_response = self.layer_one_network.get_network_response(stimulus_input=stimulus_input)
+        self.current_layer_one_response = self.layer_one_network.get_network_response(stimulus_input=stimulus_input, specific_neurons=specific_neurons)
 
         return self.current_layer_one_response
 
@@ -178,7 +192,7 @@ class HierarchialRandomNetwork(RandomFactorialNetwork):
 
         if specific_neurons is None:
             self.current_layer_two_response = self.gain*self.nonlinearity_fct(np.dot(self.A_sampling, layer_one_response))
-        else:
+        else:    
             self.current_layer_two_response = self.gain*self.nonlinearity_fct(np.dot(self.A_sampling[specific_neurons], layer_one_response))
 
         return self.current_layer_two_response
@@ -211,7 +225,7 @@ class HierarchialRandomNetwork(RandomFactorialNetwork):
         ax_layerone = plt.subplot(2, 1, 2)
 
         # Plot the level two activation, use a bar, easier to read
-        ax_layertwo.bar(np.arange(self.M), self.current_layer_two_response)
+        ax_layertwo.bar(np.arange(self.M_layer_two), self.current_layer_two_response)
 
         # Plot the activation of the level one subnetwork (and of the individual responses at level two)
         M_sqrt = int(self.M_layer_one**0.5)
@@ -268,6 +282,7 @@ if __name__ == '__main__':
     # hrn = HierarchialRandomNetwork(M, distribution_weights='exponential', sigma_weights=0.5, sparsity_weights=0.5, normalise_weights=True, rcscale_layer_one=5.)
     hrn1 = HierarchialRandomNetwork(M, optimal_coverage=True, M_layer_one=100)
     hrn2 = HierarchialRandomNetwork(M, optimal_coverage=True, M_layer_one=30*30)
+    hrn3 = HierarchialRandomNetwork(M, optimal_coverage=True, M_layer_one=15*15, output_both_layers=True)
 
     hrn_feat = HierarchialRandomNetwork(M, sigma_weights=1.0, sparsity_weights=0.5, normalise_weights=True, type_layer_one='feature', optimal_coverage=True, M_layer_one=7*7, distribution_weights='randn', threshold=0.5)
 
@@ -278,6 +293,7 @@ if __name__ == '__main__':
 
     hrn_feat.plot_network_activity()
     hrn_feat.plot_neuron_activity(0)
+
 
 
     ## Try to PCA everything
