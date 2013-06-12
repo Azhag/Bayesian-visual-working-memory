@@ -20,6 +20,8 @@ from utils import *
 from dataio import *
 from gibbs_sampler_continuous_fullcollapsed_randomfactorialnetwork import *
 
+import launchers
+
 from mpl_toolkits.mplot3d import Axes3D
 
 
@@ -187,7 +189,7 @@ def launcher_do_multiple_memory_curve_simult(args):
     '''
 
     # Should collect all responses?
-    collect_responses = True
+    collect_responses = False
 
     # Build the random network
     alpha = 1.
@@ -196,6 +198,8 @@ def launcher_do_multiple_memory_curve_simult(args):
     # Initialise the output file
     dataio = DataIO(output_folder=args.output_directory, label=args.label)
     output_string = dataio.filename
+
+    all_parameters = vars(args)
 
     # List of variables to save
     if collect_responses:
@@ -221,29 +225,11 @@ def launcher_do_multiple_memory_curve_simult(args):
         for t in xrange(args.T):
 
             #### Get multiple examples of precisions, for different number of neurons. #####
-            
-            if args.code_type == 'conj':
-                random_network = RandomFactorialNetwork.create_full_conjunctive(args.M, R=args.R, scale_moments=(args.rc_scale, 0.0001), ratio_moments=(1.0, 0.0001))
-            elif args.code_type == 'feat':
-                random_network = RandomFactorialNetwork.create_full_features(args.M, R=args.R, scale=args.rc_scale, ratio=40.)
-            elif args.code_type == 'mixed':
-                conj_params = dict(scale_moments=(args.rc_scale, 0.001), ratio_moments=(1.0, 0.0001))
-                feat_params = dict(scale=args.rc_scale2, ratio=40.)
-                random_network = RandomFactorialNetwork.create_mixed(args.M, R=args.R, ratio_feature_conjunctive=args.ratio_conj, conjunctive_parameters=conj_params, feature_parameters=feat_params)
-            else:
-                raise ValueError('Code_type is wrong!')
+            all_parameters['T'] = t+1
 
-            
-            # Construct the real dataset
-            data_gen = DataGeneratorRFN(args.N, t+1, random_network, sigma_y=args.sigmay, sigma_x=args.sigmax, time_weights_parameters=time_weights_parameters, cued_feature_time=t, stimuli_generation=args.stimuli_generation)
-            
-            # Measure the noise structure
-            data_gen_noise = DataGeneratorRFN(5000, t+1, random_network, sigma_y=args.sigmay, sigma_x=args.sigmax, time_weights_parameters=time_weights_parameters, cued_feature_time=t, stimuli_generation=args.stimuli_generation)
-            stat_meas = StatisticsMeasurer(data_gen_noise)
-            # stat_meas = StatisticsMeasurer(data_gen)
-            
-            sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters=stat_meas.model_parameters, tc=t)
-            
+            # Init everything
+            (random_network, data_gen, stat_meas, sampler) = init_everything(all_parameters)
+
             print "  doing T=%d %d/%d" % (t+1, repet_i+1, args.num_repetitions)
 
             if args.inference_method == 'sample':
@@ -519,6 +505,20 @@ def launcher_do_memorycurve_theoretical(args):
     return locals()
 
 
+def plots_memorycurves_theoretical_multiple(data_to_plot, dataio = None):
+    '''
+        Does some plots from launcher_do_memorycurve_theoretical
+    '''
+    
+    FI_rc_theo_mult = np.squeeze(data_to_plot['FI_rc_theo_mult'])
+    FI_rc_var_mult = np.squeeze(data_to_plot['FI_rc_var_mult'])
+    FI_rc_precision_mult = np.squeeze(data_to_plot['FI_rc_precision_mult'])
+
+    
+
+
+
+
 def launcher_do_memorycurve_theoretical_pbs(args):
     '''
         Compute Fisher info for T objects.
@@ -539,7 +539,7 @@ def launcher_do_memorycurve_theoretical_pbs(args):
     num_repetitions = all_parameters['num_repetitions']
     check_theoretical_cov = False
     do_curvature = False
-    do_precision = False
+    do_precision = True
     do_var = True
 
     rcscale_space = np.linspace(all_parameters['rc_scale'], all_parameters['rc_scale'], 1.)

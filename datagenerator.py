@@ -383,6 +383,9 @@ class DataGeneratorRFN(DataGenerator):
             forced_stimuli = np.array([[np.pi/3, -np.pi/3], [-np.pi/3, np.pi/3.], [np.pi/3, np.pi/3], [-np.pi/3, -np.pi/3]])
             self.stimuli_correct[0, :np.min((self.T, 4))] = forced_stimuli[:np.min((self.T, 4))]
 
+            forced_stimuli = np.array([[-np.pi/3, np.pi/3], [-np.pi/5, np.pi/5.], [np.pi/2, -np.pi*0.99], [-np.pi/3, -np.pi/3]])
+            self.stimuli_correct[1, :np.min((self.T, 4))] = forced_stimuli[:np.min((self.T, 4))]
+
             if stimuli_generation == 'constant_separated':
                 self.stimuli_correct[:, :np.min((self.T, 4))] = forced_stimuli[:np.min((self.T, 4))]
 
