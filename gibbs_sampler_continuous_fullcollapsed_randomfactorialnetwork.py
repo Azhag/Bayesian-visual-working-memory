@@ -10,6 +10,7 @@ Copyright (c) 2011 Gatsby Unit. All rights reserved.
 import numpy as np
 import scipy.special as scsp
 # from scipy.stats import vonmises as vm
+import scipy.stats as spst
 import scipy.optimize as spopt
 # import scipy.interpolate as spint
 # import scipy.io as sio
@@ -158,20 +159,6 @@ class Sampler:
         self.n_means_measured = n_parameters['means'][2]
         self.n_covariances_measured = n_parameters['covariances'][2]
         
-        # for t in xrange(self.T):
-        #             try:
-        #                 self.n_covariances_start_chol[t] = np.linalg.cholesky(self.n_covariances_start[t])
-        #             except np.linalg.linalg.LinAlgError:
-        #                 # Not positive definite, most likely only zeros, don't care, leave the zeros.
-        #                 pass
-        #             
-        #             try:
-        #                 self.n_covariances_end_chol[t] = np.linalg.cholesky(self.n_covariances_end[t])
-        #             except np.linalg.linalg.LinAlgError:
-        #                 # Not positive definite, most likely only zeros, don't care, leave the zeros.
-        #                 pass
-        #             
-        
         # Initialise N
         self.NT = np.zeros((self.N, self.M))
         self.NT = self.YT
@@ -302,7 +289,8 @@ class Sampler:
         
         # Do everything in log-domain, to avoid numerical errors
         i = 0
-        for n in progress.ProgressDisplay(permuted_datapoints, display=progress.SINGLE_LINE):
+        # for n in progress.ProgressDisplay(permuted_datapoints, display=progress.SINGLE_LINE):
+        for n in permuted_datapoints:
             # curr_theta = self.theta[n].copy()
             
             # Sample all the non-cued features
@@ -362,7 +350,8 @@ class Sampler:
         params = (self.theta[n], self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[self.tc[n]], sampled_feature_index, self.mean_fixed_contrib[self.tc[n]], self.inv_covariance_fixed_contrib)
 
         # Sample the new theta
-        samples, llh = self.slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=np.pi/8., loglike_fct_params=params, debug=False, step_out=True)
+        # samples, llh = self.slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=np.pi/8., loglike_fct_params=params, debug=False, step_out=True)
+        samples, llh = self.slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=np.pi/3., loglike_fct_params=params, debug=False, step_out=True)
         # samples, llh = self.slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=0.01, loglike_fct_params=params, debug=False, step_out=True)
         
         # samples, llh = self.slicesampler.sample_1D_circular(1, self.theta[n, sampled_feature_index], loglike_theta_fct, burn=100, widths=np.pi/3., thinning=2, loglike_fct_params=params, debug=False, step_out=True)
@@ -384,7 +373,8 @@ class Sampler:
             params = (self.theta[n], self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[tc], sampled_feature_index, self.mean_fixed_contrib[tc], self.inv_covariance_fixed_contrib)
             
             # TODO> Should be starting from the previous sample here.
-            samples, _ = self.slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=np.pi/8., loglike_fct_params=params, debug=False, step_out=True)
+            # samples, _ = self.slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=np.pi/8., loglike_fct_params=params, debug=False, step_out=True)
+            samples, _ = self.slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=np.pi/3., loglike_fct_params=params, debug=False, step_out=True)
 
             # Now keep only some of them, following p(tc)
             #   for now, p(tc) = 1/T
@@ -474,135 +464,6 @@ class Sampler:
 
         # Reset the cued theta
         self.theta[np.arange(self.N), self.data_gen.cued_features[:, 0]] = self.data_gen.stimuli_correct[np.arange(self.N), self.data_gen.cued_features[:, 1], self.data_gen.cued_features[:, 0]]
-        
-    
-    def sample_tc(self):
-        '''
-            Sample a new t_c. As t_c is discrete, this merely requires a few likelihood evaluations.
-            
-            Do everything in log-domain, to avoid numerical errors
-            
-        '''
-        
-        # TODO CHANGE THIS
-        
-        # Update A^{T-tc}
-        # self.ATmtc = np.power(self.time_weights[0, self.tc], self.T-self.tc)
-        # # Iterate over whole matrix
-        #         permuted_datapoints = np.random.permutation(np.arange(self.N))
-        #         
-        #         for n in permuted_datapoints:
-        #             # For each datapoint, need to resample the new z_ikt's
-        #             
-        #             permuted_time = np.random.permutation(np.arange(self.T))
-        #             
-        #             for t in permuted_time:
-        #                 
-        #                 permuted_population = np.random.permutation(np.arange(self.R))
-        #                 
-        #                 for r in permuted_population:
-        #                     
-        #                     # Update the counts
-        #                     self.Akr[self.Z[n, t, r], r] -= 1
-        #                     
-        #                     for k in xrange(self.K):
-        #                         # Get the prior prob of z_n_t_k
-        #                         self.lprob_zntrk[k] = np.log(self.dir_alpha + self.Akr[k, r]) - np.log(self.K*self.dir_alpha + self.N - 1.)
-        #                         
-        #                         # Get the likelihood of ynt using z_n_t = k
-        #                         self.Z[n, t, r] = k
-        #                         lik_ynt = self.compute_loglikelihood_ynt(n, t)
-        #                         
-        #                         self.lprob_zntrk[k] += lik_ynt
-        #                         
-        #                         # print "%d,%d,%d,%d, lik_ynt: %.3f" % (n, t, r, k, lik_ynt)
-        #                     
-        #                     
-        #                     # Get the new sample
-        #                     new_zntr = self.sample_discrete_logp(self.lprob_zntrk)
-        #                     
-        #                     # Increment the counts
-        #                     self.Akr[new_zntr, r] += 1
-        #                     
-        #                     self.Z[n, t, r] = new_zntr
-        pass
-                
-    
-    def compute_loglikelihood_ynt(self, n, t):
-        '''
-            Compute the log-likelihood of one datapoint under the current parameters.
-        '''
-
-        raise NotImplementedError()
-        
-        features_combined = self.random_network.get_network_response(self.Z[n, t])
-        
-        ynt_proj = self.Y[n, t] - self.time_weights[1, t]*features_combined
-        if t>0:
-            ynt_proj -= self.time_weights[0, t]*self.Y[n, t-1]
-            
-        
-        l = -0.5*self.M*np.log(2.*np.pi*self.sigma2y)
-        l -= 0.5/self.sigma2y*np.dot(ynt_proj, ynt_proj)
-        return l
-        
-    
-    
-    def compute_joint_loglike(self):
-        '''
-            Compute the joint loglikelihood 
-        '''
-        
-        raise NotImplementedError()
-
-        return self.compute_all_loglike()[-1]
-        
-    
-    
-    def compute_all_loglike(self):
-        '''
-            Compute the joint loglikelihood 
-        '''
-        
-        raise NotImplementedError()
-
-        ly = self.compute_loglike_y()
-        lz = self.compute_loglike_z()
-        
-        return (ly, lz, ly+lz)
-    
-    
-    def compute_loglike_y(self):
-        '''
-            Compute the log likelihood of P(Y | Y, X, sigma2, P)
-        '''
-        raise NotImplementedError()
-
-        features_combined = self.random_network.get_network_response(self.Z)
-        
-        Ytminus = np.zeros_like(self.Y)
-        Ytminus[:, 1:, :] = self.Y[:, :-1, :]
-        Y_proj = self.Y.transpose(0, 2, 1) - (features_combined.transpose(0, 2, 1)*self.time_weights[1]) - (Ytminus.transpose(0, 2, 1)*self.time_weights[0])
-        
-        l = -0.5*self.N*self.M*self.T*np.log(2.*np.pi*self.sigma2y)
-        l -= 0.5/self.sigma2y*np.tensordot(Y_proj, Y_proj, axes=3)
-        return l
-    
-    
-    def compute_loglike_z(self):
-        '''
-            Compute the log probability of P(Z)
-        '''
-        raise NotImplementedError()
-        
-        l = self.R*scsp.gammaln(self.K*self.dir_alpha) - self.R*self.K*scsp.gammaln(self.dir_alpha)
-        
-        for r in xrange(self.R):            
-            for k in xrange(self.K):
-                l += scsp.gammaln(self.dir_alpha + self.Akr[k, r])
-            l -= scsp.gammaln(self.K*self.dir_alpha + self.N)
-        
-        return l
 
 
     def compute_likelihood_fullspace(self, n=0, sampled_feature_index=0, all_angles=None, num_points=1000, normalize=False, remove_mean=True, should_exponentiate=False):
@@ -682,7 +543,7 @@ class Sampler:
                 return (ll_x, x)
     
     
-    def plot_likelihood_variation_twoangles(self, num_points=100, amplify_diag=1.0, should_plot=True, should_return=False, should_exponentiate = False, remove_mean=False, n=0, t=0, sampled_feature_index = 0):
+    def plot_likelihood_variation_twoangles(self, num_points=100, amplify_diag=1.0, should_plot=True, should_return=False, should_exponentiate = False, remove_mean=False, n=0, t=0, sampled_feature_index = 0, interpolation='nearest'):
         '''
             Compute the likelihood, varying two angles around.
             Plot the result
@@ -715,7 +576,7 @@ class Sampler:
             ax = f.add_subplot(111)
             im= ax.imshow(llh_2angles.T, origin='lower')
             im.set_extent((-np.pi, np.pi, -np.pi, np.pi))
-            im.set_interpolation('nearest')
+            im.set_interpolation(interpolation)
             f.colorbar(im)
             ax.set_xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
             ax.set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=15)
@@ -976,8 +837,6 @@ class Sampler:
         return self.random_network.compute_fisher_information(stimulus_input=(0.0, 0.0), cov_stim=computed_cov, kappa_different=kappa_different)
 
 
-
-
     def estimate_precision_from_posterior(self, n=0, num_points=500):
         '''
             Look at the posterior to estimate the precision directly
@@ -1041,12 +900,15 @@ class Sampler:
             return nanmean(precisions)
 
 
-    def estimate_precision_from_samples(self, n=0, num_samples=1000, num_repetitions=1, selection_method='median'):
+    def estimate_precision_from_samples(self, n=0, num_samples=1000, num_repetitions=1, selection_method='median', return_samples=False):
         '''
             Take samples of theta for a particular datapoint, and estimate the precision from their distribution.
         '''
         
         all_precisions = np.zeros(num_repetitions)
+
+        if return_samples:
+            all_samples = np.zeros((num_repetitions, num_samples))
 
         for repet_i in xrange(num_repetitions):
 
@@ -1059,10 +921,18 @@ class Sampler:
             # And now get the precision (uncorrected for chance level)
             all_precisions[repet_i] = 1./circ_std_dev**2.
 
-        return dict(mean=np.mean(all_precisions), std=np.std(all_precisions), all=all_precisions)
+            if return_samples:
+                all_samples[repet_i] = samples
+
+        output = dict(mean=np.mean(all_precisions), std=np.std(all_precisions), all=all_precisions)
+
+        if return_samples:
+            output['samples'] = all_samples
+
+        return output
 
 
-    def estimate_precision_from_samples_avg(self, num_samples=1000, num_repetitions=1, full_stats=False, selection_method='median'):
+    def estimate_precision_from_samples_avg(self, num_samples=1000, num_repetitions=1, full_stats=False, selection_method='median', return_samples=False):
         '''
             Estimate precision from the samples. Get it for every datapoint.
         '''
@@ -1070,10 +940,18 @@ class Sampler:
         all_precision = np.zeros(self.N)
         all_precision_everything = np.zeros((self.N, num_repetitions))
 
-        for i in xrange(self.N):
-            print i
-            res = self.estimate_precision_from_samples(n=i, num_samples=num_samples, num_repetitions=num_repetitions, selection_method=selection_method)
-            (all_precision[i], all_precision_everything[i]) = (res['mean'], res['all'])
+        if return_samples:
+            all_samples = np.zeros((self.N, num_repetitions, num_samples))
+
+        for i in progress.ProgressDisplay(xrange(self.N), display=progress.SINGLE_LINE):
+            # print i
+            res = self.estimate_precision_from_samples(n=i, num_samples=num_samples, num_repetitions=num_repetitions, selection_method=selection_method, return_samples=return_samples)
+            
+            all_precision[i] = res['mean']
+            all_precision_everything[i] = res['all']
+
+            if return_samples:
+                all_samples[i] = res['samples']
 
         if full_stats:
             return dict(mean=nanmean(all_precision), std=nanstd(all_precision), median=nanmedian(all_precision), all=all_precision_everything)
@@ -1119,6 +997,32 @@ class Sampler:
             return dict(mean=nanmean(truevariances), std=nanstd(truevariances), median=nanmedian(truevariances), all=truevariances)
         else:
             return nanmean(truevariances)
+
+
+    def estimate_gaussianity_from_samples(self, significance_level=0.025, n=0, num_samples=500, num_repetitions=1, selection_method='median'):
+        '''
+            Take samples of theta for a particular datapoint, and estimate their gaussianity
+        '''
+        
+        all_samples = np.zeros((num_repetitions, num_samples))
+        all_gaussianity = np.zeros(num_repetitions, dtype=int)
+
+        for repet_i in xrange(num_repetitions):
+
+            # Get samples
+            all_samples[repet_i] = self.sample_theta(num_samples=num_samples, integrate_tc_out=False, return_samples=True, subset_theta=[n], selection_method=selection_method, burn_samples=100)[0]
+
+            # fit_gaussian_samples(all_samples[repet_i])
+
+            # Check if gaussian or not.
+            # normaltest returns (chi^2 stat, p-value). If p-value small => reject H0 coming from gaussian.
+            # (so we inverse the result, if p-value smaller than significance level => non-gaussian)
+            all_gaussianity[repet_i] = spst.normaltest(all_samples[repet_i])[1] >= significance_level
+
+        # Result is strangely sensitive to very small variations...
+        # Try to get a median over multiple tries
+        print all_gaussianity
+        return np.median(all_gaussianity) == 1
 
 
     def plot_comparison_samples_fit_posterior(self, n=0, samples=None, num_samples=1000, num_points=1000, selection_method='median'):
@@ -1310,7 +1214,7 @@ class Sampler:
 
         (_, errors) = self.compute_angle_error(return_errors=True)
 
-        histogram_angular_data(errors, bins=bins, title='Errors between response and best non-target', norm=norm, in_degrees=in_degrees)
+        histogram_angular_data(errors, bins=bins, title='Errors between response and target', norm=norm, in_degrees=in_degrees)
 
     
     def collect_responses(self):
