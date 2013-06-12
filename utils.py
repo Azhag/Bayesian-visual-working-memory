@@ -594,7 +594,7 @@ def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorba
     if not x is None:
         assert data.shape[0] == x.size, 'Wrong x dimension'
 
-        if ticks_interpolate:
+        if not ticks_interpolate is None:
             selected_ticks = np.array(np.linspace(0, x.size-1, ticks_interpolate), dtype=int)
             ax_handle.set_xticks(selected_ticks)
             ax_handle.set_xticklabels([label_format % x[tick_i] for tick_i in selected_ticks], rotation=90)
@@ -605,7 +605,7 @@ def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorba
     if not y is None:
         assert data.shape[1] == y.size, 'Wrong y dimension'
 
-        if ticks_interpolate:
+        if not ticks_interpolate is None:
             selected_ticks = np.array(np.linspace(0, y.size-1, ticks_interpolate), dtype=int)
             ax_handle.set_yticks(selected_ticks)
             ax_handle.set_yticklabels([label_format % y[tick_i] for tick_i in selected_ticks])
