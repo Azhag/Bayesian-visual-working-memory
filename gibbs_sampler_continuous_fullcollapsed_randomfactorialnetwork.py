@@ -18,6 +18,8 @@ import matplotlib.patches as plt_patches
 # import matplotlib.collections as plt_collections
 import matplotlib.pyplot as plt
 
+import sys
+
 # from datagenerator import *
 # from randomnetwork import *
 # from randomfactorialnetwork import *
@@ -285,28 +287,24 @@ class Sampler:
         if return_samples:
             all_samples = np.zeros((permuted_datapoints.size, num_samples))
 
-        # curr_theta = np.zeros(self.R)
+        if debug:
+            search_progress = progress.Progress(permuted_datapoints.size)
         
         # Do everything in log-domain, to avoid numerical errors
         i = 0
         # for n in progress.ProgressDisplay(permuted_datapoints, display=progress.SINGLE_LINE):
         for n in permuted_datapoints:
-            # curr_theta = self.theta[n].copy()
-            
+
             # Sample all the non-cued features
             permuted_features = np.random.permutation(self.theta_to_sample[n, np.newaxis])
             
-            for sampled_feature_index in permuted_features:
-                if debug:
-                    print "%d, %d" % (n, sampled_feature_index)
-                
+            for sampled_feature_index in permuted_features:                
                 # Get samples from the current distribution
                 if integrate_tc_out:
                     samples = self.get_samples_theta_tc_integratedout(n, num_samples=num_samples, sampled_feature_index=sampled_feature_index, burn_samples=burn_samples)
                 else:
                     (samples, _) = self.get_samples_theta_current_tc(n, num_samples=num_samples, sampled_feature_index=sampled_feature_index, burn_samples=burn_samples)
                 
-
                 # Keep all samples if desired
                 if return_samples:
                     all_samples[i] = samples
@@ -321,22 +319,19 @@ class Sampler:
                 
                 # Save the orientation
                 self.theta[n, sampled_feature_index] = wrap_angles(sampled_orientation)
+
+                search_progress.increment()
                 
-                # # Plot some stuff
-                # if False:
-                #     x = np.linspace(-np.pi, np.pi, 1000)
-                #     plt.figure()
-                #     ll_x = np.array([(loglike_theta_fct_single(a, params)) for a in x])
-                #     if should_exponentiate:
-                #         ll_x = np.exp(ll_x)
-                #     ll_x -= np.mean(ll_x)
-                #     ll_x /= np.abs(np.max(ll_x))
-                #     plt.plot(x, ll_x)
-                #     plt.axvline(x=self.data_gen.stimuli_correct[n, self.data_gen.cued_features[n, 1], sampled_feature_index], color='r')
-                    
-                #     sample_h, left_x = np.histogram(samples, bins=x)
-                #     plt.bar(x[:-1], sample_h/np.max(sample_h).astype('float'), facecolor='green', alpha=0.75, width=np.diff(x)[0])
-            
+                if debug:
+                    if search_progress.done():
+                        eol = '\n'
+                    else:
+                        eol = '\r'
+
+                    line= "%.2f%%, %s - %s" % (search_progress.percentage(), search_progress.time_remaining_str(), search_progress.eta_str())
+                    sys.stdout.write("%s%s%s" % (line, " " * (78-len(line)), eol))
+                    sys.stdout.flush()
+                
             i+= 1
 
         if return_samples:
@@ -597,7 +592,7 @@ class Sampler:
             correct_angles = self.data_gen.stimuli_correct[n]
             
             colmap = plt.get_cmap('gist_rainbow')
-            color_gen = [colmap(1.*(i)/self.T) for i in xrange(self.T)]  # use 22 colors
+            color_gen = [colmap(1.*(i)/self.T) for i in xrange(self.T)][::-1]  # use 22 colors
 
             for t in xrange(self.T):
                 w = plt_patches.Wedge((correct_angles[t, 0], correct_angles[t, 1]), 0.25, 0, 360, 0.03, color=color_gen[t], alpha=0.7)
@@ -891,7 +886,7 @@ class Sampler:
 
         precisions = np.zeros(subset_size)
 
-        for i in progress.ProgressDisplay(np.arange(subset_size), display=progress.SINGLE_LINE):
+        for i in progress.ProgressDisplay(xrange(subset_size), display=progress.SINGLE_LINE):
             precisions[i] = self.estimate_precision_from_posterior(n=random_subset[i], num_points=num_points)
 
         if full_stats:
@@ -959,6 +954,35 @@ class Sampler:
             return nanmean(all_precision)
 
 
+    def estimate_precision_from_samples_avg_randomsubset(self, subset_size=1, num_samples=1000, num_repetitions=1, full_stats=False, selection_method='median', return_samples=False):
+        '''
+            Estimate precision from the samples. Get it for every datapoint.
+
+            Takes the mean over a subset of datapoints.
+        '''
+
+        random_subset = np.random.randint(self.N, size=subset_size)
+
+        all_precision = np.zeros(subset_size)
+        all_precision_everything = np.zeros((subset_size, num_repetitions))
+        if return_samples:
+            all_samples = np.zeros((subset_size, num_repetitions, num_samples))
+
+
+        for i in progress.ProgressDisplay(xrange(subset_size), display=progress.SINGLE_LINE):
+            res = self.estimate_precision_from_samples(n=random_subset[i], num_samples=num_samples, num_repetitions=num_repetitions, selection_method=selection_method, return_samples=return_samples)
+            
+            all_precision[i] = res['mean']
+            all_precision_everything[i] = res['all']
+            if return_samples:
+                all_samples[i] = res['samples']
+
+        if full_stats:
+            return dict(mean=nanmean(all_precision), std=nanstd(all_precision), median=nanmedian(all_precision), all=all_precision_everything)
+        else:
+            return nanmean(all_precision)
+
+
     def estimate_truevariance_from_posterior(self, n=0, t=-1, all_angles=None, num_points=500, return_mean=False):
         '''
             Estimate the variance from the empirical posterior.
@@ -988,7 +1012,7 @@ class Sampler:
 
         truevariances = np.zeros(self.N)
 
-        for i in progress.ProgressDisplay(np.arange(self.N), display=progress.SINGLE_LINE):
+        for i in progress.ProgressDisplay(xrange(self.N), display=progress.SINGLE_LINE):
             # print i
 
             truevariances[i] = self.estimate_truevariance_from_posterior(n=i, all_angles=all_angles, num_points=num_points)

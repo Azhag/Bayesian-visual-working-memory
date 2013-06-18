@@ -36,6 +36,7 @@ class RandomFactorialNetwork():
         self.R = R
         
         self.network_initialised = False
+        self.population_code_type = None
         
         self.neurons_preferred_stimulus = None
         self.neurons_sigma = None
@@ -774,7 +775,15 @@ class RandomFactorialNetwork():
             Compute the theoretical, large N limit estimate of the Fisher Information
             This one assumes a diagonal covariance matrix, wrong for the complete model.
         '''
-        rho = 1./(2*np.pi/(self.M))
+        
+        if self.population_code_type == 'conjunctive':
+            rho = 1./(4*np.pi**2/(self.M))
+            # rho = 1./(2*np.pi/(self.M))
+        elif self.population_code_type == 'feature':
+            # M/2 neuron per 2pi dimension.
+            rho = 1./(np.pi**2./self.M**2.)
+        else:
+            raise NotImplementedError('Fisher information not defined for population type ' + self.population_code_type)
 
         if kappa1 is None:
             kappa1 = self.rc_scale[0]
@@ -782,7 +791,8 @@ class RandomFactorialNetwork():
         if kappa2 is None:
             kappa2 = self.rc_scale[1]
 
-        return kappa1**2.*rho*(scsp.i0(2*kappa1) - scsp.iv(2, 2*kappa1))*scsp.i0(2*kappa2)/(sigma**2.*16*np.pi**3.*scsp.i0(kappa1)**2.*scsp.i0(kappa2)**2.)
+        return kappa1**2.*rho*(scsp.i0(2*kappa1) - scsp.iv(2, 2*kappa1))*scsp.i0(2*kappa2)/(sigma**2.*8*np.pi**2.*scsp.i0(kappa1)**2.*scsp.i0(kappa2)**2.)
+        # return kappa1**2.*rho*(scsp.i0(2*kappa1) - scsp.iv(2, 2*kappa1))*scsp.i0(2*kappa2)/(sigma**2.*16*np.pi**3.*scsp.i0(kappa1)**2.*scsp.i0(kappa2)**2.)
 
 
     def compute_fisher_information_fullspace(self, sigma=0.01, cov_stim=None, precision=100, params={}):
@@ -865,8 +875,8 @@ class RandomFactorialNetwork():
             ax = f.add_subplot(111)
             im = ax.imshow(num_responsive_neurons.T, origin='lower')
             im.set_extent((feature_space1.min(), feature_space1.max(), feature_space2.min(), feature_space2.max()))
-            ax.set_xlabel('Color')
-            ax.set_ylabel('Orientation')
+            ax.set_ylabel('Color')
+            ax.set_xlabel('Orientation')
             # im.set_interpolation('nearest')
             f.colorbar(im, ticks=np.unique(num_responsive_neurons))
             ax.set_title('Number of neurons responding at %.0f %% of max' % (percent_max*100.))
@@ -967,8 +977,10 @@ class RandomFactorialNetwork():
         ax.set_yticks((-np.pi, -np.pi / 2, 0, np.pi / 2., np.pi))
         ax.set_yticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=17)
         
-        ax.set_xlabel('Color', fontsize=14)
-        ax.set_ylabel('Orientation', fontsize=14)
+        ax.set_xlabel('Orientation', fontsize=14)
+        ax.set_ylabel('Color', fontsize=14)
+        
+        plt.draw()
         
         plt.show()
 
@@ -990,8 +1002,8 @@ class RandomFactorialNetwork():
         ax = f.add_subplot(111)
         im = ax.imshow(mean_activity.T, origin='lower')
         im.set_extent((feature_space1.min(), feature_space1.max(), feature_space2.min(), feature_space2.max()))
-        ax.set_xlabel('Color')
-        ax.set_ylabel('Orientation')
+        ax.set_ylabel('Color')
+        ax.set_xlabel('Orientation')
         # im.set_interpolation('nearest')
         f.colorbar(im)
 
@@ -1030,8 +1042,8 @@ class RandomFactorialNetwork():
         im= ax.imshow(activity.T, origin='lower')
         # im.set_extent((-np.pi, np.pi, -np.pi, np.pi))
         im.set_extent((feature_space1.min(), feature_space1.max(), feature_space2.min(), feature_space2.max()))
-        ax.set_xlabel('Color')
-        ax.set_ylabel('Orientation')
+        ax.set_ylabel('Color')
+        ax.set_xlabel('Orientation')
         # im.set_interpolation('nearest')
         f.colorbar(im)
         
@@ -1125,8 +1137,8 @@ class RandomFactorialNetwork():
         im= ax_handle.imshow(activity.T, origin='lower')
         im.set_extent((-np.pi, np.pi, -np.pi, np.pi))
         # im.set_extent((feature_space1.min(), feature_space1.max(), feature_space2.min(), feature_space2.max()))
-        ax_handle.set_xlabel('Color')
-        ax_handle.set_ylabel('Orientation')
+        ax_handle.set_ylabel('Color')
+        ax_handle.set_xlabel('Orientation')
         im.set_interpolation('nearest')
         f.colorbar(im)
         
@@ -1140,8 +1152,8 @@ class RandomFactorialNetwork():
         ax = f.add_subplot(111)
         im= ax.imshow(activity.T, origin='lower')
         im.set_extent((-np.pi, np.pi, -np.pi, np.pi))
-        ax.set_xlabel('Color')
-        ax.set_ylabel('Orientation')
+        ax.set_ylabel('Color')
+        ax.set_xlabel('Orientation')
         # im.set_interpolation('nearest')
         f.colorbar(im)
 
@@ -1570,7 +1582,7 @@ if __name__ == '__main__':
 
         plt.show()
 
-    if True:
+    if False:
         print 'Compute KL approx of mixture by Gausian'
 
         alpha = 1.0

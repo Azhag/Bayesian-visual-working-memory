@@ -253,8 +253,8 @@ def check_experimental_constraint(parameters, dict_parameters_range, function_pa
 
     else:
         (random_network, data_gen, stat_meas, sampler) = init_everything(all_parameters)
-        # computed_cov = sampler.noise_covariance
-        computed_cov = stat_meas.model_parameters['covariances'][-1, 0]
+        computed_cov = sampler.noise_covariance
+        # computed_cov = stat_meas.model_parameters['covariances'][-1, -1]
 
 
     # theoretical_fi = random_network.compute_fisher_information(stimulus_input=(0.0, 0.0), cov_stim=sampler.noise_covariance)

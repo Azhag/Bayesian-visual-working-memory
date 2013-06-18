@@ -20,6 +20,8 @@ from datapbs import *
 from gibbs_sampler_continuous_fullcollapsed_randomfactorialnetwork import *
 import progress
 
+import launchers
+
 def launcher_do_fisher_information_estimation(args):
     '''
         Estimate the Fisher information from the posterior.
@@ -264,8 +266,8 @@ def launcher_do_fisher_information_estimation(args):
 
         print "stimuli_generation: %s" % stimuli_generation
 
-        # rcscale_space = np.linspace(0.5, 10.0, 10)
-        rcscale_space = np.linspace(args.rc_scale, args.rc_scale, 1.)
+        rcscale_space = np.linspace(0.5, 10.0, 10)
+        # rcscale_space = np.linspace(args.rc_scale, args.rc_scale, 1.)
 
         FI_rc_curv = np.zeros((rcscale_space.size, 3), dtype=float)
         FI_rc_curv_quantiles = np.zeros((rcscale_space.size, 3), dtype=float)
@@ -319,9 +321,9 @@ def launcher_do_fisher_information_estimation(args):
             # (_, FI_rc_curv[i, 1], FI_rc_curv[i, 0])=sampler.estimate_fisher_info_from_posterior_avg(num_points=500, full_stats=trUe)
             if single_point_estimate:
                 # Should estimate everything at specific theta/datapoint?
-                FI_rc_curv[i, 0] = sampler.estimate_precision_from_posterior(num_points=num_samples)
+                FI_rc_curv[i, 0] = sampler.estimate_precision_from_posterior(num_points=500)
             else:
-                fi_curv_dict = sampler.estimate_fisher_info_from_posterior_avg(num_points=1000, full_stats=True)
+                fi_curv_dict = sampler.estimate_fisher_info_from_posterior_avg_randomsubset(subset_size=N/10, num_points=500, full_stats=True)
                 (FI_rc_curv[i, 0], FI_rc_curv[i, 1])=(fi_curv_dict['median'], fi_curv_dict['std'])
                 FI_rc_curv_quantiles[i] = spst.mstats.mquantiles(fi_curv_dict['all'])
 
@@ -334,7 +336,7 @@ def launcher_do_fisher_information_estimation(args):
             # prec_samples = sampler.estimate_precision_from_samples(n=0, num_samples=1000, num_repetitions=10)
             # (FI_rc_samples[i, 0], FI_rc_samples[i, 1])=(prec_samples['mean'], prec_samples['std'])
             
-            if True:
+            if False:
                 print "from samples..."
                 
                 if single_point_estimate:
@@ -342,7 +344,7 @@ def launcher_do_fisher_information_estimation(args):
                     (FI_rc_samples[i, 0], FI_rc_samples[i, 1])=(prec_samples_dict['mean'], prec_samples_dict['std'])
                     FI_rc_samples_quantiles[i] = spst.mstats.mquantiles(prec_samples_dict['all'])
                 else:
-                    prec_samples_dict = sampler.estimate_precision_from_samples_avg(num_samples=300, full_stats=True, num_repetitions=num_repet_sample_estimate, selection_method=selection_method)
+                    prec_samples_dict = sampler.estimate_precision_from_samples_avg_randomsubset(subset_size=N/10, num_samples=300, full_stats=True, num_repetitions=num_repet_sample_estimate, selection_method=selection_method)
                     (FI_rc_samples[i, 0], FI_rc_samples[i, 1], FI_rc_samples[i, 2])=(prec_samples_dict['median'], prec_samples_dict['std'], np.max(prec_samples_dict['all']))
                     FI_rc_samples_quantiles[i] = spst.mstats.mquantiles(prec_samples_dict['all'])
 
@@ -355,7 +357,7 @@ def launcher_do_fisher_information_estimation(args):
 
             # Compute theoretical values
             print "theoretical FI"
-            FI_rc_theo[i, 0] = random_network.compute_fisher_information(stimulus_input=(0.0, 0.0), cov_stim=stat_meas.model_parameters['covariances'][-1, 0])
+            FI_rc_theo[i, 0] = random_network.compute_fisher_information(stimulus_input=(0.0, 0.0), cov_stim=sampler.noise_covariance)
             FI_rc_theo[i, 1] = random_network.compute_fisher_information_theoretical(sigma=sigma_x+sigma_y)
             FI_rc_theo_quantiles[i] = spst.mstats.mquantiles(FI_rc_theo[i, 0])
             FI_rc_theo_all.append(FI_rc_theo[i])
@@ -482,6 +484,95 @@ def init_everything(parameters):
     return (random_network, data_gen, stat_meas, sampler)
 
 
+def launcher_do_compare_fisher_info_theo(args):
+    '''
+        Compare the finite N and large N limit versions of the Fisher information
+    '''
+
+    all_parameters = vars(args)
+    print all_parameters
+
+    # Create DataIO
+    #  (complete label with current variable state)
+    dataio = DataIO(output_folder=all_parameters['output_directory'], label=all_parameters['label'].format(**all_parameters))
+
+    # Fix some parameters
+    all_parameters['stimuli_generation'] = 'constant'
+
+    # Compute precision as well?
+    do_precision = all_parameters['do_precision']
+
+    rcscale_space = np.linspace(0.5, 20.0, 10)
+    M_space = np.arange(5, 30, 2)**2.
+
+    result_FI_rc_theo_finiteN = np.zeros((rcscale_space.size, M_space.size))
+    result_FI_rc_theo_largeN = np.zeros((rcscale_space.size, M_space.size))
+    result_precision = np.zeros((rcscale_space.size, M_space.size))
+
+    search_progress = progress.Progress(rcscale_space.size*M_space.size)
+    save_every = 1
+    run_counter = 0
+    ax = None
+    ax_2 = None
+    ax_3 = None
+
+
+    for i, rc_scale in enumerate(rcscale_space):
+        for j, M in enumerate(M_space):
+            print "Rcscale: %.2f, M: %d. %.1f%% %s/%s" % (rc_scale, M, search_progress.percentage(), search_progress.time_remaining_str(), search_progress.eta_str())
+
+            all_parameters['rc_scale']  = rc_scale
+            all_parameters['M']         = M
+
+            (random_network, data_gen, stat_meas, sampler) = launchers.init_everything(all_parameters)
+
+            # Compute the Fisher info
+            result_FI_rc_theo_finiteN[i, j] = random_network.compute_fisher_information(cov_stim=sampler.noise_covariance)
+            result_FI_rc_theo_largeN[i, j] = random_network.compute_fisher_information_theoretical(sigma=all_parameters['sigmax'])
+
+            print result_FI_rc_theo_finiteN, '\n', result_FI_rc_theo_largeN
+
+            # Compute precision
+            if do_precision:
+                print 'Precision...'
+                sampler.sample_theta(num_samples=all_parameters['num_samples'], burn_samples=100, selection_method=all_parameters['selection_method'], selection_num_samples=all_parameters['num_samples']/2, integrate_tc_out=False, debug=True)
+                result_precision[i, j] = sampler.get_precision()
+
+                print result_precision
+            
+
+            search_progress.increment()
+            if run_counter % save_every == 0 or search_progress.done():
+                dataio.save_variables_default(locals())
+
+                # Plots
+                plt.figure(1)
+                plt.plot(rcscale_space, result_FI_rc_theo_finiteN, '--', rcscale_space, result_FI_rc_theo_largeN, linewidth=2)
+                plt.legend(['Finite N', 'Large N'])
+                plt.xlabel('kappa')
+
+                dataio.save_current_figure('FI_compare_theo_finite-lines-{label}_{unique_id}.pdf')
+
+                ax, _ = pcolor_2d_data((result_FI_rc_theo_largeN/result_FI_rc_theo_finiteN - 1.0)**2., x=rcscale_space, y=M_space, log_scale=True, ax_handle=ax)
+
+                dataio.save_current_figure('FI_compare_theo_finite-2d-{label}_{unique_id}.pdf')
+
+                ax_2, _ = pcolor_2d_data(result_precision, x=rcscale_space, y=M_space, ax_handle=ax_2)
+                dataio.save_current_figure('FI_compare_theo_finite-precision2d-{label}_{unique_id}.pdf')
+
+                ax_3, _ = pcolor_2d_data((result_precision - result_FI_rc_theo_finiteN)**2.0+1e-10, x=rcscale_space, y=M_space, ax_handle=ax_3)
+                dataio.save_current_figure('FI_compare_theo_finite-precisionvstheo-{label}_{unique_id}.pdf')
+
+
+            run_counter += 1
+
+
+    
+
+    return locals()
+
+
+
 def launcher_do_fisher_information_param_search(args):
     '''
         Get the fisher information for varying values of sigmax and rc_scale.
@@ -531,7 +622,7 @@ def launcher_do_fisher_information_param_search(args):
             
             print "theoretical FI"
 
-            FI_rc_theo[i, j, 0] = random_network.compute_fisher_information(stimulus_input=(0.0, 0.0), cov_stim=stat_meas.model_parameters['covariances'][-1, 0])
+            FI_rc_theo[i, j, 0] = random_network.compute_fisher_information(stimulus_input=(0.0, 0.0), cov_stim=sampler.noise_covariance)
             FI_rc_theo[i, j, 1] = random_network.compute_fisher_information_theoretical(sigma=all_parameters['sigmax'], kappa1=all_parameters['rc_scale'], kappa2=all_parameters['rc_scale'])
             print FI_rc_theo[i, j]
 
@@ -612,7 +703,7 @@ def launcher_do_fisher_information_M_effect(args):
             print FI_rc_curv[i, j]
             
             print "theoretical FI"
-            FI_rc_theo[i, j, 0] = random_network.compute_fisher_information(stimulus_input=(0.0, 0.0), cov_stim=stat_meas.model_parameters['covariances'][-1, 0])
+            FI_rc_theo[i, j, 0] = random_network.compute_fisher_information(stimulus_input=(0.0, 0.0), cov_stim=sampler.noise_covariance)
             FI_rc_theo[i, j, 1] = random_network.compute_fisher_information_theoretical(sigma=all_parameters['sigmax'], kappa1=all_parameters['rc_scale'], kappa2=all_parameters['rc_scale'])
             print FI_rc_theo[i, j]
 
@@ -697,7 +788,7 @@ def launcher_do_fisher_information_param_search_pbs(args):
                 print FI_rc_curv_mult[i, j, :, repet_i]
                 
                 print "theoretical FI"
-                FI_rc_theo_mult[i, j, 0, repet_i] = random_network.compute_fisher_information(stimulus_input=(0.0, 0.0), cov_stim=stat_meas.model_parameters['covariances'][-1, 0])
+                FI_rc_theo_mult[i, j, 0, repet_i] = random_network.compute_fisher_information(stimulus_input=(0.0, 0.0), cov_stim=sampler.noise_covariance)
                 FI_rc_theo_mult[i, j, 1, repet_i] = random_network.compute_fisher_information_theoretical(sigma=all_parameters['sigmax'], kappa1=all_parameters['rc_scale'], kappa2=all_parameters['rc_scale'])
                 print FI_rc_theo_mult[i, j, :, repet_i]
 
