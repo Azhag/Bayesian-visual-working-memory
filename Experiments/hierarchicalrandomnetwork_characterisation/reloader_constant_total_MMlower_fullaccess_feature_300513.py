@@ -10,6 +10,7 @@ from utils import *
 
 from experimentlauncher import *
 from dataio import *
+from smooth import *
 import inspect
 
 
@@ -59,11 +60,47 @@ def plots_3dvolume_hierarchical_M_Mlayerone(data_pbs, generator_module=None):
         T = results_precision_constant_M_Mlower.shape[-1]
         results_filtered = results_precision_constant_M_Mlower[np.arange(M_space.size), np.arange(-M_layer_one_space.size, 0)[::-1]]
 
+        results_filtered_smoothed = np.apply_along_axis(smooth, 0, results_filtered, *(10, 'bartlett'))
+
         ratio_MMlower = M_space/generator_module.filtering_function_parameters['target_M_total']
-        pcolor_2d_data(results_filtered, log_scale=True, x=ratio_MMlower, y=np.arange(1, T+1), xlabel='M/(M+M_layer_one)', ylabel='T', ticks_interpolate=10)
+        pcolor_2d_data(results_filtered, log_scale=True, x=ratio_MMlower, y=np.arange(1, T+1), xlabel="$\\frac{M}{M+M_{layer one}}$", ylabel='$T$', ticks_interpolate=10)
 
         if savefigs:
-            dataio.save_current_figure('results_{label}_global_{unique_id}.pdf')
+            dataio.save_current_figure('results_2dlog_{label}_global_{unique_id}.pdf')
+
+        pcolor_2d_data(results_filtered/np.max(results_filtered, axis=0), x=ratio_MMlower, y=np.arange(1, T+1), xlabel="$\\frac{M}{M+M_{layer one}}$", ylabel='$T$', ticks_interpolate=10)
+
+        if savefigs:
+            dataio.save_current_figure('results_2dnorm_{label}_global_{unique_id}.pdf')
+
+
+        pcolor_2d_data(results_filtered_smoothed/np.max(results_filtered_smoothed, axis=0), x=ratio_MMlower, y=np.arange(1, T+1), xlabel="$\\frac{M}{M+M_{layer one}}$", ylabel='$T$', ticks_interpolate=10)
+
+        if savefigs:
+            dataio.save_current_figure('results_2dsmoothnorm_{label}_global_{unique_id}.pdf')
+
+        plt.figure()
+        plt.plot(ratio_MMlower, results_filtered_smoothed/np.max(results_filtered_smoothed, axis=0))
+        plt.plot(ratio_MMlower[np.argmax(results_filtered_smoothed, axis=0)], np.ones(results_filtered_smoothed.shape[-1]), 'ro', markersize=10)
+        plt.grid()
+        plt.ylim((0., 1.1))
+        plt.legend(['%d item' % i + 's'*(i>1) for i in xrange(1, T+1)])
+        plt.xticks(np.linspace(0, 1.0, 5))
+
+        if savefigs:
+            dataio.save_current_figure('results_1dsmoothnorm_{label}_global_{unique_id}.pdf')
+
+        plt.figure()
+        plt.plot(ratio_MMlower, np.arange(results_filtered_smoothed.shape[-1]) + results_filtered_smoothed/np.max(results_filtered_smoothed, axis=0))
+        plt.plot(ratio_MMlower[np.argmax(results_filtered_smoothed, axis=0)], np.arange(1, 1+results_filtered_smoothed.shape[-1]), 'ro', markersize=10)
+        plt.grid()
+        plt.legend(['%d item' % i + 's'*(i>1) for i in xrange(1, T+1)], loc='best')
+        plt.ylim((0., results_filtered_smoothed.shape[-1]*1.05))
+        plt.yticks([])
+        plt.xticks(np.linspace(0, 1.0, 5))
+
+        if savefigs:
+            dataio.save_current_figure('results_1dsmoothnorm_{label}_global_{unique_id}.pdf')
 
 
     variables_to_save = ['results_precision_constant_M_Mlower', 'M_space', 'M_layer_one_space']
