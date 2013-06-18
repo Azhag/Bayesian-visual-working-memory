@@ -26,7 +26,7 @@ from email.mime.text import MIMEText
 import datetime
 
 __maxexp__ = np.finfo('float').maxexp
-
+plt.ion()
 
 ############################ MATH ##################################
 
@@ -585,71 +585,111 @@ def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorba
         f = plt.figure(fignum)
         ax_handle = f.add_subplot(111)
         ax_handle.clear()
-
-    if log_scale:
-        im = ax_handle.imshow(data.T, interpolation=interpolation, origin='lower left', norm=LogNorm())
     else:
-        im = ax_handle.imshow(data.T, interpolation=interpolation, origin='lower left')
+        plt.figure(ax_handle.get_figure().number)
 
-    if not x is None:
-        assert data.shape[0] == x.size, 'Wrong x dimension'
+    if len(ax_handle.get_images()) > 0:
+        # Update the data if the figure is already filled
 
-        if not ticks_interpolate is None:
-            selected_ticks = np.array(np.linspace(0, x.size-1, ticks_interpolate), dtype=int)
-            ax_handle.set_xticks(selected_ticks)
-            ax_handle.set_xticklabels([label_format % x[tick_i] for tick_i in selected_ticks], rotation=90)
+        im = ax_handle.get_images()[0]
+        im.set_data(data.T)
+        im.set_clim(vmin=np.nanmin(data), vmax=np.nanmax(data))
+        im.changed()
+
+        # Change mouse over behaviour
+        def report_pixel(x_mouse, y_mouse): 
+            # Extract loglik at that position
+
+            try:
+                x_i = int(np.round(x_mouse))
+                y_i = int(np.round(y_mouse))
+                
+                if x is not None:
+                    x_display = x[x_i]
+                else:
+                    x_display = x_i
+                
+                if y is not None:
+                    y_display = y[y_i]
+                else:
+                    y_display = y_i
+
+                return "x=%.2f y=%.2f value=%.2f" % (x_display, y_display, data[x_i, y_i])
+            except:
+                return ""
+        
+        ax_handle.format_coord = report_pixel
+
+
+    else:
+        # Create the Figure
+        if log_scale:
+            im = ax_handle.imshow(data.T, interpolation=interpolation, origin='lower left', norm=LogNorm())
         else:
-            ax_handle.set_xticks(np.arange(x.size))
-            ax_handle.set_xticklabels([label_format % curr for curr in x], rotation=90)
+            im = ax_handle.imshow(data.T, interpolation=interpolation, origin='lower left')
 
-    if not y is None:
-        assert data.shape[1] == y.size, 'Wrong y dimension'
+        if not x is None:
+            assert data.shape[0] == x.size, 'Wrong x dimension'
 
-        if not ticks_interpolate is None:
-            selected_ticks = np.array(np.linspace(0, y.size-1, ticks_interpolate), dtype=int)
-            ax_handle.set_yticks(selected_ticks)
-            ax_handle.set_yticklabels([label_format % y[tick_i] for tick_i in selected_ticks])
-        else:
-            ax_handle.set_yticks(np.arange(y.size))
-            ax_handle.set_yticklabels([label_format % curr for curr in y])
-    
-    if xlabel:
-        ax_handle.set_xlabel(xlabel)
-
-    if ylabel:
-        ax_handle.set_ylabel(ylabel)
-
-    if colorbar:
-        ax_handle.get_figure().colorbar(im)
-    
-    if title:
-        ax_handle.set_title(title)
-    
-    ax_handle.axis('tight')
-
-    # Change mouse over behaviour
-    def report_pixel(x_mouse, y_mouse): 
-        # Extract loglik at that position
-
-        try:
-            x_i = int(x_mouse)
-            y_i = int(y_mouse)
-            
-            if x is not None:
-                x_display = x[x_i]
+            if not ticks_interpolate is None:
+                selected_ticks = np.array(np.linspace(0, x.size-1, ticks_interpolate), dtype=int)
+                ax_handle.set_xticks(selected_ticks)
+                ax_handle.set_xticklabels([label_format % x[tick_i] for tick_i in selected_ticks], rotation=90)
             else:
-                x_display = x_i
-            
-            if y is not None:
-                y_display = y[y_i]
-            else:
-                y_display = y_i
+                ax_handle.set_xticks(np.arange(x.size))
+                ax_handle.set_xticklabels([label_format % curr for curr in x], rotation=90)
 
-            return "x=%.2f y=%.2f value=%.2f" % (x_display, y_display, data[x_i, y_i])
-        except:
-            return ""
+        if not y is None:
+            assert data.shape[1] == y.size, 'Wrong y dimension'
+
+            if not ticks_interpolate is None:
+                selected_ticks = np.array(np.linspace(0, y.size-1, ticks_interpolate), dtype=int)
+                ax_handle.set_yticks(selected_ticks)
+                ax_handle.set_yticklabels([label_format % y[tick_i] for tick_i in selected_ticks])
+            else:
+                ax_handle.set_yticks(np.arange(y.size))
+                ax_handle.set_yticklabels([label_format % curr for curr in y])
+
+        if xlabel:
+            ax_handle.set_xlabel(xlabel)
+
+        if ylabel:
+            ax_handle.set_ylabel(ylabel)
+
+        if colorbar:
+            ax_handle.get_figure().colorbar(im)
+
+        if title:
+            ax_handle.set_title(title)
     
-    ax_handle.format_coord = report_pixel
+        ax_handle.axis('tight')
+
+        # Change mouse over behaviour
+        def report_pixel(x_mouse, y_mouse): 
+            # Extract loglik at that position
+
+            try:
+                x_i = int(np.round(x_mouse))
+                y_i = int(np.round(y_mouse))
+                
+                if x is not None:
+                    x_display = x[x_i]
+                else:
+                    x_display = x_i
+                
+                if y is not None:
+                    y_display = y[y_i]
+                else:
+                    y_display = y_i
+
+                return "x=%.2f y=%.2f value=%.2f" % (x_display, y_display, data[x_i, y_i])
+            except:
+                return ""
+        
+        ax_handle.format_coord = report_pixel
+
+    # redraw
+    ax_handle.get_figure().canvas.draw()
 
     return ax_handle, im
 
@@ -800,7 +840,7 @@ def plot_torus(theta, gamma, Z, weight_deform=0., torus_radius=5., tube_radius=3
             cb = mplt.colorbar(title='', orientation='vertical', label_fmt='%.2f', nb_labels=5)
         
         mplt.outline(color=(0., 0., 0.))
-        mplt.show()
+        mplt.draw()
 
     else:
         fig = plt.figure()
@@ -815,7 +855,7 @@ def plot_torus(theta, gamma, Z, weight_deform=0., torus_radius=5., tube_radius=3
         if draw_colorbar:
             plt.colorbar(m)
 
-        plt.show()
+        # plt.show()
 
 
 def plot_powerlaw_fit(xdata, ydata, amp, index, yerr=None, fignum=None):
@@ -848,6 +888,20 @@ def plot_powerlaw_fit(xdata, ydata, amp, index, yerr=None, fignum=None):
     plt.xlabel('X (log scale)')
     plt.ylabel('Y (log scale)')
     plt.xlim((xdata.min()*0.9, xdata.max()*1.1))
+
+
+def plot_fft_power(data, dt=1.0, n=None, axis=-1, fignum=None):
+    '''
+        Compute the FFT and plot the power spectrum.
+    '''
+
+    freq = np.fft.fftfreq(data.shape[-1], d=dt)
+    FS = np.fft.fft(data, n=n, axis=axis)
+
+    plt.figure(fignum)
+    # plt.plot(freq, np.log(np.abs(np.fft.fftshift(FS))**2.))
+    plt.plot(freq, np.abs(FS)**2.)
+    plt.title('Power spectrum')
 
 
 def plot_fft2_power(data, s=None, axes=(-2, -1), fignum=None):

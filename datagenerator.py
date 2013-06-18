@@ -10,6 +10,7 @@ Copyright (c) 2011 Gatsby Unit. All rights reserved.
 # from scaledimage import *
 import matplotlib.pyplot as plt
 import matplotlib.ticker as plttic
+import matplotlib.patches as plt_patches
 import numpy as np
 from scipy.spatial.distance import pdist
 
@@ -490,14 +491,12 @@ class DataGeneratorRFN(DataGenerator):
         ax.set_yticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'))
 
         # Show ellipses at the stimuli positions
+        colmap = plt.get_cmap('gist_rainbow')
+        color_gen = [colmap(1.*(i)/self.T) for i in xrange(self.T)][::-1]  # use 22 colors
+
         for t in xrange(self.T):
-            e = Ellipse(xy=self.stimuli_correct[n, t], width=0.4, height=0.4)
-            
-            ax.add_artist(e)
-            e.set_clip_box(ax.bbox)
-            e.set_alpha(0.5)
-            e.set_facecolor('white')
-            e.set_transform(ax.transData)
+            w = plt_patches.Wedge((self.stimuli_correct[n, t, 0], self.stimuli_correct[n, t, 1]), 0.25, 0, 360, 0.03, color=color_gen[t], alpha=0.7, linewidth=2)
+            ax.add_patch(w)
     
 
     def show_datapoint_features(self, n=0):
