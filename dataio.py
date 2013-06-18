@@ -24,7 +24,7 @@ class DataIO:
         Provides basic outputting functionalities (could hold a dictionary for reloading the data as well later)
     '''
 
-    def __init__(self, output_folder='./Data/', label='', calling_function=None, debug=True):
+    def __init__(self, output_folder='./Data/', label='', calling_function=None, debug=True, git_workdir=None):
         '''
             Will use the provided output_folder.
 
@@ -43,6 +43,7 @@ class DataIO:
         self.unique_id = ''  # Keep the unique ID for further uses
         self.git_infos = None
         self.debug = debug
+        self.git_workdir = git_workdir
 
         # Setup the output directory
         self.make_dirs()
@@ -124,7 +125,11 @@ class DataIO:
         '''
         try:
             # Get the repository
-            self.git_repo = git.Repo(os.getcwd())
+            if self.git_workdir is None:
+                # Assume we want the $WORK_DIR directory, bold yeah
+                self.git_workdir = os.getenv('WORKDIR_DROP', os.getcwd())
+
+            self.git_repo = git.Repo(self.git_workdir)
 
             # Get the current branch
             branch_name = self.git_repo.active_branch.name
@@ -195,6 +200,36 @@ class DataIO:
 
         # Save them as a numpy array
         np.save(self.filename, dict_selected_vars)
+
+    
+    def save_variables_default(self, all_variables, additional_variables = []):
+        '''
+            Shortcut function, will automatically save all variables that:
+                - Contain "result" (usually output arrays)
+                - Contain "space"  (parameter spaces)
+            
+            Adds also:
+                [num_repetitions, repet_i, args]
+
+            Can specify additional variables with the additional_variables list
+        '''
+
+        # Default variables
+        variables_to_save = ['num_repetitions', 'repet_i', 'args']
+
+        # Complete with additional variables
+        variables_to_save.extend(additional_variables)
+
+        for var_name in all_variables.keys():
+            if var_name.find('result') > -1 and not var_name in variables_to_save:
+                # Result variable, add it up!
+                variables_to_save.append(var_name)
+            elif var_name.find('space') > -1 and not var_name in variables_to_save:
+                # Parameter space variable
+                variables_to_save.append(var_name)
+
+        # Everything should be alright, let's save everything now
+        self.save_variables(variables_to_save, all_variables)
 
 
     def save_current_figure(self, filename):
