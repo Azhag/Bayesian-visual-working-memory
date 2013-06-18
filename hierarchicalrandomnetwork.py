@@ -12,6 +12,8 @@ import numpy as np
 # import scipy as sp
 # import scipy.special as scsp
 # import progress
+from mpl_toolkits.axes_grid1 import ImageGrid
+import matplotlib.colors as pltcol
 
 from randomfactorialnetwork import *
 from utils import *
@@ -249,15 +251,86 @@ class HierarchialRandomNetwork(RandomFactorialNetwork):
         plt.show()
 
 
-    def plot_neuron_activity(self, neuron_index=0, precision=100):
+    def plot_neuron_activity(self, neuron_index=0, precision=100, ax_handle=None, draw_colorbar=True):
         '''
             Plot the activity of one specific neuron over the whole input space.
         '''
-        
+
         activity, feature_space1, feature_space2 = self.get_neuron_activity(neuron_index, precision=precision, return_axes_vect=True)
         
         # Plot it
-        pcolor_2d_data(activity, x=feature_space1, y=feature_space2, ticks_interpolate=5)
+        ax_handle, _ = pcolor_2d_data(activity, x=feature_space1, y=feature_space2, ticks_interpolate=5, ax_handle=ax_handle, colorbar=draw_colorbar)
+
+        # Change the ticks
+        selected_ticks = np.array(np.linspace(0, feature_space1.size-1, 5), dtype=int)
+        ax_handle.set_xticks(selected_ticks)
+        ax_handle.set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=17, rotation=0)
+        ax_handle.set_yticks(selected_ticks)
+        ax_handle.set_yticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=17, rotation=0)
+        
+
+
+    def plot_coverage_feature(self, nb_layer_two_neurons=3, nb_stddev=1.0, alpha_ellipses=0.5, facecolor_layerone='b', ax=None, lim_factor=1.1, top_neurons=None, precision=100):
+        '''
+            Plot the coverage of the network
+
+            Do a subplot, show the lower layer coverage, and for the random upper layer show some "receptive fields"
+        '''
+
+        # Select layer two neurons to be plotted randomly
+        if top_neurons is None:
+            top_neurons = np.random.randint(self.M_layer_two, size=nb_layer_two_neurons)
+
+        # Get the activities of those layer two neurons
+        activities_layertwo = np.zeros((nb_layer_two_neurons, precision, precision))
+        for i, layer_two_neuron in enumerate(top_neurons):
+            activities_layertwo[i], feature_space1, feature_space2 = self.get_neuron_activity(layer_two_neuron, precision=precision, return_axes_vect=True)
+
+        # Construct the plot
+        f = plt.figure()
+
+        axes_top = ImageGrid(f, 211,
+                             nrows_ncols = (1, nb_layer_two_neurons),
+                             direction="row",
+                             axes_pad = 0.2,
+                             add_all=True,
+                             label_mode = "L",
+                             share_all = True,
+                             cbar_location="right",
+                             cbar_mode="single",
+                             cbar_size="5%",
+                             cbar_pad=0.2,
+                             )
+
+        norm = pltcol.normalize(vmax=activities_layertwo.max(), vmin=activities_layertwo.min())
+        selected_ticks = np.array(np.linspace(0, feature_space1.size-1, 5), dtype=int)
+        
+        for ax_top, activity_neuron in zip(axes_top, activities_layertwo):
+            im = ax_top.imshow(activity_neuron.T, norm=norm, origin='lower left')
+
+            ax_top.set_xticks(selected_ticks)
+            ax_top.set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=16)
+            ax_top.set_yticks(selected_ticks)
+            ax_top.set_yticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=16)
+
+            # ax_top.set_xlabel('Orientation')
+            # ax_top.set_ylabel('Colour')
+
+        ax_top.cax.colorbar(im)
+        ax_top.cax.toggle_label(True)
+
+        # Bottom part now
+        ax_bottom = f.add_subplot(2, 3, 5)
+        plt.subplots_adjust(hspace=0.5)
+        self.layer_one_network.plot_coverage_feature_space(nb_stddev=2, facecolor=facecolor_layerone, alpha_ellipses=alpha_ellipses, lim_factor=lim_factor, ax=ax_bottom, specific_neurons=np.arange(0, self.M_layer_one, 2))
+
+        return axes_top, ax_bottom
+
+
+
+
+
+
 
 
 
@@ -280,37 +353,39 @@ if __name__ == '__main__':
 
     M = 100.0
     # hrn = HierarchialRandomNetwork(M, distribution_weights='exponential', sigma_weights=0.5, sparsity_weights=0.5, normalise_weights=True, rcscale_layer_one=5.)
-    hrn1 = HierarchialRandomNetwork(M, optimal_coverage=True, M_layer_one=100)
-    hrn2 = HierarchialRandomNetwork(M, optimal_coverage=True, M_layer_one=30*30)
-    hrn3 = HierarchialRandomNetwork(M, optimal_coverage=True, M_layer_one=15*15, output_both_layers=True)
+    # hrn1 = HierarchialRandomNetwork(M, optimal_coverage=True, M_layer_one=100)
+    # hrn2 = HierarchialRandomNetwork(M, optimal_coverage=True, M_layer_one=30*30)
+    # hrn3 = HierarchialRandomNetwork(M, optimal_coverage=True, M_layer_one=15*15, output_both_layers=True)
 
-    hrn_feat = HierarchialRandomNetwork(M, sigma_weights=1.0, sparsity_weights=0.5, normalise_weights=True, type_layer_one='feature', optimal_coverage=True, M_layer_one=7*7, distribution_weights='randn', threshold=0.5)
+    # hrn_feat = HierarchialRandomNetwork(M, sigma_weights=1.0, sparsity_weights=0.5, normalise_weights=True, type_layer_one='feature', optimal_coverage=True, M_layer_one=7*7, distribution_weights='randn', threshold=1.0)
+    hrn_feat = HierarchialRandomNetwork(M, normalise_weights=1, type_layer_one='feature', optimal_coverage=True, M_layer_one=100, distribution_weights='exponential', threshold=1.0, output_both_layers=True)
 
-    hrn1.plot_neuron_activity()
-    hrn1.plot_network_activity()
+    # hrn1.plot_neuron_activity()
+    # hrn1.plot_network_activity()
 
-    hrn2.plot_neuron_activity()
+    # hrn2.plot_neuron_activity()
 
-    hrn_feat.plot_network_activity()
-    hrn_feat.plot_neuron_activity(0)
+    # hrn_feat.plot_network_activity()
+    # hrn_feat.plot_neuron_activity(0)
 
+    hrn_feat.plot_coverage_feature()
 
+    if True:
+        ## Try to PCA everything
+        try:
+            import sklearn.decomposition as skdec
 
-    ## Try to PCA everything
-    try:
-        import sklearn.decomposition as skdec
+            samples_pca = [hrn1.sample_network_response(np.random.uniform(-np.pi, np.pi, (2)), sigma=0.2) for i in xrange(100)]
+            samples_pca.extend([hrn1.sample_network_response(np.random.uniform(-np.pi, np.pi, (2)), sigma=0.2) for i in xrange(100)])
+            samples_pca.extend([hrn1.sample_network_response(np.random.uniform(-np.pi, np.pi, (2)), sigma=0.2) for i in xrange(100)])
+            samples_pca = np.array(samples_pca)
+            
+            pca = skdec.PCA()
+            samples_pca_transf = pca.fit(samples_pca).transform(samples_pca)
+            print pca.explained_variance_ratio_
 
-        samples_pca = [hrn1.sample_network_response(np.random.uniform(-np.pi, np.pi, (2)), sigma=0.2) for i in xrange(100)]
-        samples_pca.extend([hrn1.sample_network_response(np.random.uniform(-np.pi, np.pi, (2)), sigma=0.2) for i in xrange(100)])
-        samples_pca.extend([hrn1.sample_network_response(np.random.uniform(-np.pi, np.pi, (2)), sigma=0.2) for i in xrange(100)])
-        samples_pca = np.array(samples_pca)
-        
-        pca = skdec.PCA()
-        samples_pca_transf = pca.fit(samples_pca).transform(samples_pca)
-        print pca.explained_variance_ratio_
-
-    except:
-        pass
+        except:
+            pass
 
     plt.show()
 
