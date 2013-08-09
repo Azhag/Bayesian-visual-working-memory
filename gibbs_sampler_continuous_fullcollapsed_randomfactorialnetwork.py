@@ -58,7 +58,7 @@ class Sampler:
         y_t | x_t, y_{t-1} ~ Normal
         
     '''
-    def __init__(self, data_gen, tc=None, theta_kappa=0.1, n_parameters = dict()):
+    def __init__(self, data_gen, tc=None, theta_kappa=0.1, n_parameters = dict(), use_numba=False):
         '''
             Initialise the sampler
             
@@ -89,6 +89,7 @@ class Sampler:
         
         # Initialise a Slice Sampler for theta
         self.slicesampler = SliceSampler()
+        self.use_numba = use_numba
 
         # Precompute the parameters and cache them
         self.init_cache_parameters()

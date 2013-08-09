@@ -17,6 +17,8 @@ from matplotlib.patches import Ellipse
 import scipy.special as scsp
 from scipy.spatial.distance import pdist
 
+import numba as nub
+
 import progress
 
 from utils import *
@@ -491,6 +493,22 @@ class RandomFactorialNetwork():
 
             output[self.mask_neurons_unset[specific_neurons]] = 0.0
 
+        return output
+
+    @nub.autojit()
+    def get_network_response_numba(self, stimulus_input):
+        '''
+            Optimized version of Network response for Numba, bivariate fisher
+        '''
+        # Diff angles
+        dtheta = (stimulus_input[0] - self.neurons_preferred_stimulus[:, 0])
+        dgamma = (stimulus_input[1] - self.neurons_preferred_stimulus[:, 1])
+
+        # Get the response
+        output = np.exp(self.neurons_sigma[:, 0]*np.cos(dtheta) + self.neurons_sigma[:, 1]*np.cos(dgamma))/self.normalisation
+
+        output[self.mask_neurons_unset] = 0.0
+        
         return output
 
 
