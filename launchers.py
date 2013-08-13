@@ -34,11 +34,11 @@ def init_everything(parameters):
     cued_feature_time = parameters['T']-1
 
     # print "Building the database"
-    data_gen = DataGeneratorRFN(parameters['N'], parameters['T'], random_network, sigma_y=parameters['sigmay'], sigma_x=parameters['sigmax'], time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation=parameters['stimuli_generation'])
+    data_gen = DataGeneratorRFN(parameters['N'], parameters['T'], random_network, sigma_y=parameters['sigmay'], sigma_x=parameters['sigmax'], time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation=parameters['stimuli_generation'], enforce_first_stimulus=parameters['enforce_first_stimulus'])
     
     # Measure the noise structure
     # print "Measuring noise structure"
-    data_gen_noise = DataGeneratorRFN(5000, parameters['T'], random_network, sigma_y=parameters['sigmay'], sigma_x=parameters['sigmax'], time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation=parameters['stimuli_generation'])
+    data_gen_noise = DataGeneratorRFN(5000, parameters['T'], random_network, sigma_y=parameters['sigmay'], sigma_x=parameters['sigmax'], time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation=parameters['stimuli_generation_recall'])
     stat_meas = StatisticsMeasurer(data_gen_noise)
     
     sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters=stat_meas.model_parameters, tc=cued_feature_time)
@@ -95,7 +95,7 @@ def launcher_do_simple_run(args):
     if args.inference_method == 'sample':
         # Sample thetas
         print "-> Sampling theta"
-        sampler.sample_theta(num_samples=all_parameters['num_samples'], burn_samples=20, selection_method='median', selection_num_samples=args.num_samples, integrate_tc_out=False, debug=False)
+        sampler.sample_theta(num_samples=all_parameters['num_samples'], burn_samples=20, selection_method='median', selection_num_samples=all_parameters['num_samples'], integrate_tc_out=False, debug=False)
     elif args.inference_method == 'max_lik':
         # Just use the ML value for the theta
         print "-> Setting theta to ML values"

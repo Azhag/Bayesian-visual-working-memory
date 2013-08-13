@@ -313,7 +313,7 @@ class DataGeneratorRFN(DataGenerator):
     '''
         DataGenerator for a RandomFactorialNetwork
     '''
-    def __init__(self, N, T, random_network, sigma_y = 0.05, sigma_x = 0.02, time_weights=None, time_weights_parameters = dict(weighting_alpha=0.3, weighting_beta = 1.0, specific_weighting = 0.3, weight_prior='uniform'), cued_feature_time=0, enforce_min_distance=0.17, stimuli_generation='random'):
+    def __init__(self, N, T, random_network, sigma_y = 0.05, sigma_x = 0.02, time_weights=None, time_weights_parameters = dict(weighting_alpha=0.3, weighting_beta = 1.0, specific_weighting = 0.3, weight_prior='uniform'), cued_feature_time=0, enforce_min_distance=0.17, stimuli_generation='random', enforce_first_stimulus=True):
 
         # assert isinstance(random_network, RandomFactorialNetwork), "Use a RandomFactorialNetwork with this DataGeneratorRFN"
         
@@ -324,7 +324,7 @@ class DataGeneratorRFN(DataGenerator):
 
         # Build the correct stimuli
         # TODO build a load_stimuli(), etc
-        self.generate_stimuli(enforce_min_distance=enforce_min_distance, stimuli_generation=stimuli_generation)
+        self.generate_stimuli(enforce_min_distance=enforce_min_distance, stimuli_generation=stimuli_generation, enforce_first_stimulus=enforce_first_stimulus)
 
         # Build the dataset
         self.build_dataset(cued_feature_time=cued_feature_time)
@@ -354,6 +354,8 @@ class DataGeneratorRFN(DataGenerator):
                 random_generation = True
             elif stimuli_generation == 'constant_separated':
                 angle_generator = lambda T: 1.2*np.ones(T)
+            elif stimuli_generation == 'separated':
+                angle_generator = lambda T: np.linspace(-np.pi*0.6, np.pi*0.6, T)
             else:
                 raise ValueError('Unknown stimulus generation technique')
 
