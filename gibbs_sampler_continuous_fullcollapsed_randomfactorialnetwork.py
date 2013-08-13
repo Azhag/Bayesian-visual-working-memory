@@ -8,7 +8,7 @@ Copyright (c) 2011 Gatsby Unit. All rights reserved.
 """
 
 import numpy as np
-import scipy.special as scsp
+# import scipy.special as scsp
 # from scipy.stats import vonmises as vm
 import scipy.stats as spst
 import scipy.optimize as spopt
@@ -27,6 +27,7 @@ import sys
 from utils import *
 
 from slicesampler import *
+
 # from dataio import *
 import progress
 
@@ -263,7 +264,7 @@ class Sampler:
         
     
     
-    def sample_theta(self, num_samples=500, return_samples=False, burn_samples=20, integrate_tc_out = True, selection_method='median', selection_num_samples=250, subset_theta=None, debug=False):
+    def sample_theta(self, num_samples=500, return_samples=False, burn_samples=20, integrate_tc_out = False, selection_method='median', selection_num_samples=250, subset_theta=None, slice_width=np.pi/8.0, slice_jump_prob=0.3, debug=False):
         '''
             Sample the thetas
             Need to use a slice sampler, as we do not know the normalization constant.
@@ -304,7 +305,10 @@ class Sampler:
                 if integrate_tc_out:
                     samples = self.get_samples_theta_tc_integratedout(n, num_samples=num_samples, sampled_feature_index=sampled_feature_index, burn_samples=burn_samples)
                 else:
-                    (samples, _) = self.get_samples_theta_current_tc(n, num_samples=num_samples, sampled_feature_index=sampled_feature_index, burn_samples=burn_samples)
+                    if self.use_numba is True:
+                        samples = self.get_samples_theta_current_tc_numba(n, num_samples=num_samples, sampled_feature_index=sampled_feature_index, burn_samples=burn_samples, slice_width=slice_width, slice_jump_prob=slice_jump_prob)
+                    else:
+                        (samples, _) = self.get_samples_theta_current_tc(n, num_samples=num_samples, sampled_feature_index=sampled_feature_index, burn_samples=burn_samples, slice_width=slice_width, slice_jump_prob=slice_jump_prob)
                 
                 # Keep all samples if desired
                 if return_samples:
@@ -320,10 +324,10 @@ class Sampler:
                 
                 # Save the orientation
                 self.theta[n, sampled_feature_index] = wrap_angles(sampled_orientation)
-
-                search_progress.increment()
                 
                 if debug:
+                    search_progress.increment()
+
                     if search_progress.done():
                         eol = '\n'
                     else:
@@ -339,7 +343,7 @@ class Sampler:
             return all_samples
     
 
-    def get_samples_theta_current_tc(self, n, num_samples=2000, sampled_feature_index=0, burn_samples=200):
+    def get_samples_theta_current_tc(self, n, num_samples=2000, sampled_feature_index=0, burn_samples=200, slice_width=np.pi/4., slice_jump_prob=0.2):
 
         # Pack the parameters for the likelihood function.
         #   Here, as the loglike_function only varies one of the input, need to give the rest of the theta vector.
@@ -347,12 +351,25 @@ class Sampler:
 
         # Sample the new theta
         # samples, llh = self.slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=np.pi/8., loglike_fct_params=params, debug=False, step_out=True)
-        samples, llh = self.slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=np.pi/3., loglike_fct_params=params, debug=False, step_out=True)
+        samples, llh = self.slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=slice_width, loglike_fct_params=params, debug=False, step_out=True, jump_probability=slice_jump_prob)
         # samples, llh = self.slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=0.01, loglike_fct_params=params, debug=False, step_out=True)
         
         # samples, llh = self.slicesampler.sample_1D_circular(1, self.theta[n, sampled_feature_index], loglike_theta_fct, burn=100, widths=np.pi/3., thinning=2, loglike_fct_params=params, debug=False, step_out=True)
 
         return (samples, llh)
+
+
+    def get_samples_theta_current_tc_numba(self, n, num_samples=2000, sampled_feature_index=0, burn_samples=200, slice_width=np.pi/4., slice_jump_prob=0.2):
+
+        from slicesampler_numba import *
+        
+        # Pack the parameters for the likelihood function.
+        params = (self.theta[n], self.NT[n], self.random_network, self.ATtcB[self.tc[n]], sampled_feature_index, self.mean_fixed_contrib[self.tc[n]], self.inv_covariance_fixed_contrib)
+
+        # Sample the new theta
+        samples = sample_1D_circular_numba(num_samples, np.random.rand()*2.*np.pi-np.pi, params, burn_samples, slice_width, slice_jump_prob)
+        
+        return samples
                 
 
 

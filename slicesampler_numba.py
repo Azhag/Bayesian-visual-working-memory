@@ -51,11 +51,9 @@ def loglike_fct(new_theta, thetas, datapoint, rn, ATtcB, sampled_feature_index, 
 
     like_mean = datapoint - mean_fixed_contrib - ATtcB*rn.get_network_response_numba(thetas)
 
-    tmp = np.dot(inv_covariance_fixed_contrib, like_mean)
-
     # Using inverse covariance as param
     # return theta_kappa*np.cos(thetas[sampled_feature_index] - theta_mu) - 0.5*np.dot(like_mean, np.dot(inv_covariance_fixed_contrib, like_mean))
-    return -0.5*nub.double(np.dot(like_mean, tmp))
+    return -0.5*nub.double(np.dot(like_mean, np.dot(inv_covariance_fixed_contrib, like_mean)))
     # return like_mean
     # return -1./(2*0.2**2)*np.sum(like_mean**2.)
 

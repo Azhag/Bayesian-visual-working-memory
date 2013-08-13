@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-# encoding: utf-8
+# -*- coding: utf-8 -*-
+
 """
 slicesampler.py
 
@@ -352,8 +353,8 @@ if __name__ == '__main__':
         loglike_fct_params = [0.0, 4.0]
         
         # Get samples
-        slicesampler = SliceSampler()
-        samples2, last_llh = slicesampler.sample_1D_circular(5000, np.random.rand(), loglike_theta_fct, burn=500, widths=0.01, loglike_fct_params=loglike_fct_params, step_out=True, debug=True, loglike_min = -np.log((2./2.0)*np.pi*scsp.i0(loglike_fct_params[1])))
+        sampler = SliceSampler()
+        samples2, last_llh = sampler.sample_1D_circular(5000, np.random.rand(), loglike_theta_fct, burn=500, widths=0.01, loglike_fct_params=loglike_fct_params, step_out=True, debug=True, loglike_min = -np.log((2./2.0)*np.pi*scsp.i0(loglike_fct_params[1])))
         # samples2, last_llh = slicesampler.sample_1D_circular(50000, np.random.rand(), loglike_theta_fct, burn=500, widths=0.01, loglike_fct_params=loglike_fct_params, step_out=True, debug=True)
         # samples2, last_llh = slicesampler.sample_1D_circular(5000, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct, burn=100, widths=np.pi/5., loglike_fct_params=loglike_fct_params, step_out=True, debug=True)
         
