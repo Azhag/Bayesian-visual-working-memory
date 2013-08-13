@@ -40,6 +40,7 @@ def launcher_do_generate_submit_pbs_from_param_files(args):
     constrained_parameters = submit_pbs.generate_submit_constrained_parameters_from_module_parameters(parameters_file)
 
     dataio = DataIO(output_folder=all_parameters['output_directory'], label=os.path.splitext(all_parameters['parameters_filename'])[0])
+    dataio.make_link_in_directory(all_parameters['parameters_filename'])
     variables_to_save = ['constrained_parameters', 'all_parameters']
     dataio.save_variables(variables_to_save, locals())
 

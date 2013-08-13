@@ -361,6 +361,14 @@ def is_function(arg):
     return hasattr(arg, '__call__')
 
 
+def remove_functions_dict(dict_input):
+    '''
+        Goes over the dictionary and removes the functions it finds.
+    '''
+
+    return dict((k, v) for (k, v) in dict_input.iteritems() if not is_function(v))
+
+
 ########################## FILE I/O #################################
 
 def unique_filename(prefix=None, suffix=None, unique_id=None, return_id=False):

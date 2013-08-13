@@ -17,6 +17,8 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import git
 
+from utils import *
+
 class DataIO:
     '''
         Class handling data (from experiments) inputs and outputs.
@@ -68,6 +70,23 @@ class DataIO:
             os.makedirs(self.output_folder)
         except:
             pass
+
+
+    def make_link_in_directory(self, source_file, source_dir='../', output_dir=None):
+        '''
+            Create a link to the provided source_file in the current output directory
+
+            Good to link to calling script.
+        '''
+
+        if output_dir is None:
+            output_dir = self.output_folder
+
+        try:
+            os.symlink(os.path.join(source_dir, source_file), os.path.join(self.output_folder, source_file))
+        except:
+            print "Symlink failed: ", os.path.join(source_dir, source_file), os.path.join(output_dir, source_file)
+
 
 
     def create_filename(self):
@@ -146,7 +165,7 @@ class DataIO:
             if self.debug:
                 print "Found Git informations: %s" % self.git_infos
 
-        except git.InvalidGitRepositoryError:
+        except:
             # No Git repository here, just stop
             pass
 
@@ -197,6 +216,10 @@ class DataIO:
         # Make sure to save the arguments if forgotten
         if 'args' in all_variables and not 'args' in dict_selected_vars:
             dict_selected_vars['args'] = all_variables['args']
+
+        # Clean up 'args'
+        if 'args' in dict_selected_vars:
+            dict_selected_vars['args'] = remove_functions_dict(vars(dict_selected_vars['args']))
 
         # Save them as a numpy array
         np.save(self.filename, dict_selected_vars)
