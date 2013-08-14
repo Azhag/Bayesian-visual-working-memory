@@ -358,8 +358,8 @@ def launcher_do_reload_constrained_parameters_from_args(args):
                     # files='Data/param_generator/3dvolume_mixedpop_memcurves_theovar/mixedpop05_3dvolume_memcurve_theovar_211112/mixedpop05_3dvolume_memorycurves_theovar_grid_211112_featratio_100-*.npy',
                     # files='Data/param_generator/3dvolume_mixedpop_memcurves_theovar/mixedpop05_3dvolume_memcurve_theovar_211112_diffspace/mixedpop05_3dvolume_memorycurves_theovar_grid_211112_featratio_100-*.npy',
                     # files='Data/param_generator/3dvolume_mixedpop_memcurves_theovar/mixedpop01_3dvolume_memcurve_theovar_221112/mixedpop01_3dvolume_memorycurves_theovar_grid_221112_featratio_100-*.npy',
-                    files='Data/param_generator/3dvolume_mixedpop_memcurves_theovar/mixedpop025_specialspace_3dvolume_memcurve_theovar_231112/mixedpop025_3dvolume_memorycurves_theovar_grid_231112_featratio_300-*.npy',
-                    launcher_file='Data/param_generator/3dvolume_mixedpop_memcurves_theovar/launcher_do_generate_constrained_param_experimental_theo-dfd16533-4151-49c1-b3a4-45f5f50b11f4.npy',
+                    files='/Volumes/MacData/Saves/Data_local/param_generator/3dvolume_mixedpop_memcurves_theovar/mixedpop025_specialspace_3dvolume_memcurve_theovar_231112/mixedpop025_3dvolume_memorycurves_theovar_grid_231112_featratio_300-*.npy',
+                    launcher_file='/Volumes/MacData/Saves/Data_local/param_generator/3dvolume_mixedpop_memcurves_theovar/launcher_do_generate_constrained_param_experimental_theo-dfd16533-4151-49c1-b3a4-45f5f50b11f4.npy',
                     loading_type='args',
                     parameters=['rc_scale', 'sigmax', 'rc_scale2'],
                     variables_to_load=['FI_rc_theo_mult', 'FI_rc_var_mult'],
@@ -696,7 +696,8 @@ def plots_3dvolume_theovar_mixedpop(data_pbs, launcher_variables=None):
     rcscale2_space = data_pbs.loaded_data['parameters_uniques']['rc_scale2']
     
     
-    exp_target = np.array([ 8.81007762,  4.7976755,   3.61554792,  2.4624979,   1.78252039])*2.
+    # exp_target = np.array([ 8.81007762,  4.7976755,   3.61554792,  2.4624979,   1.78252039])*2.
+    exp_target = np.array([ 18.08189147,   9.82251951,   7.6423548, 5.19406881,   3.79220385])
     interpolation = 'nearest'
 
     # 3D

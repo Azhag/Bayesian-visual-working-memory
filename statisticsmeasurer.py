@@ -50,7 +50,10 @@ class StatisticsMeasurer:
         plt.figure()
         plt.plot(self.means.T)
         
-        (f, subaxes) = pcolor_square_grid(self.covariances)
+        if self.T < 3:
+            (f, subaxes) = pcolor_line_grid(self.covariances)
+        else:
+            (f, subaxes) = pcolor_square_grid(self.covariances)
         
     
     def compute_collapsed_model_parameters(self):

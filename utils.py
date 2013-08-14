@@ -28,7 +28,7 @@ import datetime
 __maxexp__ = np.finfo('float').maxexp
 plt.ion()
 
-############################ MATH ##################################
+############################ MATH AND STATS ##################################
 
 def powerlaw(x, amp, index):
     '''
@@ -37,6 +37,79 @@ def powerlaw(x, amp, index):
     '''
 
     return amp * (x**index)
+
+
+def mean_std_distrib(xdata, ydata):
+    '''
+        Compute the mean and standard deviation of a distribution
+    '''
+    mean_fit = np.sum(ydata*xdata)/np.sum(ydata)
+    std_fit = np.sqrt(np.abs(np.sum((xdata - mean_fit)**2*ydata)/np.sum(ydata)))
+    
+    return mean_fit, std_fit
+
+
+def skewness_distrib(xdata, ydata):
+    '''
+        Compute the skewness of a distribution
+    '''
+
+    distrib = ydata / np.trapz(ydata, xdata)
+
+    mu, sigma = mean_std_distrib(xdata, distrib)
+
+    skewness = np.trapz(distrib*(xdata - mu)**3./sigma**3., xdata)
+
+    return skewness
+
+
+def kurtosis_distrib(xdata, ydata):
+    '''
+        Compute the kurtosis for a distribution
+    '''
+
+    distrib = ydata / np.trapz(ydata, xdata)
+
+    mu, sigma = mean_std_distrib(xdata, distrib)
+
+    kurtosis = np.trapz(distrib*(xdata - mu)**4., xdata)/np.trapz(distrib*(xdata - mu)**2., xdata)**2.
+
+    return kurtosis
+
+def bimodality_coefficient(xdata, ydata):
+    '''
+        Compute Sarle's bimodality coefficient
+
+        beta = \skew^2 +1 / kurtosis
+
+        beta is:
+          1.0  for Bernoulli
+          0.33 for Gaussian
+          0.0  for heavy-tailed 
+    '''
+
+    skewness = skewness_distrib(xdata, ydata)
+    kurtosis = kurtosis_distrib(xdata, ydata)
+
+    return (skewness**2. + 1.)/kurtosis
+
+def ashman_d(xdata, ydata):
+    '''
+        Compute Ashman D coefficient for bimodality
+
+        Basically compares the positions of two modes
+
+        D = 2^0.5 |mu_1 - mu_2|/sqrt(sigma_1^2 + sigma_2^2)
+
+        For a mixture, D > 2 required for clean separation of distributions.
+    ''' 
+
+    mixture_params = fit_gaussian_mixture(xdata, ydata, should_plot=False, return_fitted_data=False)
+
+    D = 2**0.5 * np.abs(mixture_params[1] - mixture_params[3])/np.sqrt(mixture_params[2]**2. + mixture_params[4]**2.)
+
+    return D
+
 
 ############################## DIRECTIONAL STATISTICS ################################
 
@@ -418,7 +491,7 @@ def plot_multiple_mean_std_area(x, y, std, ax_handle=None, fignum=None):
     return ax_handle
 
 
-def plot_mean_std_area(x, y, std, ax_handle=None, fignum=None):
+def plot_mean_std_area(x, y, std, ax_handle=None, fignum=None, linewidth=1):
     '''
         Plot a given x-y data, with a transparent area for its standard deviation
 
@@ -431,14 +504,14 @@ def plot_mean_std_area(x, y, std, ax_handle=None, fignum=None):
     
     ishold = plt.ishold()
 
-    ax = ax_handle.plot(x, y)
+    ax = ax_handle.plot(x, y, linewidth=linewidth)
+
     current_color = ax[-1].get_c()
     
     plt.hold(True)
 
     if np.any(std > 1e-6):
-        ax_handle.fill_between(x, y-std, y+std, facecolor=current_color, alpha=0.4,
-                        label='1 sigma range')
+        ax_handle.fill_between(x, y-std, y+std, facecolor=current_color, alpha=0.4, label='1 sigma range')
     
     ax_handle.get_figure().canvas.draw()
 
@@ -558,6 +631,8 @@ def histogram_angular_data(data, bins=20, in_degrees=False, title=None, norm=Non
         bound_x = np.pi
     
     x = np.linspace(-bound_x, bound_x, bins)
+    x_centers = (x + bound_x/(bins-1.))[:-1]
+
     x_edges = x - bound_x/bins  # np.histogram wants the left-right boundaries...
     x_edges = np.r_[x_edges, -x_edges[0]]  # the rightmost boundary is the mirror of the leftmost one
     
@@ -569,7 +644,7 @@ def histogram_angular_data(data, bins=20, in_degrees=False, title=None, norm=Non
         bar_heights = bar_heights/np.sum(bar_heights.astype('float'))
     elif norm == 'density':
         bar_heights, _ = np.histogram(data, bins=x_edges, density=True)
-    
+
     plt.figure(fignum)
     plt.bar(x, bar_heights, alpha=0.75, width=2.*bound_x/(bins-1), align='center')
     if title:
@@ -769,6 +844,29 @@ def pcolor_square_grid(data, nb_to_plot=-1):
                 
     return (f, subaxes)
 
+def pcolor_line_grid(data, nb_to_plot=-1, orientation=0):
+    '''
+        Construct a line of pcolor
+        
+        Uses the first dimension as number of subplots.
+    '''
+    if nb_to_plot < 0:
+        nb_to_plot = data.shape[0]
+    
+    if orientation == 0:
+        f, subaxes = plt.subplots(nb_to_plot, 1)
+    else:
+        f, subaxes = plt.subplots(1, nb_to_plot)
+    
+    for i in xrange(nb_to_plot):
+        try:
+            subaxes[i].imshow(data[i], interpolation='nearest')
+            subaxes[i].xaxis.set_major_locator(plttic.NullLocator())
+            subaxes[i].yaxis.set_major_locator(plttic.NullLocator())
+        except IndexError:
+            subaxes[i].set_visible(False)
+                
+    return (f, subaxes)
     
 
 def plot_sphere(theta, gamma, Z, weight_deform=0.5, sphere_radius=1., try_mayavi=True):
@@ -1232,6 +1330,126 @@ def fit_vonmises_samples(samples, num_points=500, return_fitted_data=True, shoul
     else:
         return np.array([fit_mu, fit_kappa])
 
+
+def fit_gaussian_mixture(xdata, ydata, should_plot = True, return_fitted_data = True, normalise = True, debug = False):
+    '''
+        Fit a mixture of gaussians to the given points.
+        Doesn't take samples! Only tries to fit a gaussian function onto some points.
+
+        Can plot the result if desired
+    '''
+
+    if normalise:
+        # Normalise
+        ydata /= np.trapz(ydata, xdata)
+
+    # define the fitting function
+    gauss_fct = lambda x, mu, sigma: 1./(np.sqrt(2.*np.pi)*sigma)*np.exp(-(x-mu)**2./(2.*sigma**2.))
+    mixt_fct = lambda p, x: (p[0]*gauss_fct(x, p[1], p[2]) + (1. - p[0])*gauss_fct(x, p[3], p[4]))
+    
+    # gauss_fct_der = lambda x, mu, sigma: -(x-mu)/(np.sqrt(2.*np.pi)*sigma**3.)*np.exp(-(x-mu)**2./(2.*sigma**2.))
+    # mixt_fct_der = lambda p, x: (p[0]*gauss_fct_der(x, p[1], p[2]) + (1. - p[0])*gauss_fct_der(x, p[3], p[4]))
+    # errfunc = lambda p, x, y: np.sum((y - mixt_fct(p, x))**2.)
+    # errfunc_der = lambda p, x, y: 2*np.sum((y - mixt_fct(p, x))*mixt_fct_der(p, x))
+
+    # def errfunc_jac(p, x, y):
+    #     return 2.*np.sum((y - mixt_fct(p, x))*mixt_fct_jac(p, x), axis=-1)
+
+    # def mixt_fct_jac(p, x):
+    #     jac_p = np.zeros((p.size, x.size))
+    #     jac_p[0] = gauss_fct(x, p[1], p[2]) - gauss_fct(x, p[3], p[4])
+    #     jac_p[1] = p[0]*gauss_fct(x, p[1], p[2])*(x - p[1])/p[2]**2.
+    #     jac_p[2] = p[0]*gauss_fct(x, p[1], p[2])*( (x - p[1])**2./p[2]**3. - p[2]**-1)
+    #     jac_p[3] = (1. - p[0])*gauss_fct(x, p[3], p[4])*(x - p[3])/p[4]**2.
+    #     jac_p[4] = (1. - p[0])*gauss_fct(x, p[3], p[4])*( (x - p[3])**2./p[4]**3. - p[4]**-1)
+    #     return jac_p
+
+    errfunc_leastsq = lambda p, x, y: y - mixt_fct(p, x)
+    
+    # Bounds
+    # bounds = ((0.0, 1.0), (-np.pi, np.pi), (0.0, None), (-np.pi, np.pi), (0.0, None))
+    
+    # Initial parameters
+    pinit = np.array([0.5, -0.5, 0.05, 0.5, 0.05])
+    
+    # Optimize
+    out = spopt.leastsq(errfunc_leastsq, pinit, args=(xdata, ydata), full_output=1)
+    # out = spopt.minimize(errfunc, pinit, method='L-BFGS-B', bounds=bounds, args=(xdata, ydata), options={'disp': True})
+    # out = spopt.fmin(errfunc_mse, pinit, args=(logx, logy))
+
+    pfinal = out[0]
+
+    fitted_data = mixt_fct(pfinal, xdata)
+
+    if debug:
+        print pfinal
+    
+    ##########
+    # Plotting data
+    ##########
+
+    if should_plot:
+        plt.figure()
+        if normalise:
+            plt.plot(xdata, ydata/np.trapz(ydata, xdata), xdata, fitted_data/np.trapz(fitted_data, xdata))
+        else:
+            plt.plot(xdata, ydata, xdata, fitted_data)
+        plt.legend(['Data', 'Fit'])
+        plt.show()
+
+    if return_fitted_data:
+        return dict(parameters=np.array(pfinal), fitted_data=fitted_data, support=xdata)
+    else:
+        return np.array(pfinal)
+
+
+def fit_gaussian_mixture_fixedmeans(xdata, ydata, fixed_means=np.array([0.0, 0.0]), should_plot = True, return_fitted_data = True, normalise = True, debug = False):
+    '''
+        Fit a mixture of gaussians to the given points. Fixed means.
+        Doesn't take samples! Only tries to fit a gaussian function onto some points.
+
+        Can plot the result if desired
+    '''
+
+    if normalise:
+        # Normalise
+        ydata /= np.trapz(ydata, xdata)
+
+    # define the fitting function
+    gauss_fct = lambda x, mu, sigma: 1./(np.sqrt(2.*np.pi)*sigma)*np.exp(-(x-mu)**2./(2.*sigma**2.))
+    mixt_fct = lambda p, x, mus: (p[0]*gauss_fct(x, mus[0], p[1]) + (1. - p[0])*gauss_fct(x, mus[1], p[2]))
+    errfunc_leastsq = lambda p, x, y, mus: y - mixt_fct(p, x, mus)
+    
+    # Initial parameters
+    pinit = np.array([0.5, 0.05, 0.05])
+    
+    # Optimize
+    out = spopt.leastsq(errfunc_leastsq, pinit, args=(xdata, ydata, fixed_means), full_output=1)
+    
+    pfinal = out[0]
+
+    fitted_data = mixt_fct(pfinal, xdata, fixed_means)
+
+    if debug:
+        print pfinal
+    
+    ##########
+    # Plotting data
+    ##########
+
+    if should_plot:
+        plt.figure()
+        if normalise:
+            plt.plot(xdata, ydata/np.trapz(ydata, xdata), xdata, fitted_data/np.trapz(fitted_data, xdata))
+        else:
+            plt.plot(xdata, ydata, xdata, fitted_data)
+        plt.legend(['Data', 'Fit'])
+        plt.show()
+
+    if return_fitted_data:
+        return dict(parameters=np.array(pfinal), fitted_data=fitted_data, support=xdata)
+    else:
+        return np.array(pfinal)
 
 
 if __name__ == '__main__':

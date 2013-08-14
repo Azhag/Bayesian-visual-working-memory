@@ -381,18 +381,18 @@ def launcher_do_memorycurve_theoretical(args):
     
     num_repetitions = all_parameters['num_repetitions']
     check_theoretical_cov = False
-    do_curvature = True
-    do_precision = False
+    do_curvature = False
+    do_precision = True
     do_var = True
 
     # rcscale_space = np.linspace(0.5, 15.0, 21.)
-    rcscale_space = np.linspace(0.01, 15., 21.)
+    # rcscale_space = np.linspace(0.01, 15., 21.)
     # rcscale_space = np.linspace(4.0, 4.0, 1.)
-    # rcscale_space = np.linspace(all_parameters['rc_scale'], all_parameters['rc_scale'], 1.)
+    rcscale_space = np.linspace(all_parameters['rc_scale'], all_parameters['rc_scale'], 1.)
     
-    sigma_space = np.linspace(0.01, 0.8, 20.)
+    # sigma_space = np.linspace(0.15, 0.3, 10.)
     # sigma_space = np.linspace(0.1, 0.1, 1.0)
-    # sigma_space = np.linspace(all_parameters['sigmax'], all_parameters['sigmax'], 1.)
+    sigma_space = np.linspace(all_parameters['sigmax'], all_parameters['sigmax'], 1.)
 
     T_space = np.arange(1, all_parameters['T']+1)
 
@@ -426,7 +426,7 @@ def launcher_do_memorycurve_theoretical(args):
                     ###
                     if use_theoretical_cov:
                         if check_theoretical_cov:
-                            (random_network, data_gen, stat_meas, sampler) = init_everything(all_parameters)
+                            (random_network, data_gen, stat_meas, sampler) = launchers.init_everything(all_parameters)
 
                             computed_cov = random_network.compute_covariance_KL(sigma_2=(all_parameters['sigmax']**2. + all_parameters['sigmay']**2.), T=t, beta=1.0, precision=50)
 
@@ -441,7 +441,7 @@ def launcher_do_memorycurve_theoretical(args):
 
                                 raise ValueError('Big divergence between measured and theoretical divergence!')
                         else:
-                            random_network = init_random_network(all_parameters)
+                            random_network = launchers.init_random_network(all_parameters)
 
                             computed_cov = random_network.compute_covariance_KL(sigma_2=(all_parameters['sigmax']**2. + all_parameters['sigmay']**2.), T=t, beta=1.0, precision=50)
 
@@ -452,14 +452,15 @@ def launcher_do_memorycurve_theoretical(args):
                         print FI_rc_theo_mult[i, j, t_i, repet_i]
 
                     else:
-                        (random_network, data_gen, stat_meas, sampler) = init_everything(all_parameters)
+                        (random_network, data_gen, stat_meas, sampler) = launchers.init_everything(all_parameters)
                         computed_cov = sampler.noise_covariance
                         # computed_cov = stat_meas.model_parameters['covariances'][-1, 0]
 
                         # Fisher info
                         print "theoretical FI"
                         FI_rc_theo_mult[i, j, t_i, repet_i] = random_network.compute_fisher_information(stimulus_input=(0.0, 0.0), cov_stim=computed_cov, kappa_different=True)
-                        print FI_rc_theo_mult[i, j, t_i, repet_i]
+                        # print FI_rc_theo_mult[i, j, t_i, repet_i]
+                        print FI_rc_theo_mult
 
                         # Estimate the rest, possible here.
                         if do_curvature:
@@ -472,7 +473,8 @@ def launcher_do_memorycurve_theoretical(args):
                                 print "from variance of posterior..."
                                 fi_var_dict = sampler.estimate_precision_from_posterior_avg_randomsubset(subset_size=20, num_points=1000, full_stats=True)
                                 FI_rc_var_mult[i, j, t_i, 0, repet_i], FI_rc_var_mult[i, j, t_i, 1, repet_i] = (fi_var_dict['mean'], fi_var_dict['std'])
-                                print FI_rc_var_mult[i, j, t_i, :, repet_i]
+                                # print FI_rc_var_mult[i, j, t_i, :, repet_i]
+                                print FI_rc_var_mult[:, :, :, 0, :]
                 
                         if do_precision:
                             print "from precision of recall..."
@@ -484,7 +486,8 @@ def launcher_do_memorycurve_theoretical(args):
                                 sampler.set_theta_max_likelihood(num_points=200, post_optimise=True)
                             
                             FI_rc_precision_mult[i, j, t_i, repet_i] = sampler.get_precision()
-                            print FI_rc_precision_mult[i, j, t_i, repet_i]
+                            # print FI_rc_precision_mult[i, j, t_i, repet_i]
+                            print FI_rc_precision_mult
 
                     ### DONE WORK UNIT
 
@@ -505,19 +508,6 @@ def launcher_do_memorycurve_theoretical(args):
     return locals()
 
 
-def plots_memorycurves_theoretical_multiple(data_to_plot, dataio = None):
-    '''
-        Does some plots from launcher_do_memorycurve_theoretical
-    '''
-    
-    FI_rc_theo_mult = np.squeeze(data_to_plot['FI_rc_theo_mult'])
-    FI_rc_var_mult = np.squeeze(data_to_plot['FI_rc_var_mult'])
-    FI_rc_precision_mult = np.squeeze(data_to_plot['FI_rc_precision_mult'])
-
-    
-
-
-
 
 def launcher_do_memorycurve_theoretical_pbs(args):
     '''
@@ -527,6 +517,7 @@ def launcher_do_memorycurve_theoretical_pbs(args):
     '''
 
     all_parameters = vars(args)
+    print all_parameters
     
     dataio = DataIO(output_folder=args.output_directory, label=args.label)
     variables_to_save = ['rcscale_space', 'sigma_space', 'M_space', 'T_space', 'FI_rc_theo_mult', 'repet_i', 'num_repetitions', 'use_theoretical_cov']
@@ -541,6 +532,8 @@ def launcher_do_memorycurve_theoretical_pbs(args):
     do_curvature = False
     do_precision = True
     do_var = True
+
+    exp_target = np.array([ 18.08189147,   9.82251951,   7.6423548, 5.19406881,   3.79220385])
 
     rcscale_space = np.linspace(all_parameters['rc_scale'], all_parameters['rc_scale'], 1.)
     sigma_space = np.linspace(all_parameters['sigmax'], all_parameters['sigmax'], 1.)
@@ -587,7 +580,7 @@ def launcher_do_memorycurve_theoretical_pbs(args):
                         ###
                         if use_theoretical_cov:
                             if check_theoretical_cov:
-                                (random_network, data_gen, stat_meas, sampler) = init_everything(all_parameters)
+                                (random_network, data_gen, stat_meas, sampler) = launchers.init_everything(all_parameters)
 
                                 computed_cov = random_network.compute_covariance_KL(sigma_2=(all_parameters['sigmax']**2. + all_parameters['sigmay']**2.), T=t, beta=1.0, precision=50)
 
@@ -602,7 +595,7 @@ def launcher_do_memorycurve_theoretical_pbs(args):
 
                                     raise ValueError('Big divergence between measured and theoretical divergence!')
                             else:
-                                random_network = init_random_network(all_parameters)
+                                random_network = launchers.init_random_network(all_parameters)
 
                                 computed_cov = random_network.compute_covariance_KL(sigma_2=(all_parameters['sigmax']**2. + all_parameters['sigmay']**2.), T=t, beta=1.0, precision=50)
 
@@ -613,7 +606,7 @@ def launcher_do_memorycurve_theoretical_pbs(args):
                             print FI_rc_theo_mult[i, j, m_i, t_i, repet_i]
 
                         else:
-                            (random_network, data_gen, stat_meas, sampler) = init_everything(all_parameters)
+                            (random_network, data_gen, stat_meas, sampler) = launchers.init_everything(all_parameters)
                             computed_cov = sampler.noise_covariance
                             # computed_cov = stat_meas.model_parameters['covariances'][-1, 0]
 
@@ -625,13 +618,13 @@ def launcher_do_memorycurve_theoretical_pbs(args):
                             # Estimate the rest, possible here.
                             if do_curvature:
                                 print "from curvature..."
-                                fi_curv_dict = sampler.estimate_fisher_info_from_posterior_avg_randomsubset(subset_size=20, num_points=1000, full_stats=True)
+                                fi_curv_dict = sampler.estimate_fisher_info_from_posterior_avg_randomsubset(subset_size=30, num_points=800, full_stats=True)
                                 (FI_rc_curv_mult[i, j, m_i, t_i, 0, repet_i], FI_rc_curv_mult[i, j, m_i, t_i, 1, repet_i]) = (fi_curv_dict['mean'], fi_curv_dict['std'])
                                 print FI_rc_curv_mult[i, j, m_i, t_i, :, repet_i]
                             
                             if do_var:
                                 print "from variance of posterior..."
-                                fi_var_dict = sampler.estimate_precision_from_posterior_avg_randomsubset(subset_size=20, num_points=1000, full_stats=True)
+                                fi_var_dict = sampler.estimate_precision_from_posterior_avg_randomsubset(subset_size=all_parameters['N']/3, num_points=1000, full_stats=True)
                                 FI_rc_var_mult[i, j, m_i, t_i, 0, repet_i], FI_rc_var_mult[i, j, m_i, t_i, 1, repet_i] = (fi_var_dict['mean'], fi_var_dict['std'])
                                 print FI_rc_var_mult[i, j, m_i, t_i, :, repet_i]
                     
@@ -639,7 +632,7 @@ def launcher_do_memorycurve_theoretical_pbs(args):
                                 print "from precision of recall..."
                                 if all_parameters['inference_method'] == 'sample':
                                     # Sample thetas
-                                    sampler.sample_theta(num_samples=all_parameters['num_samples'], burn_samples=100, selection_method=all_parameters['selection_method'], selection_num_samples=all_parameters['num_samples'], integrate_tc_out=False, debug=False)
+                                    sampler.sample_theta(num_samples=all_parameters['num_samples'], burn_samples=100, selection_method=all_parameters['selection_method'], selection_num_samples=all_parameters['num_samples'], integrate_tc_out=False, debug=True)
                                 elif all_parameters['inference_method'] == 'max_lik':
                                     # Just use the ML value for the theta
                                     sampler.set_theta_max_likelihood(num_points=200, post_optimise=True)
@@ -800,48 +793,48 @@ def launcher_do_memorycurve_theoretical_pbs_theoonly(args):
                         run_counter += 1
     return locals()
 
-def init_everything(parameters):
+# def init_everything(parameters):
 
-    # Build the random network
-    random_network = init_random_network(parameters)
+#     # Build the random network
+#     random_network = init_random_network(parameters)
         
-    # Construct the real dataset
-    time_weights_parameters = dict(weighting_alpha=parameters['alpha'], weighting_beta=1.0, specific_weighting=0.1, weight_prior='uniform')
-    cued_feature_time = parameters['T']-1
+#     # Construct the real dataset
+#     time_weights_parameters = dict(weighting_alpha=parameters['alpha'], weighting_beta=1.0, specific_weighting=0.1, weight_prior='uniform')
+#     cued_feature_time = parameters['T']-1
 
-    # print "Building the database"
-    data_gen = DataGeneratorRFN(parameters['N'], parameters['T'], random_network, sigma_y=parameters['sigmay'], sigma_x=parameters['sigmax'], time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation=parameters['stimuli_generation'])
+#     # print "Building the database"
+#     data_gen = DataGeneratorRFN(parameters['N'], parameters['T'], random_network, sigma_y=parameters['sigmay'], sigma_x=parameters['sigmax'], time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation=parameters['stimuli_generation'])
     
-    # Measure the noise structure
-    # print "Measuring noise structure"
-    data_gen_noise = DataGeneratorRFN(5000, parameters['T'], random_network, sigma_y=parameters['sigmay'], sigma_x=parameters['sigmax'], time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation=parameters['stimuli_generation'])
-    stat_meas = StatisticsMeasurer(data_gen_noise)
+#     # Measure the noise structure
+#     # print "Measuring noise structure"
+#     data_gen_noise = DataGeneratorRFN(5000, parameters['T'], random_network, sigma_y=parameters['sigmay'], sigma_x=parameters['sigmax'], time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation=parameters['stimuli_generation'])
+#     stat_meas = StatisticsMeasurer(data_gen_noise)
     
-    sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters=stat_meas.model_parameters, tc=cued_feature_time)
+#     sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters=stat_meas.model_parameters, tc=cued_feature_time)
 
-    return (random_network, data_gen, stat_meas, sampler)
+#     return (random_network, data_gen, stat_meas, sampler)
 
 
 
-def init_random_network(parameters):
+# def init_random_network(parameters):
 
-    # Build the random network
+#     # Build the random network
     
-    if parameters['code_type'] == 'conj':
-        random_network = RandomFactorialNetwork.create_full_conjunctive(parameters['M'], R=parameters['R'], scale_moments=(parameters['rc_scale'], 0.0001), ratio_moments=(1.0, 0.0001))
-    elif parameters['code_type'] == 'feat':
-        random_network = RandomFactorialNetwork.create_full_features(parameters['M'], R=parameters['R'], scale=parameters['rc_scale'], ratio=parameters['feat_ratio'])
-    elif parameters['code_type'] == 'mixed':
-        conj_params = dict(scale_moments=[parameters['rc_scale'], 0.0001], ratio_moments=[1.0, 0.0001])
-        feat_params = dict(scale=parameters['rc_scale2'], ratio=parameters['feat_ratio'])
+#     if parameters['code_type'] == 'conj':
+#         random_network = RandomFactorialNetwork.create_full_conjunctive(parameters['M'], R=parameters['R'], scale_moments=(parameters['rc_scale'], 0.0001), ratio_moments=(1.0, 0.0001))
+#     elif parameters['code_type'] == 'feat':
+#         random_network = RandomFactorialNetwork.create_full_features(parameters['M'], R=parameters['R'], scale=parameters['rc_scale'], ratio=parameters['feat_ratio'])
+#     elif parameters['code_type'] == 'mixed':
+#         conj_params = dict(scale_moments=[parameters['rc_scale'], 0.0001], ratio_moments=[1.0, 0.0001])
+#         feat_params = dict(scale=parameters['rc_scale2'], ratio=parameters['feat_ratio'])
 
-        random_network = RandomFactorialNetwork.create_mixed(parameters['M'], R=parameters['R'], ratio_feature_conjunctive=parameters['ratio_conj'], conjunctive_parameters=conj_params, feature_parameters=feat_params)
-    elif code_type == 'wavelet':
-        random_network = RandomFactorialNetwork.create_wavelet(parameters['M'], R=parameters['R'], scales_number=5)
-    else:
-        raise ValueError('Code_type is wrong!')
+#         random_network = RandomFactorialNetwork.create_mixed(parameters['M'], R=parameters['R'], ratio_feature_conjunctive=parameters['ratio_conj'], conjunctive_parameters=conj_params, feature_parameters=feat_params)
+#     elif code_type == 'wavelet':
+#         random_network = RandomFactorialNetwork.create_wavelet(parameters['M'], R=parameters['R'], scales_number=5)
+#     else:
+#         raise ValueError('Code_type is wrong!')
 
-    return random_network
+#     return random_network
 
 
 def launcher_reload_memorycurve_theoretical(args):
@@ -1163,7 +1156,46 @@ def plots_memorycurve_theoretical_3dvolume(data_to_plot, dataio=None, save_figur
             plt.show()
 
     
-    
+def plots_memorycurve_theoretical_pbs(data_to_plot, dataio=None):
+    '''
+        Some memory plots, fits between theory, precision, experimental, variance, etc
+    '''
+
+    required_variables = ['rcscale_space', 'sigma_space', 'T_space', 'FI_rc_theo_mult']
+    assert set(required_variables) <= set(data_to_plot), "This dataset is not complete. Require %s" % required_variables
+
+    T_space = np.squeeze(data_to_plot['T_space'])
+    sigma_space = np.squeeze(data_to_plot['sigma_space'])
+    FI_rc_theo_mult = np.squeeze(nanmean(data_to_plot['FI_rc_theo_mult'], axis=-1))
+    # FI_rc_curv_mult = np.squeeze(data_to_plot['FI_rc_curv_mult'])
+    FI_rc_precision_mult = np.squeeze(nanmean(data_to_plot['FI_rc_precision_mult'], axis=-1))
+    FI_rc_var_mult = np.squeeze(nanmean(data_to_plot['FI_rc_var_mult'], axis=-1))
+
+    exp_target = np.array([ 18.08189147,   9.82251951,   7.6423548, 5.19406881,   3.79220385])
+
+    print FI_rc_theo_mult.shape
+    # print FI_rc_curv_mult.shape
+    print FI_rc_precision_mult.shape
+    print FI_rc_var_mult.shape
+
+    # for t_i, T in enumerate(T_space):
+        # Evolution of sigma
+        # f, ax = plt.subplots()
+        # ax.plot(sigma_space, FI_rc_theo_mult[:, t_i])
+        # # ax.plot(FI_rc_curv_mult[:, t_i])
+        # ax.plot(sigma_space, FI_rc_precision_mult[:, t_i])
+        # plot_mean_std_area(sigma_space, FI_rc_var_mult[:, t_i, 0], FI_rc_var_mult[:, t_i, 1]/np.sqrt(data_to_plot['args']['N'])/3, ax_handle=ax)
+
+    # Memory
+    f, ax = plt.subplots()
+    ax.plot(T_space, exp_target)
+    ax.plot(T_space, FI_rc_theo_mult)
+    # ax.plot(FI_rc_curv_mult[:, t_i])
+    ax.plot(T_space, FI_rc_precision_mult)
+    plot_mean_std_area(T_space, FI_rc_var_mult[:, 0], FI_rc_var_mult[:, 1]/np.sqrt(data_to_plot['args'].N)/3, ax_handle=ax)
+
+
+
 
 
 
