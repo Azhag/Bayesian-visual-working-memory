@@ -17,8 +17,6 @@ from matplotlib.patches import Ellipse
 import scipy.special as scsp
 from scipy.spatial.distance import pdist
 
-import numba as nub
-
 import progress
 
 from utils import *
@@ -494,24 +492,6 @@ class RandomFactorialNetwork():
             output[self.mask_neurons_unset[specific_neurons]] = 0.0
 
         return output
-
-    @nub.autojit()
-    def get_network_response_numba(self, stimulus_input):
-        '''
-            Optimized version of Network response for Numba, bivariate fisher
-        '''
-        # Diff angles
-        dtheta = (stimulus_input[0] - self.neurons_preferred_stimulus[:, 0])
-        dgamma = (stimulus_input[1] - self.neurons_preferred_stimulus[:, 1])
-
-        # Get the response
-        output = np.exp(self.neurons_sigma[:, 0]*np.cos(dtheta) + self.neurons_sigma[:, 1]*np.cos(dgamma))/self.normalisation
-
-        output[self.mask_neurons_unset] = 0.0
-        
-        return output
-
-
 
     def get_network_response_wrongwrap(self, stimulus_input, specific_neurons=None, params={}):
         '''
@@ -1338,7 +1318,7 @@ class RandomFactorialNetwork():
             # Use optimal values for the parameters. Be careful, this assumes M/2 and coverage of full 2 pi space
             # Assume one direction should cover width = pi, the other should cover M/2 * width/2. = 2pi
             # width = stddev_to_kappa(stddev)
-            conj_scale = stddev_to_kappa(2.*np.pi/int(M**0.5))
+            conj_scale = stddev_to_kappa(2.*np.pi/int(rn.conj_subpop_size**0.5))
             feat_scale = stddev_to_kappa(np.pi)
             feat_ratio = -stddev_to_kappa(2.*np.pi/int(rn.feat_subpop_size/2.))/feat_scale
 

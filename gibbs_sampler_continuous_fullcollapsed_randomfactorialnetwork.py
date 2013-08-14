@@ -59,7 +59,7 @@ class Sampler:
         y_t | x_t, y_{t-1} ~ Normal
         
     '''
-    def __init__(self, data_gen, tc=None, theta_kappa=0.1, n_parameters = dict(), use_numba=False):
+    def __init__(self, data_gen, tc=None, theta_kappa=0.1, n_parameters = dict()):
         '''
             Initialise the sampler
             
@@ -90,7 +90,6 @@ class Sampler:
         
         # Initialise a Slice Sampler for theta
         self.slicesampler = SliceSampler()
-        self.use_numba = use_numba
 
         # Precompute the parameters and cache them
         self.init_cache_parameters()
@@ -305,10 +304,7 @@ class Sampler:
                 if integrate_tc_out:
                     samples = self.get_samples_theta_tc_integratedout(n, num_samples=num_samples, sampled_feature_index=sampled_feature_index, burn_samples=burn_samples)
                 else:
-                    if self.use_numba is True:
-                        samples = self.get_samples_theta_current_tc_numba(n, num_samples=num_samples, sampled_feature_index=sampled_feature_index, burn_samples=burn_samples, slice_width=slice_width, slice_jump_prob=slice_jump_prob)
-                    else:
-                        (samples, _) = self.get_samples_theta_current_tc(n, num_samples=num_samples, sampled_feature_index=sampled_feature_index, burn_samples=burn_samples, slice_width=slice_width, slice_jump_prob=slice_jump_prob)
+                    (samples, _) = self.get_samples_theta_current_tc(n, num_samples=num_samples, sampled_feature_index=sampled_feature_index, burn_samples=burn_samples, slice_width=slice_width, slice_jump_prob=slice_jump_prob)
                 
                 # Keep all samples if desired
                 if return_samples:
@@ -357,20 +353,6 @@ class Sampler:
         # samples, llh = self.slicesampler.sample_1D_circular(1, self.theta[n, sampled_feature_index], loglike_theta_fct, burn=100, widths=np.pi/3., thinning=2, loglike_fct_params=params, debug=False, step_out=True)
 
         return (samples, llh)
-
-
-    def get_samples_theta_current_tc_numba(self, n, num_samples=2000, sampled_feature_index=0, burn_samples=200, slice_width=np.pi/4., slice_jump_prob=0.2):
-
-        from slicesampler_numba import *
-        
-        # Pack the parameters for the likelihood function.
-        params = (self.theta[n], self.NT[n], self.random_network, self.ATtcB[self.tc[n]], sampled_feature_index, self.mean_fixed_contrib[self.tc[n]], self.inv_covariance_fixed_contrib)
-
-        # Sample the new theta
-        samples = sample_1D_circular_numba(num_samples, np.random.rand()*2.*np.pi-np.pi, params, burn_samples, slice_width, slice_jump_prob)
-        
-        return samples
-                
 
 
     def get_samples_theta_tc_integratedout(self, n, num_samples=2000, sampled_feature_index=0, burn_samples=100):
@@ -1247,7 +1229,7 @@ class Sampler:
         print "======================================="
     
 
-    def plot_histogram_errors(self, bins=20, in_degrees=False, norm='max'):
+    def plot_histogram_errors(self, bins=20, in_degrees=False, norm='max', fignum=None, nice_xticks=False):
         '''
             Compute the errors and plot a histogram.
 
@@ -1256,7 +1238,32 @@ class Sampler:
 
         (_, errors) = self.compute_angle_error(return_errors=True)
 
-        histogram_angular_data(errors, bins=bins, title='Errors between response and target', norm=norm, in_degrees=in_degrees)
+        histogram_angular_data(errors, bins=bins, title='Errors between response and target', norm=norm, in_degrees=in_degrees, fignum=fignum)
+
+        if nice_xticks:
+            plt.xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi), (r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=15)
+
+
+    def plot_histogram_responses(self, bins=20, in_degrees=False, norm='max', show_angles=False, fignum=None, nice_xticks=False):
+        '''
+            Plot a histogram of the responses
+        '''
+
+        # Plot the responses
+        (responses, target, nontargets) = self.collect_responses()
+
+        histogram_angular_data(responses, bins=bins, title='Distribution of responses', norm=norm, in_degrees=in_degrees, fignum=fignum)
+
+        if show_angles:
+            # Add lines for the target and non targets
+            plt.axvline(x=target[0], color='b', linewidth=2)
+
+            for nontarget_i in xrange(nontargets.shape[1]):
+                plt.axvline(x=nontargets[0, nontarget_i], color='r', linewidth=2)
+
+        if nice_xticks:
+            plt.xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi), (r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=15)
+
 
     
     def collect_responses(self):

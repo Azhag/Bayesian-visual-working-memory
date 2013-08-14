@@ -465,8 +465,7 @@ class DataGeneratorRFN(DataGenerator):
         elif display_type == 'wavelet':
             self.show_datapoint_wavelet(n=n)
         elif display_type == 'mixed':
-            # TODO mixed population datapoint method.
-            raise NotImplementedError('show_datapoint for mixed network, not done.')
+            self.show_datapoint_mixed(n=n)
         elif display_type == 'hierarchical':
             self.show_datapoint_hierarchical(n=n)
     
@@ -514,24 +513,104 @@ class DataGeneratorRFN(DataGenerator):
         horiz_cells = np.arange(M/2/self.random_network.nb_feature_centers)
         vert_cells = np.arange(M/2, (M/2+M/2/self.random_network.nb_feature_centers))
         
+
+        factor_2lines = 1.9
+
         f = plt.figure()
         ax = f.add_subplot(111)
 
-        ax.plot(np.arange(horiz_cells.size), self.Y[n, horiz_cells], linewidth=2)
-        ax.plot(np.arange(vert_cells.size), self.Y[n, vert_cells] + 1.2*self.Y[n, horiz_cells].max(), linewidth=2)
+        ax.plot(np.linspace(-np.pi, np.pi, horiz_cells.size), self.Y[n, horiz_cells], linewidth=2)
+        ax.plot(np.linspace(-np.pi, np.pi, vert_cells.size), self.Y[n, vert_cells] + factor_2lines*self.Y[n, horiz_cells].max(), linewidth=2)
 
-        ax.set_xticks(())
+        ax.set_xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
+        ax.set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'))
+        
         ax.set_yticks(())
         ax.legend(['Horizontal cells', 'Vertical cells'], fancybox=True, borderpad=0.3, columnspacing=0.5, borderaxespad=0.7, handletextpad=0, handlelength=1.5)
 
+        # Show ellipses at the stimuli positions
+        colmap = plt.get_cmap('gist_rainbow')
+        color_gen = [colmap(1.*(i)/self.T) for i in xrange(self.T)][::-1]  # use 22 colors
+
+        for t in xrange(self.T):
+
+            # max_pos = np.argmin((np.linspace(-np.pi, np.pi, horiz_cells.size, endpoint=False) - self.stimuli_correct[n, t, 0])**2.)
+            w = plt_patches.Wedge((self.stimuli_correct[n, t, 0], 1.2*self.Y[n, horiz_cells].max()), 0.1, 0, 360, color=color_gen[t], alpha=0.7, linewidth=2)
+            ax.add_patch(w)
+
+            w = plt_patches.Wedge((self.stimuli_correct[n, t, 1], 1.1*self.Y[n, horiz_cells].max() + factor_2lines*self.Y[n, horiz_cells].max()), 0.1, 0, 360, color=color_gen[t], alpha=0.7, linewidth=2)
+            ax.add_patch(w)
+
+        plt.xlim((-np.pi, np.pi))
+        plt.ylim((-0.5, 1.2*(1.2*self.Y[n, horiz_cells].max() + factor_2lines*self.Y[n, horiz_cells].max())))
 
         # im = ax.imshow(np.reshape(self.Y[n], (2, M/2)).T, origin='lower', aspect='equal', interpolation='nearest')
         # im.set_extent((-np.pi, np.pi, -np.pi, np.pi))
-        # ax.set_xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
-        # ax.set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'))
         # ax.set_yticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
         # ax.set_yticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'))
     
+
+    def show_datapoint_mixed(self, n=0):
+        '''
+            Show a datapoint for a mixed code
+        '''
+
+        f = plt.figure()
+
+        ##### Show the conjunctive units first
+        ax = f.add_subplot(211)
+        conj_sqrt = int(self.random_network.conj_subpop_size**0.5)
+        im = ax.imshow(np.reshape(self.Y[n][:self.random_network.conj_subpop_size], (conj_sqrt, conj_sqrt)).T, origin='lower', aspect='equal', interpolation='nearest')
+        im.set_extent((-np.pi, np.pi, -np.pi, np.pi))
+        ax.set_xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
+        ax.set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'))
+        ax.set_yticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
+        ax.set_yticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'))
+
+        # Show ellipses at the stimuli positions
+        colmap = plt.get_cmap('gist_rainbow')
+        color_gen = [colmap(1.*(i)/self.T) for i in xrange(self.T)][::-1]  # use 22 colors
+
+        for t in xrange(self.T):
+            w = plt_patches.Wedge((self.stimuli_correct[n, t, 0], self.stimuli_correct[n, t, 1]), 0.25, 0, 360, 0.03, color=color_gen[t], alpha=0.7, linewidth=2)
+            ax.add_patch(w)
+
+        ##### Show the feature units
+        ax = f.add_subplot(212)
+        
+        horiz_cells = np.arange(self.random_network.conj_subpop_size, int(self.random_network.feat_subpop_size/2.+self.random_network.conj_subpop_size))
+        vert_cells = np.arange(int(self.random_network.feat_subpop_size/2.+self.random_network.conj_subpop_size), self.random_network.M)
+
+        factor_2lines = 1.9
+
+        ax.plot(np.linspace(-np.pi, np.pi, horiz_cells.size), self.Y[n, horiz_cells], linewidth=2)
+        ax.plot(np.linspace(-np.pi, np.pi, vert_cells.size), self.Y[n, vert_cells] + factor_2lines*self.Y[n, horiz_cells].max(), linewidth=2)
+
+        ax.set_xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
+        ax.set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'))
+        
+        ax.set_yticks(())
+        ax.legend(['Horizontal cells', 'Vertical cells'], fancybox=True, borderpad=0.3, columnspacing=0.5, borderaxespad=0.7, handletextpad=0, handlelength=1.5)
+
+        # Show ellipses at the stimuli positions
+        colmap = plt.get_cmap('gist_rainbow')
+        color_gen = [colmap(1.*(i)/self.T) for i in xrange(self.T)][::-1]  # use 22 colors
+
+        for t in xrange(self.T):
+
+            # max_pos = np.argmin((np.linspace(-np.pi, np.pi, horiz_cells.size, endpoint=False) - self.stimuli_correct[n, t, 0])**2.)
+            w = plt_patches.Wedge((self.stimuli_correct[n, t, 0], 1.2*self.Y[n, horiz_cells].max()), 0.1, 0, 360, color=color_gen[t], alpha=0.7, linewidth=2)
+            ax.add_patch(w)
+
+            w = plt_patches.Wedge((self.stimuli_correct[n, t, 1], 1.1*self.Y[n, horiz_cells].max() + factor_2lines*self.Y[n, horiz_cells].max()), 0.1, 0, 360, color=color_gen[t], alpha=0.7, linewidth=2)
+            ax.add_patch(w)
+
+        ax.set_xlim((-np.pi, np.pi))
+        ax.set_ylim((-0.5, 1.5*(1.2*self.Y[n, horiz_cells].max() + factor_2lines*self.Y[n, horiz_cells].max())))
+
+
+
+
 
     def show_datapoint_wavelet(self, n=0, single_figure=True):
         '''
