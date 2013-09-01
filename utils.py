@@ -183,6 +183,71 @@ def test_stability_stddevtokappa(target_kappa=2.):
     plt.show()
 
 
+def angle_population_vector(angles):
+    '''
+        Compute the complex population mean vector from a set of angles
+
+        Mean over Axis 0
+    '''
+
+    return np.mean(np.exp(1j*angles), axis=0)
+
+
+def angle_population_mean(angles=None, angle_population_vector=None):
+    '''
+        Compute the mean of the angle population complex vector.
+
+        If no angle_population_vector given, computes it from angles (be clever)
+    '''
+    if angle_population_vector is None:
+        angle_population_vector = angle_population_vector(angles)
+
+    return np.angle(angle_population_vector)
+
+
+def angle_circular_std_dev(angles=None, angle_population_vector=None):
+    '''
+        Compute the circular standard deviation from an angle population complex vector.
+
+        If no angle_population_vector given, computes it from angles (be clever)
+    '''
+    if angle_population_vector is None:
+        angle_population_vector = angle_population_vector(angles)
+
+    return np.sqrt(-2.*np.log(np.abs(angle_population_vector)))
+
+
+def compute_mean_std_circular_data(angles):
+        '''
+            Compute the mean vector and the std deviation according to the Circular Statistics formula
+            Assumes a NxTxR matrix, averaging over N
+        '''
+        
+        # Angle population vector
+        angle_mean_vector = angle_population_vector(angles)
+        
+        # Population mean
+        angle_mean_error = angle_population_mean(angle_population_vector=angle_mean_vector)
+        
+        # Circular standard deviation estimate
+        angle_std_dev_error = angle_circular_std_dev(angle_population_vector=angle_mean_vector)
+        
+        # Mean bias
+        angle_bias = np.mean(np.abs(angles), axis=0)
+        
+
+        return dict(mean=angle_mean_error, std=angle_std_dev_error, population_vector=angle_mean_vector, bias=angle_bias)
+    
+
+def compute_angle_precision_from_std(circular_std_dev, square_precision=True):
+    '''
+        Computes the precision from the circular std dev
+
+        precision = 1/std**2  (square_precision = True)
+    '''
+
+    return 1./circular_std_dev**(2.**square_precision)
+
 ############################ SPHERICAL/3D COORDINATES ##################################
 
 def lbtoangle(b1, l1, b2, l2):
@@ -401,7 +466,10 @@ def say_finished(text='Work complete', additional_comment='', email_failed=True)
         sh.say(text)
     except Exception:
         if email_failed:
-            email_finished(text=additional_comment, subject=text)
+            try:
+                email_finished(text=additional_comment, subject=text)
+            except:
+                print text, additional_comment
 
 
 def email_finished(text='Work complete', to='loic.matthey@gatsby.ucl.ac.uk', subject='Work complete'):

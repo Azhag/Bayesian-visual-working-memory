@@ -401,6 +401,20 @@ def plot_marginalfisherinfo_1d():
 
     return locals()
 
+def plot_marginal_fisher_info_2d():
+    # RUN computations_marginalfisherinfo_marginalposterior_2d_nstim.
+    # - First plots used for 2d plot. Min distance = 0.1
+    #    inv_FI_2d_2obj_search_compute_fimarg_2dnstim_b6397e92-c114-4df3-b8c2-89ac97a7c88c.pdf
+    # - Second plots used for bars:  min distance=  0.1, 5 objects.
+    #    bars_IF_5obj_compute_fimarg_2dnstim_3133f906-3d89-4739-85ea-0311d7c1f951.pdf
+
+    import computations_marginalfisherinfo_marginalposterior_2d_nstim
+
+    computations_marginalfisherinfo_marginalposterior_2d_nstim.main(to_plot = [1])
+    computations_marginalfisherinfo_marginalposterior_2d_nstim.main(to_plot = [2])
+
+    return locals()
+
 
 if __name__ == '__main__':
 
@@ -410,7 +424,8 @@ if __name__ == '__main__':
     # all_vars = posterior_plots()
     # all_vars = compare_fishertheo_precision()
     # all_vars = plot_experimental_mixture()
-    all_vars = plot_marginalfisherinfo_1d()
+    # all_vars = plot_marginalfisherinfo_1d()
+    all_vars = plot_marginal_fisher_info_2d()
 
     variables_to_reinstantiate = ['data_gen', 'sampler', 'stat_meas', 'random_network', 'args', 'constrained_parameters', 'data_pbs', 'dataio']
 
