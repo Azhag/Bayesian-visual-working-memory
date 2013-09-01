@@ -778,7 +778,7 @@ def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorba
 
 
 
-def contourf_interpolate_data(all_points, data, xlabel='', ylabel='', title='', interpolation_numpoints=200, interpolation_method='linear', mask_when_nearest=True, contour_numlevels=20, show_scatter=True, show_colorbar=True, fignum=None):
+def contourf_interpolate_data(all_points, data, xlabel='', ylabel='', title='', interpolation_numpoints=200, interpolation_method='linear', mask_when_nearest=True, contour_numlevels=20, show_scatter=True, show_colorbar=True, fignum=None, mask_x_condition=None, mask_y_condition=None):
     '''
         Take (x,y) and z tuples, construct an interpolation with them and plot them nicely.
 
@@ -802,6 +802,12 @@ def contourf_interpolate_data(all_points, data, xlabel='', ylabel='', title='', 
 
         # Mask
         data_interpol[np.isnan(data_interpol_lin)] = np.nan
+
+    # Mask it based on some conditions
+    if not mask_x_condition is None:
+        data_interpol[mask_x_condition(param1_space_int), :] = 0.0
+    if not mask_y_condition is None:
+        data_interpol[:, mask_y_condition(param2_space_int)] = 0.0
 
     # Plot it
     f1 = plt.figure(fignum)

@@ -63,17 +63,19 @@ def launcher_do_reload_constrained_parameters(args):
     data_pbs = DataPBS(dataset_infos=parameters_file.dataset_infos, debug=True)
     
     # Do the plots
+    post_processing_outputs = []
+
     if parameters_file.dataset_infos['post_processing'] is not None:
         try:
             # Duck typing to check if we have a list of post_processings
             iterator = iter(parameters_file.dataset_infos['post_processing'])
         except TypeError:
             # Not a list... just call it
-            parameters_file.dataset_infos['post_processing'](data_pbs, parameters_file.dataset_infos['launcher_module'])
+            post_processing_outputs = parameters_file.dataset_infos['post_processing'](data_pbs, parameters_file.dataset_infos['launcher_module'])
         else:
             for post_process in iterator:
                 # Call each one one after the other
-                post_process(data_pbs, parameters_file.dataset_infos['launcher_module'])
+                post_processing_outputs.append(post_process(data_pbs, parameters_file.dataset_infos['launcher_module']))
 
     return locals()
 

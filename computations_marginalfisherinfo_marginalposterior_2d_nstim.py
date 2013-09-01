@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.special as scsp
 import sys
+import functools
 
 from utils import *
 # from statisticsmeasurer import *
@@ -22,8 +23,8 @@ from dataio import *
 import progress
 import tables as tb
 
-if __name__ == '__main__':
 
+def main(to_plot = []):
     #### 
     #   2D N stimuli
     ####
@@ -35,7 +36,8 @@ if __name__ == '__main__':
     kappa = 3.0
     sigma = 0.5
     amplitude = 1.0
-    min_distance = 0.01
+    # min_distance = 0.01
+    min_distance = 0.1
 
     dataio = DataIO(label='compute_fimarg_2dnstim', calling_function='')
     additional_comment = ''
@@ -68,7 +70,7 @@ if __name__ == '__main__':
 
     #### Compute Theo Inverse Fisher Info
 
-    if True:
+    if 1 in to_plot:
         ### Loop over min_distance and kappa
         # min_distance_space = np.linspace(0.0, 1.5, 10)
         # min_distance_space = np.array([min_distance])
@@ -243,7 +245,7 @@ if __name__ == '__main__':
         if n_items > 2:
             f_table.close()
 
-    if False:
+    if 2 in to_plot:
         ## Change computation style, now define the elements with functions, and provide the inputs at the end
 
         # 1 obj
@@ -297,7 +299,7 @@ if __name__ == '__main__':
         n_samples = int(1e5)
         min_num_samples_std = int(3e3)
         min_distance = 0.1
-        n_items = 2
+        n_items = 5
         save_every = 3000
 
         plot_item2_effect = True
@@ -376,7 +378,11 @@ if __name__ == '__main__':
 
                 if i > 10 and plot_item2_effect:
                     plt.figure(2)
-                    contourf_interpolate_data(np.array(item2_positions), np.array(all_inv_FI_2obj), xlabel='$\phi_2$', ylabel='$\psi_2$', title='Inverse Fisher Information for $\phi_1 = \psi_1 = 0$, varying $\phi_2, \psi_2$', fignum=2, show_colorbar=False, show_scatter=False)
+                    
+                    min_distance_fct = lambda x, min_distance=0.1: np.abs(x) < min_distance
+                    min_distance_fct_part = functools.partial(min_distance_fct, min_distance=min_distance)
+
+                    contourf_interpolate_data(np.array(item2_positions), np.array(all_inv_FI_2obj), xlabel='$\phi_2$', ylabel='$\psi_2$', title='Inverse Fisher Information for $\phi_1 = \psi_1 = 0$, varying $\phi_2, \psi_2$', fignum=2, show_colorbar=False, show_scatter=False, mask_x_condition=min_distance_fct_part, mask_y_condition=min_distance_fct_part, interpolation_method='nearest')
 
                     dataio.save_current_figure('contourf_IF_2objeffect_{label}_{unique_id}.png')
 
@@ -390,4 +396,18 @@ if __name__ == '__main__':
     plt.show()
 
     say_finished(additional_comment=additional_comment)
+
+    return locals()
+
+
+if __name__ == '__main__':
+
+    all_vars = main(to_plot = [1, 2])
+
+    for var_to_reinst in all_vars:
+        vars()[var_to_reinst] = all_vars[var_to_reinst]
+
+    
+
+
 
