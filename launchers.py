@@ -170,7 +170,7 @@ def launcher_do_save_responses_simultaneous(args):
 
                 # Save the precision
                 # all_precisions[param1_i, repet_i] = sampler.get_precision()
-                all_precisions[t, tc, repet_i] = sampler.compute_angle_error()[1]
+                all_precisions[t, tc, repet_i] = sampler.compute_angle_error()['std']
 
                 print "-> %.5f" % all_precisions[t, tc, repet_i]
 

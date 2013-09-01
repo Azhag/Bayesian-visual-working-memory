@@ -88,7 +88,7 @@ def launcher_do_neuron_number_precision(args):
             
             # Save the precision
             # all_precisions[param1_i, repet_i] = sampler.get_precision()
-            all_precisions[param1_i, repet_i] = sampler.compute_angle_error()[1]
+            all_precisions[param1_i, repet_i] = sampler.compute_angle_error()['std']
 
             print "-> %.5f" % all_precisions[param1_i, repet_i]
         
@@ -225,7 +225,7 @@ def launcher_do_size_receptive_field(args):
             
             # Save the precision
             # all_precisions[param1_i, repet_i] = sampler.get_precision()
-            all_precisions[param1_i, repet_i] = sampler.compute_angle_error()[1]
+            all_precisions[param1_i, repet_i] = sampler.compute_angle_error()['std']
 
             
             print "-> %.5f" % all_precisions[param1_i, repet_i]
@@ -344,7 +344,7 @@ def launcher_do_size_receptive_field_number_neurons(args):
                 
                 # Save the precision
                 # all_precisions[param1_i, repet_i] = sampler.get_precision()
-                all_precisions[param1_i, param2_i, repet_i] = sampler.compute_angle_error()[1]
+                all_precisions[param1_i, param2_i, repet_i] = sampler.compute_angle_error()['std']
 
                 print "-> %.5f" % all_precisions[param1_i, param2_i, repet_i]
 
@@ -511,7 +511,7 @@ def launcher_do_mixed_ratioconj(args):
             
             # Save the precision
             # all_precisions[param1_i, repet_i] = sampler.get_precision()
-            all_precisions[param1_i, repet_i] = sampler.compute_angle_error()[1]
+            all_precisions[param1_i, repet_i] = sampler.compute_angle_error()['std']
 
             print "-> %.5f" % all_precisions[param1_i, repet_i]
         
@@ -598,7 +598,7 @@ def launcher_do_mixed_two_scales(args):
                 
                 # Save the precision
                 # all_precisions[param1_i, repet_i] = sampler.get_precision()
-                all_precisions[param1_i, param2_i, repet_i] = sampler.compute_angle_error()[1]
+                all_precisions[param1_i, param2_i, repet_i] = sampler.compute_angle_error()['std']
 
                 print "-> %.5f" % all_precisions[param1_i, param2_i, repet_i]
             

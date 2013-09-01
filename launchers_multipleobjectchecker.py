@@ -88,7 +88,7 @@ def launcher_do_checks_2obj(args):
         fi_precision[i] = sampler.get_precision()
 
         (angle_stats, angle_errors) = sampler.compute_angle_error(return_errors=True)
-        bias_avg[i] = angle_stats[0]
+        bias_avg[i] = angle_stats['bias']
         fi_bias[i] = 1./np.mean(angle_errors**2.)
 
         # Compare the FI obtained

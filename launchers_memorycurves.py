@@ -82,7 +82,7 @@ def launcher_do_memory_curve(args):
             
             # Save the precision
             all_precisions[t, repet_i] = sampler.get_precision(remove_chance_level=True)
-            # all_precisions[t, repet_i] = sampler.compute_angle_error()[1]
+            # all_precisions[t, repet_i] = sampler.compute_angle_error()['std']
 
             print "-> %.5f" % all_precisions[t, repet_i]
     
@@ -161,7 +161,7 @@ def launcher_do_multiple_memory_curve(args):
 
                 # Save the precision
                 all_precisions[t, tc, repet_i] = sampler.get_precision(remove_chance_level=True)
-                # all_precisions[t, tc, repet_i] = sampler.compute_angle_error()[1]
+                # all_precisions[t, tc, repet_i] = sampler.compute_angle_error()['std']
 
                 print "-> %.5f" % all_precisions[t, tc, repet_i]
             
@@ -243,7 +243,7 @@ def launcher_do_multiple_memory_curve_simult(args):
 
             # Save the precision
             all_precisions[t, repet_i] = sampler.get_precision(remove_chance_level=False, correction_theo_fit=1.0)
-            # all_precisions[t, repet_i] = 1./sampler.compute_angle_error()[1]
+            # all_precisions[t, repet_i] = 1./sampler.compute_angle_error()['std']
 
             print "-> %.5f" % all_precisions[t, repet_i]
 

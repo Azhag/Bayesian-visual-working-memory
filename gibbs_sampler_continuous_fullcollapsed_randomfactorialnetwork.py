@@ -411,41 +411,41 @@ class Sampler:
                 self.theta[n, sampled_feature_index] = all_angles[np.argmax(llh)]
     
 
-    def set_theta_max_likelihood_tc_integratedout(self, num_points=100, post_optimise=True, sampled_feature_index=0):
-        '''
-            Update theta to their Max Likelihood values.
-            Integrate out tc, by averaging the output of P(theta | yT, tc) for all tc.
-        '''
+    # def set_theta_max_likelihood_tc_integratedout(self, num_points=100, post_optimise=True, sampled_feature_index=0):
+    #     '''
+    #         Update theta to their Max Likelihood values.
+    #         Integrate out tc, by averaging the output of P(theta | yT, tc) for all tc.
+    #     '''
 
-        all_angles = np.linspace(-np.pi, np.pi, num_points, endpoint=False)
-        llh = np.zeros(num_points)
-        inferred_angles = np.zeros(self.T)
+    #     all_angles = np.linspace(-np.pi, np.pi, num_points, endpoint=False)
+    #     llh = np.zeros(num_points)
+    #     inferred_angles = np.zeros(self.T)
         
-        for n in xrange(self.N):
+    #     for n in xrange(self.N):
 
-            for tc in xrange(self.T):
+    #         for tc in xrange(self.T):
 
-                # Pack the parameters for the likelihood function
-                params = (self.theta[n], self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[tc], sampled_feature_index, self.mean_fixed_contrib[tc], self.inv_covariance_fixed_contrib)
+    #             # Pack the parameters for the likelihood function
+    #             params = (self.theta[n], self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[tc], sampled_feature_index, self.mean_fixed_contrib[tc], self.inv_covariance_fixed_contrib)
                     
-                # Compute the loglikelihood for all possible first feature
-                # Use this as initial value for the optimisation routine
-                for i in xrange(num_points):
-                    # Give the correct cued second feature
-                    llh[i] = loglike_theta_fct_single(all_angles[i], params)
+    #             # Compute the loglikelihood for all possible first feature
+    #             # Use this as initial value for the optimisation routine
+    #             for i in xrange(num_points):
+    #                 # Give the correct cued second feature
+    #                 llh[i] = loglike_theta_fct_single(all_angles[i], params)
                 
-                # opt_angles[n] = spopt.fminbound(loglike_theta_fct_single_min, -np.pi, np.pi, params, disp=3)
-                # opt_angles[n] = spopt.brent(loglike_theta_fct_single_min, params)
-                # opt_angles[n] = wrap_angles(np.array([np.mod(spopt.anneal(loglike_theta_fct_single_min, np.random.random_sample()*np.pi*2. - np.pi, args=params)[0], 2.*np.pi)]))
+    #             # opt_angles[n] = spopt.fminbound(loglike_theta_fct_single_min, -np.pi, np.pi, params, disp=3)
+    #             # opt_angles[n] = spopt.brent(loglike_theta_fct_single_min, params)
+    #             # opt_angles[n] = wrap_angles(np.array([np.mod(spopt.anneal(loglike_theta_fct_single_min, np.random.random_sample()*np.pi*2. - np.pi, args=params)[0], 2.*np.pi)]))
                 
-                if post_optimise:
-                    # Use a simple simplex method to converge closer to the solution and avoid aliasing effects.
-                    inferred_angles[tc] = spopt.fmin(loglike_theta_fct_single_min, all_angles[np.argmax(llh)], args=params, disp=False)[0]
-                else:
-                    inferred_angles[tc] = all_angles[np.argmax(llh)]
+    #             if post_optimise:
+    #                 # Use a simple simplex method to converge closer to the solution and avoid aliasing effects.
+    #                 inferred_angles[tc] = spopt.fmin(loglike_theta_fct_single_min, all_angles[np.argmax(llh)], args=params, disp=False)[0]
+    #             else:
+    #                 inferred_angles[tc] = all_angles[np.argmax(llh)]
         
-        # This approximates the sum of gaussian by a gaussian. As they have the same mixture probabilities, this is alright here...
-        self.theta[n, sampled_feature_index] = mean_angles(inferred_angles)
+    #     # This approximates the sum of gaussian by a gaussian. As they have the same mixture probabilities, this is alright here...
+    #     self.theta[n, sampled_feature_index] = mean_angles(inferred_angles)
     
 
     def change_cued_features(self, t_cued):
@@ -667,54 +667,54 @@ class Sampler:
             return llh_2angles_out
 
 
-    def plot_likelihood_alltc(self, n=0, num_points=500, should_plot=True, should_sample=False, num_samples=2000, return_output=False, sampled_feature_index = 0):
-        '''
-            Plot the posterior for different values of tc
-            Sample from all of them, reject samples to get sample from posterior with tc marginalized out.
-        '''
+    # def plot_likelihood_alltc(self, n=0, num_points=500, should_plot=True, should_sample=False, num_samples=2000, return_output=False, sampled_feature_index = 0):
+    #     '''
+    #         Plot the posterior for different values of tc
+    #         Sample from all of them, reject samples to get sample from posterior with tc marginalized out.
+    #     '''
 
-        x = np.linspace(-np.pi, np.pi, num_points)
-        ll_x = np.zeros((self.T, num_points))
+    #     x = np.linspace(-np.pi, np.pi, num_points)
+    #     ll_x = np.zeros((self.T, num_points))
 
-        # Do everything for all tc = 1:T.
-        for tc in xrange(self.T):
-            # Pack the parameters for the likelihood function.
-            #   Here, as the loglike_function only varies one of the input, need to give the rest of the theta vector.
-            params = (self.theta[n], self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[tc], sampled_feature_index, self.mean_fixed_contrib[tc], self.inv_covariance_fixed_contrib)
+    #     # Do everything for all tc = 1:T.
+    #     for tc in xrange(self.T):
+    #         # Pack the parameters for the likelihood function.
+    #         #   Here, as the loglike_function only varies one of the input, need to give the rest of the theta vector.
+    #         params = (self.theta[n], self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[tc], sampled_feature_index, self.mean_fixed_contrib[tc], self.inv_covariance_fixed_contrib)
             
-            # Compute the loglikelihood
-            i =0
-            for a in x:
-                ll_x[tc, i] = loglike_theta_fct_single(a, params)
-                i+=1
+    #         # Compute the loglikelihood
+    #         i =0
+    #         for a in x:
+    #             ll_x[tc, i] = loglike_theta_fct_single(a, params)
+    #             i+=1
             
-        # Sample if desired.
-        if should_sample:
-            posterior_samples = self.get_samples_theta_tc_integratedout(n)
+    #     # Sample if desired.
+    #     if should_sample:
+    #         posterior_samples = self.get_samples_theta_tc_integratedout(n)
 
-        if should_plot:
-            plt.figure()
+    #     if should_plot:
+    #         plt.figure()
             
-            # Center and 'normalize'
-            ll_x -= np.mean(ll_x, axis=1)[:, np.newaxis]
-            ll_x /= np.abs(np.max(ll_x, axis=1))[:, np.newaxis]
+    #         # Center and 'normalize'
+    #         ll_x -= np.mean(ll_x, axis=1)[:, np.newaxis]
+    #         ll_x /= np.abs(np.max(ll_x, axis=1))[:, np.newaxis]
 
-            # Plot
-            plt.plot(x, ll_x.T)
-            plt.axvline(x=self.data_gen.stimuli_correct[n, self.data_gen.cued_features[n, 1], 0], color='r')
-            plt.axvline(x=mean_angles(x[np.argmax(ll_x, 1)]), color='b')
+    #         # Plot
+    #         plt.plot(x, ll_x.T)
+    #         plt.axvline(x=self.data_gen.stimuli_correct[n, self.data_gen.cued_features[n, 1], 0], color='r')
+    #         plt.axvline(x=mean_angles(x[np.argmax(ll_x, 1)]), color='b')
 
-            if should_sample:
-                x_edges = x - np.pi/num_points  # np.histogram wants the left-right boundaries...
-                x_edges = np.r_[x_edges, -x_edges[0]]  # the rightmost boundary is the mirror of the leftmost one
-                sample_h, left_x = np.histogram(posterior_samples, bins=x_edges)
-                plt.bar(x_edges[:-1], sample_h/np.max(sample_h).astype('float'), facecolor='green', alpha=0.75, width=np.pi/num_points)
+    #         if should_sample:
+    #             x_edges = x - np.pi/num_points  # np.histogram wants the left-right boundaries...
+    #             x_edges = np.r_[x_edges, -x_edges[0]]  # the rightmost boundary is the mirror of the leftmost one
+    #             sample_h, left_x = np.histogram(posterior_samples, bins=x_edges)
+    #             plt.bar(x_edges[:-1], sample_h/np.max(sample_h).astype('float'), facecolor='green', alpha=0.75, width=np.pi/num_points)
         
-        if return_output:
-            if should_sample:
-                return (ll_x, x, posterior_samples)
-            else:
-                return (ll_x, x)
+    #     if return_output:
+    #         if should_sample:
+    #             return (ll_x, x, posterior_samples)
+    #         else:
+    #             return (ll_x, x)
     
 
     def estimate_fisher_info_from_posterior(self, n=0, all_angles=None, num_points=500):
@@ -846,6 +846,7 @@ class Sampler:
 
         np.seterr(all='raise')
         try:
+            # TODO Precision withouth square?
             precision_estimated = 1./(-2.*np.log(np.abs(np.trapz(posterior*np.exp(1j*x), x))))
         except FloatingPointError:
             # print 'Overflow on n: %d' % n
@@ -868,7 +869,7 @@ class Sampler:
 
         for i in progress.ProgressDisplay(np.arange(self.N), display=progress.SINGLE_LINE):
             precisions[i] = self.estimate_precision_from_posterior(n=i, num_points=num_points)
-
+ 
         if full_stats:
             return dict(mean=nanmean(precisions), std=nanstd(precisions), median=nanmedian(precisions), all=precisions)
         else:
@@ -911,10 +912,10 @@ class Sampler:
             samples = self.sample_theta(num_samples=num_samples, integrate_tc_out=False, return_samples=True, subset_theta=[n], selection_method=selection_method)[0]
 
             # Estimate the circular standard deviation of those samples
-            circ_std_dev = self.compute_mean_std_circular_data(samples)[1]
+            circ_std_dev = angle_circular_std_dev(samples)
 
             # And now get the precision (uncorrected for chance level)
-            all_precisions[repet_i] = 1./circ_std_dev**2.
+            all_precisions[repet_i] = compute_angle_precision_from_std(circ_std_dev)
 
             if return_samples:
                 all_samples[repet_i] = samples
@@ -1109,30 +1110,11 @@ class Sampler:
         return (log_z, log_y, log_joint)
     
     
-    
-    def compute_metric_all(self):
-        '''
-            Get metric statistics for the whole dataset
-            
-            Z:  N x T x R
-        '''
-        
-        raise NotImplementedError()
-
-        (angle_errors_stats, angle_errors) = self.compute_angle_error()
-        
-        if self.T==0:
-            (angle_mean_error_nomisbind, angle_std_dev_error_nomisbind, angle_mean_vector_nomisbind, avg_error_nomisbind, misbound_datapoints) = self.compute_misbinds(angle_errors)
-        
-            return (angle_errors_stats, (angle_mean_error_nomisbind, angle_std_dev_error_nomisbind, angle_mean_vector_nomisbind, avg_error_nomisbind, misbound_datapoints))
-        
-        return [angle_errors_stats, angle_errors]
-    
-    
     def compute_angle_error(self, return_errors=False, return_groundtruth=False):
         '''
             Compute the mean angle error for the current assignment of Z
-            output: (mean_std_)
+            output: dict(mean, std, population_vector)
+                    (dict(...), [angle_errors], [true_angles])
         '''
         
         # Get the target angles
@@ -1147,45 +1129,24 @@ class Sampler:
         # Compute the statistics. Uses the spherical formulation of standard deviation
         if return_errors:
             if return_groundtruth:
-                return (self.compute_mean_std_circular_data(angle_errors), angle_errors, true_angles)
+                return (compute_mean_std_circular_data(angle_errors), angle_errors, true_angles)
             else:
-                return (self.compute_mean_std_circular_data(angle_errors), angle_errors)
+                return (compute_mean_std_circular_data(angle_errors), angle_errors)
         else:
             if return_groundtruth:
-                return (self.compute_mean_std_circular_data(angle_errors), true_angles)
+                return (compute_mean_std_circular_data(angle_errors), true_angles)
             else:
-                return self.compute_mean_std_circular_data(angle_errors)
-    
-    
-    def compute_mean_std_circular_data(self, angles):
-        '''
-            Compute the mean vector, the std deviation according to the Circular Statistics formula
-            Assume a NxTxR matrix, averaging over N
-        '''
-        
-        # Average error
-        avg_error = np.mean(np.abs(angles), axis=0)
-        
-        # Angle population vector
-        angle_mean_vector = np.mean(np.exp(1j*angles), axis=0)
-        
-        # Population mean
-        angle_mean_error = np.angle(angle_mean_vector)
-        
-        # Circular standard deviation estimate
-        angle_std_dev_error = np.sqrt(-2.*np.log(np.abs(angle_mean_vector)))
-        
-        return (angle_mean_error, angle_std_dev_error, angle_mean_vector, avg_error)
+                return compute_mean_std_circular_data(angle_errors)
     
 
     def get_precision(self, remove_chance_level=False, correction_theo_fit=1.0):
         '''
-            Compute the precision, inverse of the std dev of the errors.
+            Compute the precision, inverse of the variance of the errors.
             This is our target metric
         '''
 
         # Compute precision
-        precision = 1./self.compute_angle_error()[1]**2.
+        precision = compute_angle_precision_from_std(self.compute_angle_error()['std'], square_precision=True)
         precision *= correction_theo_fit
 
         if remove_chance_level:
@@ -1265,6 +1226,31 @@ class Sampler:
             plt.xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi), (r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=15)
 
 
+    def plot_histogram_bias_nontarget(self, bins=31, in_degrees=False):
+        '''
+            Get an histogram of the errors between the response and all non targets
+
+            If biased towards 0-values, indicates misbinding errors.
+
+            [from Ed Awh's paper]
+        '''
+
+        assert self.T > 1, "No nontarget for a single object..."
+
+        (responses, target, nontargets) = self.collect_responses()
+
+        # Now check the error between the responses and nontargets.
+        # Flatten everything, we want the full histogram.
+        errors_nontargets = wrap_angles((responses[:, np.newaxis] - nontargets).flatten())
+
+        # Errors between the response the best nontarget.
+        errors_best_nontarget = wrap_angles((responses[:, np.newaxis] - nontargets))
+        errors_best_nontarget = errors_best_nontarget[np.arange(errors_best_nontarget.shape[0]), np.argmin(np.abs(errors_best_nontarget), axis=1)]
+
+        # Do the plots
+        histogram_angular_data(errors_nontargets, bins=bins, title='Errors between response and non-targets', norm='sum')
+        histogram_angular_data(errors_best_nontarget, bins=bins, title='Errors between response and best non-target', norm='sum')
+
     
     def collect_responses(self):
         '''
@@ -1293,31 +1279,7 @@ class Sampler:
         sio.savemat(filename, {'response': responses, 'target': target, 'nontargets': nontargets}, appendmat=True)
     
     
-    def plot_histogram_bias_nontarget(self, bins=31, in_degrees=False):
-        '''
-            Get an histogram of the errors between the response and all non targets
-
-            If biased towards 0-values, indicates misbinding errors.
-
-            [from Ed Awh's paper]
-        '''
-
-        assert self.T > 1, "No nontarget for a single object..."
-
-        (responses, target, nontargets) = self.collect_responses()
-
-        # Now check the error between the responses and nontargets.
-        # Flatten everything, we want the full histogram.
-        errors_nontargets = wrap_angles((responses[:, np.newaxis] - nontargets).flatten())
-
-        # Errors between the response the best nontarget.
-        errors_best_nontarget = wrap_angles((responses[:, np.newaxis] - nontargets))
-        errors_best_nontarget = errors_best_nontarget[np.arange(errors_best_nontarget.shape[0]), np.argmin(np.abs(errors_best_nontarget), axis=1)]
-
-        # Do the plots
-        histogram_angular_data(errors_nontargets, bins=bins, title='Errors between response and non-targets', norm='sum')
-        histogram_angular_data(errors_best_nontarget, bins=bins, title='Errors between response and best non-target', norm='sum')
-
+    
 
 ####################################
 if __name__ == '__main__':
