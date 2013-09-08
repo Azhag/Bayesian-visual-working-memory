@@ -7,23 +7,29 @@ Created by Loic Matthey on 2011-06-16.
 Copyright (c) 2011 Gatsby Unit. All rights reserved.
 """
 
-import matplotlib.pyplot as plt
 import numpy as np
+
 import scipy as sp
-import matplotlib.ticker as plttic
-# import scipy.io as sio
 import scipy.optimize as spopt
 import scipy.stats as spst
 import scipy.interpolate as spint
 import scipy.special as scsp
-import uuid
-from mpl_toolkits.mplot3d import Axes3D
+
+import matplotlib.pyplot as plt
+import matplotlib.patches as plt_patches
+import matplotlib.gridspec as plt_grid
+import matplotlib.ticker as plttic
 from matplotlib import cm
-from matplotlib.ticker import LinearLocator
+# from matplotlib.ticker import LinearLocator
 from matplotlib.colors import LogNorm
+
+from mpl_toolkits.mplot3d import Axes3D
+
+import datetime
+import uuid
+
 import smtplib
 from email.mime.text import MIMEText
-import datetime
 
 __maxexp__ = np.finfo('float').maxexp
 plt.ion()
@@ -418,6 +424,15 @@ def nanstd(array, axis=None):
     else:
         return np.ma.masked_invalid(array).std()
 
+
+def dropnan(array):
+    '''
+        Take an array, put it in a MaskedArray with ~np.isfinite masking.
+        Returns the compressed() 1D array.
+    '''
+    return np.ma.masked_invalid(array).compressed()
+
+
 def tril_set(array, vector_input, check_sizes=False):
     '''
         Sets the lower triangular part of array with vector_input
@@ -508,6 +523,72 @@ def remove_functions_dict(dict_input):
     '''
 
     return dict((k, v) for (k, v) in dict_input.iteritems() if not is_function(v))
+
+
+def angle_to_rgb(angle, normalise=True):
+    '''
+        Convert angle to LAB coordinates, and then LAB to RGB.
+    '''
+
+    try:
+        N = angle.size
+    except:
+        N = 1
+    
+    # Convert angle to LAB
+    lab_coord = 50*np.ones((N, 3))
+    lab_coord[:, 1] = 20. + 60.*np.sin(angle)
+    lab_coord[:, 2] = 20. + 60*np.cos(angle)
+
+    # Convert Lab to RGB
+    rgb_coord = lab2rgb(lab_coord)
+
+    # Normalise
+    if normalise:
+        rgb_coord /= 255.
+
+    return rgb_coord
+
+
+def lab2rgb(lab):
+    '''
+        Convert from LAB to RGB
+
+        Converted from Paul Bays
+    '''
+    V = np.empty((lab.shape[0], 3))
+
+    # Convert CIE L*a*b* to CIE XYZ
+    V[:, 1] = ( lab[:, 0] + 16 ) / 116.     # (Y/Yn)^(1/3)
+    V[:, 0] = lab[:, 1] / 500. + V[:, 1]    # (X/Xn)^(1/3)
+    V[:, 2] = V[:, 1] - lab[:, 2]/200.      # (Z/Zn)^(1/3)
+
+    Z = V**3. 
+
+    # Correction for small XYZ
+    Z[Z <= 0.008856] = (V[Z <= 0.008856] - 16./116.) / 7.787;
+
+    # Adjust for white point (D65, CIE 2 Deg Standard Observer)
+    Zn = np.array([95.047, 100.00, 108.883])
+    Z *= Zn
+
+    # Convert CIE XYZ to Rec 709 RGB
+    M = np.array([[3.2406, -1.5372, -0.4986],
+                  [-0.9689, 1.8758, 0.0415],
+                  [0.0557, -0.2040, 1.0570]])
+
+    R = np.dot(Z, M.T) / 100.
+
+    # Correct for non-linear output of display 
+    Q = R*12.92;
+    Q[R > 0.0031308] = 1.055 * R[R > 0.0031308]**(1./2.4) - 0.055
+
+    # Scale to range 1-255
+    C = np.round(Q*255.)
+    C[C > 255] = 255
+    C[C < 0 ] = 0
+
+    return C
 
 
 ########################## FILE I/O #################################
@@ -1095,6 +1176,55 @@ def plot_fft2_power(data, s=None, axes=(-2, -1), fignum=None):
     plt.imshow(np.log(np.abs(np.fft.fftshift(FS))**2.))
     plt.title('Power spectrum')
     plt.colorbar()
+
+
+def scatter_marginals(xdata, ydata, xlabel='', ylabel='', title='', scatter_marker='x', bins=50, factor_axis=1.1, fignum=None, figsize=None, show_colours=False):
+    '''
+        Plot the scattered distribution of (x, y), add the marginals as two subplots
+    '''
+
+    assert np.all(~np.isnan(xdata)) and np.all(~np.isnan(ydata)), "Xdata and Ydata should not contain NaNs"
+    
+    f = plt.figure(fignum, figsize=figsize)
+
+    # Construct a grid of 2x2 axes, changing their ratio
+    gs = plt_grid.GridSpec(2, 2, width_ratios=[1, 3], height_ratios=[3, 1])
+    
+    # First plot the 2D distribution
+    ax = plt.subplot(gs[1])
+    ax.scatter(xdata, ydata, marker=scatter_marker)
+    ax.set_xlim((-np.pi*factor_axis, np.pi*factor_axis))
+    ax.set_ylim((-np.pi*factor_axis, np.pi*factor_axis))
+    ax.set_title(title)
+
+    # Show colours on color plot, near axis
+    # transform angles to RGB, and then plot small patches, near the axis. Automatically determine the width of those, to match the plot dimensions. Could adapt it to put the patches outside, not sure...
+    if show_colours:
+        thetas = np.linspace(-np.pi, np.pi, 100)
+        dtheta = np.diff(thetas)[0]
+        rgb_theta = angle_to_rgb(thetas)
+        for theta_i, theta in enumerate(thetas):
+            ax.add_patch(plt_patches.Rectangle((theta, -np.pi*factor_axis), dtheta, np.pi*0.9*(factor_axis - 1.0), color=rgb_theta[theta_i]))
+            ax.add_patch(plt_patches.Rectangle((-np.pi*factor_axis, theta), np.pi*0.9*(factor_axis - 1.0), dtheta, color=rgb_theta[theta_i]))
+    
+    # Plot the marginals below and on the left. Bin everything.
+    ax = plt.subplot(gs[0])
+    plt.xticks(rotation=45)
+    (counts_y, bin_edges) = np.histogram(ydata, bins=bins, normed=True)
+    ax.barh(bin_edges[1:], counts_y, height=np.diff(bin_edges)[0])
+    ax.invert_xaxis()
+    ax.set_ylim((-np.pi*factor_axis, np.pi*factor_axis))
+
+    ax.set_ylabel(ylabel)
+
+    ax = plt.subplot(gs[3])
+    (counts_x, bin_edges) = np.histogram(xdata, bins=bins, normed=True)
+    ax.bar(bin_edges[1:], counts_x, width=np.diff(bin_edges)[0])
+    ax.set_xlim((-np.pi*factor_axis, np.pi*factor_axis))
+
+    ax.set_xlabel(xlabel)
+
+
 
 
 ################################# FITTING ########################################
