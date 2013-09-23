@@ -18,7 +18,7 @@ from utils import *
 
 def convert_wrap(dataset, keys_to_convert = ['item_angle', 'probe_angle', 'response', 'error', 'err'], max_angle=np.pi/2.):
     '''
-        Takes a dataset and a list of keys. Each data associated with these keys will be converted to radian, 
+        Takes a dataset and a list of keys. Each data associated with these keys will be converted to radian,
             and wrapped in a [-max_angle, max_angle] interval
     '''
     for key in keys_to_convert:
@@ -81,7 +81,7 @@ def preprocess_sequential(dataset, parameters):
             # Default value
             exec(curr_param[0] + " = " + str(curr_param[1]))
 
-    
+
     # Convert everything to radians, spanning a -np.pi/2:np.pi
     if convert_radians:  #pylint: disable=E0602
         convert_wrap(dataset)
@@ -145,12 +145,12 @@ def preprocess_doublerecall(dataset, parameters):
     dataset['error_colour'] = dataset['errors_colour_all'][:, 0]
     dataset['error'] = np.where(~np.isnan(dataset['error_angle']), dataset['error_angle'], dataset['error_colour'])
 
-    
+
     # Fit the mixture model
     dataset['em_fits'] = dict(kappa=np.empty(dataset['probe_angle'].size), mixt_target=np.empty(dataset['probe_angle'].size), mixt_nontarget=np.empty(dataset['probe_angle'].size), mixt_random=np.empty(dataset['probe_angle'].size), resp_target=np.empty(dataset['probe_angle'].size), resp_nontarget=np.empty(dataset['probe_angle'].size), resp_random=np.empty(dataset['probe_angle'].size), train_LL=np.empty(dataset['probe_angle'].size), test_LL=np.empty(dataset['probe_angle'].size))
     for key in dataset['em_fits']:
         dataset['em_fits'][key].fill(np.nan)
-    
+
     # Angles trials
     ids_angle = (dataset['cond'] ==  2.0).flatten()
     for n_items in np.unique(dataset['n_items']):
@@ -164,7 +164,7 @@ def preprocess_doublerecall(dataset, parameters):
         cross_valid_outputs = em_circularmixture.cross_validation_kfold(dataset['probe_angle'][ids_filtered, 0], dataset['item_angle'][ids_filtered, 0], dataset['item_angle'][ids_filtered, 1:], K=10, shuffle=True)
         params_fit = cross_valid_outputs['best_fit']
         resp = em_circularmixture.compute_responsibilities(dataset['probe_angle'][ids_filtered, 0], dataset['item_angle'][ids_filtered, 0], dataset['item_angle'][ids_filtered, 1:], params_fit)
-        
+
         dataset['em_fits']['kappa'][ids_filtered] = params_fit['kappa']
         dataset['em_fits']['mixt_target'][ids_filtered] = params_fit['mixt_target']
         dataset['em_fits']['mixt_nontarget'][ids_filtered] = params_fit['mixt_nontargets']
@@ -208,7 +208,7 @@ def preprocess_doublerecall(dataset, parameters):
 
 def load_dataset(filename = '', specific_preprocess = lambda x, p: x, parameters={}):
     '''
-        Load datasets. 
+        Load datasets.
         Supports
             - Simultaneous and sequential Gorgoraptis_2011 data: Exp1 and Exp2.
             - Dual recall data DualRecall_Bays.
@@ -220,7 +220,7 @@ def load_dataset(filename = '', specific_preprocess = lambda x, p: x, parameters
     # Specific operations, for different types of datasets
     specific_preprocess(dataset, parameters)
 
-    
+
     return dataset
 
 
@@ -362,7 +362,7 @@ def check_bias_bestnontarget(dataset):
 
     ## Remove all the probes, by setting them to nan
     # all_errors[np.arange(probe_indices.size), probe_indices] = np.nan
-    
+
     # Keep only the best non target for each trial
     # Use Bottleneck
     # min_indices = bn.nanargmin(np.abs(all_errors), axis=1)
@@ -375,8 +375,8 @@ def check_bias_bestnontarget(dataset):
 
     # Get the best non targets
     all_errors = all_errors[np.arange(probe_indices.size), np.ma.argmin(np.abs(masked_errors), axis=1)]
-    
-    ## Superslow    
+
+    ## Superslow
     # all_errors = np.array([all_errors[i, np.nanargmin(np.abs(all_errors[i]))] for i in xrange(all_errors.shape[0]) if not np.isnan(np.nanargmin(np.abs(all_errors[i])))])
 
     # Some plots
@@ -394,13 +394,13 @@ def compute_precision(errors, remove_chance_level=True, correct_orientation=True
         errors = errors.copy()*2.0
 
     # avg_error = np.mean(np.abs(errors), axis=0)
-        
+
     # Angle population vector
     error_mean_vector = np.mean(np.exp(1j*errors), axis=0)
-        
+
     # Population mean
     # error_mean_error = np.angle(error_mean_vector)
-        
+
     # Circular standard deviation estimate
     error_std_dev_error = np.sqrt(-2.*np.log(np.abs(error_mean_vector)))
 
@@ -546,12 +546,12 @@ def plots_doublerecall(dataset):
         ax = dataset_grouped_nona_conditems_mean[['mixt_target', 'mixt_nontarget', 'mixt_random', 'kappa']].plot(secondary_y='kappa', kind='bar')
         ax.set_ylabel('Mixture proportions')
         ax.right_ax.set_ylabel('Kappa')
-        
+
     # Show loglihood of fit
     if to_plot['loglik']:
         f, ax = plt.subplots(1, 1)
         dataset_grouped_nona_conditems_mean[['train_LL', 'test_LL']].plot(kind='bar', ax=ax, secondary_y='test_LL')
-    
+
     # Show boxplot of responsibilities
     if to_plot['resp_distrib']:
         dataset_grouped_nona_conditems.boxplot(column=['resp_target', 'resp_nontarget', 'resp_random'])
@@ -581,14 +581,14 @@ def plots_doublerecall(dataset):
             group.resp_random.hist(ax=axes[i, 2], color='r', bins=bins)
             axes[i, 2].text(0.5, 0.85, "R " + ' '.join([str(x) for x in name]), fontweight='bold', horizontalalignment='center', transform = axes[i, 2].transAxes)
             axes[i, 2].set_xlim((0.0, 1.0))
-            
+
             i += 1
 
     # Extract some parameters
     fitted_parameters = dataset_grouped_nona_conditems_mean.iloc[0].loc[['kappa', 'mixt_target', 'mixt_nontarget', 'mixt_random']]
     print fitted_parameters
-    
-    
+
+
 
 if __name__ == '__main__':
     ## Load data
@@ -600,7 +600,7 @@ if __name__ == '__main__':
     # keys:
     # 'probe', 'delayed', 'item_colour', 'probe_colour', 'item_angle', 'error', 'probe_angle', 'n_items', 'response', 'subject']
         (data_sequen, data_simult, data_dualrecall) = load_multiple_datasets([dict(filename=os.path.join(data_dir, 'Gorgoraptis_2011', 'Exp1.mat'), preprocess=preprocess_sequential, parameters={}), dict(filename=os.path.join(data_dir, 'Gorgoraptis_2011', 'Exp2.mat'), preprocess=preprocess_simultaneous, parameters={}), dict(filename=os.path.join(data_dir, 'DualRecall_Bays', 'rate_data.mat'), preprocess=preprocess_doublerecall, parameters={})])
-    
+
 
     # Check for bias towards 0 for the error between response and all items
     # check_bias_all(data_simult)
@@ -622,13 +622,13 @@ if __name__ == '__main__':
     # print "FI from exp", fi_fromexp
     # print "Precision no chance level removed", prec_theo
     # print "FI no chance", fi_fromtheo
-    
+
     # check_oblique_effect(data_simult, nb_bins=50)
 
     # np.save('processed_experimental_230613.npy', dict(data_simult=data_simult, data_sequen=data_sequen))
 
     plots_doublerecall(data_dualrecall)
-    
+
 
 
     plt.show()

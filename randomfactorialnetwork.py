@@ -28,22 +28,22 @@ class RandomFactorialNetwork():
             Randomness is in the distribution of orientations and radii of those gaussians.
     """
     def __init__(self, M, R=2, response_type = 'wrong_wrap', gain=1.0):
-        
+
         assert R == 2, "RandomFactorialNetwork only implemented for R=2 for now"
 
         self.M = M
         self.K = 0
         self.R = R
-        
+
         self.network_initialised = False
         self.population_code_type = None
-        
+
         self.neurons_preferred_stimulus = None
         self.neurons_sigma = None
         self.mask_neurons_unset = None
         self.normalisation = None
         self.gain = gain
-        
+
         self._ALL_NEURONS = np.arange(M)
 
         # self.response_type = 'bivariate_fisher'
@@ -65,39 +65,39 @@ class RandomFactorialNetwork():
         self.noise_covariance = None
 
         self.network_initialised = True
-    
-    
+
+
     def assign_prefered_stimuli(self, tiling_type='conjunctive', specific_neurons=None, reset=False, nb_feature_centers=3, scales_number=3):
         '''
             For all M factorial neurons, assign them a prefered stimulus tuple (e.g. (orientation, color) )
         '''
-        
+
         if self.neurons_preferred_stimulus is None or reset:
             # Handle uninitialized neurons
             self.neurons_preferred_stimulus = np.nan*np.ones((self.M, self.R))
-        
+
         if specific_neurons is None:
             specific_neurons = self._ALL_NEURONS
-            
+
         if specific_neurons.size != 0:
             # Only do something if non-empty
-            
+
             if tiling_type == 'conjunctive':
                 self.assign_prefered_stimuli_conjunctive(specific_neurons)
-            
+
             elif tiling_type == '2_features':
                 self.assign_prefered_stimuli_2_features(specific_neurons, nb_feature_centers=nb_feature_centers)
             elif tiling_type == 'wavelet':
                 self.assign_prefered_stimuli_wavelet(specific_neurons, scales_number=scales_number)
-            
+
             # Handle uninitialized neurons
             #   check if still some nan, any on the first axis.
-            self.mask_neurons_unset = np.any(np.isnan(self.neurons_preferred_stimulus), 1) 
+            self.mask_neurons_unset = np.any(np.isnan(self.neurons_preferred_stimulus), 1)
 
             # Compute the vector representation
             self.compute_preferred_vectors()
-    
-    
+
+
 
     def assign_prefered_stimuli_conjunctive(self, neurons_indices):
         '''
@@ -110,7 +110,7 @@ class RandomFactorialNetwork():
 
         # coverage_1D = np.linspace(-np.pi, np.pi, N_sqrt, endpoint=False)
         coverage_1D = np.linspace( -np.pi + np.pi/N_sqrt, np.pi + np.pi/N_sqrt, N_sqrt, endpoint=False)
-        
+
         new_stim = np.array(cross(self.R*[coverage_1D.tolist()]))
 
         # Change the range?
@@ -121,7 +121,7 @@ class RandomFactorialNetwork():
         # Assign the preferred stimuli
         #   Unintialized neurons will get masked out down there.
         self.neurons_preferred_stimulus[neurons_indices[:new_stim.shape[0]]] = new_stim
-    
+
 
     def assign_prefered_stimuli_2_features(self, neurons_indices, nb_feature_centers=3):
         '''
@@ -130,7 +130,7 @@ class RandomFactorialNetwork():
             TODO: currently wrong, as this is in spherical coordinates, should cover the surface of the hypersphere instead.
         '''
         N = np.round(neurons_indices.size/self.R)
-                
+
         # Arbitrary put them along (x, 0) and (0, y) axes
         # coverage_1D = np.linspace(-np.pi, np.pi, N, endpoint=False)
         # self.neurons_preferred_stimulus[neurons_indices[0:N], 0] = coverage_1D
@@ -156,11 +156,11 @@ class RandomFactorialNetwork():
             self.neurons_preferred_stimulus[neurons_indices[N+center_i*sub_N:(N+(center_i+1)*sub_N)], 0] = centers[center_i]
             self.neurons_preferred_stimulus[neurons_indices[N+center_i*sub_N:(N+(center_i+1)*sub_N)], 1] = coverage_1D
 
-    
+
     def assign_prefered_stimuli_wavelet(self, neurons_indices, scales_number=3):
         '''
             Tile conjunctive neurons in a multiscale manner.
-        
+
         '''
 
         # Generate the positions of centers
@@ -197,37 +197,37 @@ class RandomFactorialNetwork():
         '''
             Each neuron has a gaussian receptive field, defined by its eigenvectors/eigenvalues (principal axes and scale)
             Uses the same eigenvalues for all of those
-            
+
             input:
                 ratio:  1/-1   : circular gaussian.
                         >1      : ellipse, width>height
                         <-1     : ellipse, width<height
                         [-1, 1] : not used
         '''
-        
+
         if self.neurons_sigma is None or reset:
             self.neurons_sigma = np.zeros((self.M, self.R))
             self.neurons_angle = np.zeros(self.M)
-        
+
         if specific_neurons is None:
             specific_neurons = self._ALL_NEURONS
-        
+
         assert ratio <= -1 or ratio >= 1, "respect my authority! Use ratio >= 1 or <=-1"
-        
+
         if ratio>0:
             self.neurons_sigma[specific_neurons, 1] = ratio*scale
             self.neurons_sigma[specific_neurons, 0] = scale
             self.neurons_angle[specific_neurons] = 0.0
-            
+
         elif ratio <0:
             self.neurons_sigma[specific_neurons, 1] = scale
             self.neurons_sigma[specific_neurons, 0] = -ratio*scale
             self.neurons_angle[specific_neurons] = 0.0
-        
+
         # Update parameters
-        self.precompute_parameters(specific_neurons=specific_neurons)        
-    
-    
+        self.precompute_parameters(specific_neurons=specific_neurons)
+
+
     def assign_random_eigenvectors(self, scale_parameters=(10.0, 1./10.), ratio_parameters=(1.0, 1.0), specific_neurons = None, reset=False):
         '''
             Each neuron has a gaussian receptive field, defined by its eigenvectors/eigenvalues (principal axes and scale)
@@ -237,28 +237,28 @@ class RandomFactorialNetwork():
         '''
         if self.R > 2:
             raise NotImplementedError('Not assign_random_eigenvectors not done for R>2')
-        
+
         if self.neurons_sigma is None or reset:
             self.neurons_sigma = np.zeros((self.M, self.R))
             self.neurons_angle = np.zeros(self.M)
-        
+
         if specific_neurons is None:
             specific_neurons = self._ALL_NEURONS
-        
+
         # Sample eigenvalues: Draw scale and ratios
         scale_rnd = np.random.gamma(scale_parameters[0], scale_parameters[1], size=specific_neurons.size)
         ratio_rnd = np.random.gamma(ratio_parameters[0], ratio_parameters[1], size=specific_neurons.size)
         self.neurons_sigma[specific_neurons, 0] = np.sqrt(scale_rnd/ratio_rnd)
         self.neurons_sigma[specific_neurons, 1] = ratio_rnd*self.neurons_sigma[specific_neurons, 0]
-        
+
         # Sample eigenvectors (only need to sample a rotation matrix)
         # TODO only for R=2 for now, should find a better way.
         # self.neurons_angle[specific_neurons] = np.random.random_integers(0, 1, size=specific_neurons.size)*np.pi/2.
         self.neurons_angle[specific_neurons] = np.pi*np.random.random(size=specific_neurons.size)
-        
+
         self.precompute_parameters(specific_neurons=specific_neurons)
 
-    
+
     def assign_scaled_eigenvectors(self, scale_parameters = (100.0, 0.001), ratio_parameters = (100., 0.001), specific_neurons = None, reset = False):
         '''
             Each neuron gets a gaussian receptive field, with a scale that becomes smaller as it's associate scale goes down as well.
@@ -266,14 +266,14 @@ class RandomFactorialNetwork():
 
         if self.R > 2:
             raise NotImplementedError('Not assign_random_eigenvectors not done for R>2')
-        
+
         if self.neurons_sigma is None or reset:
             self.neurons_sigma = np.zeros((self.M, self.R))
             self.neurons_angle = np.zeros(self.M)
-        
+
         if specific_neurons is None:
             specific_neurons = self._ALL_NEURONS
-        
+
         # First create a normal conjunctive population. Then will shrink it appropriately
         scale_rnd = np.random.gamma(scale_parameters[0], scale_parameters[1], size=specific_neurons.size)
         ratio_rnd = np.random.gamma(ratio_parameters[0], ratio_parameters[1], size=specific_neurons.size)
@@ -286,11 +286,11 @@ class RandomFactorialNetwork():
 
         # Assign angles
         self.neurons_angle[specific_neurons] = np.pi*np.random.random(size=specific_neurons.size)
-        
+
         # Compute parameters
         self.precompute_parameters(specific_neurons=specific_neurons)
 
-    
+
 
     def compute_preferred_vectors(self, should_plot=False):
         '''
@@ -304,7 +304,7 @@ class RandomFactorialNetwork():
             # Plot them, pretty
             self.plot_coverage_preferred_stimuli_3d_sphere()
 
-    
+
     def precompute_parameters(self, specific_neurons=None):
         '''
             Function called to precompute different parameters to speed-up some computations
@@ -312,7 +312,7 @@ class RandomFactorialNetwork():
         if self.response_type == 'wrong_wrap':
             # The receptive fields are (wrong) gaussians, precompute its parameters
             self.compute_2d_parameters(specific_neurons=specific_neurons)
-        
+
         elif self.response_type == 'bivariate_fisher':
             # Precompute the normalisation constant
             self.compute_normalising_constant_bivariatefisher(specific_neurons=specific_neurons)
@@ -326,15 +326,15 @@ class RandomFactorialNetwork():
         '''
             Assuming R=2, we have simple fast formulas to get the gaussian responses of neurons
         '''
-        
+
         if specific_neurons is None:
             specific_neurons = self._ALL_NEURONS
-        
+
         self.neurons_params = np.zeros((self.M, 3))
 
         # Compute the 3 components of the covariance of the gaussian filter [a, b; b, c]
         for m in xrange(specific_neurons.size):
-            
+
             self.neurons_params[specific_neurons[m], 0] = np.cos(self.neurons_angle[specific_neurons[m]])**2./(2.*self.neurons_sigma[specific_neurons[m], 0]**2.) + np.sin(self.neurons_angle[specific_neurons[m]])**2./(2.*self.neurons_sigma[specific_neurons[m], 1]**2.)
             self.neurons_params[specific_neurons[m], 1] = -np.sin(2.*self.neurons_angle[specific_neurons[m]])/(4.*self.neurons_sigma[specific_neurons[m], 0]**2.) + np.sin(2.*self.neurons_angle[specific_neurons[m]])/(4.*self.neurons_sigma[specific_neurons[m], 1]**2.)
             self.neurons_params[specific_neurons[m], 2] = np.sin(self.neurons_angle[specific_neurons[m]])**2./(2.*self.neurons_sigma[specific_neurons[m], 0]**2.) + np.cos(self.neurons_angle[specific_neurons[m]])**2./(2.*self.neurons_sigma[specific_neurons[m], 1]**2.)
@@ -350,7 +350,7 @@ class RandomFactorialNetwork():
 
             Here, for \kappa_3=0, only m=0 used
         '''
-        
+
         if self.normalisation is None:
             self.normalisation = np.zeros(self.M)
 
@@ -360,8 +360,8 @@ class RandomFactorialNetwork():
             self.normalisation = 4.*np.pi**2.0*scsp.i0(self.neurons_sigma[:, 0])*scsp.i0(self.neurons_sigma[:, 1])/self.gain
         else:
             self.normalisation[specific_neurons] = 4.*np.pi**2.0*scsp.i0(self.neurons_sigma[specific_neurons, 0])*scsp.i0(self.neurons_sigma[specific_neurons, 1])/self.gain
-        
-    
+
+
     #########################################################################################################
 
 
@@ -381,9 +381,9 @@ class RandomFactorialNetwork():
             return self.get_network_response_wrongwrap(stimulus_input, specific_neurons=specific_neurons, params=params)
         elif self.response_type == 'bivariate_fisher':
             return self.get_network_response_bivariatefisher(stimulus_input, specific_neurons=specific_neurons, params=params)
-        
-        
-    
+
+
+
     def get_network_response_vonmisesfisher(self, stimulus_input, specific_neurons=None, params={}):
         '''
             Compute the response of the network.
@@ -412,15 +412,15 @@ class RandomFactorialNetwork():
 
         if specific_neurons is None:
             specific_neurons = self._ALL_NEURONS
-        
+
         # Vector version of the stimulus
         # stimulus_input = np.array(stimulus_input)
         # stimulus_input[1] += np.pi
         stimulus_input_vect = spherical_to_vect(stimulus_input)
-        
+
         # Diff
         # deltaV = (self.neurons_preferred_stimulus_vect-stimulus_input_vect)
-        
+
         # Get the response
         normalisation = kappa/(2.*np.pi*(np.exp(kappa) - np.exp(-kappa)))
         # normalisation = 1.0
@@ -428,13 +428,13 @@ class RandomFactorialNetwork():
         # M_rot = create_2D_rotation_matrix(self.neurons_angle[0])
         # M_scale = np.diag((1.0, 1.0))
         # A = np.dot(M_rot, np.dot(M_scale, M_rot.T))
-        
+
         if function_type == 'vonmisesfisher':
             # Von Mises-Fisher
             output = normalisation*np.exp(kappa*np.dot(self.neurons_preferred_stimulus_vect[specific_neurons], stimulus_input_vect))
         elif function_type == 'kent_5':
             # 5-param Kent
-            
+
             print "Work in progress..."
 
             axis1 = gs_ortho(np.array((0., 0., 1.)), self.neurons_preferred_stimulus_vect[7])
@@ -459,9 +459,9 @@ class RandomFactorialNetwork():
         # output = normalisation*np.exp(kappa*np.dot(self.neurons_preferred_stimulus_vect, modified_stimulus))
 
         output[self.mask_neurons_unset[specific_neurons]] = 0.0
-        
+
         return output
-    
+
 
     def get_network_response_bivariatefisher(self, stimulus_input, specific_neurons=None, params={}, variant='cos'):
         '''
@@ -496,9 +496,9 @@ class RandomFactorialNetwork():
     def get_network_response_wrongwrap(self, stimulus_input, specific_neurons=None, params={}):
         '''
             Compute the response of the network.
-            
+
             Could be optimized, for now only for one stimulus tuple
-            
+
         '''
 
         # Unpack parameters
@@ -513,9 +513,9 @@ class RandomFactorialNetwork():
 
         if specific_neurons is None:
             specific_neurons = self._ALL_NEURONS
-        
+
         normalisation = 1.
-        
+
         dx = (self.neurons_preferred_stimulus[specific_neurons, 0] - stimulus_input[0])
         dy = (self.neurons_preferred_stimulus[specific_neurons, 1] - stimulus_input[1])
 
@@ -533,8 +533,8 @@ class RandomFactorialNetwork():
         # Wrap differently
         # dx = np.fmin(dx, 2.*np.pi - dx)
         # dy = np.fmin(dy, 2.*np.pi - dy)
-        
-        
+
+
         if self.R == 2:
             output = normalisation*np.exp(-self.neurons_params[specific_neurons, 0]*dx**2.0 - 2.*self.neurons_params[specific_neurons, 1]*dx*dy - self.neurons_params[specific_neurons, 2]*dy**2.0)
             # output = normalisation*np.exp(vonmises_param[0]*cosdx + vonmises_param[1]*cosdy + vonmises_param[2]*sindx*sindy)
@@ -545,7 +545,7 @@ class RandomFactorialNetwork():
         else:
             # not unrolled
             raise NotImplementedError('R>3 for factorial code...')
-    
+
     ####
 
     def compute_network_response_statistics(self, precision = 20, params = {}, ignore_cache=False):
@@ -558,7 +558,7 @@ class RandomFactorialNetwork():
 
         if ignore_cache or self.network_response_statistics is None:
             # Should compute it
-            
+
             # Sample responses to measure the statistics on
             responses = self.collect_network_responses(precision=precision, params=params)
 
@@ -573,7 +573,7 @@ class RandomFactorialNetwork():
 
         # Return the cached values
         return self.network_response_statistics
-    
+
 
     def collect_network_responses(self, precision = 20, params = {}):
         '''
@@ -628,7 +628,7 @@ class RandomFactorialNetwork():
         half_psij_plus_psii = (self.neurons_preferred_stimulus[:, 1][:, np.newaxis] + self.neurons_preferred_stimulus[:, 1])/2.
         half_psij_minus_psii = (self.neurons_preferred_stimulus[:, 1][:, np.newaxis] - self.neurons_preferred_stimulus[:, 1])/2.
         cov_theoretical = (scsp.i0(2*kappa1*np.cos(half_phij_minus_phii)) - scsp.i0(kappa1)**2.)/(16.*np.pi**4.*scsp.i0(kappa1)**2.*scsp.i0(kappa2)**2.) * np.exp(2.*kappa2*np.cos(theta2 - half_psij_plus_psii)*np.cos(half_psij_minus_psii))
-        
+
         network_response_statistics = {'mean': mean_theoretical, 'cov': cov_theoretical}
 
         return network_response_statistics
@@ -650,27 +650,27 @@ class RandomFactorialNetwork():
     def sample_network_response(self, stimulus_input, sigma=0.2, params={}):
         '''
             Get a random response for the given stimulus.
-            
+
             return: Mx1
         '''
-        
+
         return self.get_network_response(stimulus_input, params=params) + sigma*np.random.randn(self.M)
-    
+
 
     def sample_multiple_network_response(self, stimuli_input, sigma=0.2, params={}):
         '''
             Get a set of random responses for multiple stimuli
-            
+
             return: N x M
         '''
-        
+
         nb_samples = stimuli_input.shape[0]
         net_samples = np.zeros((nb_samples, self.M))
 
 
         for i in xrange(nb_samples):
             net_samples[i] = self.sample_network_response(stimuli_input[i], sigma=sigma, params=params)
-        
+
         return net_samples
 
 
@@ -692,7 +692,7 @@ class RandomFactorialNetwork():
         der_f_0[self.mask_neurons_unset] = 0.0
 
         return der_f_0
-    
+
 
     def compute_covariance_stimulus(self, stimulus_input, N=2000, sigma=0.2, params={}):
         '''
@@ -750,7 +750,7 @@ class RandomFactorialNetwork():
         if kappa_different:
             # We need to keep the kappa_i_1 and kappa_i_2 in the sum, more general
             der_f_0 = self.neurons_sigma[:, 0]*np.sin(stimulus_input[0] - self.neurons_preferred_stimulus[:, 0])*np.exp(self.neurons_sigma[:, 0]*np.cos(stimulus_input[0] - self.neurons_preferred_stimulus[:, 0]) + self.neurons_sigma[:, 1]*np.cos(stimulus_input[1] - self.neurons_preferred_stimulus[:, 1]))/(4.*np.pi**2.0*scsp.i0(self.neurons_sigma[:, 0])*scsp.i0(self.neurons_sigma[:, 1]))
-            
+
             der_f_0[self.mask_neurons_unset] = 0.0
 
             return np.dot(der_f_0, np.linalg.solve(cov_stim, der_f_0))
@@ -773,7 +773,7 @@ class RandomFactorialNetwork():
             Compute the theoretical, large N limit estimate of the Fisher Information
             This one assumes a diagonal covariance matrix, wrong for the complete model.
         '''
-        
+
         if self.population_code_type == 'conjunctive':
             rho = 1./(4*np.pi**2/(self.M))
             # rho = 1./(2*np.pi/(self.M))
@@ -794,11 +794,11 @@ class RandomFactorialNetwork():
 
 
     def compute_fisher_information_fullspace(self, sigma=0.01, cov_stim=None, precision=100, params={}):
-        
+
         feature_space = np.linspace(-np.pi, np.pi, precision)
-        
+
         activity = np.zeros((feature_space.size, feature_space.size))
-        
+
         if cov_stim is None:
             cov_stim = self.compute_covariance_stimulus((0., 0.), sigma=sigma, params=params)
 
@@ -806,9 +806,9 @@ class RandomFactorialNetwork():
         for i in xrange(feature_space.size):
             for j in xrange(feature_space.size):
                 activity[i, j] = self.compute_fisher_information(stimulus_input=np.array((feature_space[i], feature_space[j])), sigma=sigma, cov_stim=cov_stim, params=params)
-            
+
         return activity
-        
+
 
     def get_neuron_activity(self, neuron_index, precision=100, return_axes_vect = False, params={}):
         '''
@@ -816,27 +816,27 @@ class RandomFactorialNetwork():
         '''
 
         (feature_space1, feature_space2, activity) = self.init_feature_cover_matrices(precision)
-        
+
         # Compute the activity of that neuron over the whole space
         for i in xrange(feature_space1.size):
             for j in xrange(feature_space2.size):
                 activity[i, j] = self.get_neuron_response(neuron_index, (feature_space1[i], feature_space2[j]), params=params)
-        
-        
+
+
         if return_axes_vect:
             return activity, feature_space1, feature_space2
         else:
             return activity
-    
+
 
     def get_mean_activity(self, precision=100, specific_neurons=None, return_axes_vect = False, params={}):
         '''
             Returns the mean activity of the network.
         '''
 
-        
+
         (feature_space1, feature_space2, mean_activity) = self.init_feature_cover_matrices(precision)
-        
+
         for feat1_i in xrange(feature_space1.size):
             for feat2_i in xrange(feature_space2.size):
                 mean_activity[feat1_i, feat2_i] = np.mean(self.get_network_response((feature_space1[feat1_i], feature_space2[feat2_i]), specific_neurons=specific_neurons, params=params))
@@ -845,7 +845,7 @@ class RandomFactorialNetwork():
             return mean_activity, feature_space1, feature_space2
         else:
             return mean_activity
-        
+
 
     def compute_num_neurons_responsive_stimulus(self, percent_max=0.5, precision=100, should_plot=True, debug=True):
         '''
@@ -862,7 +862,7 @@ class RandomFactorialNetwork():
                 network_activity[feat1_i, feat2_i] = self.get_network_response((feature_space1[feat1_i], feature_space2[feat2_i]))
 
         num_responsive_neurons = np.sum(network_activity > network_activity.max()*percent_max, axis=-1)
-        
+
         avg_num_responsive_neurons = np.mean(num_responsive_neurons)
 
         if debug:
@@ -882,12 +882,12 @@ class RandomFactorialNetwork():
 
         return avg_num_responsive_neurons
 
-        
 
 
 
 
-    ######################## 
+
+    ########################
 
     def init_feature_cover_matrices(self, precision=20, endpoint=True):
         '''
@@ -912,7 +912,7 @@ class RandomFactorialNetwork():
             feature_space1 = self.init_feature_space(precision=precision, endpoint=endpoint)
             feature_space2 = self.init_feature_space(precision=precision, endpoint=endpoint)
             cross_array = np.zeros((feature_space1.size, feature_space2.size))
-        
+
         return (feature_space1, feature_space2, cross_array)
 
 
@@ -941,17 +941,17 @@ class RandomFactorialNetwork():
             Show the features (R=2 only)
         '''
         assert self.R == 2, "only works for R=2"
-        
+
         if specific_neurons is None:
             specific_neurons = self._ALL_NEURONS
-        
+
         if ax is None:
             fig = plt.figure()
             ax = fig.add_subplot(111, aspect='equal')
-        
+
 
         ells = [Ellipse(xy=self.neurons_preferred_stimulus[m], width=width_factor*nb_stddev*kappa_to_stddev(self.neurons_sigma[m, 0]), height=height_factor*nb_stddev*kappa_to_stddev(self.neurons_sigma[m, 1]), angle=-np.degrees(self.neurons_angle[m])) for m in specific_neurons if ~self.mask_neurons_unset[m]]
-        
+
         for e in ells:
             ax.add_artist(e)
             e.set_clip_box(ax.bbox)
@@ -963,7 +963,7 @@ class RandomFactorialNetwork():
             else:
                 e.set_facecolor(facecolor)
             e.set_transform(ax.transData)
-        
+
         # ax.autoscale_view()
         # ax.set_xlim(-1.4*np.pi, 1.3*np.pi)
         # ax.set_ylim(-1.4*np.pi, 1.3*np.pi)
@@ -974,28 +974,28 @@ class RandomFactorialNetwork():
         ax.set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=17)
         ax.set_yticks((-np.pi, -np.pi / 2, 0, np.pi / 2., np.pi))
         ax.set_yticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=17)
-        
+
         ax.set_xlabel('Orientation', fontsize=14)
         ax.set_ylabel('Color', fontsize=14)
-        
+
         plt.draw()
-        
+
         plt.show()
 
         return ax
-    
+
 
     def plot_mean_activity(self, precision=100, specific_neurons=None, params={}):
         '''
             Plot \sum_i \phi_i(x) at all x
         '''
-        
+
         assert self.R == 2, "Only implemented for R=2"
-        
+
         (mean_activity, feature_space1, feature_space2) =  self.get_mean_activity(precision=precision, specific_neurons=specific_neurons, params=params, return_axes_vect=True)
 
         print "%.3f %.5f" % (np.mean(mean_activity), np.std(mean_activity.flatten()))
-        
+
         f = plt.figure()
         ax = f.add_subplot(111)
         im = ax.imshow(mean_activity.T, origin='lower')
@@ -1009,31 +1009,31 @@ class RandomFactorialNetwork():
         ax.set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=17)
         ax.set_yticks((-np.pi, -np.pi / 2, 0, np.pi / 2., np.pi))
         ax.set_yticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=17)
-        
+
         plt.show()
-    
+
 
     def plot_mean_activity_fft(self, precision=100, specific_neurons=None, params={}):
         '''
             Plot \sum_i \phi_i(x) at all x
         '''
-        
+
         assert self.R == 2, "Only implemented for R=2"
-        
+
         (mean_activity, feature_space1, feature_space2) =  self.get_mean_activity(precision=precision, specific_neurons=specific_neurons, params=params, return_axes_vect=True)
-        
+
         plot_fft2_power(mean_activity)
 
         plt.show()
-    
-    
+
+
     def plot_neuron_activity(self, neuron_index=0, nb_stddev=1., precision=100, params={}):
         '''
             Plot the activity of one specific neuron over the whole input space.
         '''
-        
+
         activity, feature_space1, feature_space2 = self.get_neuron_activity(neuron_index, precision=precision, return_axes_vect=True, params=params)
-        
+
         # Plot it
         f = plt.figure()
         ax = f.add_subplot(111)
@@ -1044,10 +1044,10 @@ class RandomFactorialNetwork():
         ax.set_xlabel('Orientation')
         # im.set_interpolation('nearest')
         f.colorbar(im)
-        
+
         # Plot the ellipse showing one standard deviation
         e = Ellipse(xy=self.neurons_preferred_stimulus[neuron_index], width=nb_stddev*kappa_to_stddev(self.neurons_sigma[neuron_index, 0]), height=nb_stddev*kappa_to_stddev(self.neurons_sigma[neuron_index, 1]), angle=-np.degrees(self.neurons_angle[neuron_index]))
-        
+
         ax.add_artist(e)
         e.set_clip_box(ax.bbox)
         e.set_alpha(0.5)
@@ -1058,9 +1058,9 @@ class RandomFactorialNetwork():
         ax.set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=17)
         ax.set_yticks((-np.pi, -np.pi / 2, 0, np.pi / 2., np.pi))
         ax.set_yticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=17)
-        
+
         # Change mouse over behaviour
-        def report_pixel(x_mouse, y_mouse): 
+        def report_pixel(x_mouse, y_mouse):
             # Extract loglik at that position
             try:
                 x_display = x_mouse
@@ -1068,11 +1068,11 @@ class RandomFactorialNetwork():
 
                 x_i = np.argmin((feature_space1 - x_display)**2.)
                 y_i = np.argmin((feature_space2 - y_display)**2.)
-  
+
                 return "x=%.2f y=%.2f value=%.2f" % (x_display, y_display, activity[x_i, y_i])
             except:
                 return ""
-    
+
         ax.format_coord = report_pixel
 
         plt.show()
@@ -1126,7 +1126,7 @@ class RandomFactorialNetwork():
 
         # Get the network response
         activity = np.reshape(self.get_network_response(stimulus_input, params=params)[:int(M_sqrt**2.)], (M_sqrt, M_sqrt))
-        
+
         # Plot it
         if ax_handle is None:
             f = plt.figure()
@@ -1139,9 +1139,9 @@ class RandomFactorialNetwork():
         ax_handle.set_xlabel('Orientation')
         im.set_interpolation('nearest')
         f.colorbar(im)
-        
-        plt.show()    
-    
+
+        plt.show()
+
 
     def plot_fisher_info_fullspace(self, sigma=0.01, cov_stim=None, precision=100, params={}):
         activity = self.compute_fisher_information_fullspace(sigma=sigma, cov_stim=cov_stim, precision=precision, params=params)
@@ -1155,7 +1155,7 @@ class RandomFactorialNetwork():
         # im.set_interpolation('nearest')
         f.colorbar(im)
 
-    
+
     def plot_coverage_preferred_stimuli_3d(self):
         '''
             Show the preferred stimuli coverage on a sphere/torus.
@@ -1163,29 +1163,29 @@ class RandomFactorialNetwork():
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
         ax.scatter(self.neurons_preferred_stimulus_vect[~self.mask_neurons_unset, 0], self.neurons_preferred_stimulus_vect[~self.mask_neurons_unset, 1], self.neurons_preferred_stimulus_vect[~self.mask_neurons_unset, 2])
-        plt.show()  
-    
-    
+        plt.show()
+
+
     def plot_neuron_activity_3d(self, neuron_index=0, precision=20, weight_deform=0.5, params={}, draw_colorbar=True):
         '''
             Plot the activity of a neuron on the sphere/torus
         '''
 
         (feature_space1, feature_space2, activity) = self.init_feature_cover_matrices(precision)
-        
+
         # Compute the activity of that neuron over the whole space
         for i in xrange(feature_space1.size):
             for j in xrange(feature_space2.size):
                 activity[i, j] = self.get_neuron_response(neuron_index, (feature_space1[i], feature_space2[j]), params=params)
                 # activity[i,j] = self.get_neuron_response(neuron_index, (feature_space[i], feature_space[j]))
-        
+
         if self.coordinates == 'spherical':
             plot_sphere(feature_space1, feature_space2, activity, weight_deform=weight_deform)
         elif self.coordinates == 'full_angles' or self.coordinates == 'full_angles_sym':
             plot_torus(feature_space1, feature_space2, activity, weight_deform=weight_deform, draw_colorbar=draw_colorbar)
         else:
             raise ValueError('Unsupported self.coordinates')
-    
+
 
     def plot_mean_activity_3d(self, precision=20, specific_neurons=None, weight_deform=0.5, params={}):
         '''
@@ -1193,7 +1193,7 @@ class RandomFactorialNetwork():
         '''
 
         (mean_activity, feature_space1, feature_space2) =  self.get_mean_activity(precision=precision, specific_neurons=specific_neurons, params=params, return_axes_vect=True)
-        
+
         if self.coordinates == 'spherical':
             plot_sphere(feature_space1, feature_space2, mean_activity, weight_deform=weight_deform)
         elif self.coordinates == 'full_angles' or self.coordinates == 'full_angles_sym':
@@ -1234,16 +1234,16 @@ class RandomFactorialNetwork():
 
                 # We are given the desired mean and variance of the scale. Convert to appropriate Gamma parameters
                 scale_parameters = (scale_moments[0]**2./scale_moments[1], scale_moments[1]/scale_moments[0])
-            
+
             if ratio_moments is not None:
                 # same
                 ratio_parameters = (ratio_moments[0]**2./ratio_moments[1], ratio_moments[1]/ratio_moments[0])
-            
+
             # Create random eigenvectors
             rn.assign_random_eigenvectors(scale_parameters=scale_parameters, ratio_parameters=ratio_parameters, reset=True)
-        
+
         return rn
-    
+
     @classmethod
     def create_full_features(cls, M, R=2, scale=0.3, ratio=40., autoset_parameters=False, nb_feature_centers=3, response_type = 'bivariate_fisher', gain=1.0):
         '''
@@ -1268,17 +1268,17 @@ class RandomFactorialNetwork():
         rn.assign_aligned_eigenvectors(scale=scale, ratio=-ratio, specific_neurons = np.arange(M/2), reset=True)
         rn.assign_aligned_eigenvectors(scale=scale, ratio=ratio, specific_neurons = np.arange(M/2, M))
 
-        rn.population_code_type = 'features'
+        rn.population_code_type = 'feature'
 
         return rn
-    
+
     @classmethod
     def create_mixed(cls, M, R=2, ratio_feature_conjunctive = 0.5, conjunctive_parameters=None, feature_parameters=None, response_type = 'bivariate_fisher', autoset_parameters=False):
         '''
             Create a RandomFactorialNetwork instance, using a pure conjunctive code
         '''
         print "create mixed network"
-        
+
         if conjunctive_parameters is None:
             ratio_concentration = 1.
             conj_scale_parameters = (200., 1/150.)
@@ -1294,12 +1294,12 @@ class RandomFactorialNetwork():
             else:
                 conj_scale_parameters = conjunctive_parameters['scale_parameters']
                 conj_ratio_parameters = conjunctive_parameters['ratio_parameters']
-        
+
         if feature_parameters is None:
             feat_scale = 0.3
             feat_ratio = 20.0
         else:
-            
+
             feat_scale = feature_parameters['scale']
             feat_ratio = feature_parameters['ratio']
 
@@ -1309,7 +1309,7 @@ class RandomFactorialNetwork():
                 nb_feature_centers = 3
 
         rn = RandomFactorialNetwork(M, R=R, response_type=response_type)
-        
+
         rn.conj_subpop_size = int(M*ratio_feature_conjunctive)
         rn.feat_subpop_size = M - rn.conj_subpop_size
 
@@ -1324,24 +1324,24 @@ class RandomFactorialNetwork():
 
 
         print "Population sizes: conj: %d, feat: %d" % (rn.conj_subpop_size, rn.feat_subpop_size)
-        
+
         # Create the conjunctive subpopulation
         rn.assign_prefered_stimuli(tiling_type='conjunctive', reset=True, specific_neurons = np.arange(rn.conj_subpop_size))
         if autoset_parameters:
-            rn.assign_aligned_eigenvectors(scale=conj_scale, ratio=1.0, specific_neurons = np.arange(rn.conj_subpop_size), reset=True)    
+            rn.assign_aligned_eigenvectors(scale=conj_scale, ratio=1.0, specific_neurons = np.arange(rn.conj_subpop_size), reset=True)
         else:
             rn.assign_random_eigenvectors(scale_parameters=conj_scale_parameters, ratio_parameters=conj_ratio_parameters, specific_neurons = np.arange(rn.conj_subpop_size), reset=True)
 
 
-        # Create the feature subpopulation        
+        # Create the feature subpopulation
         rn.assign_prefered_stimuli(tiling_type='2_features', specific_neurons = np.arange(rn.conj_subpop_size, M), nb_feature_centers=nb_feature_centers)
         rn.assign_aligned_eigenvectors(scale=feat_scale, ratio=feat_ratio, specific_neurons = np.arange(rn.conj_subpop_size, int(rn.feat_subpop_size/2.+rn.conj_subpop_size)))
         rn.assign_aligned_eigenvectors(scale=feat_scale, ratio=-feat_ratio, specific_neurons = np.arange(int(rn.feat_subpop_size/2.+rn.conj_subpop_size), M))
-        
+
         rn.population_code_type = 'mixed'
 
         return rn
-    
+
     @classmethod
     def create_wavelet(cls, M, R=2, scales_number=3, scale_parameters = None, ratio_parameters = None, scale_moments=(85.0, 0.001), ratio_moments=(1.0, 0.001), response_type='wrong_wrap'):
         '''
@@ -1356,21 +1356,21 @@ class RandomFactorialNetwork():
         if scale_moments is not None:
             # We are given the desired mean and variance of the scale. Convert to appropriate Gamma parameters
             scale_parameters = (scale_moments[0]**2./scale_moments[1], scale_moments[1]/scale_moments[0])
-        
+
         if ratio_moments is not None:
             # same
             ratio_parameters = (ratio_moments[0]**2./ratio_moments[1], ratio_moments[1]/ratio_moments[0])
-        
+
         rn = RandomFactorialNetwork(M, R=R, response_type=response_type)
 
         rn.assign_prefered_stimuli(tiling_type='wavelet', reset=True, scales_number = scales_number)
         rn.assign_scaled_eigenvectors(scale_parameters=scale_parameters, ratio_parameters=ratio_parameters, reset=True)
-        
+
         rn.population_code_type = 'wavelet'
 
         return rn
 
-    
+
 
 if __name__ == '__main__':
     from statisticsmeasurer import *
@@ -1378,44 +1378,44 @@ if __name__ == '__main__':
 
     R = 2
     M = int(20**R)
-    
-    
+
+
     # Pure conjunctive code
     if False:
 
         rn = RandomFactorialNetwork.create_full_conjunctive(M, R=R, rcscale=100)
 
         rn.plot_coverage_feature_space()
-        
+
         # rn.plot_mean_activity()
         rn.plot_neuron_activity(15)
-    
+
     # Pure feature code
     if False:
         rn = RandomFactorialNetwork.create_full_features(M, R=R, scale=0.3)
         rn.assign_prefered_stimuli(tiling_type='2_features', reset=True, specific_neurons = np.arange(M/4), nb_feature_centers=1)
         rn.assign_aligned_eigenvectors(scale=0.3, ratio=20.0, specific_neurons = np.arange(M/8), reset=True)
         rn.assign_aligned_eigenvectors(scale=0.3, ratio=-20.0, specific_neurons = np.arange(M/8, M/4))
-        
+
         rn.plot_coverage_feature_space(specific_neurons=np.arange(M/4))
-        
+
         rn.plot_mean_activity(specific_neurons=np.arange(M/4))
-    
+
     # Mix of two population
     if False:
         rn = RandomFactorialNetwork.create_full_features(M, R=R, scale=0.3)
         ratio_concentration= 2.0
         rn.assign_prefered_stimuli(tiling_type='conjunctive', reset=True, specific_neurons = np.arange(M/2))
         rn.assign_random_eigenvectors(scale_parameters=(5., 1/150.), ratio_parameters=(ratio_concentration, 4./(3.*ratio_concentration)), specific_neurons = np.arange(M/2), reset=True)
-        
+
         rn.assign_prefered_stimuli(tiling_type='2_features', specific_neurons = np.arange(M/2, M))
         rn.assign_aligned_eigenvectors(scale=0.3, ratio=20.0, specific_neurons = np.arange(M/2, 3*M/4))
         rn.assign_aligned_eigenvectors(scale=0.3, ratio=-20.0, specific_neurons = np.arange(3*M/4, M))
-        
+
         rn.plot_coverage_feature_space(specific_neurons=np.arange(M, step=1), no_facecolor=True)
-        
+
         rn.plot_mean_activity()
-    
+
     # Test different wrap-around
     if False:
         M = 350
@@ -1425,7 +1425,7 @@ if __name__ == '__main__':
         rn = RandomFactorialNetwork.create_full_conjunctive(M, R=R, scale_moments=(2.0, 0.1), ratio_moments=(1.0, 0.2))
         # rn = RandomFactorialNetwork.create_full_features(M, R=R, scale=1.0, ratio=4.0, response_type = 'bivariate_fisher')
         # rn = RandomFactorialNetwork.create_wavelet(M, R=R, scale_moments=(85.0, 0.001), ratio_moments=(1.0, 0.001), scales_number=5)
-        
+
         # params=dict(kappa=10., beta=0., kappas=[8.0, 1.0, 0.0])
         # rn.plot_neuron_activity(7, params=params)
         # rn.plot_neuron_activity_3d(7, precision=20, params=params, weight_deform=0.5)
@@ -1447,13 +1447,13 @@ if __name__ == '__main__':
         # plt.xlabel('')
         # plt.ylabel('')
         plt.show()
-    
+
     # Compute covariance
     if False:
         M = 300
         R =2
         sigma_x = 0.1
-        
+
         rn.plot_mean_activity()
         cc = rn.compute_covariance_stimulus((0.0, 0.0), sigma=sigma_x)
 
@@ -1482,7 +1482,7 @@ if __name__ == '__main__':
         print np.std(np.sum(np.exp(kappa1*np.cos(stim_space[:, 0] - mu[:, np.newaxis]) + kappa2*np.cos(stim_space[:, 1] - gamma[:, np.newaxis])), axis=0))
         # plt.imshow(np.reshape(np.sum(np.exp(kappa1*np.cos(stim_space[:, 0] - mu[:, np.newaxis]) + kappa2*np.cos(stim_space[:, 1] - gamma[:, np.newaxis])), axis=0), (precision, precision)))
         # plt.colorbar()
-        
+
         # Now check the dependence on N_sqrt
         all_N_sqrt = np.arange(1, 21)
         all_FI_11 = np.zeros(all_N_sqrt.size)
@@ -1507,7 +1507,7 @@ if __name__ == '__main__':
             all_FI_11[i] = 1./sigma_x_2 * kappa1**2.*np.mean(np.sum(np.sin(stim_space[:, 0] - mu[:, np.newaxis])**2.*np.exp(2.*kappa1*np.cos(stim_space[:, 0] - mu[:, np.newaxis]) + 2.*kappa2*np.cos(stim_space[:, 1] - gamma[:, np.newaxis])), axis=0))
 
             all_FI_12[i] = 1./sigma_x_2 * kappa1*kappa2*np.mean(np.sum(np.sin(stim_space[:, 0] - mu[:, np.newaxis])*np.sin(stim_space[:, 1] - gamma[:, np.newaxis])*np.exp(2.*kappa1*np.cos(stim_space[:, 0] - mu[:, np.newaxis]) + 2.*kappa2*np.cos(stim_space[:, 1] - gamma[:, np.newaxis])), axis=0))
-            
+
             all_FI_22[i] = 1./sigma_x_2 * kappa2**2.*np.mean(np.sum(np.sin(stim_space[:, 1] - gamma[:, np.newaxis])**2.*np.exp(2.*kappa1*np.cos(stim_space[:, 0] - mu[:, np.newaxis]) + 2.*kappa2*np.cos(stim_space[:, 1] - gamma[:, np.newaxis])), axis=0))
 
             # Large N limit
@@ -1560,16 +1560,16 @@ if __name__ == '__main__':
                 data_gen_noise = DataGeneratorRFN(4000, T, rn, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=T-1, nb_stimulus_per_feature=K, enforce_min_distance=0.0)
                 stat_meas = StatisticsMeasurer(data_gen_noise)
                 covariance = stat_meas.model_parameters['covariances'][2][-1]
-                    
+
                 for j, t in enumerate(xrange(T)):
-                    
+
                     covariance_all[i, j] = covariance
 
                     # Full FI
                     # all_FI_11_Tt[i, j] = alpha**(2.*T-2.*t)*1./sigma_x_2 * kappa1**2.*np.mean(np.sum(np.sin(stim_space[:, 0] - mu[:, np.newaxis])*np.exp(kappa1*np.cos(stim_space[:, 0] - mu[:, np.newaxis]) + kappa2*np.cos(stim_space[:, 1] - gamma[:, np.newaxis]))*np.linalg.solve(covariance, np.sin(stim_space[:, 0] - mu[:, np.newaxis])*np.exp(kappa1*np.cos(stim_space[:, 0] - mu[:, np.newaxis]) + kappa2*np.cos(stim_space[:, 1] - gamma[:, np.newaxis]))), axis=0))
                     all_FI_11_Tt[i, j] = alpha**(2.*T-2.*t + 2.)*1./sigma_x_2 * kappa1**2.*np.mean(np.sum(np.sin(stim_space[:, 0] - mu[:, np.newaxis])*np.exp(kappa1*np.cos(stim_space[:, 0] - mu[:, np.newaxis]) + kappa2*np.cos(stim_space[:, 1] - gamma[:, np.newaxis]))*np.sin(stim_space[:, 0] - mu[:, np.newaxis])*np.exp(kappa1*np.cos(stim_space[:, 0] - mu[:, np.newaxis]) + kappa2*np.cos(stim_space[:, 1] - gamma[:, np.newaxis])), axis=0))
 
-                    FI_Tt[i, j] = alpha**(2.*T-2.*t)*1./sigma_x_2*density*2.*np.pi**2.*kappa1**2.0*scsp.i0(2*kappa2)*(scsp.i0(2*kappa1) - scsp.iv(2, 2*kappa1))        
+                    FI_Tt[i, j] = alpha**(2.*T-2.*t)*1./sigma_x_2*density*2.*np.pi**2.*kappa1**2.0*scsp.i0(2*kappa2)*(scsp.i0(2*kappa1) - scsp.iv(2, 2*kappa1))
 
             all_FI_11_Tt[all_FI_11_Tt == 0.0] = np.nan
 
@@ -1623,7 +1623,7 @@ if __name__ == '__main__':
         plt.title('Measured covariance (no diagonal)')
 
         leftover_stddev = np.std(measured_cov - np.diag(np.diag(measured_cov)))
-        
+
         plt.figure()
         plt.imshow(computed_cov - np.diag(np.diag(computed_cov)))
         plt.colorbar()
@@ -1648,7 +1648,7 @@ if __name__ == '__main__':
         keep_fraction = 0.08
         # Call ff a copy of the original transform.  Numpy arrays have a copy
         # method for this purpose.
-        ff = F.copy() 
+        ff = F.copy()
         # Set r and c to be the number of rows and columns of the array.
         #@ Hint: use the array's shape attribute.
         r, c = ff.shape
@@ -1658,7 +1658,7 @@ if __name__ == '__main__':
         ff[r*keep_fraction:r*(1-keep_fraction)] = 0
         # ff[:r*keep_fraction, :] = 0
         # ff[(1.-keep_fraction)*r:, :] = 0
-    
+
         # Similarly with the columns:
         ff[:, c*keep_fraction:c*(1-keep_fraction)] = 0
         # ff[:, :c*keep_fraction] = 0
@@ -1668,7 +1668,7 @@ if __name__ == '__main__':
         # real part for display.
         #@ Hint: There's an inverse 2d fft in the np.fft module as well (don't
         #@ forget that you only want the real part).
-        #@ Call the result im_new, 
+        #@ Call the result im_new,
         im_new = np.fft.ifft2(ff).real
 
         # Show the results
@@ -1705,7 +1705,7 @@ if __name__ == '__main__':
         plt.subplot(223)
         plt.title('Reconstructed Image')
         plt.imshow(im_new, plt.cm.gray)
-        # Adjust the spacing between subplots for readability 
+        # Adjust the spacing between subplots for readability
         plt.subplots_adjust(hspace=0.32)
         plt.show()
 
@@ -1730,7 +1730,7 @@ if __name__ == '__main__':
         circulant_dist = np.sum(np.diff(measured_cov_rollback, axis=0)**2.)
 
         print "Circulant: MSE %f" % circulant_dist
-        
+
         plt.plot(np.mean(np.abs(np.fft.fft(measured_cov)), axis=0))
 
         c_tilde = np.fft.fft(computed_cov[0])
@@ -1742,7 +1742,7 @@ if __name__ == '__main__':
         # Theoretical eigendecomposition of circulant matrix
         c_tilde_ordered = np.sort((c_tilde))[::-1]
         F = np.exp(-1j*2.0*np.pi/N)**np.outer(np.arange(N, dtype=float), np.arange(N, dtype=float))
-        
+
         # Construct true circulant
         c = computed_cov[0]
         circ_c = sp.linalg.circulant(c)
@@ -1811,7 +1811,7 @@ if __name__ == '__main__':
         plt.title('Evolution of diagonal magnitude for increasing number of items')
         plt.legend(['Measured', 'Computed'], loc='best')
         plt.axis('tight')
- 
+
         plt.figure()
         plt.plot(T_all, np.mean(np.mean((all_measured_cov - all_computed_cov)**2., axis=-1), axis=-1))
         plt.xlabel('Number of items')
@@ -1838,7 +1838,7 @@ if __name__ == '__main__':
 
         # Space
         xx = np.linspace(-np.pi, np.pi, precision)
-        
+
         if False:
             # First actually get the relationship for the wrong_wrap method used before.
             rc_scale_space = np.linspace(0.001, 25., nb_params)
@@ -1886,7 +1886,7 @@ if __name__ == '__main__':
             print "Doing for bivariate fisher"
             for i, kappa in enumerate(kappa_space):
                 print kappa
-                
+
                 rn = RandomFactorialNetwork.create_full_conjunctive(N, R=2, scale_moments=(kappa, 0.001), ratio_moments=(1.0, 0.001))
 
                 selected_neuron = 209
@@ -1905,7 +1905,7 @@ if __name__ == '__main__':
                 curr_mean = np.sum(mean_neuron_out_*xx)/np.sum(mean_neuron_out_)
                 curr_std = np.sqrt(np.abs(np.sum((xx-curr_mean)**2*mean_neuron_out_)/np.sum(mean_neuron_out_)))
                 curr_max = mean_neuron_out_.max()
-                
+
                 std_dev_results_kappas[i] = curr_std
 
 
@@ -1917,7 +1917,7 @@ if __name__ == '__main__':
             plt.ylabel('Standard deviation of fitted gaussian')
 
             plt.show()
-    
+
 
     if False:
         # Play with the normalising constant of the Bivariate Fisher
@@ -1942,7 +1942,7 @@ if __name__ == '__main__':
 
         dtheta = (stimulus[0] - preferred_stim[0])
         dgamma = (stimulus[1] - preferred_stim[1])
-        
+
         # 2D versus 1D, should obtain same thing (approximately)
         normalisation = 4.*np.pi**2.*scsp.i0(kappas[0])*scsp.i0(kappas[1])
         output = np.exp(kappas[0]*np.cos(dtheta) + kappas[1]*np.cos(dgamma))/normalisation
@@ -1959,7 +1959,7 @@ if __name__ == '__main__':
             print kappa
             normalisation = 2.*np.pi*scsp.i0(kappa)
             all_out[i] = np.exp(kappa*np.cos(xx))/normalisation
-        
+
         # 2d multiple kappas
         kappas_space = np.linspace(0.01, 10, 100)
         all_out = np.zeros((kappas_space.size, precision, precision))
@@ -1970,7 +1970,7 @@ if __name__ == '__main__':
             print kappa
             normalisation = 4.*np.pi**2.*scsp.i0(kappa)**2.
             all_out[i] = np.exp(kappa*np.cos(xx)+kappa*np.cos(yy))/normalisation
-        
+
 
         # 2D Try multiple kappas, see if the normalisation works.
         kappas_space = np.linspace(10, 200, 50)
@@ -1990,7 +1990,7 @@ if __name__ == '__main__':
         plt.plot(x, all_neuron_out.mean(axis=-1).T)
 
         plt.show()
-        
+
     if False:
         # See how many neurons respond to a given stimulus, indication for wrong coverage/rc_size.
 
@@ -2001,7 +2001,7 @@ if __name__ == '__main__':
         percent_max = 0.5
 
         rn = RandomFactorialNetwork.create_full_conjunctive(N, R=2, scale_moments=(kappa, 0.001), ratio_moments=(1.0, 0.001))
-        
+
         # rn.plot_mean_activity()
         # rn.plot_mean_activity_fft()
 
@@ -2024,9 +2024,9 @@ if __name__ == '__main__':
         plt.ylabel('Number of neurons responding at %.f %%' % (percent_max*100.))
         plt.show()
 
-        
 
-        
+
+
 
 
 

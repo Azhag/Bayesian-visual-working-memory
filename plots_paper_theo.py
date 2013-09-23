@@ -21,7 +21,7 @@ plt.rcParams['font.size'] = 17
 set_colormap = plt.cm.cubehelix
 
 def do_plots_population_codes():
-    
+
     # plt.set_cmap('cubehelix')
 
     if True:
@@ -72,7 +72,7 @@ def do_plots_population_codes():
         # ax = rn.plot_coverage_feature_space(nb_stddev=0.7, alpha_ellipses=0.2)
         ax = rn.plot_coverage_feature_space(nb_stddev=2.0, alpha_ellipses=0.3, facecolor='r', lim_factor=1.1)
         ax = rn.plot_coverage_feature_space(nb_stddev=2.0, alpha_ellipses=0.4, facecolor='r', lim_factor=1.1, specific_neurons=[selected_neuron], ax=ax)
-        
+
         ax.set_xticks((-np.pi, -np.pi / 2, 0, np.pi / 2., np.pi))
         ax.set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'))
         ax.set_yticks((-np.pi, -np.pi / 2, 0, np.pi / 2., np.pi))
@@ -108,7 +108,7 @@ def do_plots_population_codes():
         ax = rn.plot_coverage_feature_space(nb_stddev=2.0, alpha_ellipses=0.2, specific_neurons=np.arange(60, 180, 4), facecolor='r', lim_factor=1.1)
         ax = rn.plot_coverage_feature_space(nb_stddev=2.0, alpha_ellipses=0.2, specific_neurons=np.arange(180, 300, 4), facecolor='r', ax=ax, lim_factor=1.1)
         ax = rn.plot_coverage_feature_space(alpha_ellipses=0.2, specific_neurons=np.arange(60), facecolor='b', ax=ax, lim_factor=1.1)
-        
+
         ax.set_xlabel('')
         ax.set_ylabel('')
 
@@ -177,7 +177,7 @@ def posterior_plots():
     all_parameters['M'] = 75*2
     all_parameters['sigmax'] = 0.1
 
-    
+
     # print random_network.neurons_sigma[0,0], random_network.neurons_sigma[0,1]
 
     if False:
@@ -196,8 +196,8 @@ def posterior_plots():
     all_parameters['rc_scale2'] = stddev_to_kappa(np.pi)
     all_parameters['ratio_conj'] = 0.5
     all_parameters['feat_ratio'] = stddev_to_kappa(2.*np.pi/int(all_parameters['M']*all_parameters['ratio_conj']/2.))/stddev_to_kappa(np.pi)
-    
-    
+
+
     if True:
         (random_network, data_gen, stat_meas, sampler) = init_everything(all_parameters)
 
@@ -312,7 +312,7 @@ def plot_marginalfisherinfo_1d():
 
 
     min_distance_space = np.array([np.pi/30., np.pi/10., np.pi/4.])
-    
+
     inv_FI_search = np.zeros((min_distance_space.size))
     FI_search = np.zeros((min_distance_space.size))
     FI_search_inv = np.zeros((min_distance_space.size))
@@ -322,7 +322,7 @@ def plot_marginalfisherinfo_1d():
     search_progress = progress.Progress(min_distance_space.size)
 
     for m, min_distance in enumerate(min_distance_space):
-        
+
         if search_progress.percentage() % 5.0 < 0.0001:
             print "%.2f%%, %s left - %s" % (search_progress.percentage(), search_progress.time_remaining_str(), search_progress.eta_str())
 
@@ -336,12 +336,12 @@ def plot_marginalfisherinfo_1d():
             der_1 = kappa*np.sin(pref_angles - theta1)*population_code_response(theta1, pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude)
 
             for j, theta2 in enumerate(theta2_space):
-                
+
                 if enforce_distance(theta1, theta2, min_distance=min_distance):
                     # Only compute if theta1 different enough of theta2
-                    
+
                     der_2 = kappa*np.sin(pref_angles - theta2)*population_code_response(theta2, pref_angles=pref_angles, N=N, kappa=kappa, amplitude=amplitude)
-                    
+
                     # FI for 2 objects
                     FI_all[i, j, 0, 0] = np.sum(der_1**2.)/(2.*sigma**2.)
                     FI_all[i, j, 0, 1] = np.sum(der_1*der_2)/(2.*sigma**2.)
@@ -388,7 +388,7 @@ def plot_marginalfisherinfo_1d():
         axes[m].set_xticklabels(("$\\tilde{I_F}^{-1}$", "${I_F^{(1)}}^{-1}$"))
         axes[m].set_yticks((0, 1, 2, 3))
         # axes[m].set_title('$min(\\theta_i - \\theta_j) = %s$' % min_distance_labels[m])
-        axes[m].text(0.5, 1.05, '$min(\\theta_i - \\theta_j) = %s$' % min_distance_labels[m], transform=axes[m].transAxes, horizontalalignment='center', fontsize=18) 
+        axes[m].text(0.5, 1.05, '$min(\\theta_i - \\theta_j) = %s$' % min_distance_labels[m], transform=axes[m].transAxes, horizontalalignment='center', fontsize=18)
 
     # plt.figure()
     # plt.bar(xrange(3), np.array(zip(FI_search_inv, inv_FI_1_search)))
