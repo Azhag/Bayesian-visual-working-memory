@@ -130,22 +130,45 @@ def do_plots_population_codes():
 def fisher_information_1obj_2d():
     # %run experimentlauncher.py --action_to_do launcher_do_fisher_information_estimation --subaction rcscale_dependence --M 100 --N 500 --sigmax 0.1 --sigmay 0.0001 --label fi_compare_paper --num_samples 100
     # Used the boxplot. And some
-    
-    # plt.rcParams['font.size'] = 16
+
+    dataio = DataIO(label='papertheo_fisherinfo_1obj2d', calling_function='')
+
+    plt.rcParams['font.size'] = 18
 
     plt.figure()
-    b = plt.boxplot([FI_rc_curv_all[rc_scale_i], FI_rc_samples_all[rc_scale_i].flatten(), FI_rc_precision_all[rc_scale_i], FI_rc_theo_all[rc_scale_i, 0], FI_rc_theo_all[rc_scale_i, 1]])
-    
-    for key in ['medians', 'boxes', 'whiskers', 'caps']:
-        for line in b[key]:
-            line.set_linewidth(2)
 
-    # plt.boxplot([FI_rc_curv_all[rc_scale_i], FI_rc_precision_all[rc_scale_i], FI_rc_theo_all[rc_scale_i, 0], FI_rc_theo_all[rc_scale_i, 1]])
-    plt.title('Comparison Curvature vs samples estimate. Rscale: %d' % rc_scale)
-    plt.xticks([1, 2, 3, 4, 5], ['Curvature', 'Samples', 'Precision', 'Theo', 'Theo large N'], rotation=45)
-    # plt.xticks([1, 2, 3, 4], ['Curvature', 'Precision', 'Theo', 'Theo large N'], rotation=45)
+    # Do a boxplot
+    # b = plt.boxplot([FI_rc_curv_all[0], FI_rc_samples_all[0].flatten(), FI_rc_precision_all[0], FI_rc_theo_all[0, 0], FI_rc_theo_all[0, 1]])
+    # for key in ['medians', 'boxes', 'whiskers', 'caps']:
+    #     for line in b[key]:
+    #         line.set_linewidth(2)
 
-    dataio.save_current_figure('FI_rc_comparison_curv_samples_%d-{label}_{unique_id}.pdf' % rc_scale)
+    # Do a bar plot instead
+    FI_rc_curv_mean = np.mean(FI_rc_curv_all)
+    FI_rc_curv_std = np.std(FI_rc_curv_all)
+    FI_rc_samples_mean = np.mean(FI_rc_samples_all)
+    FI_rc_samples_std = np.std(FI_rc_samples_all)
+
+    values_bars = np.array([FI_rc_curv_mean, FI_rc_samples_mean, FI_rc_precision_all[0], FI_rc_theo_all[0, 0], FI_rc_theo_all[0, 1]])
+    values_bars_std = np.array([FI_rc_curv_std, FI_rc_samples_std, np.nan, np.nan, np.nan])
+
+    # set_colormap = plt.cm.gnuplot
+    color_gen = [set_colormap((i+0.1)/(float(len(values_bars))+0.1)) for i in xrange(len(values_bars))][::-1]
+
+    bars_indices = np.arange(values_bars.size)
+    width = 0.7
+
+    for bar_i in xrange(values_bars.size):
+        plt.bar(bars_indices[bar_i], values_bars[bar_i], width=width, color=color_gen[bar_i])
+        plt.errorbar(bars_indices[bar_i] + width/2., values_bars[bar_i], yerr=values_bars_std[bar_i], ecolor='k', capsize=20, capthick=2, linewidth=2)
+
+    #
+    plt.xticks(bars_indices + width/2., ['Curvature', 'Samples', 'Precision', 'Fisher Information', 'Fisher Information\n Large N'], rotation=0)
+    plt.xlim((-0.2, 5.))
+    plt.ylim((0.0, 190))
+    plt.tight_layout()
+
+    dataio.save_current_figure('FI_rc_comparison_curv_samples-papertheo-{label}_{unique_id}.pdf')
 
 
 def posterior_plots():
