@@ -125,7 +125,9 @@ def preprocess_doublerecall(dataset, parameters):
     # Get shortcuts for colour and orientation trials
     dataset['colour_trials'] = (dataset['cond'] == 1.).flatten()
     dataset['angle_trials'] = (dataset['cond'] == 2.).flatten()
-    
+    dataset['3_items_trials'] = (dataset['n_items'] == 3.0).flatten()
+    dataset['6_items_trials'] = (dataset['n_items'] == 6.0).flatten()
+
     # Wrap everything around
     dataset['item_angle'] = wrap_angles(dataset['item_angle'], np.pi)
     dataset['probe_angle'] = wrap_angles(dataset['probe_angle'], np.pi)
@@ -465,28 +467,30 @@ def plots_doublerecall(dataset):
         Create plots for the double recall dataset
     '''
 
-    to_plot = {'resp_vs_targ':True, 'error_boxplot':False, 'resp_rating':False, 'em_fits':False, 'loglik':False, 'resp_distrib':False, 'resp_conds':False}
-
-    # Show distributions of responses wrt target angles/colour
-    if to_plot['resp_vs_targ']:
-        
-        # Plot scatter and marginals for the orientation trials
-        scatter_marginals(dropnan(dataset['item_angle'][dataset['angle_trials'], 0]), dropnan(dataset['probe_angle'][dataset['angle_trials']]), xlabel ='Target angle', ylabel='Response angle', title='Angle trials', figsize=(9, 9), factor_axis=1.1, bins=61)
-        
-        # Plot scatter and marginals for the colour trials
-        scatter_marginals(dropnan(dataset['item_colour'][dataset['colour_trials'], 0]), dropnan(dataset['probe_colour'][dataset['colour_trials']]), xlabel ='Target colour', ylabel='Response colour', title='Colour trials', figsize=(9, 9), factor_axis=1.1, bins=61, show_colours=True)
-        
-        
+    to_plot = {'resp_vs_targ':True, 'error_boxplot':True, 'resp_rating':True, 'em_fits':True, 'loglik':True, 'resp_distrib':True, 'resp_conds':True}
 
     dataset_pd = dataset['panda']
 
     dataset_pd['error_abs'] = dataset_pd.error.abs()
-    
+
+    # Show distributions of responses wrt target angles/colour
+    if to_plot['resp_vs_targ']:
+
+        # Plot scatter and marginals for the orientation trials
+        scatter_marginals(dropnan(dataset['item_angle'][dataset['angle_trials'] & dataset['3_items_trials'], 0]), dropnan(dataset['probe_angle'][dataset['angle_trials'] & dataset['3_items_trials']]), xlabel ='Target angle', ylabel='Response angle', title='Angle trials, 3 items', figsize=(9, 9), factor_axis=1.1, bins=61)
+        scatter_marginals(dropnan(dataset['item_angle'][dataset['angle_trials'] & dataset['6_items_trials'], 0]), dropnan(dataset['probe_angle'][dataset['angle_trials'] & dataset['6_items_trials']]), xlabel ='Target angle', ylabel='Response angle', title='Angle trials, 6 items', figsize=(9, 9), factor_axis=1.1, bins=61)
+
+        # Plot scatter and marginals for the colour trials
+        scatter_marginals(dropnan(dataset['item_colour'][dataset['colour_trials']& dataset['3_items_trials'], 0]), dropnan(dataset['probe_colour'][dataset['colour_trials'] & dataset['3_items_trials']]), xlabel ='Target colour', ylabel='Response colour', title='Colour trials, 3 items', figsize=(9, 9), factor_axis=1.1, bins=61, show_colours=True)
+        scatter_marginals(dropnan(dataset['item_colour'][dataset['colour_trials'] & dataset['6_items_trials'], 0]), dropnan(dataset['probe_colour'][dataset['colour_trials'] & dataset['6_items_trials']]), xlabel ='Target colour', ylabel='Response colour', title='Colour trials, 6 items', figsize=(9, 9), factor_axis=1.1, bins=61, show_colours=True)
+
+
+
     # dataset_pd[ids_filtered][ids_targets_responses].boxplot('error_angle_abs', by='rating')
     # dataset_pd[ids_filtered][ids_nontargets_responses].boxplot('error_angle_abs', by='rating')
     if to_plot['error_boxplot']:
         dataset_pd.boxplot(column=['error_abs'], by=['cond', 'n_items', 'rating'])
-    
+
     # for i in dataset_pd.subject.unique():
     #     dataset_pd[dataset_pd.subject == i].boxplot(column=['error_angle'], by=['n_items', 'rating'])
 
@@ -517,22 +521,67 @@ def plots_doublerecall(dataset):
             axes[i, 0].set_xlim((0.0, 1.0))
             axes[i, 0].set_ylim((0.0, 0.35))
             axes[i, 0].text(0.5, 0.8, "T " + str(name), fontweight='bold', horizontalalignment='center', transform = axes[i, 0].transAxes)
-            
+
             # Print Responsibility nontarget density estimation
             # group.resp_nontarget.plot(kind='kde', ax=axes[i, 1])
             axes[i, 1].bar(bins_edges[:-1], counts_nontarget, dedges, color='g')
             axes[i, 1].set_xlim((0.0, 1.0))
             axes[i, 1].set_ylim((0.0, 0.35))
             axes[i, 1].text(0.5, 0.8, "NT " + str(name), fontweight='bold', horizontalalignment='center', transform = axes[i, 1].transAxes)
-            
+
             # Print Responsibility random density estimation
             # group.resp_random.plot(kind='kde', ax=axes[i, 1])
             axes[i, 2].bar(bins_edges[:-1], counts_random, dedges, color='r')
             axes[i, 2].set_xlim((0.0, 1.0))
             axes[i, 2].set_ylim((0.0, 0.35))
             axes[i, 2].text(0.5, 0.8, "R " + str(name), fontweight='bold', horizontalalignment='center', transform = axes[i, 2].transAxes)
-            
+
             i += 1
+
+        plt.suptitle("Colour trials")
+
+        dataset_grouped_nona_rating = dataset_pd[dataset_pd.n_items == 6.0][dataset_pd.cond == 2.].dropna(subset=['error']).groupby(['rating'])
+        f, axes = plt.subplots(dataset_pd.rating.nunique(), 3)
+        i = 0
+        bins = np.linspace(0., 1.0, 31)
+        for name, group in dataset_grouped_nona_rating:
+            print name
+
+            # Compute histograms and normalize per rating condition
+            counts_target, bins_edges = np.histogram(group.resp_target, bins=bins)
+            counts_nontarget, bins_edges = np.histogram(group.resp_nontarget, bins=bins)
+            counts_random, bins_edges = np.histogram(group.resp_random, bins=bins)
+            dedges = np.diff(bins_edges)[0]
+
+            sum_counts = float(np.sum(counts_target) + np.sum(counts_nontarget) + np.sum(counts_random))
+            counts_target = counts_target/sum_counts
+            counts_nontarget = counts_nontarget/sum_counts
+            counts_random = counts_random/sum_counts
+
+            # Print Responsibility target density estimation
+            # group.resp_target.plot(kind='kde', ax=axes[i, 0])
+            axes[i, 0].bar(bins_edges[:-1], counts_target, dedges, color='b')
+            axes[i, 0].set_xlim((0.0, 1.0))
+            axes[i, 0].set_ylim((0.0, 0.35))
+            axes[i, 0].text(0.5, 0.8, "T " + str(name), fontweight='bold', horizontalalignment='center', transform = axes[i, 0].transAxes)
+
+            # Print Responsibility nontarget density estimation
+            # group.resp_nontarget.plot(kind='kde', ax=axes[i, 1])
+            axes[i, 1].bar(bins_edges[:-1], counts_nontarget, dedges, color='g')
+            axes[i, 1].set_xlim((0.0, 1.0))
+            axes[i, 1].set_ylim((0.0, 0.35))
+            axes[i, 1].text(0.5, 0.8, "NT " + str(name), fontweight='bold', horizontalalignment='center', transform = axes[i, 1].transAxes)
+
+            # Print Responsibility random density estimation
+            # group.resp_random.plot(kind='kde', ax=axes[i, 1])
+            axes[i, 2].bar(bins_edges[:-1], counts_random, dedges, color='r')
+            axes[i, 2].set_xlim((0.0, 1.0))
+            axes[i, 2].set_ylim((0.0, 0.35))
+            axes[i, 2].text(0.5, 0.8, "R " + str(name), fontweight='bold', horizontalalignment='center', transform = axes[i, 2].transAxes)
+
+            i += 1
+
+        plt.suptitle("Angle trials")
 
 
     # Add condition names
