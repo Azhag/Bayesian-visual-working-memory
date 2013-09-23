@@ -38,6 +38,7 @@ def plots_3dvolume_hierarchical_M_Mlayerone(data_pbs, generator_module=None):
     # print results_precision_constant_M_Mlower
     
     dataio = DataIO(output_folder=generator_module.pbs_submission_infos['simul_out_dir'] + '/outputs/', label='global_' + dataset_infos['save_output_filename'])
+    dataio.make_link_in_directory(inspect.getfile(inspect.currentframe()))
 
     savefigs = True
 
@@ -56,6 +57,8 @@ def plots_3dvolume_hierarchical_M_Mlayerone(data_pbs, generator_module=None):
     else:
         # This version forces M + M_lower = 200
         # Fewer plots
+        
+        plt.rcParams['font.size'] = 14
 
         T = results_precision_constant_M_Mlower.shape[-1]
         results_filtered = results_precision_constant_M_Mlower[np.arange(M_space.size), np.arange(-M_layer_one_space.size, 0)[::-1]]
@@ -64,43 +67,76 @@ def plots_3dvolume_hierarchical_M_Mlayerone(data_pbs, generator_module=None):
 
         ratio_MMlower = M_space/generator_module.filtering_function_parameters['target_M_total']
         pcolor_2d_data(results_filtered, log_scale=True, x=ratio_MMlower, y=np.arange(1, T+1), xlabel="$\\frac{M}{M+M_{layer one}}$", ylabel='$T$', ticks_interpolate=10)
+        plt.plot(np.argmax(results_filtered, axis=0), np.arange(results_filtered.shape[-1]), 'ko', markersize=10)
 
         if savefigs:
             dataio.save_current_figure('results_2dlog_{label}_global_{unique_id}.pdf')
 
         pcolor_2d_data(results_filtered/np.max(results_filtered, axis=0), x=ratio_MMlower, y=np.arange(1, T+1), xlabel="$\\frac{M}{M+M_{layer one}}$", ylabel='$T$', ticks_interpolate=10)
+        plt.plot(np.argmax(results_filtered, axis=0), np.arange(results_filtered.shape[-1]), 'ko', markersize=10)
 
         if savefigs:
             dataio.save_current_figure('results_2dnorm_{label}_global_{unique_id}.pdf')
 
 
         pcolor_2d_data(results_filtered_smoothed/np.max(results_filtered_smoothed, axis=0), x=ratio_MMlower, y=np.arange(1, T+1), xlabel="$\\frac{M}{M+M_{layer one}}$", ylabel='$T$', ticks_interpolate=10)
+        plt.plot(np.argmax(results_filtered_smoothed, axis=0), np.arange(results_filtered_smoothed.shape[-1]), 'ko', markersize=10)
 
         if savefigs:
             dataio.save_current_figure('results_2dsmoothnorm_{label}_global_{unique_id}.pdf')
 
         plt.figure()
-        plt.plot(ratio_MMlower, results_filtered_smoothed/np.max(results_filtered_smoothed, axis=0))
+        plt.plot(ratio_MMlower, results_filtered_smoothed/np.max(results_filtered_smoothed, axis=0), linewidth=2)
         plt.plot(ratio_MMlower[np.argmax(results_filtered_smoothed, axis=0)], np.ones(results_filtered_smoothed.shape[-1]), 'ro', markersize=10)
         plt.grid()
         plt.ylim((0., 1.1))
-        plt.legend(['%d item' % i + 's'*(i>1) for i in xrange(1, T+1)])
+        plt.subplots_adjust(right=0.8)
+        plt.legend(['%d item' % i + 's'*(i>1) for i in xrange(1, T+1)], loc='center right', bbox_to_anchor=(1.3, 0.5))
         plt.xticks(np.linspace(0, 1.0, 5))
 
         if savefigs:
-            dataio.save_current_figure('results_1dsmoothnorm_{label}_global_{unique_id}.pdf')
+            dataio.save_current_figure('results_1dsmoothnormsame_{label}_global_{unique_id}.pdf')
 
         plt.figure()
-        plt.plot(ratio_MMlower, np.arange(results_filtered_smoothed.shape[-1]) + results_filtered_smoothed/np.max(results_filtered_smoothed, axis=0))
-        plt.plot(ratio_MMlower[np.argmax(results_filtered_smoothed, axis=0)], np.arange(1, 1+results_filtered_smoothed.shape[-1]), 'ro', markersize=10)
+        moved_results_filtered_smoothed = 1.2*np.arange(results_filtered_smoothed.shape[-1]) + results_filtered_smoothed/np.max(results_filtered_smoothed, axis=0)
+        all_lines = []
+        for i, max_i in enumerate(np.argmax(results_filtered_smoothed, axis=0)):
+            curr_lines = plt.plot(ratio_MMlower, moved_results_filtered_smoothed[:, i], linewidth=2)
+            plt.plot(ratio_MMlower[max_i], moved_results_filtered_smoothed[max_i, i], 'o', markersize=10, color=curr_lines[0].get_color())
+            all_lines.extend(curr_lines)
+
+        plt.plot(np.linspace(0.0, 1.0, 100), np.outer(np.ones(100), 1.2*np.arange(1, results_filtered_smoothed.shape[-1])), 'k:')
         plt.grid()
-        plt.legend(['%d item' % i + 's'*(i>1) for i in xrange(1, T+1)], loc='best')
-        plt.ylim((0., results_filtered_smoothed.shape[-1]*1.05))
+        plt.legend(all_lines, ['%d item' % i + 's'*(i>1) for i in xrange(1, T+1)], loc='best')
+        plt.ylim((0., moved_results_filtered_smoothed.max()*1.05))
         plt.yticks([])
         plt.xticks(np.linspace(0, 1.0, 5))
 
         if savefigs:
             dataio.save_current_figure('results_1dsmoothnorm_{label}_global_{unique_id}.pdf')
+
+        # Plot smooth precisions, all T on multiple subplots.
+        all_lines_bis = []
+        f, axes = plt.subplots(nrows=T, ncols=1, sharex=True, figsize=(10, 12))
+        for i, max_ind in enumerate(np.argmax(results_filtered_smoothed, axis=0)):
+            curr_lines = axes[i].plot(ratio_MMlower, results_filtered_smoothed[:, i], linewidth=2, color=all_lines[i].get_color())
+            axes[i].plot(ratio_MMlower[max_ind], results_filtered_smoothed[max_ind, i], 'o', markersize=10, color=curr_lines[0].get_color())
+            axes[i].grid()
+            axes[i].set_xticks(np.linspace(0., 1.0, 5))
+            axes[i].set_xlim((0.0, 1.0))
+            # axes[i].set_yticks([])
+            axes[i].set_ylim((np.min(results_filtered_smoothed[:, i]), results_filtered_smoothed[max_ind, i]*1.1))
+            axes[i].locator_params(axis='y', tight=True, nbins=4)
+
+            all_lines_bis.extend(curr_lines)
+
+        f.subplots_adjust(right=0.75)
+        plt.figlegend(all_lines_bis, ['%d item' % i + 's'*(i>1) for i in xrange(1, T+1)], loc='right', bbox_to_anchor=(1.0, 0.5))
+        # f.tight_layout()
+
+        if savefigs:
+            dataio.save_current_figure('results_subplots_1dsmoothnorm_{label}_global_{unique_id}.pdf')
+
 
 
     variables_to_save = ['results_precision_constant_M_Mlower', 'M_space', 'M_layer_one_space']
@@ -110,6 +146,7 @@ def plots_3dvolume_hierarchical_M_Mlayerone(data_pbs, generator_module=None):
 
 
 
+# generator_script='generator_varyratio_210613.py'
 generator_script='generator_constant_total_MMlower_fullaccess_feature_300513.py'
 
 generator_module = imp.load_source(os.path.splitext(generator_script)[0], generator_script)
