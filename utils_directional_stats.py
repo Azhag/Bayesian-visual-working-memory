@@ -157,3 +157,15 @@ def compute_angle_precision_from_std(circular_std_dev, square_precision=True):
 
     return 1./circular_std_dev**(2.**square_precision)
 
+def compute_precision_change(N):
+    '''
+        Compute the chance precision obtained under an uniform distribution
+        policy for angular variable recall
+    '''
+
+    # Expected precision under uniform distribution
+    x = np.logspace(-2, 2, 100)
+
+    return np.trapz(N/(np.sqrt(x)*np.exp(x+N*np.exp(-x))), x)
+
+

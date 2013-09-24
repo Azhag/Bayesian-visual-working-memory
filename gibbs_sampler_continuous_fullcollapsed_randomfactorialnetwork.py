@@ -1150,13 +1150,8 @@ class Sampler:
         precision *= correction_theo_fit
 
         if remove_chance_level:
-            # Expected precision under uniform distribution
-            x = np.logspace(-2, 2, 100)
-
-            precision_uniform = np.trapz(self.N/(np.sqrt(x)*np.exp(x+self.N*np.exp(-x))), x)
-
             # Remove the chance level
-            precision -= precision_uniform
+            precision -= compute_precision_change(self.N)
 
         return precision
 

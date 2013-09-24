@@ -395,16 +395,8 @@ def compute_precision(errors, remove_chance_level=True, correct_orientation=True
         # Correct for the fact that bars are modelled in [0, pi] and not [0, 2pi]
         errors = errors.copy()*2.0
 
-    # avg_error = np.mean(np.abs(errors), axis=0)
-
-    # Angle population vector
-    error_mean_vector = np.mean(np.exp(1j*errors), axis=0)
-
-    # Population mean
-    # error_mean_error = np.angle(error_mean_vector)
-
     # Circular standard deviation estimate
-    error_std_dev_error = np.sqrt(-2.*np.log(np.abs(error_mean_vector)))
+    error_std_dev_error = angle_circular_std_dev(errors)
 
     # Precision
     if use_wrong_precision:
@@ -413,13 +405,8 @@ def compute_precision(errors, remove_chance_level=True, correct_orientation=True
         precision = 1./error_std_dev_error**2.
 
     if remove_chance_level:
-        # Expected precision under uniform distribution
-        x = np.logspace(-2, 2, 100)
-
-        precision_uniform = np.trapz(errors.size/(np.sqrt(x)*np.exp(x+errors.size*np.exp(-x))), x)
-
         # Remove the chance level
-        precision -= precision_uniform
+        precision -= compute_precision_change(errors.size)
 
     if correct_orientation:
         # The obtained precision is for half angles, correct it
