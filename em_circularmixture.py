@@ -15,7 +15,7 @@ def fit(responses, target_angle, nontarget_angles, initialisation_method='mixed'
     '''
         Return maximum likelihood values for a mixture model, with:
             - 1 target Von Mises component
-            - 1 circular uniform random component 
+            - 1 circular uniform random component
             - K nontarget Von Mises components
         Inputs in radian, in the -pi:pi range.
             - responses: Nx1
@@ -23,7 +23,7 @@ def fit(responses, target_angle, nontarget_angles, initialisation_method='mixed'
             - nontarget_angles Kx1
 
         Adapted from Matlab code by P. Bays
-        Ref: Bays PM, Catalao RFG & Husain M. The precision of visual working 
+        Ref: Bays PM, Catalao RFG & Husain M. The precision of visual working
             memory is set by allocation of a shared resource. Journal of Vision 9(10): 7, 1-11 (2009)
     '''
 
@@ -42,27 +42,27 @@ def fit(responses, target_angle, nontarget_angles, initialisation_method='mixed'
     best_kappa, best_mixt_target, best_mixt_random, best_mixt_nontargets = (np.nan, np.nan, np.nan, np.nan)
 
     for (kappa, mixt_target, mixt_random, mixt_nontargets, resp_ik) in initial_parameters_list:
-        
+
         old_LL = -np.inf
 
         i = 0
-        converged=False
+        converged = False
 
         # Precompute some matrices
         error_to_target = wrap(target_angle - responses)
         error_to_nontargets = wrap(nontarget_angles - responses[:, np.newaxis])
 
         # EM loop
-        while i<max_iter and not converged:
+        while i < max_iter and not converged:
 
             # E-step
             resp_ik[:, 0] = mixt_target * vonmisespdf(error_to_target, 0.0, kappa)
             resp_r = mixt_random/(2.*np.pi)
-            if K>0:
+            if K > 0:
                 resp_ik[:, 1:] = mixt_nontargets/K  * vonmisespdf(error_to_nontargets, 0.0, kappa)
             W = np.sum(resp_ik, axis=1) + resp_r
 
-            
+
             # Compute likelihood
             LL = np.nansum(np.log(W))
             dLL = LL - old_LL
@@ -114,7 +114,7 @@ def fit(responses, target_angle, nontarget_angles, initialisation_method='mixed'
             (best_kappa, best_mixt_target, best_mixt_nontargets, best_mixt_random) = (kappa, mixt_target, mixt_nontargets, mixt_random)
 
         initial_i += 1
-            
+
 
     return dict(kappa=best_kappa, mixt_target=best_mixt_target, mixt_nontargets=best_mixt_nontargets, mixt_random=best_mixt_random, train_LL=overall_LL)
 
@@ -127,10 +127,10 @@ def compute_loglikelihood(responses, target_angle, nontarget_angles, parameters)
     '''
 
     resp_out = compute_responsibilities(responses, target_angle, nontarget_angles, parameters)
-            
+
     # Compute likelihood
     return np.nansum(np.log(resp_out['W']))
-    
+
 
 def compute_responsibilities(responses, target_angle, nontarget_angles, parameters):
     '''
@@ -139,7 +139,7 @@ def compute_responsibilities(responses, target_angle, nontarget_angles, paramete
     '''
 
     (kappa, mixt_target, mixt_nontargets, mixt_random) = (parameters['kappa'], parameters['mixt_target'], parameters['mixt_nontargets'], parameters['mixt_random'])
-    
+
     nontarget_angles = nontarget_angles[:, ~np.all(np.isnan(nontarget_angles), axis=0)]
 
     K = float(nontarget_angles.shape[1])
@@ -163,7 +163,7 @@ def compute_responsibilities(responses, target_angle, nontarget_angles, paramete
     return dict(target=resp_target, nontargets=resp_nontargets, random=resp_random, W=W)
 
 
-def cross_validation_kfold(responses, target_angle, nontarget_angles, K=2, shuffle=False, initialisation_method='fixed', nb_initialisations=5):
+def cross_validation_kfold(responses, target_angle, nontarget_angles, K=2, shuffle=False, initialisation_method='fixed', nb_initialisations=5, debug=False):
     '''
         Perform a k-fold cross validation fit.
 
@@ -173,12 +173,14 @@ def cross_validation_kfold(responses, target_angle, nontarget_angles, K=2, shuff
     # Build the kfold iterator. Sklearn is too cool.
     kf = KFold(responses.size, n_folds=K, shuffle=shuffle)
 
-    print "%d-fold cross validation. %d in training, %d in testing. ..." % (K, (K-1.)/K*responses.size, responses.size/float(K))
+    if debug:
+        print "%d-fold cross validation. %d in training, %d in testing. ..." % (K, (K-1.)/K*responses.size, responses.size/float(K))
 
     # Store test loglikelihoods
     test_LL = np.zeros(K)
     k_i = 0
     fits_all = []
+
 
     best_fit = None
 
@@ -231,7 +233,7 @@ def initialise_parameters(N, K, method='fixed', nb_initialisations=10):
 
 def initialise_parameters_random(N, K, nb_initialisations=10):
     '''
-        Initialise parameters, with random values. 
+        Initialise parameters, with random values.
          - Von mises concentration
          - Mixture proportions, for Target, Nontarget and random
          - Responsabilities, per datapoint
@@ -273,9 +275,9 @@ def initialise_parameters_fixed(N, K):
     kappa = [1., 10, 100, 300]
     mixt_nontargets = [0.01, 0.1, 0.4, 0.01]
     mixt_random = [0.01, 0.1, 0.4, 0.1]
-    
+
     mixt_target = [1. - mixt_nontargets[i] - mixt_random[i] for i in xrange(len(kappa))]
-    
+
     # resp_ik = []
     # for k in kappa:
     #     resp_ik.append(np.empty((N, K+1)))
@@ -293,7 +295,7 @@ def wrap(angles):
     max_angle = np.pi
 
     angles = np.mod(angles + max_angle, 2*max_angle) - max_angle
-    
+
     return angles
 
 

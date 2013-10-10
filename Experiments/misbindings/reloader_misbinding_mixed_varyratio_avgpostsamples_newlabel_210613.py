@@ -11,7 +11,7 @@ import pypr.clustering.gmm as pygmm
 
 from experimentlauncher import *
 from dataio import *
-from smooth import *
+# from smooth import *
 import inspect
 
 
@@ -34,14 +34,14 @@ def plots_misbinding_logposterior(data_pbs, generator_module=None):
     plot_error = True
     #
     #### /SETUP
-    
-    print "Order parameters: ", generator_module.dict_parameters_range.keys() 
+
+    print "Order parameters: ", generator_module.dict_parameters_range.keys()
 
     result_all_log_posterior = np.squeeze(data_pbs.dict_arrays['result_all_log_posterior']['results'])
     result_all_thetas = np.squeeze(data_pbs.dict_arrays['result_all_thetas']['results'])
-    
+
     ratio_space = data_pbs.loaded_data['parameters_uniques']['ratio_conj']
-    
+
     print ratio_space
     print result_all_log_posterior.shape
 
@@ -55,7 +55,7 @@ def plots_misbinding_logposterior(data_pbs, generator_module=None):
 
     plt.rcParams['font.size'] = 18
 
-    
+
 
     if plot_logpost:
         for ratio_conj_i, ratio_conj in enumerate(ratio_space):
@@ -65,7 +65,7 @@ def plots_misbinding_logposterior(data_pbs, generator_module=None):
             # ax.set_xticks((-np.pi, -np.pi / 2, 0, np.pi / 2., np.pi))
             # ax.set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'))
             # ax.set_yticks(())
-            
+
             # ax.get_figure().canvas.draw()
 
             # if savefigs:
@@ -93,7 +93,7 @@ def plots_misbinding_logposterior(data_pbs, generator_module=None):
         f = plt.figure()
         plt.plot(ratio_space, stats['std'])
         plt.ylabel('Standard deviation [rad]')
-        
+
         if savefigs:
             dataio.save_current_figure('results_misbinding_stddev_allratioconj_{label}_global_{unique_id}.pdf')
 
@@ -117,7 +117,7 @@ def plots_misbinding_logposterior(data_pbs, generator_module=None):
         em_ll = np.zeros(ratio_space.size)
         for ratio_conj_i, ratio_conj in enumerate(ratio_space):
             cen_lst, cov_lst, em_pk[ratio_conj_i], em_ll[ratio_conj_i] = pygmm.em(result_all_thetas[ratio_conj_i, np.newaxis].T, K = 2, max_iter = 400, init_kw={'cluster_init':'fixed', 'fixed_means': fixed_means})
-            
+
             em_centers[ratio_conj_i] = np.array(cen_lst).flatten()
             em_covs[ratio_conj_i] = np.array(cov_lst).flatten()
 
@@ -151,7 +151,7 @@ def plots_misbinding_logposterior(data_pbs, generator_module=None):
             dataio.save_current_figure('results_misbinding_allmetrics_allratioconj_{label}_global_{unique_id}.pdf')
 
 
-    
+
     # plt.figure()
     # plt.plot(ratio_MMlower, results_filtered_smoothed/np.max(results_filtered_smoothed, axis=0), linewidth=2)
     # plt.plot(ratio_MMlower[np.argmax(results_filtered_smoothed, axis=0)], np.ones(results_filtered_smoothed.shape[-1]), 'ro', markersize=10)
@@ -160,10 +160,10 @@ def plots_misbinding_logposterior(data_pbs, generator_module=None):
     # plt.subplots_adjust(right=0.8)
     # plt.legend(['%d item' % i + 's'*(i>1) for i in xrange(1, T+1)], loc='center right', bbox_to_anchor=(1.3, 0.5))
     # plt.xticks(np.linspace(0, 1.0, 5))
-    
+
     all_args = data_pbs.loaded_data['args_list']
     variables_to_save = ['result_all_log_posterior', 'ratio_space', 'all_args']
-    
+
     if savefigs:
         dataio.save_variables(variables_to_save, locals())
 
@@ -178,7 +178,7 @@ def plots_misbinding_logposterior(data_pbs, generator_module=None):
 generator_script='generator_misbinding_mixed_varyratio_avgpostsamples_newlabel_210613.py'
 
 generator_module = imp.load_source(os.path.splitext(generator_script)[0], generator_script)
-dataset_infos = dict(label='Study misbindings, by computing an average posterior for fixed stimuli. Check the distribution of errors as well. Uses a Mixed population, vary ratio_conj to see what happens. Limit to squared ratio_subpop_nb only. Plots already done before, but lets try to redo them', 
+dataset_infos = dict(label='Study misbindings, by computing an average posterior for fixed stimuli. Check the distribution of errors as well. Uses a Mixed population, vary ratio_conj to see what happens. Limit to squared ratio_subpop_nb only. Plots already done before, but lets try to redo them',
                      files="%s/%s*.npy" % (generator_module.pbs_submission_infos['simul_out_dir'], generator_module.pbs_submission_infos['other_options']['label'].split('{')[0]),
                      launcher_module=generator_module,
                      loading_type='args',
@@ -193,7 +193,7 @@ dataset_infos = dict(label='Study misbindings, by computing an average posterior
 
 
 if __name__ == '__main__':
-    
+
     this_file = inspect.getfile(inspect.currentframe())
     print "Running ", this_file
 

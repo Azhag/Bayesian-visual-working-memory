@@ -60,7 +60,7 @@ class DataIO:
             print "=== FileIO ready: %s ===" % self.filename
 
 
-    
+
     def make_dirs(self):
         '''
             Create the directory for the output
@@ -83,7 +83,7 @@ class DataIO:
             output_dir = self.output_folder
 
         try:
-            os.symlink(os.path.join(source_dir, source_file), os.path.join(self.output_folder, source_file))
+            os.symlink(os.path.join(source_dir, source_file), os.path.join(output_dir, source_file))
         except:
             print "Symlink failed: ", os.path.join(source_dir, source_file), os.path.join(output_dir, source_file)
 
@@ -95,7 +95,7 @@ class DataIO:
         '''
 
         # Initialize unique_filename
-        self.filename = os.path.join(self.output_folder, self.unique_filename(prefix=[self.label, self.calling_function]))        
+        self.filename = os.path.join(self.output_folder, self.unique_filename(prefix=[self.label, self.calling_function]))
 
 
     def unique_filename(self, prefix=None, suffix=None, extension=None, unique_id=None, return_id=False, separator='-'):
@@ -224,13 +224,13 @@ class DataIO:
         # Save them as a numpy array
         np.save(self.filename, dict_selected_vars)
 
-    
+
     def save_variables_default(self, all_variables, additional_variables = []):
         '''
             Shortcut function, will automatically save all variables that:
                 - Contain "result" (usually output arrays)
                 - Contain "space"  (parameter spaces)
-            
+
             Adds also:
                 [num_repetitions, repet_i, args]
 

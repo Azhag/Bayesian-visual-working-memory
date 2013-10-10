@@ -114,7 +114,7 @@ def plot_multiple_mean_std_area(x, y, std, ax_handle=None, fignum=None):
     return ax_handle
 
 
-def plot_mean_std_area(x, y, std, ax_handle=None, fignum=None, linewidth=1, fmt='-', markersize=1):
+def plot_mean_std_area(x, y, std, ax_handle=None, fignum=None, linewidth=1, fmt='-', markersize=1, color=None):
     '''
         Plot a given x-y data, with a transparent area for its standard deviation
 
@@ -127,7 +127,10 @@ def plot_mean_std_area(x, y, std, ax_handle=None, fignum=None, linewidth=1, fmt=
 
     ishold = plt.ishold()
 
-    ax = ax_handle.plot(x, y, fmt, linewidth=linewidth, markersize=markersize)
+    if color is not None:
+        ax = ax_handle.plot(x, y, fmt, linewidth=linewidth, markersize=markersize, color=color)
+    else:
+        ax = ax_handle.plot(x, y, fmt, linewidth=linewidth, markersize=markersize)
 
     current_color = ax[-1].get_c()
 
@@ -245,7 +248,7 @@ def plot_square_grid(x, y, nb_to_plot=-1):
     return (f, subaxes)
 
 
-def hist_angular_data(data, bins=20, in_degrees=False, title=None, norm=None, fignum=None):
+def hist_angular_data(data, bins=20, in_degrees=False, title=None, norm=None, fignum=None, ax_handle=None):
 
     if in_degrees:
         bound_x = 180.
@@ -268,11 +271,16 @@ def hist_angular_data(data, bins=20, in_degrees=False, title=None, norm=None, fi
     elif norm == 'density':
         bar_heights, _ = np.histogram(data, bins=x_edges, density=True)
 
-    plt.figure(fignum)
-    plt.bar(x, bar_heights, alpha=0.75, width=2.*bound_x/(bins-1), align='center')
+    if ax_handle is None:
+        f = plt.figure(fignum)
+        ax_handle = f.add_subplot(1, 1, 1)
+
+    ax_handle.bar(x, bar_heights, alpha=0.75, width=2.*bound_x/(bins-1), align='center')
     if title:
-        plt.title(title)
-    plt.xlim([x[0]*1.1, 1.1*x[-1]])
+        ax_handle.set_title(title)
+    ax_handle.set_xlim([x[0]*1.1, 1.1*x[-1]])
+
+    ax_handle.get_figure().canvas.draw()
 
 
 def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorbar=True, ax_handle=None, label_format="%.2f", fignum=None, interpolation='nearest', log_scale=False, ticks_interpolate=None):
@@ -370,8 +378,8 @@ def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorba
 
         ax_handle.axis('tight')
 
-        # Change mouse over behaviour
-        def report_pixel(x_mouse, y_mouse):
+        ## Change mouse over behaviour
+        def report_pixel(x_mouse, y_mouse, format="%.2f"):
             # Extract loglik at that position
 
             try:
@@ -388,11 +396,18 @@ def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorba
                 else:
                     y_display = y_i
 
-                return "x=%.2f y=%.2f value=%.2f" % (x_display, y_display, data[x_i, y_i])
+                return ("x=%.2f y=%.2f value="+format) % (x_display, y_display, data[x_i, y_i])
             except:
                 return ""
 
         ax_handle.format_coord = report_pixel
+
+        ## Change mouse click behaviour
+        def onclick(event):
+            # print 'button=%d, x=%d, y=%d, xdata=%f, ydata=%f'%(event.button, event.x, event.y, event.xdata, event.ydata)
+            print report_pixel(event.xdata, event.ydata, format="%f")
+
+        cid = ax_handle.get_figure().canvas.mpl_connect('button_press_event', onclick)
 
     # redraw
     ax_handle.get_figure().canvas.draw()

@@ -24,19 +24,20 @@ def plots_3dvolume_hierarchical_M_Mlayerone(data_pbs, generator_module=None):
         Reload 3D volume runs from PBS and plot them
 
     '''
-    
-    print "Order parameters: ", generator_module.dict_parameters_range.keys() 
+
+    print "Order parameters: ", generator_module.dict_parameters_range.keys()
 
     results_precision_constant_M_Mlower = np.squeeze(nanmean(data_pbs.dict_arrays['results_precision_M_T']['results'], axis=-1))
-    
+    results_precision_constant_M_Mlower_std = np.squeeze(nanstd(data_pbs.dict_arrays['results_precision_M_T']['results'], axis=-1))
+
     M_space = data_pbs.loaded_data['parameters_uniques']['M']
     M_layer_one_space = data_pbs.loaded_data['parameters_uniques']['M_layer_one']
-    
+
     print M_space
     print M_layer_one_space
     print results_precision_constant_M_Mlower.shape
     # print results_precision_constant_M_Mlower
-    
+
     dataio = DataIO(output_folder=generator_module.pbs_submission_infos['simul_out_dir'] + '/outputs/', label='global_' + dataset_infos['save_output_filename'])
     dataio.make_link_in_directory(inspect.getfile(inspect.currentframe()))
 
@@ -57,11 +58,13 @@ def plots_3dvolume_hierarchical_M_Mlayerone(data_pbs, generator_module=None):
     else:
         # This version forces M + M_lower = 200
         # Fewer plots
-        
+
         plt.rcParams['font.size'] = 14
 
         T = results_precision_constant_M_Mlower.shape[-1]
         results_filtered = results_precision_constant_M_Mlower[np.arange(M_space.size), np.arange(-M_layer_one_space.size, 0)[::-1]]
+        results_filtered_std = results_precision_constant_M_Mlower_std[np.arange(M_space.size), np.arange(-M_layer_one_space.size, 0)[::-1]]
+
 
         results_filtered_smoothed = np.apply_along_axis(smooth, 0, results_filtered, *(10, 'bartlett'))
 
@@ -138,6 +141,27 @@ def plots_3dvolume_hierarchical_M_Mlayerone(data_pbs, generator_module=None):
             dataio.save_current_figure('results_subplots_1dsmoothnorm_{label}_global_{unique_id}.pdf')
 
 
+        # Plot precisions with standard deviation around
+        f, axes = plt.subplots(nrows=T, ncols=1, sharex=True, figsize=(10, 12))
+        # all_lines_bis = []
+        for i, max_ind in enumerate(np.argmax(results_filtered, axis=0)):
+            plot_mean_std_area(ratio_MMlower, results_filtered[:, i], results_filtered_std[:, i], ax_handle=axes[i], linewidth=2, color=all_lines[i].get_color())
+            # curr_lines = axes[i].plot(ratio_MMlower, results_filtered[:, i], linewidth=2, color=all_lines[i].get_color())
+            axes[i].grid()
+            axes[i].set_xticks(np.linspace(0., 1.0, 5))
+            axes[i].set_xlim((0.0, 1.0))
+            # axes[i].set_yticks([])
+            axes[i].set_ylim((np.min(results_filtered[:, i]), results_filtered[max_ind, i]*1.1))
+            axes[i].locator_params(axis='y', tight=True, nbins=4)
+
+            # all_lines_bis.extend(curr_lines)
+
+        f.subplots_adjust(right=0.75)
+        plt.figlegend(all_lines_bis, ['%d item' % i + 's'*(i>1) for i in xrange(1, T+1)], loc='right', bbox_to_anchor=(1.0, 0.5))
+
+        if savefigs:
+            dataio.save_current_figure('results_subplots_1dnorm_{label}_global_{unique_id}.pdf')
+
 
     variables_to_save = ['results_precision_constant_M_Mlower', 'M_space', 'M_layer_one_space']
     dataio.save_variables(variables_to_save, locals())
@@ -150,7 +174,7 @@ def plots_3dvolume_hierarchical_M_Mlayerone(data_pbs, generator_module=None):
 generator_script='generator_constant_total_MMlower_fullaccess_feature_300513.py'
 
 generator_module = imp.load_source(os.path.splitext(generator_script)[0], generator_script)
-dataset_infos = dict(label='Hierarchical network. Assume we want to allocate a fixed number of neurons between the two layers. Do that by constraining the sum of M and M_layer_one to be some constant. Corrected logic so that whole population is accessible now. Feature lower layer.', 
+dataset_infos = dict(label='Hierarchical network. Assume we want to allocate a fixed number of neurons between the two layers. Do that by constraining the sum of M and M_layer_one to be some constant. Corrected logic so that whole population is accessible now. Feature lower layer.',
                      files="%s/%s-*.npy" % (generator_module.pbs_submission_infos['simul_out_dir'], generator_module.pbs_submission_infos['other_options']['label']),
                      launcher_module=generator_module,
                      loading_type='args',
@@ -165,7 +189,7 @@ dataset_infos = dict(label='Hierarchical network. Assume we want to allocate a f
 
 
 if __name__ == '__main__':
-    
+
     this_file = inspect.getfile(inspect.currentframe())
     print "Running ", this_file
 

@@ -30,7 +30,7 @@ def launcher_do_generate_submit_pbs_from_param_files(args):
 
 
     all_parameters = vars(args)
-    
+
     # Load the parameters from the specific file, fancyyyyy
     assert 'parameters_filename' in all_parameters and len(all_parameters['parameters_filename'])>0, "Parameters_filename is not set properly..."
     parameters_file = imp.load_source('params', all_parameters['parameters_filename'])
@@ -40,7 +40,7 @@ def launcher_do_generate_submit_pbs_from_param_files(args):
     constrained_parameters = submit_pbs.generate_submit_constrained_parameters_from_module_parameters(parameters_file)
 
     dataio = DataIO(output_folder=all_parameters['output_directory'], label=os.path.splitext(all_parameters['parameters_filename'])[0])
-    dataio.make_link_in_directory(all_parameters['parameters_filename'])
+    dataio.make_link_in_directory(source_file=all_parameters['parameters_filename'], output_dir=parameters_file.pbs_submission_infos['simul_out_dir'])
     variables_to_save = ['constrained_parameters', 'all_parameters']
     dataio.save_variables(variables_to_save, locals())
 
@@ -61,7 +61,7 @@ def launcher_do_reload_constrained_parameters(args):
 
     # Reload everything
     data_pbs = DataPBS(dataset_infos=parameters_file.dataset_infos, debug=True)
-    
+
     # Do the plots
     post_processing_outputs = []
 

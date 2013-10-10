@@ -38,13 +38,46 @@ def nanstd(array, axis=None):
     else:
         return np.ma.masked_invalid(array).std()
 
-
 def dropnan(array):
     '''
         Take an array, put it in a MaskedArray with ~np.isfinite masking.
         Returns the compressed() 1D array.
     '''
     return np.ma.masked_invalid(array).compressed()
+
+def sample_invgamma(alpha, beta):
+        '''
+            Sample from an inverse gamma. numpy uses the shape/scale, not alpha/beta...
+        '''
+        return 1./np.random.gamma(alpha, 1./beta)
+
+def sample_log_bernoulli(lp1, lp0):
+    '''
+        Sample a bernoulli from log-transformed probabilities
+    '''
+    #print lp0-lp1
+    if (lp0-lp1) < -500:
+        p1 = 1.
+    elif (lp0-lp1) > 500:
+        p1 = 0.
+    else:
+        p1 = 1./(1+np.exp(lp0-lp1))
+
+    return np.random.rand() < p1
+
+def sample_discrete_logp(log_prob):
+    '''
+        Use the logistic link function to get back to probabilities (thanks Sam Roweis)
+        Also put a constant in it to avoid underflows
+    '''
+
+    b = - np.log(self.K) - np.max(log_prob)
+
+    prob = np.exp(log_prob+b)/np.sum(np.exp(log_prob+b))
+    cum_prob = np.cumsum(prob)
+
+    return np.where(np.random.rand() < cum_prob)[0][0]  # Slightly faster than np.find
+
 
 
 def tril_set(array, vector_input, check_sizes=False):

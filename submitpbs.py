@@ -22,7 +22,7 @@ from utils import cross
 PBS_SCRIPT = """#!/bin/bash
 {pbs_options}
 hostn=`hostname`
-echo "Job execution host: $hostn" 
+echo "Job execution host: $hostn"
 echo "Filename: {filename}"
 cd {working_dir}
 nice -n 15 {cmd}
@@ -94,7 +94,7 @@ class SubmitPBS():
         '''
             Catch and construct the list of environment variables to put in the script
         '''
-        
+
         out = []
         out.append(command + " OMP_NUM_THREADS=1")
         for key in os.environ:
@@ -156,22 +156,26 @@ class SubmitPBS():
 
             Will output in the script_directory.
         '''
-        
+
         # Create a new script. Its name is a md5 hash of the command to execute.
         fn = os.path.join(self.scripts_dir, "script." + str(hashlib.md5(command).hexdigest()))
-        
+
         with open(fn, 'w') as f:
             # Construct the pbs options
-            pbs_options = '\n'.join(["#PBS -l " + k + "=" + v for (k, v) in self.pbs_options.items()]) 
+            pbs_options = '\n'.join(["#PBS -l " + k + "=" + v for (k, v) in self.pbs_options.items()])
+
+            # Add SLURM options
+            pbs_options += "\n#SBATCH -n1 --time={walltime} --mem-per-cpu={mem}".format(**self.pbs_options)
 
             # Add the label
             if self.submit_label:
                 pbs_options += "\n#PBS -N " + self.submit_label
-            
+                pbs_options += "\n#SBATCH -J " + self.submit_label
+
             # Add the environment
             if self.set_env:
                 pbs_options = pbs_options + "\n" + self.getEnvCommandString()
-            
+
             # Fill in the template script
             filled_script = PBS_SCRIPT.format(pbs_options=pbs_options, working_dir=self.working_directory, cmd=command, filename=fn)
 
@@ -179,10 +183,10 @@ class SubmitPBS():
 
         # Make the script executable
         os.chmod(fn, stat.S_IXUSR | stat.S_IRUSR | stat.S_IWUSR)
-        
+
         # Add it to the list of jobs
         self.add_to_submit_file(fn, command)
-        
+
         if self.debug:
             print "\n--- Script created: ---"
             print command + "\n"
@@ -232,7 +236,7 @@ class SubmitPBS():
 
             Puts all other_options at the end, directly.
         '''
-        
+
         assert pbs_command_infos is not None, "Provide pbs_command_infos..."
 
         # The command itself (e.g. python scriptname)
@@ -246,7 +250,10 @@ class SubmitPBS():
         # assumes that if a parameter is already set in 'parameters', will not use the value from other_options (safer)
         for (param, param_value) in pbs_command_infos['other_options'].items():
             if param not in parameters:
-                simulation_command += " --{param} {param_value}".format(param=param, param_value=param_value)
+                if param_value is not None:
+                    simulation_command += " --{param} {param_value}".format(param=param, param_value=param_value)
+                else:
+                    simulation_command += " --{param}".format(param=param)
 
         return simulation_command
 
@@ -309,7 +316,7 @@ class SubmitPBS():
 
     def generate_submit_constrained_parameters_random(self, dict_parameters_range, num_samples=100, filtering_function=None, filtering_function_parameters=None, pbs_submission_infos=None, submit_jobs=True):
         '''
-            Takes a dictionary of parameters (which should contain low/high values for each or generator function), and 
+            Takes a dictionary of parameters (which should contain low/high values for each or generator function), and
             generates num_samples possible parameters randomly.
             Checks them with some provided function before accepting them if provided.
             If pbs_submission_infos is provided, will additionally automatically create scripts and submit them to PBS.
@@ -320,7 +327,7 @@ class SubmitPBS():
 
         # We will keep all constrained parameters for further use
         constrained_parameters = []
-        
+
         fill_parameters_progress = progress.Progress(num_samples)
         tested_parameters = 0
 
@@ -329,7 +336,7 @@ class SubmitPBS():
             print "Parameters tested %d, found %d. %.2f%%, %s left - %s" % (tested_parameters, len(constrained_parameters), fill_parameters_progress.percentage(), fill_parameters_progress.time_remaining_str(), fill_parameters_progress.eta_str())
 
             # Sample new parameter values
-            new_parameters = {}            
+            new_parameters = {}
             for curr_param, param_dict in dict_parameters_range.items():
                 # Use the provided sampling function (some are predefined)
                 new_parameters[curr_param] = param_dict['sampling_fct']()
@@ -371,7 +378,7 @@ class SubmitPBS():
         # Some debuging info
         if self.debug:
             print "\n=== Generating up to %d candidate parameter sets ===\n" % len(candidate_parameters)
-        
+
         # Now filter them
         constrained_parameters = []
         for new_parameters in progress.ProgressDisplay(candidate_parameters, display=progress.SINGLE_LINE):

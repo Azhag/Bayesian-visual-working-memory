@@ -383,7 +383,6 @@ class RandomFactorialNetwork():
             return self.get_network_response_bivariatefisher(stimulus_input, specific_neurons=specific_neurons, params=params)
 
 
-
     def get_network_response_vonmisesfisher(self, stimulus_input, specific_neurons=None, params={}):
         '''
             Compute the response of the network.
@@ -545,6 +544,18 @@ class RandomFactorialNetwork():
         else:
             # not unrolled
             raise NotImplementedError('R>3 for factorial code...')
+
+
+    def get_network_response_opt2d(self, theta1, theta2):
+        '''
+            Optimized version of the Bivariate fisher population code, for 2 angles
+        '''
+        # Get the response
+        output = np.exp(self.neurons_sigma[:, 0]*np.cos((theta1 - self.neurons_preferred_stimulus[:, 0])) + self.neurons_sigma[:, 1]*np.cos((theta2 - self.neurons_preferred_stimulus[:, 1])))/self.normalisation
+
+        output[self.mask_neurons_unset] = 0.0
+
+        return output
 
     ####
 
@@ -1211,7 +1222,7 @@ class RandomFactorialNetwork():
         '''
 
         if debug:
-            print "create conjunctive network"
+            print "create conjunctive network, autoset: %d" % autoset_parameters
 
         rn = RandomFactorialNetwork(M, R=R, response_type=response_type, gain=gain)
         rn.population_code_type = 'conjunctive'
@@ -1251,7 +1262,7 @@ class RandomFactorialNetwork():
 
             TODO Only for R=2 here
         '''
-        print "create feature network"
+        print "create feature network, autoset: %d" % autoset_parameters
 
         rn = RandomFactorialNetwork(M, R=R, response_type=response_type, gain=gain)
 
@@ -1278,6 +1289,10 @@ class RandomFactorialNetwork():
             Create a RandomFactorialNetwork instance, using a pure conjunctive code
         '''
         print "create mixed network"
+
+        conj_scale = 0.0
+        feat_scale = 0.0
+        feat_ratio = 0.0
 
         if conjunctive_parameters is None:
             ratio_concentration = 1.
@@ -1318,12 +1333,14 @@ class RandomFactorialNetwork():
             # Use optimal values for the parameters. Be careful, this assumes M/2 and coverage of full 2 pi space
             # Assume one direction should cover width = pi, the other should cover M/2 * width/2. = 2pi
             # width = stddev_to_kappa(stddev)
-            conj_scale = stddev_to_kappa(2.*np.pi/int(rn.conj_subpop_size**0.5))
-            feat_scale = stddev_to_kappa(np.pi)
-            feat_ratio = -stddev_to_kappa(2.*np.pi/int(rn.feat_subpop_size/2.))/feat_scale
+            if rn.conj_subpop_size > 0:
+                conj_scale = stddev_to_kappa(2.*np.pi/int(rn.conj_subpop_size**0.5))
+            if rn.feat_subpop_size > 0:
+                feat_scale = stddev_to_kappa(np.pi)
+                feat_ratio = -stddev_to_kappa(2.*np.pi/int(rn.feat_subpop_size/2.))/feat_scale
 
 
-        print "Population sizes: conj: %d, feat: %d" % (rn.conj_subpop_size, rn.feat_subpop_size)
+        print "Population sizes: ratio: %.1f conj: %d, feat: %d, autoset: %d" % (ratio_feature_conjunctive, rn.conj_subpop_size, rn.feat_subpop_size, autoset_parameters)
 
         # Create the conjunctive subpopulation
         rn.assign_prefered_stimuli(tiling_type='conjunctive', reset=True, specific_neurons = np.arange(rn.conj_subpop_size))

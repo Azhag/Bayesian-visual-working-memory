@@ -37,7 +37,7 @@ def launcher_do_generate_constrained_param_experimental_theo(args):
     '''
 
     all_parameters = vars(args)
-    
+
     variables_to_save = ['dict_parameters_range', 'constrained_parameters', 'pbs_submission_infos', 'filtering_function_params', 'all_parameters']
     dataio = DataIO(output_folder=args.output_directory, label=args.label)
 
@@ -55,16 +55,16 @@ def launcher_do_generate_constrained_param_experimental_theo(args):
     rcscale_space = np.linspace(0.01, 15.0, 10.)
     sigma_space = np.linspace(0.01, 0.8, 10.)
     M_space = np.arange(10, 30, 4, dtype=int)**2.
-    
+
     # pbs_submission_infos = dict(description='Testing the random parameter generator.', command='python /nfs/home2/lmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py', other_options=dict(action_to_do='launcher_do_fisher_information_param_search_pbs', output_directory='.', M=625, sigmax=0.2, rc_scale=4.0, N=300, T=1, alpha=1.0, sigmay=0.0001, num_samples=300, selection_method='last', num_repetitions=all_parameters['num_repetitions'], label='allfi_randomparams_M625N300samples300'), walltime='10:00:00', memory='2gb', simul_out_dir=os.path.join(os.getcwd(), 'random_search_fi'))
-    
-    # pbs_submission_infos = dict(description='Getting the full memory curves for all the parameters compatible with the experimental Fisher information', command='python /nfs/home2/lmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py', other_options=dict(action_to_do='launcher_do_multiple_memory_curve_simult', code_type='conj', output_directory='.', M=225, sigmax=0.2, rc_scale=4.0, N=200, T=6, alpha=1.0, sigmay=0.0001, num_samples=300, selection_method='last', selection_num_samples=300, inference_method='sample', num_repetitions=all_parameters['num_repetitions'], label='memorycurves_randomparams_M225N200samples300'), walltime='10:00:00', memory='2gb', simul_out_dir=os.path.join(os.getcwd(), 'memory_curves_constrained'))
 
-    # pbs_submission_infos = dict(description='Getting the full memory curves for all the parameters compatible with the experimental Fisher information', command='python /nfs/home2/lmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py', other_options=dict(action_to_do='launcher_do_multiple_memory_curve_simult', code_type='conj', output_directory='.', M=225, sigmax=0.2, rc_scale=4.0, N=200, T=6, alpha=1.0, sigmay=0.0001, num_samples=300, selection_method='last', selection_num_samples=300, inference_method='sample', num_repetitions=all_parameters['num_repetitions'], label='memorycurves_randomparams_M225N200samples300fi9numrepet5'), walltime='10:00:00', memory='2gb', simul_out_dir=os.path.join(os.getcwd(), 'memory_curves_constrained_fi9_corr'))
-    
-    # pbs_submission_infos = dict(description='Getting the full memory curves for all the parameters compatible with the experimental Fisher information (use 2x experimental one here). M=625', command='python /nfs/home2/lmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py', other_options=dict(action_to_do='launcher_do_multiple_memory_curve_simult', code_type='conj', output_directory='.', M=625, sigmax=0.2, rc_scale=4.0, N=200, T=5, alpha=1.0, sigmay=0.0001, num_samples=300, selection_method='last', selection_num_samples=300, inference_method='sample', num_repetitions=all_parameters['num_repetitions'], label='memorycurves_randomparams_M625N200samples300_newruns'), walltime='10:00:00', memory='2gb', simul_out_dir=os.path.join(os.getcwd(), 'memory_curves_constrained_M625_newruns'))
+    # pbs_submission_infos = dict(description='Getting the full memory curves for all the parameters compatible with the experimental Fisher information', command='python /nfs/home2/lmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py', other_options=dict(action_to_do='launcher_do_memory_curve_simult', code_type='conj', output_directory='.', M=225, sigmax=0.2, rc_scale=4.0, N=200, T=6, alpha=1.0, sigmay=0.0001, num_samples=300, selection_method='last', selection_num_samples=300, inference_method='sample', num_repetitions=all_parameters['num_repetitions'], label='memorycurves_randomparams_M225N200samples300'), walltime='10:00:00', memory='2gb', simul_out_dir=os.path.join(os.getcwd(), 'memory_curves_constrained'))
 
-    # pbs_submission_infos = dict(description='Memory curves for correct experimental FI. M=625', command='python /nfs/home2/lmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py', other_options=dict(action_to_do='launcher_do_multiple_memory_curve_simult', code_type='conj', output_directory='.', M=625, sigmax=0.2, rc_scale=4.0, N=200, T=5, alpha=1.0, sigmay=0.0001, num_samples=300, selection_method='last', selection_num_samples=300, inference_method='sample', num_repetitions=all_parameters['num_repetitions'], label='memorycurves_correctfi_randomparams_M625N200samples300_121112'), walltime='10:00:00', memory='2gb', simul_out_dir=os.path.join(os.getcwd(), 'memory_curves_constrained_M625_correctfi'))
+    # pbs_submission_infos = dict(description='Getting the full memory curves for all the parameters compatible with the experimental Fisher information', command='python /nfs/home2/lmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py', other_options=dict(action_to_do='launcher_do_memory_curve_simult', code_type='conj', output_directory='.', M=225, sigmax=0.2, rc_scale=4.0, N=200, T=6, alpha=1.0, sigmay=0.0001, num_samples=300, selection_method='last', selection_num_samples=300, inference_method='sample', num_repetitions=all_parameters['num_repetitions'], label='memorycurves_randomparams_M225N200samples300fi9numrepet5'), walltime='10:00:00', memory='2gb', simul_out_dir=os.path.join(os.getcwd(), 'memory_curves_constrained_fi9_corr'))
+
+    # pbs_submission_infos = dict(description='Getting the full memory curves for all the parameters compatible with the experimental Fisher information (use 2x experimental one here). M=625', command='python /nfs/home2/lmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py', other_options=dict(action_to_do='launcher_do_memory_curve_simult', code_type='conj', output_directory='.', M=625, sigmax=0.2, rc_scale=4.0, N=200, T=5, alpha=1.0, sigmay=0.0001, num_samples=300, selection_method='last', selection_num_samples=300, inference_method='sample', num_repetitions=all_parameters['num_repetitions'], label='memorycurves_randomparams_M625N200samples300_newruns'), walltime='10:00:00', memory='2gb', simul_out_dir=os.path.join(os.getcwd(), 'memory_curves_constrained_M625_newruns'))
+
+    # pbs_submission_infos = dict(description='Memory curves for correct experimental FI. M=625', command='python /nfs/home2/lmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py', other_options=dict(action_to_do='launcher_do_memory_curve_simult', code_type='conj', output_directory='.', M=625, sigmax=0.2, rc_scale=4.0, N=200, T=5, alpha=1.0, sigmay=0.0001, num_samples=300, selection_method='last', selection_num_samples=300, inference_method='sample', num_repetitions=all_parameters['num_repetitions'], label='memorycurves_correctfi_randomparams_M625N200samples300_121112'), walltime='10:00:00', memory='2gb', simul_out_dir=os.path.join(os.getcwd(), 'memory_curves_constrained_M625_correctfi'))
 
     # pbs_submission_infos = dict(description='3D Grid search for FI Theo+var. No filtering.', command='python /nfs/home2/lmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py', other_options=dict(action_to_do='launcher_do_memorycurve_theoretical_pbs', code_type='conj', output_directory='.', M=400, sigmax=0.1, rc_scale=4.0, N=200, T=5, alpha=1.0, sigmay=0.0001, num_samples=300, selection_method='last', selection_num_samples=300, inference_method='sample', num_repetitions=all_parameters['num_repetitions'], label='3dvolume_memorycurves_theovar_grid_151112'), walltime='10:00:00', memory='2gb', simul_out_dir=os.path.join(os.getcwd(), '3dvolume_memcurve_theovar_151112'))
     # rcscale_space = np.linspace(0.01, 15.0, 10.)
@@ -113,7 +113,7 @@ def launcher_do_generate_constrained_param_experimental_theo(args):
         # Submit during the generation, when we find a new set of parameters.
 
         constrained_parameters = submit_pbs.generate_submit_constrained_parameters_random(dict_parameters_range, num_samples=num_samples, filtering_function=check_experimental_constraint, filtering_function_parameters=filtering_function_params, pbs_submission_infos=pbs_submission_infos, submit_jobs=pbs_submit_during_parameters_generation)
-     
+
     elif all_parameters['search_type'] == 'grid':
         print "Launching grid!"
 
@@ -121,11 +121,11 @@ def launcher_do_generate_constrained_param_experimental_theo(args):
         sigmax_range      =   dict(range=sigma_space, dtype=float)
         M_range           =   dict(range=M_space, dtype=int)
         rcscale2_range    =   dict(range=rcscale2_space, dtype=float)
-        
+
         # dict_parameters_range = dict(rc_scale=rcscale_range, sigmax=sigmax_range)
         # dict_parameters_range = dict(rc_scale=rcscale_range, sigmax=sigmax_range, M=M_range)
         dict_parameters_range = dict(rc_scale=rcscale_range, sigmax=sigmax_range, rc_scale2=rcscale2_range)
-    
+
         # Generate the parameters
         # Submit during the generation, when we find a new set of parameters (pbs_submit_during_parameters_generation=True)
         if activate_filtering:
@@ -135,7 +135,7 @@ def launcher_do_generate_constrained_param_experimental_theo(args):
 
     else:
         raise ValueError('Wrong search_type')
-    
+
     # Clean dict_parameters_range for pickling
     for param, param_dict in dict_parameters_range.items():
         param_dict['sampling_fct'] = None
@@ -159,19 +159,19 @@ def init_everything(parameters):
 
     # Build the random network
     random_network = init_random_network(parameters)
-        
+
     # Construct the real dataset
     time_weights_parameters = dict(weighting_alpha=parameters['alpha'], weighting_beta=1.0, specific_weighting=0.1, weight_prior='uniform')
     cued_feature_time = parameters['T']-1
 
     # print "Building the database"
     data_gen = DataGeneratorRFN(parameters['N'], parameters['T'], random_network, sigma_y=parameters['sigmay'], sigma_x=parameters['sigmax'], time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation=parameters['stimuli_generation'])
-    
+
     # Measure the noise structure
     # print "Measuring noise structure"
     data_gen_noise = DataGeneratorRFN(5000, parameters['T'], random_network, sigma_y=parameters['sigmay'], sigma_x=parameters['sigmax'], time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation=parameters['stimuli_generation'])
     stat_meas = StatisticsMeasurer(data_gen_noise)
-    
+
     sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters=stat_meas.model_parameters, tc=cued_feature_time)
 
     return (random_network, data_gen, stat_meas, sampler)
@@ -181,7 +181,7 @@ def init_everything(parameters):
 def init_random_network(parameters):
 
     # Build the random network
-    
+
     if parameters['code_type'] == 'conj':
         random_network = RandomFactorialNetwork.create_full_conjunctive(parameters['M'], R=parameters['R'], rcscale=parameters['rc_scale'])
     elif parameters['code_type'] == 'feat':
@@ -190,16 +190,16 @@ def init_random_network(parameters):
         conj_params = dict(scale_moments=(parameters['rc_scale'], 0.001), ratio_moments=(1.0, 0.0001))
         feat_params = dict(scale=parameters['rc_scale2'], ratio=40.)
 
-        random_network = RandomFactorialNetwork.create_mixed(parameters['M'], R=parameters['R'], ratio_feature_conjunctive=ratio_conj, conjunctive_parameters=conj_params, feature_parameters=feat_params)
+        random_network = RandomFactorialNetwork.create_mixed(parameters['M'], R=parameters['R'], ratio_feature_conjunctive=parameters['ratio_conj'], conjunctive_parameters=conj_params, feature_parameters=feat_params)
     elif parameters['code_type'] == 'wavelet':
         random_network = RandomFactorialNetwork.create_wavelet(parameters['M'], R=parameters['R'], scales_number=5)
     elif parameters['code_type'] == 'hierarchical':
-        random_network = HierarchialRandomNetwork(args.M, sigma_weights=0.5, sparsity_weights=0.5, M_layer_one=args.M_layer_one, rcscale_layer_one='optimal')
+        random_network = HierarchialRandomNetwork(parameters['M'], sigma_weights=0.5, sparsity_weights=0.5, M_layer_one=parameters['M_layer_one'], rcscale_layer_one='optimal')
     else:
         raise ValueError('Code_type is wrong!')
 
     return random_network
-    
+
 
 def check_experimental_constraint(parameters, dict_parameters_range, function_parameters=None):
     '''
@@ -212,14 +212,8 @@ def check_experimental_constraint(parameters, dict_parameters_range, function_pa
     all_parameters = function_parameters['all_parameters']
     experimental_fisherinfo = function_parameters['experimental_fisherinfo']
     max_mse = function_parameters['max_mse']
-    if 'use_theoretical_cov' in function_parameters:
-        use_theoretical_cov = function_parameters['use_theoretical_cov']
-    else:
-        use_theoretical_cov = True
-    if 'check_theoretical_cov' in function_parameters:
-        check_theoretical_cov = function_parameters['check_theoretical_cov']
-    else:
-        check_theoretical_cov = False
+    use_theoretical_cov = function_parameters.get('use_theoretical_cov', True)
+    check_theoretical_cov = function_parameters.get('check_theoretical_cov', False)
 
 
     # Set the parameters we wish to assess
@@ -262,7 +256,7 @@ def check_experimental_constraint(parameters, dict_parameters_range, function_pa
 
     # Check if in the bounds or not
     return (theoretical_fi - experimental_fisherinfo)**2. < max_mse
-    
+
 
 #########
 
@@ -330,7 +324,7 @@ def launcher_do_reload_constrained_parameters_from_args(args):
                     )
     elif args.subaction == '6':
         dataset_infos = dict(label='3D volume. Memory curves. Theoretical big space',
-                    
+
                     # files='Data/param_generator/3dvolume_theomemcurves_theobigspace/3dvolume_memcurve_theoonlybigspace_151112/3dvolume_memorycurves_theoonlybigspace_grid_151112-*.npy',
                     # launcher_file='Data/param_generator/3dvolume_theomemcurves_theobigspace/launcher_do_generate_constrained_param_experimental_theo-e86df8d5-df0e-4a54-8c6a-59b24de1b869.npy',
                     # files='Data/param_generator/3dvolume_theomemcurves_theobigspace/3dvolume_memcurve_theoonlybigspace_reruns_151112/3dvolume_memorycurves_theoonlybigspace_grid_151112-*.npy',
@@ -369,7 +363,7 @@ def launcher_do_reload_constrained_parameters_from_args(args):
     else:
         raise ValueError('Set subaction to the data you want to reload')
 
-    
+
     # Reload everything
     data_pbs = DataPBS(dataset_infos=dataset_infos, debug=True)
 
@@ -438,7 +432,7 @@ def plots_randomsamples_memorycurves(data_pbs, launcher_variables=None):
     '''
         Plots for memory curves run
     '''
-    
+
     interpolation_method = 'linear'
     # interpolation_method = 'nearest'
     interpolation_numpoints = 300
@@ -462,7 +456,7 @@ def plots_randomsamples_memorycurves(data_pbs, launcher_variables=None):
         # experimental_fi = 9.041
         experimental_fi = 8.81
         max_mse_fi = 800.0
-    
+
     # Random filter because of stupid runs...
     # filter_good_fi = parameters_allpoints[:, 1] < parameters_allpoints[:, 0]*0.07735 - 0.1
     # parameters_allpoints = np.array([parameters_allpoints[i] for i in xrange(parameters_allpoints.shape[0]) if filter_good_fi[i]])
@@ -477,7 +471,7 @@ def plots_randomsamples_memorycurves(data_pbs, launcher_variables=None):
     # Filter points too bad...
     # dist_experimental_fi_1obj[dist_experimental_fi_1obj > max_mse_fi] = np.nan
     # dist_experimental_fi_1obj = np.ma.masked_where(dist_experimental_fi_1obj > max_mse_fi, dist_experimental_fi_1obj)
-    
+
     if log_distances:
         contourf_interpolate_data(parameters_allpoints, np.log(dist_experimental_fi_1obj), xlabel='rc scale', ylabel='sigma x', title='log MSE between precision 1 object and Experimental FI %.2f' % experimental_fi, interpolation_numpoints=interpolation_numpoints, interpolation_method=interpolation_method, contour_numlevels=contour_numlevels)
     else:
@@ -514,7 +508,7 @@ def plots_randomsamples_memorycurves(data_pbs, launcher_variables=None):
 
     experimental_powerlaw_params = fit_powerlaw(np.arange(1, 6), experimental_memory_curve)
     dist_powerlaw_fits = np.sum((power_law_params - experimental_powerlaw_params)**2., axis=1)
-    
+
     contourf_interpolate_data(parameters_allpoints, dist_powerlaw_fits, xlabel='rc scale', ylabel='sigma x', title='MSE exp/model power law parameters', interpolation_numpoints=interpolation_numpoints, interpolation_method=interpolation_method, contour_numlevels=contour_numlevels)
 
     contourf_interpolate_data(parameters_allpoints, np.log(dist_powerlaw_fits), xlabel='rc scale', ylabel='sigma x', title='Log MSE exp/model power law parameters', interpolation_numpoints=interpolation_numpoints, interpolation_method=interpolation_method, contour_numlevels=contour_numlevels)
@@ -543,8 +537,8 @@ def plots_3dvolume_theovar(data_pbs, launcher_variables=None):
     rcscale_space = data_pbs.loaded_data['parameters_uniques']['rc_scale']
     sigma_space = data_pbs.loaded_data['parameters_uniques']['sigmax']
     M_space = data_pbs.loaded_data['parameters_uniques']['M']
-    
-    
+
+
     exp_target = np.array([ 8.81007762,  4.7976755,   3.61554792,  2.4624979,   1.78252039])
     interpolation = 'nearest'
 
@@ -554,7 +548,7 @@ def plots_3dvolume_theovar(data_pbs, launcher_variables=None):
 
     dist_theo_1obj = (FI_rc_theo_mean[..., 0] - exp_target[0])**2.
     log_dist_theo_1obj = np.log(dist_theo_1obj)
-    
+
     dist_var_exp = np.sum((FI_rc_var_mean[..., 0] - exp_target)**2., axis=-1)
     log_dist_var_exp = np.log(dist_var_exp)
 
@@ -694,8 +688,8 @@ def plots_3dvolume_theovar_mixedpop(data_pbs, launcher_variables=None):
     rcscale_space = data_pbs.loaded_data['parameters_uniques']['rc_scale']
     sigma_space = data_pbs.loaded_data['parameters_uniques']['sigmax']
     rcscale2_space = data_pbs.loaded_data['parameters_uniques']['rc_scale2']
-    
-    
+
+
     # exp_target = np.array([ 8.81007762,  4.7976755,   3.61554792,  2.4624979,   1.78252039])*2.
     exp_target = np.array([ 18.08189147,   9.82251951,   7.6423548, 5.19406881,   3.79220385])
     interpolation = 'nearest'
@@ -721,7 +715,7 @@ def plots_3dvolume_theovar_mixedpop(data_pbs, launcher_variables=None):
 
         dist_theo_1obj = (FI_rc_theo_mean[..., 0] - exp_target[0])**2.
         log_dist_theo_1obj = np.log(dist_theo_1obj)
-        
+
         dist_var_exp = np.sum((FI_rc_var_mean[..., 0] - exp_target)**2., axis=-1)
         log_dist_var_exp = np.log(dist_var_exp)
 

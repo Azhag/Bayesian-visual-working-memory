@@ -36,7 +36,7 @@ def launcher_do_average_posterior(args):
 
 
     print "Doing a piece of work for launcher_do_average_posterior"
-    
+
     try:
         # Convert Argparse.Namespace to dict
         all_parameters = vars(args)
@@ -63,7 +63,7 @@ def launcher_do_average_posterior(args):
 
     result_all_log_posterior = np.nan*np.ones((all_parameters['N'], num_points))
     result_all_thetas = np.zeros(all_parameters['N'])
-    
+
     search_progress = progress.Progress(all_parameters['N'])
     save_every = 10
     print_every = 10
@@ -82,7 +82,7 @@ def launcher_do_average_posterior(args):
     if do_precision:
         print 'Precision...'
         sampler.sample_theta(num_samples=all_parameters['num_samples'], burn_samples=100, selection_method=all_parameters['selection_method'], selection_num_samples=all_parameters['num_samples']/2, integrate_tc_out=False, debug=True)
-        
+
         result_all_thetas, targets, nontargets = sampler.collect_responses()
 
 
@@ -92,7 +92,7 @@ def launcher_do_average_posterior(args):
         if run_counter % print_every == 0:
             print "%.2f%% %s/%s" % (search_progress.percentage(), search_progress.time_remaining_str(), search_progress.eta_str())
 
-        result_all_log_posterior[n] = sampler.compute_likelihood_fullspace(n=n, all_angles=all_angles, num_points=num_points, should_exponentiate=False)[:, -1].T
+        result_all_log_posterior[n] = sampler.compute_likelihood_fullspace(n=n, all_angles=all_angles, num_points=num_points, should_exponentiate=False, remove_mean=True)[:, -1].T
 
         ### /Work ###
 
@@ -106,7 +106,7 @@ def launcher_do_average_posterior(args):
 
             # ax_handle = plot_mean_std_area(all_angles, nanmean(result_all_log_posterior[ axis=0), nanstd(result_all_log_posterior[ axis=0), ax_handle=ax_handle)
             # ax_handle.hold(False)
-            
+
             # dataio.save_current_figure('FI_compare_theo_finite-precisionvstheo-{label}_{unique_id}.pdf')
 
 
@@ -125,7 +125,7 @@ def launcher_do_average_posterior(args):
     print "All finished"
 
     plt.show()
-    
+
     return locals()
 
 
@@ -136,7 +136,7 @@ def launcher_do_variability_mixture(args):
     '''
 
     print "Doing a piece of work for launcher_do_variability_mixture"
-    
+
     try:
         # Convert Argparse.Namespace to dict
         all_parameters = vars(args)
@@ -157,7 +157,7 @@ def launcher_do_variability_mixture(args):
     all_parameters['stimuli_generation'] = 'separated'
     all_parameters['stimuli_generation_recall'] = 'random'
     all_parameters['enforce_first_stimulus'] = False
-    all_parameters['num_samples'] = 500 
+    all_parameters['num_samples'] = 500
     all_parameters['selection_method'] = 'last'
     all_parameters['code_type'] = 'mixed'
     all_parameters['autoset_parameters'] = True
@@ -171,13 +171,13 @@ def launcher_do_variability_mixture(args):
     ratio_space = np.linspace(0.01, 0.7, 20.)
 
     all_parameters['sigmax'] = 0.05
-    
+
     num_points = 500
 
     result_all_posterior = np.nan*np.ones((ratio_space.size, all_parameters['N'], num_points))
     result_all_mixture_params = np.nan*np.ones((ratio_space.size, all_parameters['N'], 3))
     result_all_bimodality_tests = np.nan*np.ones((ratio_space.size, all_parameters['N'], 2))
-    
+
     search_progress = progress.Progress(ratio_space.size*all_parameters['N'])
     save_every = 10
     print_every = 10
@@ -186,7 +186,7 @@ def launcher_do_variability_mixture(args):
 
 
     all_angles = np.linspace(-np.pi, np.pi, num_points)
-    
+
     for ratio_i, ratio_conj in enumerate(ratio_space):
 
         all_parameters['ratio_conj'] = ratio_conj
@@ -200,7 +200,7 @@ def launcher_do_variability_mixture(args):
             if run_counter % print_every == 0:
                 print "%.2f%% %s/%s" % (search_progress.percentage(), search_progress.time_remaining_str(), search_progress.eta_str())
 
-            result_all_posterior[ratio_i, n] = sampler.compute_likelihood_fullspace(n=n, all_angles=all_angles, num_points=num_points, should_exponentiate=True)[:, -1].T
+            result_all_posterior[ratio_i, n] = sampler.compute_likelihood_fullspace(n=n, all_angles=all_angles, num_points=num_points, should_exponentiate=True, remove_mean=True)[:, -1].T
 
             result_all_mixture_params[ratio_i, n] = fit_gaussian_mixture_fixedmeans(all_angles, result_all_posterior[ratio_i, n], fixed_means=data_gen.stimuli_correct[n, :, -1], normalise=True, return_fitted_data=False, should_plot=False)
 
