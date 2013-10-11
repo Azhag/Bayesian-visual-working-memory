@@ -45,8 +45,9 @@ def preprocess_simultaneous(dataset, parameters):
 
 
     # Rename the error field
-    dataset['error'] = dataset['err']
-    del dataset['err']
+    if 'err' in dataset:
+        dataset['error'] = dataset['err']
+        del dataset['err']
 
     # Assign probe field correctly
     dataset['probe'] = np.zeros(dataset['error'].shape, dtype= int)
@@ -61,9 +62,29 @@ def preprocess_simultaneous(dataset, parameters):
     # Create arrays per subject
     create_subject_arrays(dataset)
 
+    # Reconstruct the colour information_
+    if 'item_colour' not in dataset:
+        reconstruct_colours_exp1(dataset, datadir = parameters.get('datadir', ''))
+
     # Fit the mixture model, and save the responsibilities per datapoint.
     # em_circularmixture.fit()
 
+    ## Save item in a nice format for the model fit
+    dataset['data_to_fit'] = {}
+    dataset['data_to_fit']['n_items'] = np.unique(dataset['n_items'])
+    for n_items in dataset['data_to_fit']['n_items']:
+        ids_n_items = (dataset['n_items'] == n_items).flatten()
+
+        if n_items not in dataset['data_to_fit']:
+            dataset['data_to_fit'][n_items] = {}
+            dataset['data_to_fit'][n_items]['N'] = np.sum(ids_n_items)
+            dataset['data_to_fit'][n_items]['probe'] = np.unique(dataset['probe'][ids_n_items])
+            dataset['data_to_fit'][n_items]['item_features'] = np.empty((dataset['data_to_fit'][n_items]['N'], n_items, 2))
+            dataset['data_to_fit'][n_items]['response'] = np.empty((dataset['data_to_fit'][n_items]['N'], 1))
+
+        dataset['data_to_fit'][n_items]['item_features'][..., 0] = dataset['item_angle'][ids_n_items, :n_items]
+        dataset['data_to_fit'][n_items]['item_features'][..., 1] = dataset['item_colour'][ids_n_items, :n_items]
+        dataset['data_to_fit'][n_items]['response'] = dataset['response'][ids_n_items].flatten()
 
 
 
@@ -243,6 +264,8 @@ def load_dataset(filename='', preprocess=lambda x, p: x, parameters={}):
             - Simultaneous and sequential Gorgoraptis_2011 data: Exp1 and Exp2.
             - Dual recall data DualRecall_Bays.
     '''
+    # Add datadir
+    filename = os.path.join(parameters.get('datadir', ''), filename)
 
     # Load everything
     dataset = sio.loadmat(filename, mat_dtype=True)
@@ -266,7 +289,7 @@ def load_multiple_datasets(datasets_descr = []):
     return datasets
 
 
-def reconstruct_colours_exp1(datasets=('Data/ad.mat', 'Data/gb.mat', 'Data/kf.mat', 'Data/md.mat', 'Data/sf.mat', 'Data/sw.mat', 'Data/wd.mat', 'Data/zb.mat')):
+def reconstruct_colours_exp1(dataset, datadir='', datasets=('Data/ad.mat', 'Data/gb.mat', 'Data/kf.mat', 'Data/md.mat', 'Data/sf.mat', 'Data/sw.mat', 'Data/wd.mat', 'Data/zb.mat')):
     '''
         The colour is missing from the simultaneous experiment dataset
         Reconstruct it.
@@ -276,11 +299,12 @@ def reconstruct_colours_exp1(datasets=('Data/ad.mat', 'Data/gb.mat', 'Data/kf.ma
     all_preangles = []
     all_targets = []
     for dataset_fn in datasets:
+        dataset_fn = os.path.join(datadir, dataset_fn)
         print dataset_fn
         curr_data = sio.loadmat(dataset_fn, mat_dtype=True)
 
-        all_colours.append(curr_data['probe_colour'])
-        all_preangles.append(wrap_angles(np.deg2rad(curr_data['probe_pre_angle']), bound=np.pi/2.))
+        all_colours.append(curr_data['item_colour'])
+        all_preangles.append(wrap_angles(curr_data['probe_pre_angle'], bound=np.pi/2.))
         all_targets.append(wrap_angles(np.deg2rad(curr_data['item_angle'][:, 0]), bound=np.pi/2.))
 
     print "Data loaded"
@@ -290,27 +314,40 @@ def reconstruct_colours_exp1(datasets=('Data/ad.mat', 'Data/gb.mat', 'Data/kf.ma
     all_preangles = np.array(all_preangles)
 
     # Ordering in original data
-    order_subjects = [0, 4, 1, 5, 2, 6, 3, 7]
+    order_subjects = [0, 2, 4, 6, 1, 3, 5, 7]
+
     all_colours = all_colours[order_subjects]
     all_targets = all_targets[order_subjects]
     all_preangles = all_preangles[order_subjects]
 
-    # Flatten everything
-    all_colours_ = []
-    all_targets_ = []
-    all_preangles_ = []
-    for curr_colour in all_colours:
-        all_colours_.extend(np.squeeze(curr_colour).tolist())
-    print "Colours flat"
-    for curr_target in all_targets:
-        all_targets_.extend(np.squeeze(curr_target).tolist())
-    print "Targets flat"
-    for curr_preangle in all_preangles:
-        all_preangles_.extend(np.squeeze(curr_preangle).tolist())
-    print "Preangles flat"
+    # Convert colour ids into angles.
+    # Assume uniform coverage over circle...
+    nb_colours = np.unique(all_colours[0][:, 0]).size
 
+    # Make it so 0 is np.nan, and then 1...8 are possible colour angles
+    colours_possible = np.r_[np.nan, np.linspace(-np.pi, np.pi, nb_colours, endpoint=False)]
 
-    return (np.array(all_colours_), np.array(all_targets_), np.array(all_preangles_))
+    size_colour_arr = np.sum([col.shape[0] for col in all_colours])
+    item_colour = np.empty((size_colour_arr, all_colours[0].shape[1]))
+    start_i = 0
+    for i in xrange(all_colours.size):
+        # Get the indices. 0 will be np.nan, 1 .. nb_colours will work directly.
+        colours_indices = np.ma.masked_invalid(all_colours[i]).filled(fill_value = 0.0).astype(int)
+
+        # Get the colours!
+        # Indexing is annoying, as we have different shapes for different subjects
+        item_colour[start_i:start_i+colours_indices.shape[0]] = colours_possible[colours_indices]
+
+        start_i += colours_indices.shape[0]
+
+    item_preangle_arr = np.empty((0, all_preangles[0].shape[1]))
+    for arr in all_preangles:
+        item_preangle_arr = np.r_[item_preangle_arr, arr]
+
+    dataset['item_colour'] = item_colour
+    dataset['item_preangle'] = item_preangle_arr
+    dataset['all_targets'] = all_targets
+
 
 
 
@@ -324,7 +361,7 @@ def compute_all_errors(dataset = {}):
     dataset['errors_all'] = wrap_angles(dataset['item_angle'] - dataset['response'], bound=np.pi/2.)
 
     # Sanity check, verify that errors computed are the same as precomputed ones.
-    assert all(np.abs(dataset['errors_all'][np.arange(dataset['probe'].size), dataset['probe'][:, 0]] - dataset['error'][:, 0]) < 10**-6), "Errors computed are different than errors given in the data"
+    # assert all(np.abs(dataset['errors_all'][np.arange(dataset['probe'].size), dataset['probe'][:, 0]] - dataset['error'][:, 0]) < 10**-6), "Errors computed are different than errors given in the data"
 
 
 def create_subject_arrays(dataset = {}):
@@ -358,6 +395,7 @@ def create_subject_arrays(dataset = {}):
     dataset['precision_subject_nitems_theo'] = precision_subject_nitems_theo
     dataset['precision_subject_nitems_theo_nochance'] = precision_subject_nitems_nochance
     dataset['precision_subject_nitems_bays_chance'] = precision_subject_nitems_raw
+
 
 def compute_precision(errors, remove_chance_level=True, correct_orientation=True, use_wrong_precision=True):
     '''
@@ -674,7 +712,7 @@ if __name__ == '__main__':
     if False or (len(sys.argv) > 1 and sys.argv[1]):
     # keys:
     # 'probe', 'delayed', 'item_colour', 'probe_colour', 'item_angle', 'error', 'probe_angle', 'n_items', 'response', 'subject']
-        (data_sequen, data_simult, data_dualrecall) = load_multiple_datasets([dict(filename=os.path.join(data_dir, 'Gorgoraptis_2011', 'Exp1.mat'), preprocess=preprocess_sequential, parameters={}), dict(filename=os.path.join(data_dir, 'Gorgoraptis_2011', 'Exp2.mat'), preprocess=preprocess_simultaneous, parameters={}), dict(filename=os.path.join(data_dir, 'DualRecall_Bays', 'rate_data.mat'), preprocess=preprocess_doublerecall, parameters=dict(fit_mixturemodel=True))])
+        (data_sequen, data_simult, data_dualrecall) = load_multiple_datasets([dict(filename='Exp1.mat', preprocess=preprocess_sequential, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'))), dict(filename='Exp2.mat', preprocess=preprocess_simultaneous, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'))), dict(filename=os.path.join(data_dir, 'DualRecall_Bays', 'rate_data.mat'), preprocess=preprocess_doublerecall, parameters=dict(fit_mixturemodel=True))])
 
 
     # Check for bias towards 0 for the error between response and all items
@@ -702,7 +740,7 @@ if __name__ == '__main__':
 
     # np.save('processed_experimental_230613.npy', dict(data_simult=data_simult, data_sequen=data_sequen))
 
-    plots_doublerecall(data_dualrecall)
+    # plots_doublerecall(data_dualrecall)
 
 
 

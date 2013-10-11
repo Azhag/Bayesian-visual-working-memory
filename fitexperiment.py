@@ -102,24 +102,25 @@ class FitExperiment:
             Load a specific human experiment.
         '''
 
+        fit_mixturemodel = self.experiment_params.get('fit_mixturemodel', False)
+        n_items_to_fit = self.experiment_params.get("n_items_to_fit", 3)
+
         if self.experiment_id == 'doublerecall':
+            experiment_descriptor = dict(filename=os.path.join(data_dir, 'DualRecall_Bays', 'rate_data.mat'), preprocess=loader_exp_data.preprocess_doublerecall, parameters=dict(fit_mixturemodel=fit_mixturemodel))
+        elif self.experiment_id == 'gorgo_simult':
+            experiment_descriptor = dict(filename='Exp2_withcolours.mat', preprocess=loader_exp_data.preprocess_simultaneous, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), fit_mixturemodel=fit_mixturemodel))
 
-            fit_mixturemodel = self.experiment_params.get('fit_mixturemodel', False)
+        # Load the data
+        self.dataset_experiment = loader_exp_data.load_dataset(**experiment_descriptor)
 
-            dualrecall_experiment = dict(filename=os.path.join(data_dir, 'DualRecall_Bays', 'rate_data.mat'), preprocess=loader_exp_data.preprocess_doublerecall, parameters=dict(fit_mixturemodel=fit_mixturemodel))
+        # Get shortcuts to the stimuli and responses, only actual things we use from the dataset
+        self.data_stimuli = self.dataset_experiment['data_to_fit'][n_items_to_fit]['item_features']
+        self.data_responses = self.dataset_experiment['data_to_fit'][n_items_to_fit]['response']
 
-            self.dataset_experiment = loader_exp_data.load_dataset(**dualrecall_experiment)
-
-            n_items_to_fit = self.experiment_params.get("n_items_to_fit", 3)
-
-            # Get shortcuts to the stimuli and responses, only actual things we use from the dataset
-            self.data_stimuli = self.dataset_experiment['data_to_fit'][n_items_to_fit]['item_features']
-            self.data_responses = self.dataset_experiment['data_to_fit'][n_items_to_fit]['response']
-
-            # Force some parameters
-            self.parameters['N'] = self.dataset_experiment['data_to_fit'][n_items_to_fit]['N']
-            self.parameters['T'] = n_items_to_fit
-            self.parameters['cued_feature_time'] = self.dataset_experiment['data_to_fit'][n_items_to_fit]['probe'][0]
+        # Force some parameters
+        self.parameters['N'] = self.dataset_experiment['data_to_fit'][n_items_to_fit]['N']
+        self.parameters['T'] = n_items_to_fit
+        self.parameters['cued_feature_time'] = self.dataset_experiment['data_to_fit'][n_items_to_fit]['probe'][0]
 
 
     def instantiate_everything(self):

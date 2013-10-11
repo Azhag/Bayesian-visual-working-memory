@@ -36,9 +36,9 @@ def launcher_do_fitexperiment(args):
     print all_parameters
 
     # Force some parameters
-    all_parameters['experiment_id'] = "doublerecall"
-    if all_parameters['T'] > 1:
-        all_parameters['experiment_params'] = dict(n_items_to_fit=all_parameters['T'])
+    # all_parameters['experiment_id'] = "doublerecall"
+    all_parameters['experiment_id'] = "gorgo_simult"
+    all_parameters['experiment_params'] = dict(n_items_to_fit=all_parameters['T'])
 
     # Create DataIO
     #  (complete label with current variable state)
