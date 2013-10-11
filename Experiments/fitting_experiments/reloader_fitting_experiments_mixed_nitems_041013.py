@@ -25,6 +25,9 @@ def plots_logposterior_mixed_autoset(data_pbs, generator_module=None):
     savefigs = True
     plot_per_ratio = True
     plot_2d_pcolor = True
+
+    colormap = None  # or 'cubehelix'
+    plt.rcParams['font.size'] = 16
     #
     #### /SETUP
 
@@ -42,7 +45,6 @@ def plots_logposterior_mixed_autoset(data_pbs, generator_module=None):
 
     dataio = DataIO(output_folder=generator_module.pbs_submission_infos['simul_out_dir'] + '/outputs/', label='global_' + dataset_infos['save_output_filename'])
 
-    plt.rcParams['font.size'] = 16
 
     if plot_per_ratio:
         # Plot the evolution of loglike as a function of sigmax, with std shown
@@ -56,7 +58,7 @@ def plots_logposterior_mixed_autoset(data_pbs, generator_module=None):
 
     if plot_2d_pcolor:
         # Plot the mean loglikelihood as a 2d surface
-        pcolor_2d_data(result_log_posterior_mean, x=ratio_space, y=sigmax_space, xlabel="Ratio conj", ylabel="Sigma x", title="Loglikelihood of experimental data, \n3 items dualrecall, rcscale automatically set", ticks_interpolate=5)
+        pcolor_2d_data(result_log_posterior_mean, x=ratio_space, y=sigmax_space, xlabel="Ratio conj", ylabel="Sigma x", title="Loglikelihood of experimental data, \n3 items dualrecall, rcscale automatically set", ticks_interpolate=5, cmap=colormap)
         # plt.tight_layout()
 
         if savefigs:

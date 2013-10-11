@@ -283,7 +283,7 @@ def hist_angular_data(data, bins=20, in_degrees=False, title=None, norm=None, fi
     ax_handle.get_figure().canvas.draw()
 
 
-def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorbar=True, ax_handle=None, label_format="%.2f", fignum=None, interpolation='nearest', log_scale=False, ticks_interpolate=None):
+def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorbar=True, ax_handle=None, label_format="%.2f", fignum=None, interpolation='nearest', log_scale=False, ticks_interpolate=None, cmap=None):
     '''
         Plots a Pcolor-like 2d grid plot. Can give x and y arrays, which will provide ticks.
 
@@ -338,9 +338,9 @@ def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorba
     else:
         # Create the Figure
         if log_scale:
-            im = ax_handle.imshow(data.T, interpolation=interpolation, origin='lower left', norm=LogNorm())
+            im = ax_handle.imshow(data.T, interpolation=interpolation, origin='lower left', norm=LogNorm(), cmap=cmap)
         else:
-            im = ax_handle.imshow(data.T, interpolation=interpolation, origin='lower left')
+            im = ax_handle.imshow(data.T, interpolation=interpolation, origin='lower left', cmap=cmap)
 
         if not x is None:
             assert data.shape[0] == x.size, 'Wrong x dimension'
