@@ -124,6 +124,19 @@ def remove_functions_dict(dict_input):
 
     return dict((k, v) for (k, v) in dict_input.iteritems() if not is_function(v))
 
+def argparse_2_dict(args):
+    '''
+        Take an Argparse.Namespace and converts it to a dictionary.
+    '''
+    try:
+        # Convert Argparse.Namespace to dict
+        all_parameters = vars(args)
+    except TypeError:
+        # Assume it's already done
+        assert type(args) is dict, "args is neither Namespace nor dict, WHY?"
+        all_parameters = args
+
+    return all_parameters
 
 ########################## FILE I/O #################################
 

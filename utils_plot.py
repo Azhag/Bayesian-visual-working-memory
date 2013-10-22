@@ -114,7 +114,7 @@ def plot_multiple_mean_std_area(x, y, std, ax_handle=None, fignum=None):
     return ax_handle
 
 
-def plot_mean_std_area(x, y, std, ax_handle=None, fignum=None, linewidth=1, fmt='-', markersize=1, color=None):
+def plot_mean_std_area(x, y, std, ax_handle=None, fignum=None, linewidth=1, fmt='-', markersize=1, color=None, xlabel=None, ylabel=None):
     '''
         Plot a given x-y data, with a transparent area for its standard deviation
 
@@ -138,6 +138,12 @@ def plot_mean_std_area(x, y, std, ax_handle=None, fignum=None, linewidth=1, fmt=
 
     if np.any(std > 1e-6):
         ax_handle.fill_between(x, y-std, y+std, facecolor=current_color, alpha=0.4, label='1 sigma range')
+
+    if xlabel is not None:
+        ax_handle.set_xlabel(xlabel)
+
+    if ylabel is not None:
+        ax_handle.set_ylabel(ylabel)
 
     ax_handle.get_figure().canvas.draw()
 
@@ -292,7 +298,8 @@ def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorba
          y                  array for y values
          {x,y}_label        labels for axes
          log_scale          True for log scale of axis
-         ticks_interpolate  If set, number of ticks to use instead of the x/y values directly
+         ticks_interpolate  If set, number of ticks to use instead of the x/y
+                            values directly
     '''
 
     if ax_handle is None:
@@ -371,7 +378,7 @@ def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorba
             ax_handle.set_ylabel(ylabel)
 
         if colorbar:
-            ax_handle.get_figure().colorbar(im)
+            ax_handle.get_figure().colorbar(im, ax=ax_handle)
 
         if title:
             ax_handle.set_title(title)

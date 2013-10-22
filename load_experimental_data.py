@@ -189,6 +189,8 @@ def preprocess_doublerecall(dataset, parameters):
             dataset['response'][ids_filtered] = dataset['probe_angle'][ids_filtered, 0]
 
             # params_fit = em_circularmixture.fit(dataset['probe_angle'][ids_filtered, 0], dataset['item_angle'][ids_filtered, 0], dataset['item_angle'][ids_filtered, 1:])
+            print dataset['probe_angle'][ids_filtered, 0].shape, dataset['item_angle'][ids_filtered, 0].shape, dataset['item_angle'][ids_filtered, 1:].shape
+
             cross_valid_outputs = em_circularmixture.cross_validation_kfold(dataset['probe_angle'][ids_filtered, 0], dataset['item_angle'][ids_filtered, 0], dataset['item_angle'][ids_filtered, 1:], K=10, shuffle=True, debug=False)
             params_fit = cross_valid_outputs['best_fit']
             resp = em_circularmixture.compute_responsibilities(dataset['probe_angle'][ids_filtered, 0], dataset['item_angle'][ids_filtered, 0], dataset['item_angle'][ids_filtered, 1:], params_fit)
@@ -395,6 +397,11 @@ def create_subject_arrays(dataset = {}):
     dataset['precision_subject_nitems_theo'] = precision_subject_nitems_theo
     dataset['precision_subject_nitems_theo_nochance'] = precision_subject_nitems_nochance
     dataset['precision_subject_nitems_bays_chance'] = precision_subject_nitems_raw
+
+    dataset['precision_nitems_bays'] = np.mean(precision_subject_nitems, axis=0)
+    dataset['precision_nitems_theo'] = np.mean(precision_subject_nitems_theo, axis=0)
+    dataset['precision_nitems_theo_nochance'] = np.mean(precision_subject_nitems_nochance, axis=0)
+    dataset['precision_nitems_bays_chance'] = np.mean(precision_subject_nitems_raw, axis=0)
 
 
 def compute_precision(errors, remove_chance_level=True, correct_orientation=True, use_wrong_precision=True):
@@ -702,6 +709,12 @@ def plots_doublerecall(dataset):
         print fitted_parameters
 
 
+def load_data_simult(data_dir = '/Users/loicmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/experimental_data/'):
+
+    data_simult =  load_multiple_datasets([dict(filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011')))])[0]
+
+    return data_simult
+
 
 if __name__ == '__main__':
     ## Load data
@@ -712,7 +725,7 @@ if __name__ == '__main__':
     if False or (len(sys.argv) > 1 and sys.argv[1]):
     # keys:
     # 'probe', 'delayed', 'item_colour', 'probe_colour', 'item_angle', 'error', 'probe_angle', 'n_items', 'response', 'subject']
-        (data_sequen, data_simult, data_dualrecall) = load_multiple_datasets([dict(filename='Exp1.mat', preprocess=preprocess_sequential, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'))), dict(filename='Exp2.mat', preprocess=preprocess_simultaneous, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'))), dict(filename=os.path.join(data_dir, 'DualRecall_Bays', 'rate_data.mat'), preprocess=preprocess_doublerecall, parameters=dict(fit_mixturemodel=True))])
+        (data_sequen, data_simult, data_dualrecall) = load_multiple_datasets([dict(filename='Exp1.mat', preprocess=preprocess_sequential, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'))), dict(filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'))), dict(filename=os.path.join(data_dir, 'DualRecall_Bays', 'rate_data.mat'), preprocess=preprocess_doublerecall, parameters=dict(fit_mixturemodel=True))])
 
 
     # Check for bias towards 0 for the error between response and all items

@@ -82,7 +82,9 @@ this_file = inspect.getfile(inspect.currentframe())
 
 parameters_entryscript=dict(action_to_do='launcher_do_reload_constrained_parameters', output_directory='.')
 
-generator_script = 'generator' + re.split("^reloader", this_file)[-1]
+generator_script = 'generator' + re.split("^reloader", os.path.split(this_file)[-1])[-1]
+
+print "Reloader data generated from ", generator_script
 
 generator_module = imp.load_source(os.path.splitext(generator_script)[0], generator_script)
 dataset_infos = dict(label='Fitting of experimental data. Dualrecall dataset, fitting for 3 items. We submit varying ratio_conj and sigmax, and vary rcscale and rcscale2 on each node. Should plot as a 2D surface',
