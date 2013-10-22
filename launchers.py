@@ -26,22 +26,21 @@ from gibbs_sampler_continuous_fullcollapsed_randomfactorialnetwork import *
 
 def init_everything(parameters):
 
+    # Forces some parameters
+    parameters['time_weights_parameters'] = dict(weighting_alpha=parameters['alpha'], weighting_beta=1.0, specific_weighting=0.1, weight_prior='uniform')
+    parameters['cued_feature_time'] = parameters['T']-1
+
     # Build the random network
     random_network = init_random_network(parameters)
-        
-    # Construct the real dataset
-    time_weights_parameters = dict(weighting_alpha=parameters['alpha'], weighting_beta=1.0, specific_weighting=0.1, weight_prior='uniform')
-    cued_feature_time = parameters['T']-1
 
     # print "Building the database"
-    data_gen = DataGeneratorRFN(parameters['N'], parameters['T'], random_network, sigma_y=parameters['sigmay'], sigma_x=parameters['sigmax'], time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation=parameters['stimuli_generation'], enforce_first_stimulus=parameters['enforce_first_stimulus'])
-    
+    data_gen = init_data_gen(random_network, parameters)
+
     # Measure the noise structure
-    # print "Measuring noise structure"
-    data_gen_noise = DataGeneratorRFN(5000, parameters['T'], random_network, sigma_y=parameters['sigmay'], sigma_x=parameters['sigmax'], time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation=parameters['stimuli_generation_recall'])
-    stat_meas = StatisticsMeasurer(data_gen_noise)
-    
-    sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters=stat_meas.model_parameters, tc=cued_feature_time)
+    stat_meas = init_stat_measurer(random_network, parameters)
+
+    # Init sampler
+    sampler = Sampler(data_gen, n_parameters=stat_meas.model_parameters, tc=parameters['cued_feature_time'])
 
     return (random_network, data_gen, stat_meas, sampler)
 
@@ -50,7 +49,7 @@ def init_everything(parameters):
 def init_random_network(parameters):
 
     # Build the random network
-    
+
     if parameters['code_type'] == 'conj':
         random_network = RandomFactorialNetwork.create_full_conjunctive(parameters['M'], R=parameters['R'], rcscale=parameters['rc_scale'], autoset_parameters=parameters['autoset_parameters'])
     elif parameters['code_type'] == 'feat':
@@ -70,10 +69,24 @@ def init_random_network(parameters):
     return random_network
 
 
+def init_data_gen(random_network, parameters):
+    '''
+        Initialisating the DataGenerator
+    '''
+
+    return DataGeneratorRFN(parameters['N'], parameters['T'], random_network, sigma_y=parameters['sigmay'], sigma_x=parameters['sigmax'], time_weights_parameters=parameters['time_weights_parameters'], cued_feature_time=parameters['cued_feature_time'], stimuli_generation=parameters.get('stimuli_generation', None), enforce_first_stimulus=parameters['enforce_first_stimulus'], stimuli_to_use=parameters.get('stimuli_to_use', None), enforce_min_distance=parameters.get('enforce_min_distance', 0.0), specific_stimuli_random_centers=parameters.get('specific_stimuli_random_centers', True))
+
+
+def init_stat_measurer(random_network, parameters):
+    # print "Measuring noise structure"
+    data_gen_noise = DataGeneratorRFN(5000, parameters['T'], random_network, sigma_y=parameters['sigmay'], sigma_x=parameters['sigmax'], time_weights_parameters=parameters['time_weights_parameters'], cued_feature_time=parameters['cued_feature_time'], stimuli_generation=parameters['stimuli_generation_recall'])
+    stat_meas = StatisticsMeasurer(data_gen_noise)
+
+    return stat_meas
 
 
 def launcher_do_simple_run(args):
-    ''' 
+    '''
         Basic use-case when playing around with the components.
 
         Instantiate a simple network and sampler
@@ -82,20 +95,20 @@ def launcher_do_simple_run(args):
                 - sample
                 - max_lik
     '''
-    
+
     print "Simple run"
 
     all_parameters = vars(args)
-    
+
     (random_network, data_gen, stat_meas, sampler) = init_everything(all_parameters)
-    
+
     print "Inferring optimal angles, for t=%d" % sampler.tc[0]
     # sampler.set_theta_max_likelihood(num_points=500, post_optimise=True)
-    
+
     if args.inference_method == 'sample':
         # Sample thetas
         print "-> Sampling theta"
-        sampler.sample_theta(num_samples=all_parameters['num_samples'], burn_samples=20, selection_method='median', selection_num_samples=all_parameters['num_samples'], integrate_tc_out=False, debug=False)
+        sampler.sample_theta(num_samples=all_parameters['num_samples'], burn_samples=all_parameters['burn_samples'], selection_method='median', selection_num_samples=all_parameters['selection_num_samples'], integrate_tc_out=False, debug=True)
     elif args.inference_method == 'max_lik':
         # Just use the ML value for the theta
         print "-> Setting theta to ML values"
@@ -103,11 +116,11 @@ def launcher_do_simple_run(args):
     elif args.inference_method == 'none':
         # Do nothing
         print "do nothing"
-        
+
     sampler.print_comparison_inferred_groundtruth()
-    
+
     return locals()
-    
+
 
 
 def launcher_do_save_responses_simultaneous(args):
@@ -130,12 +143,12 @@ def launcher_do_save_responses_simultaneous(args):
     all_responses = np.zeros((args.T, args.T, args.num_repetitions, args.N))
     all_targets = np.zeros((args.T, args.T, args.num_repetitions, args.N))
     all_nontargets = np.zeros((args.T, args.T, args.num_repetitions, args.N, args.T-1))
-    
+
     for repet_i in xrange(args.num_repetitions):
-        
+
         # Construct different datasets, with t objects
         for t in xrange(args.T):
-            
+
             if args.code_type == 'conj':
                 random_network = RandomFactorialNetwork.create_full_conjunctive(args.M, R=args.R, scale_moments=(args.rc_scale, 0.0001), ratio_moments=(1.0, 0.001))
             elif args.code_type == 'feat':
@@ -148,17 +161,17 @@ def launcher_do_save_responses_simultaneous(args):
             else:
                 raise ValueError('Code_type is wrong!')
 
-            
+
             # Construct the real dataset
             data_gen = DataGeneratorRFN(args.N, t+1, random_network, sigma_y=args.sigmay, sigma_x=args.sigmax, time_weights_parameters=time_weights_parameters)
-            
+
             # Measure the noise structure
             data_gen_noise = DataGeneratorRFN(3000, t+1, random_network, sigma_y=args.sigmay, sigma_x=args.sigmax, time_weights_parameters=time_weights_parameters)
             stat_meas = StatisticsMeasurer(data_gen_noise)
             # stat_meas = StatisticsMeasurer(data_gen)
-            
+
             sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters=stat_meas.model_parameters)
-            
+
             for tc in np.arange(t+1):
                 print "Doing T=%d, Tc=%d,  %d/%d" % (t+1, tc, repet_i+1, args.num_repetitions)
 
@@ -179,12 +192,12 @@ def launcher_do_save_responses_simultaneous(args):
                 print tc
                 (all_responses[t, tc, repet_i], all_targets[t, tc, repet_i], all_nontargets[t, tc, repet_i, :, :t])=sampler.collect_responses()
 
-        
+
             # Save to disk, unique filename
             np.save(output_string, {'all_precisions': all_precisions, 'all_responses': all_responses, 'all_targets': all_targets, 'all_nontargets': all_nontargets, 'args': args, 'num_repetitions': args.num_repetitions, 'T': args.T, 'output_string': output_string})
             sio.savemat(output_string, {'all_precisions': all_precisions, 'all_responses': all_responses, 'all_targets': all_targets, 'all_nontargets': all_nontargets, 'args': args, 'num_repetitions': args.num_repetitions, 'T': args.T, 'output_string': output_string})
 
-    
+
     print all_precisions
 
     f = plt.figure()
@@ -194,7 +207,7 @@ def launcher_do_save_responses_simultaneous(args):
         semilogy_mean_std_area(t_space_aligned_right, np.mean(1./all_precisions[t], 1)[:t+1], np.std(1./all_precisions[t], 1)[:t+1], ax_handle=ax)
     ax.set_xlabel('Recall time')
     ax.set_ylabel('Precision [rad]')
-    
+
     print "Done: %s" % output_string
     return locals()
 

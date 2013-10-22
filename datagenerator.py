@@ -311,7 +311,7 @@ class DataGeneratorRFN(DataGenerator):
     '''
         DataGenerator for a RandomFactorialNetwork
     '''
-    def __init__(self, N, T, random_network, sigma_y = 0.05, sigma_x = 0.02, time_weights=None, time_weights_parameters = dict(weighting_alpha=0.3, weighting_beta = 1.0, specific_weighting = 0.3, weight_prior='uniform'), cued_feature_time=0, enforce_min_distance=0.17, stimuli_generation='random', enforce_first_stimulus=True, stimuli_to_use=None):
+    def __init__(self, N, T, random_network, sigma_y = 0.05, sigma_x = 0.02, time_weights=None, time_weights_parameters = dict(weighting_alpha=0.3, weighting_beta = 1.0, specific_weighting = 0.3, weight_prior='uniform'), cued_feature_time=0, enforce_min_distance=0.17, stimuli_generation='random', enforce_first_stimulus=True, stimuli_to_use=None, specific_stimuli_random_centers=False):
 
         # assert isinstance(random_network, RandomFactorialNetwork), "Use a RandomFactorialNetwork with this DataGeneratorRFN"
 
@@ -320,21 +320,25 @@ class DataGeneratorRFN(DataGenerator):
         # This is the noise on specific memories. Belongs here.
         self.sigma_x = sigma_x
 
-        self.enforce_min_distance = 0.0
+        self.enforce_min_distance = enforce_min_distance
 
         # Build the correct stimuli
-        if stimuli_generation is not None:
+        if stimuli_generation == 'specific_stimuli':
+            # Use our specifically built function, to get the special stimuli combination allowing to verify some biases
+            self.generate_specific_stimuli(asymmetric=False, centre=np.array([0., 0.]), specific_stimuli_random_centers=specific_stimuli_random_centers)
+        elif stimuli_generation is not None:
             # Generate it randomly
-            self.generate_stimuli(enforce_min_distance=enforce_min_distance, stimuli_generation=stimuli_generation, enforce_first_stimulus=enforce_first_stimulus)
+            self.generate_stimuli(stimuli_generation=stimuli_generation, enforce_first_stimulus=enforce_first_stimulus)
         elif stimuli_to_use is not None:
             # Use the provided stimuli
             self.set_stimuli(stimuli_to_use)
+
 
         # Build the dataset
         self.build_dataset(cued_feature_time=cued_feature_time)
 
 
-    def generate_stimuli(self, enforce_min_distance=0.17, stimuli_generation='random', enforce_first_stimulus=True):
+    def generate_stimuli(self, stimuli_generation='random', enforce_first_stimulus=True):
         '''
             Choose N stimuli for this dataset.
 
@@ -363,8 +367,6 @@ class DataGeneratorRFN(DataGenerator):
             else:
                 raise ValueError('Unknown stimulus generation technique')
 
-        self.enforce_min_distance = enforce_min_distance
-
         # This gives all the true stimuli
         self.stimuli_correct = np.zeros((self.N, self.T, self.R), dtype=float)
 
@@ -376,7 +378,7 @@ class DataGeneratorRFN(DataGenerator):
                 self.stimuli_correct[n, :, r] = angle_generator(self.T)
 
                 # Enforce minimal distance between different times
-                if random_generation and enforce_min_distance > 0.:
+                if random_generation and self.enforce_min_distance > 0.:
                     tries = 0
                     while np.any(pdist(self.stimuli_correct[n, :, r][:, np.newaxis], 'chebyshev') < self.enforce_min_distance) and tries < 1000:
                         # Some are too close, resample
@@ -395,6 +397,30 @@ class DataGeneratorRFN(DataGenerator):
 
             if stimuli_generation == 'constant_separated':
                 self.stimuli_correct[:, :np.min((self.T, 4))] = forced_stimuli[:np.min((self.T, 4))]
+
+
+    def generate_specific_stimuli(self, asymmetric=False, centre=np.array([0., 0.]), specific_stimuli_random_centers=True):
+        '''
+            Construct a specific set of stimuli tailored to discriminate between population code types.
+
+            Will generate different error patterns depending on the population codes used.
+        '''
+
+        if self.T == 3 and not asymmetric:
+            # Three points on a diagonal. Should produce different biases for conjunctive or feature. Mean of ensemble lies on the center point though, which may complicate analysis.
+            dx = self.enforce_min_distance/np.sqrt(2)
+
+            if specific_stimuli_random_centers:
+                centre_disturb_space = centre + (2.*np.random.rand(self.N, 2) - 1.0)*dx
+            else:
+                centre_disturb_space = np.ones((self.N, 2))*centre
+
+            self.stimuli_correct = np.array([[centre_disturb + np.array([-dx, dx]), centre_disturb + np.array([dx, -dx]), centre_disturb] for centre_disturb in centre_disturb_space])
+
+        else:
+            raise NotImplementedError("Specific stimuli only works for T=3 and non-asymmetric for now")
+
+
 
 
     def set_stimuli(self, stimuli):
@@ -578,6 +604,7 @@ class DataGeneratorRFN(DataGenerator):
         ##### Show the conjunctive units first
         ax = f.add_subplot(211)
         conj_sqrt = int(self.random_network.conj_subpop_size**0.5)
+        # TODO Fix for conj_subpop_size = 0
         im = ax.imshow(np.reshape(self.Y[n][:self.random_network.conj_subpop_size], (conj_sqrt, conj_sqrt)).T, origin='lower', aspect='equal', interpolation='nearest')
         im.set_extent((-np.pi, np.pi, -np.pi, np.pi))
         ax.set_xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
@@ -684,8 +711,12 @@ class DataGeneratorRFN(DataGenerator):
         plt.plot(self.Y[n])
 
         # Put a vertical line at the true answer
-        best_neuron_i = np.argmin(np.sum((self.random_network.neurons_preferred_stimulus - self.stimuli_correct[n, t])**2., axis=1))
-        plt.axvline(x=best_neuron_i, color='r', linewidth=3)
+        try:
+            best_neuron_i = np.argmin(np.sum((self.random_network.neurons_preferred_stimulus - self.stimuli_correct[n, t])**2., axis=1))
+            plt.axvline(x=best_neuron_i, color='r', linewidth=3)
+        except AttributeError:
+            # Most likely a hierarchical network
+            pass
 
 
     def show_datapoint_hierarchical(self, n=0):

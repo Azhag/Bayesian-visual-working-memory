@@ -439,6 +439,75 @@ def plot_marginal_fisher_info_2d():
     return locals()
 
 
+def plot_specific_stimuli():
+    '''
+        Plots on specific stimuli pattern
+
+        Got Mixed and Hieararchical code.
+
+        Done in reloader_specific_stimuli_mixed_sigmaxrangebis_191013.
+
+        Ran this on top
+        %run experimentlauncher.py --action_to_do launcher_do_mixed_special_stimuli_fixratio  --M 200 --sigmax 0.255 --sigmay 0.001 --autoset_parameters --T 3 --code_type mixed --ratio_conj 0.045 --num_repetitions 20 --N 200 --specific_stimuli_random_centers --enforce_min_distance 0.0809 --stimuli_generation specific_stimuli --label mixed_specific_stimuli_additional_run_paper
+    '''
+
+    # Additional plot
+    data = np.load( '/Users/loicmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/code/git-bayesian-visual-working-memory/Experiments/specific_stimuli/specific_stimuli_mixed_sigmaxmindistance_autoset_M200_repetitions10_sigmaxrangebis_191013_outputs/mixed_specific_stimuli_additional_run_paper-launcher_do_mixed_special_stimuli-080172fc-428e-4854-b3c2-d8292ecfac61.npy').item()
+
+    ratio_space = data['ratio_space']
+    result_all_precisions_mean = nanmean(data['result_all_precisions'], axis=-1)
+    result_all_precisions_std = nanstd(data['result_all_precisions'], axis=-1)
+    result_em_fits_mean = nanmean(data['result_em_fits'], axis=-1)
+    result_em_fits_std = nanstd(data['result_em_fits'], axis=-1)
+    result_em_kappastddev_mean = nanmean(kappa_to_stddev(data['result_em_fits'][:, 0]), axis=-1)
+    result_em_kappastddev_std = nanstd(kappa_to_stddev(data['result_em_fits'][:, 0]), axis=-1)
+
+    min_distance = 0.0809
+
+    savefigs = True
+
+    dataio = DataIO(output_folder='/Users/loicmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/code/git-bayesian-visual-working-memory/Experiments/specific_stimuli/specific_stimuli_mixed_sigmaxmindistance_autoset_M200_repetitions10_sigmaxrangebis_191013_outputs/', label='global_plots_specificstimuli_mixed_repet20')
+
+
+    # Plot precision
+    plot_mean_std_area(ratio_space, result_all_precisions_mean, result_all_precisions_std) #, xlabel='Ratio conjunctivity', ylabel='Precision of recall')
+    # plt.title('Min distance %.3f' % min_distance)
+    plt.ylim([0, np.max(result_all_precisions_mean + result_all_precisions_std)])
+
+    if savefigs:
+        dataio.save_current_figure('mindist%.2f_precisionrecall_forpaper_{label}_{unique_id}.pdf' % min_distance)
+
+    # Plot kappa fitted
+    plot_mean_std_area(ratio_space, result_em_fits_mean[:, 0], result_em_fits_std[:, 0]) #, xlabel='Ratio conjunctivity', ylabel='Fitted kappa')
+    # plt.title('Min distance %.3f' % min_distance)
+    plt.ylim([-0.1, np.max(result_em_fits_mean[:, 0] + result_em_fits_std[:, 0])])
+    if savefigs:
+        dataio.save_current_figure('mindist%.2f_emkappa_forpaper_{label}_{unique_id}.pdf' % min_distance)
+
+    # Plot kappa-stddev fitted. Easier to visualize
+    plot_mean_std_area(ratio_space, result_em_kappastddev_mean, result_em_kappastddev_std) #, xlabel='Ratio conjunctivity', ylabel='Fitted kappa_stddev')
+    # plt.title('Min distance %.3f' % min_distance)
+    plt.ylim([0, 1.1*np.max(result_em_kappastddev_mean + result_em_kappastddev_std)])
+    if savefigs:
+        dataio.save_current_figure('mindist%.2f_emkappastddev_forpaper_{label}_{unique_id}.pdf' % min_distance)
+
+
+    # Plot LLH
+    plot_mean_std_area(ratio_space, result_em_fits_mean[:, -1], result_em_fits_std[:, -1]) #, xlabel='Ratio conjunctivity', ylabel='Loglikelihood of Mixture model fit')
+    # plt.title('Min distance %.3f' % min_distance)
+    if savefigs:
+        dataio.save_current_figure('mindist%.2f_emllh_forpaper_{label}_{unique_id}.pdf' % min_distance)
+
+    # Plot mixture parameters
+    plot_multiple_mean_std_area(ratio_space, result_em_fits_mean[:, 1:4].T, result_em_fits_std[:, 1:4].T)
+    # plt.legend("Target", "Non-target", "Random")
+    plt.ylim([0.0, 1.1])
+    if savefigs:
+        dataio.save_current_figure('mindist%.2f_emprobs_forpaper_{label}_{unique_id}.pdf' % min_distance)
+
+    return locals()
+
+
 if __name__ == '__main__':
 
     all_vars = {}
@@ -448,7 +517,8 @@ if __name__ == '__main__':
     # all_vars = compare_fishertheo_precision()
     # all_vars = plot_experimental_mixture()
     # all_vars = plot_marginalfisherinfo_1d()
-    all_vars = plot_marginal_fisher_info_2d()
+    # all_vars = plot_marginal_fisher_info_2d()
+    all_vars = plot_specific_stimuli()
 
     variables_to_reinstantiate = ['data_gen', 'sampler', 'stat_meas', 'random_network', 'args', 'constrained_parameters', 'data_pbs', 'dataio']
 

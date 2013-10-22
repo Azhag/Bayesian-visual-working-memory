@@ -15,6 +15,7 @@ import glob
 import inspect
 import imp
 import os
+import numpy as np
 
 
 from utils import say_finished
@@ -100,16 +101,22 @@ class ExperimentLauncher(object):
             help='Number of population codes')
         parser.add_argument('--num_samples', type=int, default=20,
             help='Number of samples to use')
+        parser.add_argument('--burn_samples', type=int, default=100,
+            help='Number of samples to use for burn in')
         parser.add_argument('--selection_num_samples', type=int, default=1,
             help='While selecting the new sample from a set of samples, consider the P last samples only. (if =1, return last sample)')
         parser.add_argument('--selection_method', choices=['median', 'last'], default='median',
             help='How the new sample is chosen from a set of samples. Median is closer to the ML value but could have weird effects.')
-        parser.add_argument('--stimuli_generation', choices=['constant', 'random', 'random_smallrange', 'constant_separated', 'separated'], default='random',
+        parser.add_argument('--slice_width', type=float, default=np.pi/8.,
+            help='Size of bin width for Slice Sampler. Smaller usually better but slower.')
+        parser.add_argument('--stimuli_generation', choices=['constant', 'random', 'random_smallrange', 'constant_separated', 'separated', 'specific_stimuli'], default='random',
             help='How to generate the dataset.')
         parser.add_argument('--stimuli_generation_recall', choices=['constant', 'random', 'random_smallrange', 'constant_separated', 'separated'], default='random',
             help='Dataset generation used for the recall model.')
         parser.add_argument('--enforce_min_distance', type=float, default=0.17,
             help='Minimal distance between items of the same array')
+        parser.add_argument('--specific_stimuli_random_centers', dest='specific_stimuli_random_centers', action='store_true', default=False,
+            help='Should the centers in the specific stimuli be moved randomly?')
         parser.add_argument('--alpha', default=1.0, type=float,
             help='Weighting of the decay through time')
         parser.add_argument('--code_type', choices=['conj', 'feat', 'mixed', 'wavelet', 'hierarchical'], default='conj',
