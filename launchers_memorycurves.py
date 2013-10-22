@@ -83,7 +83,7 @@ def launcher_do_memory_curve_simult(args):
 
             if args.inference_method == 'sample':
                 # Sample thetas
-                sampler.sample_theta(num_samples=args.num_samples, burn_samples=100, selection_method=args.selection_method, selection_num_samples=args.num_samples, integrate_tc_out=False, debug=False)
+                sampler.sample_theta(num_samples=args.num_samples, burn_samples=100, selection_method=args.selection_method, selection_num_samples=args.selection_num_samples, integrate_tc_out=False, debug=False)
             elif args.inference_method == 'max_lik':
                 # Just use the ML value for the theta
                 sampler.set_theta_max_likelihood(num_points=200, post_optimise=True)
@@ -307,7 +307,7 @@ def launcher_do_memorycurve_theoretical(args):
                             print "from precision of recall..."
                             if all_parameters['inference_method'] == 'sample':
                                 # Sample thetas
-                                sampler.sample_theta(num_samples=all_parameters['num_samples'], burn_samples=100, selection_method=all_parameters['selection_method'], selection_num_samples=all_parameters['num_samples'], integrate_tc_out=False, debug=False)
+                                sampler.sample_theta(num_samples=all_parameters['num_samples'], burn_samples=100, selection_method=all_parameters['selection_method'], selection_num_samples=all_parameters['selection_num_samples'], integrate_tc_out=False, debug=False)
                             elif all_parameters['inference_method'] == 'max_lik':
                                 # Just use the ML value for the theta
                                 sampler.set_theta_max_likelihood(num_points=200, post_optimise=True)
@@ -459,7 +459,7 @@ def launcher_do_memorycurve_theoretical_pbs(args):
                                 print "from precision of recall..."
                                 if all_parameters['inference_method'] == 'sample':
                                     # Sample thetas
-                                    sampler.sample_theta(num_samples=all_parameters['num_samples'], burn_samples=100, selection_method=all_parameters['selection_method'], selection_num_samples=all_parameters['num_samples'], integrate_tc_out=False, debug=True)
+                                    sampler.sample_theta(num_samples=all_parameters['num_samples'], burn_samples=100, selection_method=all_parameters['selection_method'], selection_num_samples=all_parameters['selection_num_samples'], integrate_tc_out=False, debug=True)
                                 elif all_parameters['inference_method'] == 'max_lik':
                                     # Just use the ML value for the theta
                                     sampler.set_theta_max_likelihood(num_points=200, post_optimise=True)
@@ -602,7 +602,7 @@ def launcher_do_memorycurve_theoretical_pbs_theoonly(args):
                                 print "from precision of recall..."
                                 if all_parameters['inference_method'] == 'sample':
                                     # Sample thetas
-                                    sampler.sample_theta(num_samples=all_parameters['num_samples'], burn_samples=100, selection_method=all_parameters['selection_method'], selection_num_samples=all_parameters['num_samples'], integrate_tc_out=False, debug=False)
+                                    sampler.sample_theta(num_samples=all_parameters['num_samples'], burn_samples=100, selection_method=all_parameters['selection_method'], selection_num_samples=all_parameters['selection_num_samples'], integrate_tc_out=False, debug=False)
                                 elif all_parameters['inference_method'] == 'max_lik':
                                     # Just use the ML value for the theta
                                     sampler.set_theta_max_likelihood(num_points=200, post_optimise=True)
@@ -843,7 +843,7 @@ def launcher_do_memorycurve_theoretical_3d_volume(args):
                                 print "from precision of recall..."
                                 if all_parameters['inference_method'] == 'sample':
                                     # Sample thetas
-                                    sampler.sample_theta(num_samples=all_parameters['num_samples'], burn_samples=100, selection_method=all_parameters['selection_method'], selection_num_samples=all_parameters['num_samples'], integrate_tc_out=False, debug=False)
+                                    sampler.sample_theta(num_samples=all_parameters['num_samples'], burn_samples=100, selection_method=all_parameters['selection_method'], selection_num_samples=all_parameters['selection_num_samples'], integrate_tc_out=False, debug=False)
                                 elif all_parameters['inference_method'] == 'max_lik':
                                     # Just use the ML value for the theta
                                     sampler.set_theta_max_likelihood(num_points=200, post_optimise=True)

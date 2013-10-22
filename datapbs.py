@@ -93,11 +93,11 @@ class DataPBS:
         args_list = []
 
         for curr_file in all_output_files:
-            
+
             # Do a nice regular expression to catch the parameters and remove the useless random unique string
             # (advanced, uses named groups now)
             matched = re.search(dataset_infos['regexp'], curr_file)
-            
+
             if not matched:
                 print curr_file
                 print dataset_infos['regexp']
@@ -133,11 +133,11 @@ class DataPBS:
                 print curr_file, curr_params
 
 
-        
+
         # Extract the unique parameter values
         for key, val in parameters_complete.items():
             parameters_uniques[key] = np.unique(val)
-        
+
         # Construct an indirection dictionary to give parameter index based on its value
         parameters_indirections = dict()
         for param in dataset_infos['parameters']:
@@ -184,9 +184,14 @@ class DataPBS:
         args_list = []
 
         for curr_file in all_output_files:
-            
+
             # Load the data
-            curr_dataset = np.load(curr_file).item()
+            try:
+                curr_dataset = np.load(curr_file).item()
+            except IOError:
+                # Failed to load, possibly as file is incomplete, skip.
+                continue
+
             datasets_list.append(curr_dataset)
 
             # Find out the parameter values
@@ -239,7 +244,7 @@ class DataPBS:
         # Extract the unique parameter values
         for key, val in parameters_complete.items():
             parameters_uniques[key] = np.unique(val)
-        
+
         # Construct an indirection dictionary to give parameter index based on its value
         parameters_indirections = dict()
         for param in dataset_infos['parameters']:
@@ -288,7 +293,7 @@ class DataPBS:
 
         if self.debug:
             print '%s dimensions: %s' % (output_variable_desired, fullarray_shape)
-        
+
         # Initialize with NaN.
         results_array = np.ones(fullarray_shape)*np.nan
 

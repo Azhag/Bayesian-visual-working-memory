@@ -81,7 +81,7 @@ def launcher_do_average_posterior(args):
 
     if do_precision:
         print 'Precision...'
-        sampler.sample_theta(num_samples=all_parameters['num_samples'], burn_samples=100, selection_method=all_parameters['selection_method'], selection_num_samples=all_parameters['num_samples']/2, integrate_tc_out=False, debug=True)
+        sampler.sample_theta(num_samples=all_parameters['num_samples'], burn_samples=100, selection_method=all_parameters['selection_method'], selection_num_samples=all_parameters['selection_num_samples'], integrate_tc_out=False, debug=True)
 
         result_all_thetas, targets, nontargets = sampler.collect_responses()
 

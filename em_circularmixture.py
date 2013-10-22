@@ -28,7 +28,8 @@ def fit(responses, target_angle, nontarget_angles, initialisation_method='mixed'
     '''
 
     # Clean inputs
-    nontarget_angles = nontarget_angles[:, ~np.all(np.isnan(nontarget_angles), axis=0)]
+    if nontarget_angles.size > 0:
+        nontarget_angles = nontarget_angles[:, ~np.all(np.isnan(nontarget_angles), axis=0)]
 
     N = float(np.sum(~np.isnan(responses)))
     K = float(nontarget_angles.shape[1])
@@ -135,7 +136,7 @@ def compute_loglikelihood(responses, target_angle, nontarget_angles, parameters)
 def compute_responsibilities(responses, target_angle, nontarget_angles, parameters):
     '''
         Compute the responsibilities per datapoint.
-        Actually provides the likelihood directly, if needed.
+        Actually provides the likelihood as well, returned as 'W'
     '''
 
     (kappa, mixt_target, mixt_nontargets, mixt_random) = (parameters['kappa'], parameters['mixt_target'], parameters['mixt_nontargets'], parameters['mixt_random'])
@@ -272,9 +273,9 @@ def initialise_parameters_fixed(N, K):
         Do like Paul and try multiple initial conditions
     '''
 
-    kappa = [1., 10, 100, 300]
-    mixt_nontargets = [0.01, 0.1, 0.4, 0.01]
-    mixt_random = [0.01, 0.1, 0.4, 0.1]
+    kappa = [1., 10, 100, 300, 4000]
+    mixt_nontargets = [0.01, 0.1, 0.4, 0.01, 0.01]
+    mixt_random = [0.01, 0.1, 0.4, 0.1, 0.01]
 
     mixt_target = [1. - mixt_nontargets[i] - mixt_random[i] for i in xrange(len(kappa))]
 

@@ -25,7 +25,7 @@ import tables as tb
 
 
 def main(to_plot = []):
-    #### 
+    ####
     #   2D N stimuli
     ####
 
@@ -89,14 +89,14 @@ def main(to_plot = []):
         item1_theta1 = 0.0
         item1_theta2 = 0.0
 
-        
+
         deriv_mu = np.zeros((n_items*2, N))
 
         print "FI 1 obj"
-        
+
         FI_2d_1obj_search = np.zeros((2, 2))
         inv_FI_2d_1obj_search = np.zeros((2, 2))
-        
+
         deriv_mu[0] = -kappa*np.sin(pref_angles[:, 0] - item1_theta1)*population_code_response_2D(item1_theta1, item1_theta2, pref_angles, N=N, kappa=kappa, amplitude=amplitude)
         deriv_mu[1] = -kappa*np.sin(pref_angles[:, 1] - item1_theta2)*population_code_response_2D(item1_theta1, item1_theta2, pref_angles, N=N, kappa=kappa, amplitude=amplitude)
 
@@ -115,7 +115,7 @@ def main(to_plot = []):
 
             FI_2d_2obj_search = np.zeros((all_angles_1D.size, all_angles_1D.size, 4, 4))
             inv_FI_2d_2obj_search = np.zeros((all_angles_1D.size, all_angles_1D.size, 4, 4))
-            
+
             if n_items > 2:
                 FI_2d_3obj_search_curr = np.zeros((6, 6))
 
@@ -155,15 +155,15 @@ def main(to_plot = []):
                                 item3_theta1 = all_angles_1D[k] +1e-6
 
                                 for l in xrange(all_angles_1D.size):
-                                    
+
                                     item3_theta2 = all_angles_1D[l]+1e-6
 
                                     if (enforce_distance(item1_theta1, item3_theta1, min_distance=min_distance) and enforce_distance(item1_theta2, item3_theta2, min_distance=min_distance) and enforce_distance(item2_theta1, item3_theta1, min_distance=min_distance) and enforce_distance(item2_theta2, item3_theta2, min_distance=min_distance)):
                                         # Only compute if items are sufficiently different
-                                    
+
                                         deriv_mu[4] = -kappa*np.sin(pref_angles[:, 0] - item3_theta1)*population_code_response_2D(item3_theta1, item3_theta2, pref_angles, N=N, kappa=kappa, amplitude=amplitude)
                                         deriv_mu[5] = -kappa*np.sin(pref_angles[:, 1] - item3_theta2)*population_code_response_2D(item3_theta1, item3_theta2, pref_angles, N=N, kappa=kappa, amplitude=amplitude)
-                                        
+
                                         # FI, 2 items, 2 features per item
                                         # for ii in xrange(6):
                                         #     for jj in xrange(6):
@@ -172,7 +172,7 @@ def main(to_plot = []):
 
                                         # print "bla"
                                         inv_FI_2d_3obj_search[i*all_angles_1D.size*all_angles_1D.size*all_angles_1D.size + j*all_angles_1D.size*all_angles_1D.size + k*all_angles_1D.size + l, :, :] = np.linalg.inv(FI_2d_3obj_search_curr)
-                                        
+
                                     search_progress.increment()
                         else:
                             if search_progress.percentage() % 5.0 < 0.0001:
@@ -217,7 +217,7 @@ def main(to_plot = []):
             N_effect_withlocal = np.array(N_effect_withlocal)
             N_effect_nolocal = np.array(N_effect_nolocal)
 
-        
+
             print N_effect_nolocal
             print N_effect_withlocal
 
@@ -240,7 +240,7 @@ def main(to_plot = []):
         # plt.figure()
         # plt.semilogy(min_distance_space, (inv_FI_search- inv_FI_1_search)[:, 1:])
         # plt.xlabel('Minimum distance')
-        # plt.ylabel('$\hat{I_F}^{-1} - {I_F^{(1)}}^{-1}$')  
+        # plt.ylabel('$\hat{I_F}^{-1} - {I_F^{(1)}}^{-1}$')
 
         if n_items > 2:
             f_table.close()
@@ -249,33 +249,33 @@ def main(to_plot = []):
         ## Change computation style, now define the elements with functions, and provide the inputs at the end
 
         # 1 obj
-        def inv_FI_1obj(item1_theta1=0.0, item1_theta2=0.0):
-            deriv_mu = np.zeros((2, N))
-            deriv_mu[0] = -kappa*np.sin(pref_angles[:, 0] - item1_theta1)*population_code_response_2D(item1_theta1, item1_theta2, pref_angles, N=N, kappa=kappa, amplitude=amplitude)
-            deriv_mu[1] = -kappa*np.sin(pref_angles[:, 1] - item1_theta2)*population_code_response_2D(item1_theta1, item1_theta2, pref_angles, N=N, kappa=kappa, amplitude=amplitude)
-            FI_1obj = np.dot(deriv_mu, deriv_mu.T)/sigma**2.
-            inv_FI_1obj = np.linalg.inv(FI_1obj)
-            return inv_FI_1obj[0, 0]
+        # def inv_FI_1obj(item1_theta1=0.0, item1_theta2=0.0):
+        #     deriv_mu = np.zeros((2, N))
+        #     deriv_mu[0] = -kappa*np.sin(pref_angles[:, 0] - item1_theta1)*population_code_response_2D(item1_theta1, item1_theta2, pref_angles, N=N, kappa=kappa, amplitude=amplitude)
+        #     deriv_mu[1] = -kappa*np.sin(pref_angles[:, 1] - item1_theta2)*population_code_response_2D(item1_theta1, item1_theta2, pref_angles, N=N, kappa=kappa, amplitude=amplitude)
+        #     FI_1obj = np.dot(deriv_mu, deriv_mu.T)/sigma**2.
+        #     inv_FI_1obj = np.linalg.inv(FI_1obj)
+        #     return inv_FI_1obj[0, 0]
 
-        def inv_FI_2obj(item2_theta1, item2_theta2, item1_theta1=0.0, item1_theta2=0.0):
-            deriv_mu = np.zeros((4, N))
-            deriv_mu[0] = -kappa*np.sin(pref_angles[:, 0] - item1_theta1)*population_code_response_2D(item1_theta1, item1_theta2, pref_angles, N=N, kappa=kappa, amplitude=amplitude)
-            deriv_mu[1] = -kappa*np.sin(pref_angles[:, 1] - item1_theta2)*population_code_response_2D(item1_theta1, item1_theta2, pref_angles, N=N, kappa=kappa, amplitude=amplitude)
-            deriv_mu[2] = -kappa*np.sin(pref_angles[:, 0] - item2_theta1)*population_code_response_2D(item2_theta1, item2_theta2, pref_angles, N=N, kappa=kappa, amplitude=amplitude)
-            deriv_mu[3] = -kappa*np.sin(pref_angles[:, 1] - item2_theta2)*population_code_response_2D(item2_theta1, item2_theta2, pref_angles, N=N, kappa=kappa, amplitude=amplitude)
-            FI_2obj = np.dot(deriv_mu, deriv_mu.T)/(2.*sigma**2.)
-            inv_FI_2obj = np.linalg.inv(FI_2obj)
-            return inv_FI_2obj[0, 0]
+        # def inv_FI_2obj(item2_theta1, item2_theta2, item1_theta1=0.0, item1_theta2=0.0):
+        #     deriv_mu = np.zeros((4, N))
+        #     deriv_mu[0] = -kappa*np.sin(pref_angles[:, 0] - item1_theta1)*population_code_response_2D(item1_theta1, item1_theta2, pref_angles, N=N, kappa=kappa, amplitude=amplitude)
+        #     deriv_mu[1] = -kappa*np.sin(pref_angles[:, 1] - item1_theta2)*population_code_response_2D(item1_theta1, item1_theta2, pref_angles, N=N, kappa=kappa, amplitude=amplitude)
+        #     deriv_mu[2] = -kappa*np.sin(pref_angles[:, 0] - item2_theta1)*population_code_response_2D(item2_theta1, item2_theta2, pref_angles, N=N, kappa=kappa, amplitude=amplitude)
+        #     deriv_mu[3] = -kappa*np.sin(pref_angles[:, 1] - item2_theta2)*population_code_response_2D(item2_theta1, item2_theta2, pref_angles, N=N, kappa=kappa, amplitude=amplitude)
+        #     FI_2obj = np.dot(deriv_mu, deriv_mu.T)/(2.*sigma**2.)
+        #     inv_FI_2obj = np.linalg.inv(FI_2obj)
+        #     return inv_FI_2obj[0, 0]
 
-        def inv_FI_nobj(items_thetas):
-            deriv_mu = np.zeros((items_thetas.size, N))
-            for i in xrange(items_thetas.size/2):
-                deriv_mu[2*i] = -kappa*np.sin(pref_angles[:, 0] - items_thetas[2*i])*population_code_response_2D(items_thetas[2*i], items_thetas[2*i+1], pref_angles, N=N, kappa=kappa, amplitude=amplitude)
-                deriv_mu[2*i+1] = -kappa*np.sin(pref_angles[:, 1] - items_thetas[2*i+1])*population_code_response_2D(items_thetas[2*i], items_thetas[2*i+1], pref_angles, N=N, kappa=kappa, amplitude=amplitude)
-            FI_nobj = np.dot(deriv_mu, deriv_mu.T)/(items_thetas.size/2.*sigma**2.)
-            # print FI_nobj
-            inv_FI_nobj = np.linalg.inv(FI_nobj)
-            return inv_FI_nobj[0, 0]
+        # def inv_FI_nobj(items_thetas):
+        #     deriv_mu = np.zeros((items_thetas.size, N))
+        #     for i in xrange(items_thetas.size/2):
+        #         deriv_mu[2*i] = -kappa*np.sin(pref_angles[:, 0] - items_thetas[2*i])*population_code_response_2D(items_thetas[2*i], items_thetas[2*i+1], pref_angles, N=N, kappa=kappa, amplitude=amplitude)
+        #         deriv_mu[2*i+1] = -kappa*np.sin(pref_angles[:, 1] - items_thetas[2*i+1])*population_code_response_2D(items_thetas[2*i], items_thetas[2*i+1], pref_angles, N=N, kappa=kappa, amplitude=amplitude)
+        #     FI_nobj = np.dot(deriv_mu, deriv_mu.T)/(items_thetas.size/2.*sigma**2.)
+        #     # print FI_nobj
+        #     inv_FI_nobj = np.linalg.inv(FI_nobj)
+        #     return inv_FI_nobj[0, 0]
 
 
         def inv_FI_nobj_fixoneitem(items_thetas):
@@ -337,7 +337,7 @@ def main(to_plot = []):
         # inv_FI_mean_gen = sum((inv_FI_one_sample() for i in xrange(n_samples)))/float(n_samples)
         search_progress = progress.Progress(n_samples)
         for i in xrange(n_samples):
-            
+
             if i % 1000 == 0:
                 sys.stdout.write("%.1f%%, %s \n %d %s %s %s\n" % (search_progress.percentage(), search_progress.time_remaining_str(), i, inv_FI_allobj_cum*n_samples/(i+1), np.sqrt(inv_FI_all_obj_var_cum*n_samples/(i+1)), power_law_fits))
                 sys.stdout.flush()
@@ -365,7 +365,7 @@ def main(to_plot = []):
                 power_law_fits = fit_powerlaw(np.arange(1, n_items+1), inv_FI_allobj_cum*n_samples/(i+1))
 
                 dataio.save_variables(['inv_FI_allobj_cum', 'inv_FI_all_obj_var_cum', 'power_law_fits', 'n_samples', 'i', 'min_distance', 'n_items'], locals())
-                
+
                 plt.figure(1)
                 width=0.35
                 rects1 = plt.bar(np.arange(n_items), (FI_all_obj_cum*n_samples/(i+1.)), width=width, yerr=np.sqrt(FI_all_obj_var_cum*n_samples/(i+1.))/np.sqrt(i+1), error_kw=dict(elinewidth=2, ecolor='black'), hold=False)
@@ -378,11 +378,11 @@ def main(to_plot = []):
 
                 if i > 10 and plot_item2_effect:
                     plt.figure(2)
-                    
+
                     min_distance_fct = lambda x, min_distance=0.1: np.abs(x) < min_distance
                     min_distance_fct_part = functools.partial(min_distance_fct, min_distance=min_distance)
 
-                    contourf_interpolate_data(np.array(item2_positions), np.array(all_inv_FI_2obj), xlabel='$\phi_2$', ylabel='$\psi_2$', title='Inverse Fisher Information for $\phi_1 = \psi_1 = 0$, varying $\phi_2, \psi_2$', fignum=2, show_colorbar=False, show_scatter=False, mask_x_condition=min_distance_fct_part, mask_y_condition=min_distance_fct_part, interpolation_method='nearest')
+                    contourf_interpolate_data(np.array(item2_positions), np.array(all_inv_FI_2obj), xlabel='$\phi_2$', ylabel='$\psi_2$', title='Inverse Fisher Information for $\phi_1 = \psi_1 = 0$, varying $\phi_2, \psi_2$', fignum=3, show_colorbar=False, show_scatter=False, mask_x_condition=min_distance_fct_part, mask_y_condition=min_distance_fct_part, interpolation_method='nearest')
 
                     dataio.save_current_figure('contourf_IF_2objeffect_{label}_{unique_id}.png')
 
@@ -407,7 +407,7 @@ if __name__ == '__main__':
     for var_to_reinst in all_vars:
         vars()[var_to_reinst] = all_vars[var_to_reinst]
 
-    
+
 
 
 

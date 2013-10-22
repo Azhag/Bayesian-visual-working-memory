@@ -197,7 +197,7 @@ def launcher_do_fisher_information_estimation(args):
             print FI_samples_samples_quantiles[i]
 
             print "from precision of recall..."
-            sampler.sample_theta(num_samples=num_samples, burn_samples=100, selection_method=selection_method, selection_num_samples=num_samples, integrate_tc_out=False, debug=False)
+            sampler.sample_theta(num_samples=num_samples, burn_samples=100, selection_method=selection_method, selection_num_samples=args.selection_num_samples, integrate_tc_out=False, debug=False)
             FI_samples_precision[i] = sampler.get_precision()
             FI_samples_precision_quantiles[i] = spst.mstats.mquantiles(FI_samples_precision[i])
             FI_samples_precision_all.append(FI_samples_precision[i])
@@ -368,7 +368,7 @@ def launcher_do_fisher_information_estimation(args):
             print FI_rc_theo
 
             print "from precision of recall..."
-            sampler.sample_theta(num_samples=args.num_samples, burn_samples=100, selection_method=selection_method, selection_num_samples=args.num_samples, integrate_tc_out=False, debug=False)
+            sampler.sample_theta(num_samples=args.num_samples, burn_samples=100, selection_method=selection_method, selection_num_samples=args.selection_num_samples, integrate_tc_out=False, debug=False)
             FI_rc_precision[i] = sampler.get_precision()
             FI_rc_precision_quantiles[i] = spst.mstats.mquantiles(FI_rc_precision[i])
             FI_rc_precision_all.append(FI_rc_precision[i])
@@ -538,7 +538,7 @@ def launcher_do_compare_fisher_info_theo(args):
             # Compute precision
             if do_precision:
                 print 'Precision...'
-                sampler.sample_theta(num_samples=all_parameters['num_samples'], burn_samples=100, selection_method=all_parameters['selection_method'], selection_num_samples=all_parameters['num_samples']/2, integrate_tc_out=False, debug=True)
+                sampler.sample_theta(num_samples=all_parameters['num_samples'], burn_samples=100, selection_method=all_parameters['selection_method'], selection_num_samples=all_parameters['selection_num_samples'], integrate_tc_out=False, debug=True)
                 result_precision[i, j] = sampler.get_precision()
 
                 print result_precision
@@ -635,7 +635,7 @@ def launcher_do_fisher_information_param_search(args):
             print FI_rc_truevar[i, j]
 
             print "from precision of recall..."
-            sampler.sample_theta(num_samples=all_parameters['num_samples'], burn_samples=100, selection_method=all_parameters['selection_method'], selection_num_samples=all_parameters['num_samples'], integrate_tc_out=False, debug=False)
+            sampler.sample_theta(num_samples=all_parameters['num_samples'], burn_samples=100, selection_method=all_parameters['selection_method'], selection_num_samples=all_parameters['selection_num_samples'], integrate_tc_out=False, debug=False)
             FI_rc_precision[i, j] = sampler.get_precision()
             print FI_rc_precision[i, j]
 
@@ -716,7 +716,7 @@ def launcher_do_fisher_information_M_effect(args):
             print FI_rc_truevar[i, j]
 
             print "from precision of recall..."
-            sampler.sample_theta(num_samples=all_parameters['num_samples'], burn_samples=100, selection_method=all_parameters['selection_method'], selection_num_samples=all_parameters['num_samples'], integrate_tc_out=False, debug=False)
+            sampler.sample_theta(num_samples=all_parameters['num_samples'], burn_samples=100, selection_method=all_parameters['selection_method'], selection_num_samples=all_parameters['selection_num_samples'], integrate_tc_out=False, debug=False)
             FI_rc_precision[i, j] = sampler.get_precision()
             print FI_rc_precision[i, j]
 
@@ -801,7 +801,7 @@ def launcher_do_fisher_information_param_search_pbs(args):
                 print FI_rc_truevar_mult[i, j, :, repet_i]
 
                 print "from precision of recall..."
-                sampler.sample_theta(num_samples=all_parameters['num_samples'], burn_samples=100, selection_method=all_parameters['selection_method'], selection_num_samples=all_parameters['num_samples'], integrate_tc_out=False, debug=False)
+                sampler.sample_theta(num_samples=all_parameters['num_samples'], burn_samples=100, selection_method=all_parameters['selection_method'], selection_num_samples=all_parameters['selection_num_samples'], integrate_tc_out=False, debug=False)
                 FI_rc_precision_mult[i, j, repet_i] = sampler.get_precision()
                 print FI_rc_precision_mult[i, j, repet_i]
                 ### DONE WORK UNIT

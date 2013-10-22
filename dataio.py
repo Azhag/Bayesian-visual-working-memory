@@ -155,12 +155,13 @@ class DataIO:
 
             # Get the current commit
             commit_num = self.git_repo.active_branch.commit.hexsha
+            commit_short = commit_num[:7]
 
             # Check if the repo is dirty (hence the commit is incorrect, may be important)
             repo_dirty = self.git_repo.is_dirty()
 
             # Save them up
-            self.git_infos = dict(repo=str(self.git_repo), branch_name=branch_name, commit_num=commit_num, repo_dirty=repo_dirty)
+            self.git_infos = dict(repo=str(self.git_repo), branch_name=branch_name, commit_num=commit_num, commit_short=commit_short, repo_dirty=repo_dirty)
 
             if self.debug:
                 print "Found Git informations: %s" % self.git_infos
@@ -232,16 +233,18 @@ class DataIO:
                 - Contain "space"  (parameter spaces)
 
             Adds also:
-                [num_repetitions, repet_i, args]
+                [num_repetitions, repet_i, args, filename]
 
             Can specify additional variables with the additional_variables list
         '''
 
         # Default variables
-        variables_to_save = ['num_repetitions', 'repet_i', 'args']
+        variables_to_save = ['num_repetitions', 'repet_i', 'args', 'filename']
 
         # Complete with additional variables
         variables_to_save.extend(additional_variables)
+
+        all_variables['filename'] = self.filename
 
         for var_name in all_variables.keys():
             if var_name.find('result') > -1 and not var_name in variables_to_save:
@@ -284,7 +287,7 @@ class DataIO:
             if self.git_infos:
                 # If we are in a Git repository, add the informations about the current branch and commit
                 # (it may not be properly commited, but close enough, check the next commit if dirty)
-                pdf_metadata['Subject'] = "Created on branch {branch_name}, commit {commit_num} (dirty: {repo_dirty:d})".format(**self.git_infos)
+                pdf_metadata['Subject'] = "Created from {calling_function}".format(calling_function=self.calling_function) + " on branch {branch_name}, commit {commit_short} (dirty: {repo_dirty:d})".format(**self.git_infos)
 
             pdf.close()
         else:

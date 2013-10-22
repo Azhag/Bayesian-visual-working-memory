@@ -35,10 +35,10 @@ def launcher_do_hierarchical_precision_M_Mlower(args):
     M_space = np.array([10, 25, 100])
     M_lower_space = np.array([49, 100])
     T_space = np.arange(1, all_parameters['T']+1)
-    
+
     results_precision_M_T = np.zeros((M_space.size, M_lower_space.size, T_space.size, num_repetitions), dtype=float)
-    
-    # Show the progress 
+
+    # Show the progress
     search_progress = progress.Progress(M_space.size*M_lower_space.size)
 
     print M_space
@@ -74,31 +74,31 @@ def launcher_do_hierarchical_precision_M_sparsity_sigmaweight_feature(args):
     all_parameters = vars(args)
 
     code_type = 'hierarchical'
-    
+
     dataio = DataIO(output_folder=args.output_directory, label=args.label)
     # variables_to_save = ['M_space', 'T_space',  'repet_i', 'num_repetitions', 'results_precision_N', 'all_responses', 'all_targets', 'all_nontargets']
     variables_to_save = ['M_space', 'T_space', 'sparsity_space', 'sigma_weights_space', 'repet_i', 'num_repetitions', 'results_precision_N']
-    
+
     save_every = 5
     run_counter = 0
-    
+
     num_repetitions = all_parameters['num_repetitions']
-    
+
     # M_space = np.array([all_parameters['M']])
     # M_space = np.array([4*4, 5*5, 7*7, 8*8, 9*9, 10*10, 15*15, 20*20])
     M_space = np.linspace(5, 500, 10)
     sparsity_space = np.linspace(0.01, 1.0, 10.)
     sigma_weights_space = np.linspace(0.1, 2.0, 10)
     T_space = np.arange(1, all_parameters['T']+1)
-    
+
     results_precision_M_T = np.zeros((M_space.size, sparsity_space.size, sigma_weights_space.size, T_space.size, num_repetitions), dtype=float)
     # all_responses = np.zeros((M_space.size, sparsity_space.size, sigma_weights_space.size, T_space.size, num_repetitions, all_parameters['N']))
     # all_targets = np.zeros((M_space.size, sparsity_space.size, sigma_weights_space.size, T_space.size, num_repetitions, all_parameters['N']))
     # all_nontargets = np.zeros((M_space.size, sparsity_space.size, sigma_weights_space.size, T_space.size, num_repetitions, all_parameters['N'], all_parameters['T']-1))
-    
+
     all_parameters['type_layer_one'] = 'feature'
 
-    # Show the progress 
+    # Show the progress
     search_progress = progress.Progress(T_space.size*M_space.size*sigma_weights_space.size*sparsity_space.size*num_repetitions)
 
     print M_space
@@ -124,14 +124,14 @@ def launcher_do_hierarchical_precision_M_sparsity_sigmaweight_feature(args):
 
                         ### WORK UNIT
                         (random_network, data_gen, stat_meas, sampler) = launchers.init_everything(all_parameters)
-                        
+
                         if all_parameters['inference_method'] == 'sample':
                             # Sample thetas
-                            sampler.sample_theta(num_samples=all_parameters['num_samples'], burn_samples=100, selection_method=all_parameters['selection_method'], selection_num_samples=all_parameters['num_samples'], integrate_tc_out=False, debug=False)
+                            sampler.sample_theta(num_samples=all_parameters['num_samples'], burn_samples=100, selection_method=all_parameters['selection_method'], selection_num_samples=all_parameters['selection_num_samples'], integrate_tc_out=False, debug=False)
                         elif all_parameters['inference_method'] == 'max_lik':
                             # Just use the ML value for the theta
                             sampler.set_theta_max_likelihood(num_points=150, post_optimise=True)
-                        
+
                         results_precision_M_T[m_i, s_i, sw_i, t_i, repet_i] = sampler.get_precision()
                         print results_precision_M_T[m_i, s_i, sw_i, t_i, repet_i]
 
@@ -170,29 +170,29 @@ def launcher_do_hierarchical_precision_M_Mlower_pbs(args):
         all_parameters = args
 
     code_type = 'hierarchical'
-    
+
     dataio = DataIO(output_folder=all_parameters['output_directory'], label=all_parameters['label'])
     variables_to_save = ['M_space', 'T_space', 'M_lower_space', 'repet_i', 'num_repetitions', 'results_precision_M_T']
-    
+
     save_every = 5
     run_counter = 0
-    
+
     num_repetitions = all_parameters['num_repetitions']
-    
+
     M_space = np.array([all_parameters['M']])
     M_lower_space = np.array([all_parameters['M_layer_one']])
     T_space = np.arange(1, all_parameters['T']+1)
-    
+
     results_precision_M_T = np.zeros((M_space.size, M_lower_space.size, T_space.size, num_repetitions), dtype=float)
-    
+
     if save_all_output:
         variables_to_save.extend(['all_responses', 'all_targets', 'all_nontargets'])
 
         all_responses = np.zeros((M_space.size, M_lower_space.size, T_space.size, num_repetitions, all_parameters['N']))
         all_targets = np.zeros((M_space.size, M_lower_space.size, T_space.size, num_repetitions, all_parameters['N']))
         all_nontargets = np.zeros((M_space.size, M_lower_space.size, T_space.size, num_repetitions, all_parameters['N'], all_parameters['T']-1))
-    
-    # Show the progress 
+
+    # Show the progress
     search_progress = progress.Progress(T_space.size*M_space.size*M_lower_space.size*num_repetitions)
 
     print M_space
@@ -215,14 +215,14 @@ def launcher_do_hierarchical_precision_M_Mlower_pbs(args):
 
                     ### WORK UNIT
                     (random_network, data_gen, stat_meas, sampler) = launchers.init_everything(all_parameters)
-                    
+
                     if all_parameters['inference_method'] == 'sample':
                         # Sample thetas
-                        sampler.sample_theta(num_samples=all_parameters['num_samples'], burn_samples=100, selection_method=all_parameters['selection_method'], selection_num_samples=all_parameters['num_samples'], integrate_tc_out=False, debug=False)
+                        sampler.sample_theta(num_samples=all_parameters['num_samples'], burn_samples=100, selection_method=all_parameters['selection_method'], selection_num_samples=all_parameters['selection_num_samples'], integrate_tc_out=False, debug=False)
                     elif all_parameters['inference_method'] == 'max_lik':
                         # Just use the ML value for the theta
                         sampler.set_theta_max_likelihood(num_points=100, post_optimise=True)
-                    
+
                     results_precision_M_T[m_i, m_l_i, t_i, repet_i] = sampler.get_precision()
                     print results_precision_M_T[m_i, m_l_i, t_i, repet_i]
 
@@ -239,7 +239,7 @@ def launcher_do_hierarchical_precision_M_Mlower_pbs(args):
                     run_counter += 1
 
     print "All finished"
-    
+
     return locals()
 
 
@@ -255,22 +255,22 @@ def launcher_do_hierarchical_precision_M_sparsity_sigmaweight_feature_pbs(args):
     all_parameters = vars(args)
 
     code_type = 'hierarchical'
-    
+
     dataio = DataIO(output_folder=args.output_directory, label=args.label)
     variables_to_save = ['M_space', 'T_space', 'sparsity_space', 'sigma_weights_space', 'repet_i', 'num_repetitions', 'results_precision_M_T']
-    
+
     save_every = 5
     run_counter = 0
-    
+
     num_repetitions = all_parameters['num_repetitions']
-    
+
     # M_space = np.array([all_parameters['M']])
     # M_space = np.array([4*4, 5*5, 7*7, 8*8, 9*9, 10*10, 15*15, 20*20])
     M_space = np.array([all_parameters['M']])
     sparsity_space = np.array([all_parameters['sparsity']])
     sigma_weights_space = np.array([all_parameters['sigma_weights']])
     T_space = np.arange(1, all_parameters['T']+1)
-    
+
 
     results_precision_M_T = np.zeros((M_space.size, sparsity_space.size, sigma_weights_space.size, T_space.size, num_repetitions), dtype=float)
     if save_all_output:
@@ -280,10 +280,10 @@ def launcher_do_hierarchical_precision_M_sparsity_sigmaweight_feature_pbs(args):
         all_targets = np.zeros((M_space.size, sparsity_space.size, sigma_weights_space.size, T_space.size, num_repetitions, all_parameters['N']))
         all_nontargets = np.zeros((M_space.size, sparsity_space.size, sigma_weights_space.size, T_space.size, num_repetitions, all_parameters['N'], all_parameters['T']-1))
 
-    
+
     all_parameters['type_layer_one'] = 'feature'
 
-    # Show the progress 
+    # Show the progress
     search_progress = progress.Progress(T_space.size*M_space.size*sigma_weights_space.size*sparsity_space.size*num_repetitions)
 
     print M_space
@@ -309,14 +309,14 @@ def launcher_do_hierarchical_precision_M_sparsity_sigmaweight_feature_pbs(args):
 
                         ### WORK UNIT
                         (random_network, data_gen, stat_meas, sampler) = launchers.init_everything(all_parameters)
-                        
+
                         if all_parameters['inference_method'] == 'sample':
                             # Sample thetas
-                            sampler.sample_theta(num_samples=all_parameters['num_samples'], burn_samples=100, selection_method=all_parameters['selection_method'], selection_num_samples=all_parameters['num_samples'], integrate_tc_out=False, debug=False)
+                            sampler.sample_theta(num_samples=all_parameters['num_samples'], burn_samples=100, selection_method=all_parameters['selection_method'], selection_num_samples=all_parameters['selection_num_samples'], integrate_tc_out=False, debug=False)
                         elif all_parameters['inference_method'] == 'max_lik':
                             # Just use the ML value for the theta
                             sampler.set_theta_max_likelihood(num_points=150, post_optimise=True)
-                        
+
                         results_precision_M_T[m_i, s_i, sw_i, t_i, repet_i] = sampler.get_precision()
                         print results_precision_M_T[m_i, s_i, sw_i, t_i, repet_i]
 

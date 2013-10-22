@@ -233,7 +233,7 @@ class FitExperiment:
         _, axes = plt.subplots(2, 1)
 
         # Sample from model
-        self.sampler.sample_theta(num_samples=1, burn_samples=20)
+        self.sampler.sample_theta(num_samples=100, burn_samples=100)
 
         # Plot distribution of samples first (so that we keep human data in theta)
         print 'Sampling...'

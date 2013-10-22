@@ -30,10 +30,10 @@ def launcher_do_checks_2obj(args):
 
     dataio = DataIO(output_folder=args.output_directory, label=args.label)
     variables_to_save = ['min_distance_space', 'fi_curve', 'fi_theo_covmeas', 'fi_theo_covtheo', 'fi_precision', 'bias_avg', 'fi_bias']
-    
+
     save_every = 5
     run_counter = 0
-    
+
     # num_repetitions = all_parameters['num_repetitions']
 
     # Force 2 objects...
@@ -51,11 +51,11 @@ def launcher_do_checks_2obj(args):
     fi_precision = np.zeros((min_distance_space.size))
     bias_avg = np.zeros((min_distance_space.size))
     fi_bias = np.zeros((min_distance_space.size))
-    
+
     search_progress = progress.Progress(min_distance_space.size)
 
     for i, min_distance in enumerate(min_distance_space):
-        
+
         all_parameters['enforce_min_distance'] = min_distance
         print "Min distance: %.2f, %.2f%%, %s left - %s" % (min_distance, search_progress.percentage(), search_progress.time_remaining_str(), search_progress.eta_str())
 
@@ -63,7 +63,7 @@ def launcher_do_checks_2obj(args):
         print "init"
         (random_network, data_gen, stat_meas, sampler) = init_everything(all_parameters)
 
-        
+
         # Compute some quantities
         print 'Curve'
         fi_curve[i] = sampler.estimate_fisher_info_from_posterior_avg_randomsubset(subset_size=10)
@@ -73,12 +73,12 @@ def launcher_do_checks_2obj(args):
         print 'Theo'
         fi_theo_covmeas[i] = sampler.estimate_fisher_info_theocov(use_theoretical_cov=False)
         fi_theo_covtheo[i] = sampler.estimate_fisher_info_theocov(use_theoretical_cov=True)
-        
+
         print 'Precision'
         if all_parameters['inference_method'] == 'sample':
             # Sample thetas
             print " sampling..."
-            sampler.sample_theta(num_samples=all_parameters['num_samples'], burn_samples=100, selection_method=all_parameters['selection_method'], selection_num_samples=all_parameters['num_samples'], integrate_tc_out=False, debug=False)
+            sampler.sample_theta(num_samples=all_parameters['num_samples'], burn_samples=100, selection_method=all_parameters['selection_method'], selection_num_samples=all_parameters['selection_num_samples'], integrate_tc_out=False, debug=False)
         elif all_parameters['inference_method'] == 'max_lik':
             # Just use the ML value for the theta
             # Set to ML value
@@ -121,14 +121,14 @@ def init_everything(parameters):
 
     # Build the random network
     random_network = init_random_network(parameters)
-        
+
     # Construct the real dataset
     time_weights_parameters = dict(weighting_alpha=parameters['alpha'], weighting_beta=1.0, specific_weighting=0.1, weight_prior='uniform')
     cued_feature_time = parameters['T']-1
 
     # print "Building the database"
     data_gen = DataGeneratorRFN(parameters['N'], parameters['T'], random_network, sigma_y=parameters['sigmay'], sigma_x=parameters['sigmax'], time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation=parameters['stimuli_generation'], enforce_min_distance=parameters['enforce_min_distance'])
-    
+
     # Measure the noise structure
     # print "Measuring noise structure"
     # noise_stimuli_generation = parameters['stimuli_generation']
@@ -138,7 +138,7 @@ def init_everything(parameters):
 
     data_gen_noise = DataGeneratorRFN(5000, parameters['T'], random_network, sigma_y=parameters['sigmay'], sigma_x=parameters['sigmax'], time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation=noise_stimuli_generation, enforce_min_distance=parameters['enforce_min_distance'])
     stat_meas = StatisticsMeasurer(data_gen_noise)
-    
+
     sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters=stat_meas.model_parameters, tc=cued_feature_time)
 
     return (random_network, data_gen, stat_meas, sampler)
@@ -147,7 +147,7 @@ def init_everything(parameters):
 def init_random_network(parameters):
 
     # Build the random network
-    
+
     if parameters['code_type'] == 'conj':
         random_network = RandomFactorialNetwork.create_full_conjunctive(parameters['M'], R=parameters['R'], scale_moments=(parameters['rc_scale'], 0.0001), ratio_moments=(1.0, 0.0001))
     elif parameters['code_type'] == 'feat':
@@ -163,7 +163,7 @@ def init_random_network(parameters):
         raise ValueError('Code_type is wrong!')
 
     return random_network
-    
+
 
 
 def launcher_do_separation_rcdependence(args):
@@ -173,13 +173,13 @@ def launcher_do_separation_rcdependence(args):
         Work only on a specific set of stimuli (diagonally separated)
     '''
     all_parameters = vars(args)
-    
+
     dataio = DataIO(output_folder=args.output_directory, label=args.label)
     variables_to_save = ['rcscale_space', 'fi_curve', 'fi_var', 'fi_theo_covmeas', 'fi_theo_covtheo', 'fi_bias']
-    
+
     save_every = 5
     run_counter = 0
-    
+
     num_repetitions = all_parameters['num_repetitions']
 
     # Force 2 objects...
@@ -193,12 +193,12 @@ def launcher_do_separation_rcdependence(args):
     fi_theo_covmeas = np.zeros((rcscale_space.size, num_repetitions))
     fi_theo_covtheo = np.zeros((rcscale_space.size, num_repetitions))
     fi_bias = np.zeros((rcscale_space.size, num_repetitions))
-    
+
     search_progress = progress.Progress(rcscale_space.size*num_repetitions)
 
     for r_i in xrange(num_repetitions):
         for i, rc_scale in enumerate(rcscale_space):
-            
+
             all_parameters['rc_scale'] = rc_scale
 
             print "Rcscale: %.2f (%d/%d) %.2f%%, %s left - %s" % (rc_scale, r_i+1, num_repetitions, search_progress.percentage(), search_progress.time_remaining_str(), search_progress.eta_str())
@@ -216,7 +216,7 @@ def launcher_do_separation_rcdependence(args):
             print 'Theo'
             fi_theo_covmeas[i, r_i] = sampler.estimate_fisher_info_theocov(use_theoretical_cov=False)
             fi_theo_covtheo[i, r_i] = sampler.estimate_fisher_info_theocov(use_theoretical_cov=True)
-            
+
             (_, ml_val) = sampler.estimate_truevariance_from_posterior(n=0, return_mean=True)
             fi_bias[i, r_i] = 1./(sampler.data_gen.stimuli_correct[0, sampler.tc[0], sampler.theta_to_sample[0]] - ml_val)**2.
 
