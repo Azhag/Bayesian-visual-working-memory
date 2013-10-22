@@ -11,6 +11,7 @@ import pylab as plt
 import numpy as np
 import scipy as sp
 from matplotlib.patches import Ellipse
+import sys
 # from mpl_toolkits.mplot3d import Axes3D
 # from matplotlib import cm
 # from matplotlib.ticker import LinearLocator
@@ -821,6 +822,134 @@ class RandomFactorialNetwork():
         return activity
 
 
+    def compute_inverse_fisher_info_kitems(self, additional_items_thetas, inv_cov_stim):
+        '''
+            Compute the Inverse Fisher Information matrix for K+1 items
+
+            Assume the first item to be at (0, 0), returns the Inv FI for the first component of this first item.
+        '''
+
+        K = len(additional_items_thetas)
+
+        # Set vector of all items/features derivatives
+        deriv_mu = np.zeros((2*K+2, self.M))
+
+        deriv_mu[0] = -self.neurons_sigma[:, 0]*np.sin(-self.neurons_preferred_stimulus[:, 0])*self.get_network_response_opt2d(0., 0.)
+        deriv_mu[1] = -self.neurons_sigma[:, 1]*np.sin(-self.neurons_preferred_stimulus[:, 1])*self.get_network_response_opt2d(0., 0.)
+        for i in xrange(K):
+            deriv_mu[2*i+2] = -self.neurons_sigma[:, 0]*np.sin(additional_items_thetas[i][0] - self.neurons_preferred_stimulus[:, 0])*self.get_network_response_opt2d(additional_items_thetas[i][0], additional_items_thetas[i][1])
+            deriv_mu[2*i+3] = -self.neurons_sigma[:, 1]*np.sin(additional_items_thetas[i][1] - self.neurons_preferred_stimulus[:, 1])*self.get_network_response_opt2d(additional_items_thetas[i][0], additional_items_thetas[i][1])
+
+        deriv_mu[np.isnan(deriv_mu)] = 0.0
+
+        # Compute the Fisher information matrix
+        FI_nobj = np.dot(deriv_mu, np.dot(inv_cov_stim, deriv_mu.T))
+        # FI_nobj = np.dot(deriv_mu, np.linalg.solve(cov_stim, deriv_mu.T))
+
+        # print FI_nobj
+
+        inv_FI_nobj = np.linalg.inv(FI_nobj)
+        return inv_FI_nobj[0, 0], FI_nobj[0, 0]
+
+
+    def compute_sample_inv_fisher_information_kitems(self, k_items, inv_cov_stim, min_distance=0.17):
+        '''
+            Compute one sample estimate of the Inverse Fisher Information, K_items.
+
+            Those samples can then be averaged together in a Monte Carlo scheme to provide a better estimate of the Inverse Fisher Information for K items.
+
+            Assume the first item is fixed at (0, 0), sample the other uniformly
+        '''
+
+        def get_sample_item():
+            return -np.pi + 2*np.pi*np.random.random(2)
+
+        all_items = [np.array([0.0, 0.0])]
+
+        # Add extra items
+        for item_i in xrange(k_items-1):
+            new_item = get_sample_item()
+            while not enforce_distance_set(new_item, all_items, min_distance):
+                new_item = get_sample_item()
+
+            all_items.append(new_item)
+
+        inv_FI_allobj, FI_allobj = self.compute_inverse_fisher_info_kitems(all_items[1:], inv_cov_stim)
+
+        return dict(inv_FI_kitems=inv_FI_allobj, FI_kitems=FI_allobj)
+
+
+    def compute_marginal_inverse_FI(self, k_items, inv_cov_stim, max_n_samples=int(1e5), min_distance=0.1, convergence_epsilon = 1e-7, debug=False):
+        '''
+            Compute a Monte Carlo estimate of the Marginal Inverse Fisher Information
+            Averages over stimuli values. Requires the inverse of the covariance of the memory.
+
+            Returns dict(inv_FI, inv_FI_std, FI, FI_std)
+        '''
+
+        min_num_samples_std = int(2e3)
+
+        inv_FI_cum = 0
+        inv_FI_cum_var = 0
+        FI_cum = 0
+        FI_cum_var = 0
+        inv_FI_estimate = 0
+        inv_FI_std_estimate = 0
+        FI_estimate = 0
+        FI_std_estimate = 0
+        epsilon = 0
+        converged_times = 0
+
+        previous_estimates = np.zeros(4)
+
+        search_progress = progress.Progress(max_n_samples)
+        for i in xrange(max_n_samples):
+
+            if i % 1000 == 0 and debug:
+                sys.stdout.write("%.1f%%, %s: %d %s %s %s %s %f\r" % (search_progress.percentage(), search_progress.time_remaining_str(), i, inv_FI_estimate, inv_FI_std_estimate, FI_estimate, FI_std_estimate, epsilon))
+                sys.stdout.flush()
+
+            # Get sample of invFI and FI
+            sample_FI_dict = self.compute_sample_inv_fisher_information_kitems(k_items, inv_cov_stim, min_distance)
+
+            # Compute mean
+            inv_FI_cum += sample_FI_dict['inv_FI_kitems']/float(max_n_samples)
+            FI_cum += sample_FI_dict['FI_kitems']/float(max_n_samples)
+
+            # Compute std (wrong but oh well...)
+            if i > min_num_samples_std:
+                inv_FI_cum_var += (sample_FI_dict['inv_FI_kitems']-inv_FI_cum*max_n_samples/(i+1.))**2./float(max_n_samples)
+                FI_cum_var += (sample_FI_dict['FI_kitems'] - FI_cum*max_n_samples/(i+1.))**2./float(max_n_samples)
+
+            # Compute current running averages
+            inv_FI_estimate         = inv_FI_cum*max_n_samples/(i+1.)
+            inv_FI_std_estimate     = np.sqrt(inv_FI_cum_var*max_n_samples/(i+1.))/np.sqrt(i+1)
+            FI_estimate             = FI_cum*max_n_samples/(i+1.)
+            FI_std_estimate         = np.sqrt(FI_cum_var*max_n_samples/(i+1.))/np.sqrt(i+1)
+
+            search_progress.increment()
+
+            if i > 1.5*min_num_samples_std:
+                # Check convergence
+                new_estimates = np.array([inv_FI_estimate, inv_FI_std_estimate, FI_estimate, FI_std_estimate])
+                epsilon = np.sum(np.abs(previous_estimates - new_estimates))
+
+                if epsilon <= convergence_epsilon:
+                    # Converged, stop the loop
+                    if debug:
+                        print "Converged after %d samples" % i
+
+                    break
+
+                previous_estimates = new_estimates
+
+        if debug:
+            print "\n"
+
+        return dict(inv_FI=inv_FI_estimate, inv_FI_std=inv_FI_std_estimate, FI=FI_estimate, FI_std=FI_std_estimate)
+
+
+
     def get_neuron_activity(self, neuron_index, precision=100, return_axes_vect = False, params={}):
         '''
             Returns the activity of a specific neuron over the entire space.
@@ -1222,7 +1351,7 @@ class RandomFactorialNetwork():
         '''
 
         if debug:
-            print "create conjunctive network, autoset: %d" % autoset_parameters
+            print "create conjunctive network, M %d, autoset: %d" % (M, autoset_parameters)
 
         rn = RandomFactorialNetwork(M, R=R, response_type=response_type, gain=gain)
         rn.population_code_type = 'conjunctive'

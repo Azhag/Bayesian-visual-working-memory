@@ -26,6 +26,8 @@ import sys
 # from statisticsmeasurer import *
 from utils import *
 
+import em_circularmixture
+
 from slicesampler import *
 
 # from dataio import *
@@ -74,7 +76,7 @@ class Sampler:
         y_t | x_t, y_{t-1} ~ Normal
 
     '''
-    def __init__(self, data_gen, tc=None, theta_kappa=0.1, n_parameters = dict()):
+    def __init__(self, data_gen, tc=None, theta_kappa=0.01, n_parameters = dict()):
         '''
             Initialise the sampler
 
@@ -225,6 +227,7 @@ class Sampler:
 
         return (ATtcB, mean_fixed_contrib, inv_covariance_fixed_contrib)
 
+
     def compute_normalization(self):
         '''
             Compute normalization factor for loglikelihood
@@ -243,20 +246,38 @@ class Sampler:
 
     #######
 
+    def run_inference(self, parameters):
+        '''
+            Infer angles based on memory state
+
+            Can either:
+            1) Sample using Gibbs sampling / Slice sampler
+            2) Set to Max Lik values
+
+            Warning: needs around 200 samples to mix. Burn_samples set to 100.
+        '''
+        print "Running inference..."
+        if parameters['inference_method'] == 'sample':
+            # Sample thetas
+            self.sample_theta(num_samples=parameters['num_samples'], burn_samples=parameters['burn_samples'], selection_method=parameters['selection_method'], selection_num_samples=parameters['selection_num_samples'], slice_width=parameters['slice_width'], integrate_tc_out=False, debug=True)
+        elif parameters['inference_method'] == 'max_lik':
+            # Just use the ML value for the theta
+            self.set_theta_max_likelihood(num_points=100, post_optimise=True)
+
+
     def sample_all(self):
         '''
             Do one full sweep of sampling
         '''
 
-        t = time.time()
+        # t = time.time()
         self.sample_theta()
-        print "Sample_theta time: %.3f" % (time.time()-t)
+        # print "Sample_theta time: %.3f" % (time.time()-t)
         self.sample_tc()
         print "Likelihood: %.2f" % self.compute_likelihood()
 
 
-
-    def sample_theta(self, num_samples=500, return_samples=False, burn_samples=20, integrate_tc_out = False, selection_method='median', selection_num_samples=250, subset_theta=None, slice_width=np.pi/8.0, slice_jump_prob=0.3, debug=False):
+    def sample_theta(self, num_samples=500, return_samples=False, burn_samples=100, integrate_tc_out=False, selection_method='median',         selection_num_samples=250, subset_theta=None, slice_width=np.pi/8.0, slice_jump_prob=0.3, debug=True):
         '''
             Sample the thetas
             Need to use a slice sampler, as we do not know the normalization constant.
@@ -277,6 +298,9 @@ class Sampler:
             permuted_datapoints = np.arange(self.N)
 
         # errors = np.zeros(permuted_datapoints.shape, dtype=float)
+
+        if debug:
+            print "Sampling theta: %d samples, %d selection, %d burnin" % (num_samples, selection_num_samples, burn_samples)
 
         if return_samples:
             all_samples = np.zeros((permuted_datapoints.size, num_samples))
@@ -720,6 +744,23 @@ class Sampler:
 
         self.plot_likelihood(should_normalize=True, n=n, ax_handle=axes[1])
 
+    ########
+
+    def fit_mixture_model(self, compute_responsibilities=False):
+        '''
+            Fit Paul Bays' Mixture model.
+
+            Can provide responsibilities as well if required
+        '''
+
+        results = {}
+        params_fit = em_circularmixture.fit(*self.collect_responses())
+
+        if compute_responsibilities:
+            params_fit['resp'] = em_circularmixture.compute_responsibilities(*(self.collect_responses() + (params_fit,) ))
+
+        return params_fit
+
 
     def estimate_fisher_info_from_posterior(self, n=0, all_angles=None, num_points=500):
         '''
@@ -834,6 +875,22 @@ class Sampler:
 
         # Compute the theoretical FI
         return self.random_network.compute_fisher_information(stimulus_input=(0.0, 0.0), cov_stim=computed_cov, kappa_different=kappa_different)
+
+
+    def estimate_marginal_inverse_fisher_info_montecarlo(self):
+        '''
+            Compute a Monte Carlo estimate of the Marginal Inverse Fisher Information.
+
+            Marginalise over stimuli values for all items, estimating the Inverse Fisher Information for item 1, feature 1.
+
+            Usually allows to account for closeby interactions better. Doesn't really work for Feature codes though.
+
+            Return marginal inverse Fisher Information (units of variance, not like other functions)
+        '''
+
+        FI_estimates = self.random_network.compute_marginal_inverse_FI(self.T, self.inv_covariance_fixed_contrib, min_distance=self.data_gen.enforce_min_distance)
+
+        return FI_estimates
 
 
     def estimate_precision_from_posterior(self, n=0, num_points=500):
@@ -1147,6 +1204,8 @@ class Sampler:
         '''
             Compute the precision, inverse of the variance of the errors.
             This is our target metric
+
+            Approximately half of Fisher Information estimate, because of doubly stochastic process and near-gaussianity.
         '''
 
         # Compute precision

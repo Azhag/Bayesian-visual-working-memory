@@ -40,7 +40,7 @@ class HierarchialRandomNetwork(RandomFactorialNetwork):
 
         self.rcscale_layer_one = rcscale_layer_one
         self.ratio_layer_one = ratio_layer_one
-        self.gain_layer_one = gain_layer_one
+        self.gain_layer_one = 1.0 # 4.*np.pi**2.
         self.optimal_coverage = optimal_coverage
         self.sigma_weights = sigma_weights
         self.normalise_weights = normalise_weights
@@ -71,6 +71,8 @@ class HierarchialRandomNetwork(RandomFactorialNetwork):
         self.coordinates = 'full_angles_sym'
         self.network_initialised = True
 
+        print "done, output_both_layers:%d, M_higher %d, M_lower %d" % (self.output_both_layers, self.M_layer_two, self.M_layer_one)
+
 
     def construct_layer_one(self, type_layer='conjunctive'):
         '''
@@ -79,17 +81,17 @@ class HierarchialRandomNetwork(RandomFactorialNetwork):
             Consists of another RFN, makes everything simpler and more logical
         '''
         if type_layer == 'conjunctive':
-            
+
             self.layer_one_network = RandomFactorialNetwork.create_full_conjunctive(self.M_layer_one, R=self.R, rcscale=self.rcscale_layer_one, autoset_parameters=self.optimal_coverage, response_type='bivariate_fisher', gain=self.gain_layer_one)
 
         elif type_layer == 'feature':
-            
+
             self.layer_one_network = RandomFactorialNetwork.create_full_features(self.M_layer_one, R=self.R, scale=self.rcscale_layer_one, ratio=self.ratio_layer_one, autoset_parameters=self.optimal_coverage, gain=self.gain_layer_one, nb_feature_centers=1)
         else:
             raise NotImplementedError('type_layer is conjunctive only for now')
 
 
-    def construct_nonlinearity_fct(self, fct='exponential', threshold=0.0):
+    def construct_nonlinearity_fct(self, fct='exponential', threshold=0.0, correct_treshold=True):
         '''
             Set a nonlinearity function for the second layer. Not sure if needed, but let's do it.
 
@@ -109,10 +111,17 @@ class HierarchialRandomNetwork(RandomFactorialNetwork):
             elif fct == 'identity':
                 self.nonlinearity_fct = lambda x: x
             elif fct == 'positive_linear':
+
                 self.threshold = threshold
-                
-                def positive_linear(x):
-                    return (x - self.threshold).clip(0.0)
+
+                if correct_treshold:
+                    # Correct response to account for 4 pi^2 term
+
+                    def positive_linear(x):
+                        return (4.*np.pi**2.*x - self.threshold).clip(0.0)
+                else:
+                    def positive_linear(x):
+                        return (x - self.threshold).clip(0.0)
 
                 self.nonlinearity_fct = positive_linear
 
@@ -194,17 +203,35 @@ class HierarchialRandomNetwork(RandomFactorialNetwork):
 
         if specific_neurons is None:
             self.current_layer_two_response = self.gain*self.nonlinearity_fct(np.dot(self.A_sampling, layer_one_response))
-        else:    
+        else:
             self.current_layer_two_response = self.gain*self.nonlinearity_fct(np.dot(self.A_sampling[specific_neurons], layer_one_response))
 
         return self.current_layer_two_response
 
 
-   
+    def get_network_response_opt2d(self, theta1, theta2):
+        '''
+            Optimized version of the Bivariate fisher population code, for 2 angles
+        '''
+
+        # Get the response of layer one to the stimulus
+        self.current_layer_one_response = self.layer_one_network.get_network_response_opt2d(theta1, theta2)
+
+        # Combine those responses according the the sampling matrices
+        self.current_layer_two_response = self.gain*self.nonlinearity_fct(np.dot(self.A_sampling, self.current_layer_one_response))
+
+        if self.output_both_layers:
+            # Should return the activity of both layers collated
+            # (handle stupid specific_neurons filter case in the cheapest way possible: don't support it)
+            return np.r_[self.current_layer_one_response, self.current_layer_two_response]
+        else:
+            # Only layer two is relevant
+            return self.current_layer_two_response
+
 
     ##### Helper behaviour function
 
-    
+
 
     ##### Plots
 
@@ -231,7 +258,7 @@ class HierarchialRandomNetwork(RandomFactorialNetwork):
 
         # Plot the activation of the level one subnetwork (and of the individual responses at level two)
         M_sqrt = int(self.M_layer_one**0.5)
-        
+
         # Level one
         im = ax_layerone.imshow(self.current_layer_one_response.reshape(M_sqrt, M_sqrt).T, origin='lower', aspect='equal', interpolation='nearest')
         im.set_extent((-np.pi, np.pi, -np.pi, np.pi))
@@ -241,7 +268,7 @@ class HierarchialRandomNetwork(RandomFactorialNetwork):
         ax_layerone.set_yticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'))
 
         e = Ellipse(xy=stimulus_input, width=0.4, height=0.4)
-        
+
         ax_layerone.add_artist(e)
         e.set_clip_box(ax_layerone.bbox)
         e.set_alpha(0.5)
@@ -257,7 +284,7 @@ class HierarchialRandomNetwork(RandomFactorialNetwork):
         '''
 
         activity, feature_space1, feature_space2 = self.get_neuron_activity(neuron_index, precision=precision, return_axes_vect=True)
-        
+
         # Plot it
         ax_handle, _ = pcolor_2d_data(activity, x=feature_space1, y=feature_space2, ticks_interpolate=5, ax_handle=ax_handle, colorbar=draw_colorbar)
 
@@ -267,7 +294,7 @@ class HierarchialRandomNetwork(RandomFactorialNetwork):
         ax_handle.set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=17, rotation=0)
         ax_handle.set_yticks(selected_ticks)
         ax_handle.set_yticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=17, rotation=0)
-        
+
 
 
     def plot_coverage_feature(self, nb_layer_two_neurons=3, nb_stddev=1.0, alpha_ellipses=0.5, facecolor_layerone='b', ax=None, lim_factor=1.1, top_neurons=None, precision=100):
@@ -304,7 +331,7 @@ class HierarchialRandomNetwork(RandomFactorialNetwork):
 
         norm = pltcol.normalize(vmax=activities_layertwo.max(), vmin=activities_layertwo.min())
         selected_ticks = np.array(np.linspace(0, feature_space1.size-1, 5), dtype=int)
-        
+
         for ax_top, activity_neuron in zip(axes_top, activities_layertwo):
             im = ax_top.imshow(activity_neuron.T, norm=norm, origin='lower left')
 
@@ -340,7 +367,7 @@ def test_hierarchical_conjunctive():
 
     M = 100
     hrn = HierarchialRandomNetwork(M, sparsity_weights=0.5, normalise_weights=False)
-    
+
     # Get one output of the network
     hrn.get_network_response(stimulus_input=(0.0, 0.0))
 
@@ -379,7 +406,7 @@ if __name__ == '__main__':
             samples_pca.extend([hrn1.sample_network_response(np.random.uniform(-np.pi, np.pi, (2)), sigma=0.2) for i in xrange(100)])
             samples_pca.extend([hrn1.sample_network_response(np.random.uniform(-np.pi, np.pi, (2)), sigma=0.2) for i in xrange(100)])
             samples_pca = np.array(samples_pca)
-            
+
             pca = skdec.PCA()
             samples_pca_transf = pca.fit(samples_pca).transform(samples_pca)
             print pca.explained_variance_ratio_

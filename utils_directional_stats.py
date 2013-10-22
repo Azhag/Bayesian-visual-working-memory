@@ -168,4 +168,10 @@ def compute_precision_change(N):
 
     return np.trapz(N/(np.sqrt(x)*np.exp(x+N*np.exp(-x))), x)
 
+def enforce_distance(theta1, theta2, min_distance=0.1):
+    return np.abs(wrap_angles(theta1 - theta2)) > min_distance
+
+
+def enforce_distance_set(new_item, other_items, min_distance=0.001):
+    return all(enforce_distance(new_item[0], other_item[0], min_distance=min_distance) and enforce_distance(new_item[1], other_item[1], min_distance=min_distance) for other_item in other_items)
 
