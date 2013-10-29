@@ -157,7 +157,7 @@ def compute_angle_precision_from_std(circular_std_dev, square_precision=True):
 
     return 1./circular_std_dev**(2.**square_precision)
 
-def compute_precision_change(N):
+def compute_precision_chance(N):
     '''
         Compute the chance precision obtained under an uniform distribution
         policy for angular variable recall

@@ -424,7 +424,7 @@ def compute_precision(errors, remove_chance_level=True, correct_orientation=True
 
     if remove_chance_level:
         # Remove the chance level
-        precision -= compute_precision_change(errors.size)
+        precision -= compute_precision_chance(errors.size)
 
     if correct_orientation:
         # The obtained precision is for half angles, correct it

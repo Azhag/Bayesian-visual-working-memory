@@ -1214,7 +1214,7 @@ class Sampler:
 
         if remove_chance_level:
             # Remove the chance level
-            precision -= compute_precision_change(self.N)
+            precision -= compute_precision_chance(self.N)
 
         return precision
 
