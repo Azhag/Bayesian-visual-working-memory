@@ -141,7 +141,8 @@ def compute_responsibilities(responses, target_angle, nontarget_angles, paramete
 
     (kappa, mixt_target, mixt_nontargets, mixt_random) = (parameters['kappa'], parameters['mixt_target'], parameters['mixt_nontargets'], parameters['mixt_random'])
 
-    nontarget_angles = nontarget_angles[:, ~np.all(np.isnan(nontarget_angles), axis=0)]
+    if nontarget_angles.size > 0:
+        nontarget_angles = nontarget_angles[:, ~np.all(np.isnan(nontarget_angles), axis=0)]
 
     K = float(nontarget_angles.shape[1])
 
@@ -153,7 +154,7 @@ def compute_responsibilities(responses, target_angle, nontarget_angles, paramete
     if K > 0.:
         resp_nontargets = mixt_nontargets/K  * vonmisespdf(error_to_nontargets, 0.0, kappa)
     else:
-        resp_nontargets = np.empty()
+        resp_nontargets = np.empty((responses.size, 0))
 
     W = resp_target + np.sum(resp_nontargets, axis=1) + resp_random
 
