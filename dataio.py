@@ -43,6 +43,7 @@ class DataIO:
         self.label = label
         self.calling_function = calling_function
         self.unique_id = ''  # Keep the unique ID for further uses
+        self.filename = ''
         self.git_infos = None
         self.debug = debug
         self.git_workdir = git_workdir
@@ -87,6 +88,35 @@ class DataIO:
         except:
             print "Symlink failed: ", os.path.join(source_dir, source_file), os.path.join(output_dir, source_file)
 
+
+    def make_link_output_to_dropbox(self, source_folder=None, destination_link=None, dropbox_experiments_folder='Experiments', dropbox_current_experiment_folder=None):
+        '''
+            Create a link between the outputs (containing figures and .npy) into the appropriate Dropbox synced folder.
+
+            Tries to guess the Dropbox location by looking up the $WORKDIR_DROP environment variable. Will fail if not set.
+        '''
+
+        if source_folder is None:
+            source_folder = self.output_folder
+
+        if destination_link is None:
+            # Try to build it automatically
+            output_folder_splitted = os.path.split(self.output_folder)[0].split('/')
+            link_name = '_'.join(output_folder_splitted[-2:])
+
+            if dropbox_current_experiment_folder is None:
+                dropbox_current_experiment_folder = output_folder_splitted[-3]
+
+            try:
+                destination_link = os.path.join(os.getenv("WORKDIR_DROP", None), dropbox_experiments_folder, dropbox_current_experiment_folder, link_name)
+            except AttributeError:
+                raise ValueError('$WORKDIR_DROP is not set, provide destination_link')
+
+        try:
+            print "Doing dropbox symlink: ", source_folder, destination_link
+            os.symlink(source_folder, destination_link)
+        except:
+            print "Symlink failed: ", source_folder, destination_link
 
 
     def create_filename(self):
