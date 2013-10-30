@@ -16,14 +16,14 @@ import pandas as pd
 from utils import *
 
 
-def convert_wrap(dataset, keys_to_convert = ['item_angle', 'probe_angle', 'response', 'error', 'err'], max_angle=np.pi/2.):
+def convert_wrap(dataset, keys_to_convert = ['item_angle', 'probe_angle', 'response', 'error', 'err'], multiply_factor=2., max_angle=np.pi):
     '''
         Takes a dataset and a list of keys. Each data associated with these keys will be converted to radian,
             and wrapped in a [-max_angle, max_angle] interval
     '''
     for key in keys_to_convert:
         if key in dataset:
-            dataset[key] = wrap_angles(np.deg2rad(dataset[key]), bound = max_angle)
+            dataset[key] = wrap_angles(np.deg2rad(multiply_factor*dataset[key]), bound = max_angle)
 
 
 def preprocess_simultaneous(dataset, parameters):
@@ -53,8 +53,12 @@ def preprocess_simultaneous(dataset, parameters):
     dataset['probe'] = np.zeros(dataset['error'].shape, dtype= int)
 
     # Convert everything to radians, spanning a -np.pi/2:np.pi
-    if convert_radians:   #pylint: disable=E0602
+    if convert_radians:
         convert_wrap(dataset)
+
+    # Make some aliases
+    dataset['n_items'] = dataset['n_items'].astype(int)
+    dataset['subject'] = dataset['subject'].astype(int)
 
     # Compute additional errors, between the response and all items
     compute_all_errors(dataset)
@@ -67,7 +71,8 @@ def preprocess_simultaneous(dataset, parameters):
         reconstruct_colours_exp1(dataset, datadir = parameters.get('datadir', ''))
 
     # Fit the mixture model, and save the responsibilities per datapoint.
-    # em_circularmixture.fit()
+    if parameters['fit_mixturemodel']:
+        fit_mixture_model(dataset)
 
     ## Save item in a nice format for the model fit
     dataset['data_to_fit'] = {}
@@ -366,7 +371,7 @@ def compute_all_errors(dataset = {}):
     # assert all(np.abs(dataset['errors_all'][np.arange(dataset['probe'].size), dataset['probe'][:, 0]] - dataset['error'][:, 0]) < 10**-6), "Errors computed are different than errors given in the data"
 
 
-def create_subject_arrays(dataset = {}):
+def create_subject_arrays(dataset = {}, double_precision=True   ):
     '''
         Create arrays with errors per subject and per num_target
         also create an array with the precision per subject and num_target directly
@@ -381,27 +386,42 @@ def create_subject_arrays(dataset = {}):
     precision_subject_nitems_nochance = np.zeros((unique_subjects.size, unique_n_items.size))
     precision_subject_nitems_raw = np.zeros((unique_subjects.size, unique_n_items.size))
 
+    dataset['response_subject_nitems'] = np.empty((unique_subjects.size, unique_n_items.size), dtype=np.object)
+    dataset['item_angle_subject_nitems'] = np.empty((unique_subjects.size, unique_n_items.size), dtype=np.object)
+
     for n_items_i, n_items in enumerate(unique_n_items):
         for subject_i, subject in enumerate(unique_subjects):
-            # Get the responses and errors
-            errors_subject_nitems[subject_i, n_items_i] = dataset['error'][(dataset['subject']==subject) & (dataset['n_items'] == n_items)]
+            ids_filtered = (dataset['subject']==subject) & (dataset['n_items'] == n_items)
+
+            # Get the errors
+            errors_subject_nitems[subject_i, n_items_i] = dataset['error'][ids_filtered]
+
+            # Get the responses and correct item angles
+            dataset['response_subject_nitems'][subject_i, n_items_i] = dataset['response'][ids_filtered]
+            dataset['item_angle_subject_nitems'][subject_i, n_items_i] = dataset['item_angle'][ids_filtered]
 
             # Compute the precision
-            precision_subject_nitems[subject_i, n_items_i] = compute_precision(errors_subject_nitems[subject_i, n_items_i], remove_chance_level=True, correct_orientation=True, use_wrong_precision=True)
-            precision_subject_nitems_theo[subject_i, n_items_i] = compute_precision(errors_subject_nitems[subject_i, n_items_i], remove_chance_level=False, correct_orientation=True, use_wrong_precision=False)
-            precision_subject_nitems_nochance[subject_i, n_items_i] = compute_precision(errors_subject_nitems[subject_i, n_items_i], remove_chance_level=True, correct_orientation=True, use_wrong_precision=False)
-            precision_subject_nitems_raw[subject_i, n_items_i] = compute_precision(errors_subject_nitems[subject_i, n_items_i], remove_chance_level=False)
+            precision_subject_nitems[subject_i, n_items_i] = compute_precision(errors_subject_nitems[subject_i, n_items_i], remove_chance_level=True, correct_orientation=False, use_wrong_precision=True)
+            precision_subject_nitems_theo[subject_i, n_items_i] = compute_precision(errors_subject_nitems[subject_i, n_items_i], remove_chance_level=False, correct_orientation=False, use_wrong_precision=False)
+            precision_subject_nitems_nochance[subject_i, n_items_i] = compute_precision(errors_subject_nitems[subject_i, n_items_i], remove_chance_level=True, correct_orientation=False, use_wrong_precision=False)
+            precision_subject_nitems_raw[subject_i, n_items_i] = compute_precision(errors_subject_nitems[subject_i, n_items_i], remove_chance_level=False, correct_orientation=False, use_wrong_precision=True)
+
+    if double_precision:
+        precision_subject_nitems *= 2.
+        precision_subject_nitems_theo *= 2.
+        # precision_subject_nitems_nochance *= 2.
+        precision_subject_nitems_raw *= 2.
 
     dataset['errors_subject_nitems'] = errors_subject_nitems
     dataset['precision_subject_nitems_bays'] = precision_subject_nitems
     dataset['precision_subject_nitems_theo'] = precision_subject_nitems_theo
     dataset['precision_subject_nitems_theo_nochance'] = precision_subject_nitems_nochance
-    dataset['precision_subject_nitems_bays_chance'] = precision_subject_nitems_raw
+    dataset['precision_subject_nitems_bays_notreatment'] = precision_subject_nitems_raw
 
     dataset['precision_nitems_bays'] = np.mean(precision_subject_nitems, axis=0)
     dataset['precision_nitems_theo'] = np.mean(precision_subject_nitems_theo, axis=0)
     dataset['precision_nitems_theo_nochance'] = np.mean(precision_subject_nitems_nochance, axis=0)
-    dataset['precision_nitems_bays_chance'] = np.mean(precision_subject_nitems_raw, axis=0)
+    dataset['precision_nitems_bays_notreatment'] = np.mean(precision_subject_nitems_raw, axis=0)
 
 
 def compute_precision(errors, remove_chance_level=True, correct_orientation=True, use_wrong_precision=True):
@@ -409,9 +429,9 @@ def compute_precision(errors, remove_chance_level=True, correct_orientation=True
         Compute the precision (1./circ_std**2). Remove the chance level if desired.
     '''
 
-    if correct_orientation:
-        # Correct for the fact that bars are modelled in [0, pi] and not [0, 2pi]
-        errors = errors.copy()*2.0
+    # if correct_orientation:
+    #     # Correct for the fact that bars are modelled in [0, pi] and not [0, 2pi]
+    #     errors = errors.copy()*2.0
 
     # Circular standard deviation estimate
     error_std_dev_error = angle_circular_std_dev(errors)
@@ -431,6 +451,66 @@ def compute_precision(errors, remove_chance_level=True, correct_orientation=True
         precision *= 2.
 
     return precision
+
+def fit_mixture_model(dataset):
+    '''
+        Fit the mixture model onto classical responses/item_angle values
+    '''
+
+    # Initalisize empty arrays
+    dataset['em_fits'] = dict(kappa=np.empty(dataset['probe'].size), mixt_target=np.empty(dataset['probe'].size), mixt_nontarget=np.empty(dataset['probe'].size), mixt_random=np.empty(dataset['probe'].size), resp_target=np.empty(dataset['probe'].size), resp_nontarget=np.empty(dataset['probe'].size), resp_random=np.empty(dataset['probe'].size), train_LL=np.empty(dataset['probe'].size), test_LL=np.empty(dataset['probe'].size))
+    for key in dataset['em_fits']:
+        dataset['em_fits'][key].fill(np.nan)
+    dataset['target'] = np.empty(dataset['probe'].size)
+    dataset['em_fits_subjects_nitems'] = dict()
+    for subject in np.unique(dataset['subject']):
+        dataset['em_fits_subjects_nitems'][subject] = dict()
+
+    dataset['em_fits_nitems'] = dict(mean=dict(), std=dict())
+
+    # Compute mixture model fits per n_items and per subject
+    for n_items in np.unique(dataset['n_items']):
+        for subject in np.unique(dataset['subject']):
+            ids_filtered = (dataset['subject']==subject).flatten() & (dataset['n_items'] == n_items).flatten()
+            print "Fit mixture model, %d items, subject %d, %d datapoints" % (subject, n_items, np.sum(ids_filtered))
+
+            dataset['target'][ids_filtered] = dataset['item_angle'][ids_filtered, 0]
+
+            params_fit = em_circularmixture.fit(dataset['response'][ids_filtered, 0], dataset['item_angle'][ids_filtered, 0], dataset['item_angle'][ids_filtered, 1:])
+            # print dataset['response'][ids_filtered, 0].shape, dataset['item_angle'][ids_filtered, 0].shape, dataset['item_angle'][ids_filtered, 1:].shape
+
+            # cross_valid_outputs = em_circularmixture.cross_validation_kfold(dataset['response'][ids_filtered, 0], dataset['item_angle'][ids_filtered, 0], dataset['item_angle'][ids_filtered, 1:], K=10, shuffle=True, debug=False)
+            # params_fit = cross_valid_outputs['best_fit']
+            resp = em_circularmixture.compute_responsibilities(dataset['response'][ids_filtered, 0], dataset['item_angle'][ids_filtered, 0], dataset['item_angle'][ids_filtered, 1:], params_fit)
+
+            dataset['em_fits']['kappa'][ids_filtered] = params_fit['kappa']
+            dataset['em_fits']['mixt_target'][ids_filtered] = params_fit['mixt_target']
+            dataset['em_fits']['mixt_nontarget'][ids_filtered] = params_fit['mixt_nontargets']
+            dataset['em_fits']['mixt_random'][ids_filtered] = params_fit['mixt_random']
+            dataset['em_fits']['resp_target'][ids_filtered] = resp['target']
+            dataset['em_fits']['resp_nontarget'][ids_filtered] = np.sum(resp['nontargets'], axis=1)
+            dataset['em_fits']['resp_random'][ids_filtered] = resp['random']
+            dataset['em_fits']['train_LL'][ids_filtered] = params_fit['train_LL']
+            # dataset['em_fits']['test_LL'][ids_filtered] = cross_valid_outputs['best_test_LL']
+
+            dataset['em_fits_subjects_nitems'][subject][n_items] = params_fit
+
+
+        ## Now compute mean/std em_fits per n_items
+        dataset['em_fits_nitems']['mean'][n_items] = dict()
+        dataset['em_fits_nitems']['std'][n_items] = dict()
+
+        # Need to extract the values for a subject/nitems pair, for all keys of em_fits. Annoying dictionary indexing needed
+        emfits_keys = params_fit.keys()
+        for key in emfits_keys:
+            values_allsubjects = [dataset['em_fits_subjects_nitems'][subject][n_items][key] for subject in np.unique(dataset['subject'])]
+
+            dataset['em_fits_nitems']['mean'][n_items][key] = np.mean(values_allsubjects)
+            dataset['em_fits_nitems']['std'][n_items][key] = np.std(values_allsubjects)
+
+
+
+######
 
 def check_bias_all(dataset):
     '''
@@ -725,7 +805,7 @@ if __name__ == '__main__':
     if False or (len(sys.argv) > 1 and sys.argv[1]):
     # keys:
     # 'probe', 'delayed', 'item_colour', 'probe_colour', 'item_angle', 'error', 'probe_angle', 'n_items', 'response', 'subject']
-        (data_sequen, data_simult, data_dualrecall) = load_multiple_datasets([dict(filename='Exp1.mat', preprocess=preprocess_sequential, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'))), dict(filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'))), dict(filename=os.path.join(data_dir, 'DualRecall_Bays', 'rate_data.mat'), preprocess=preprocess_doublerecall, parameters=dict(fit_mixturemodel=True))])
+        (data_sequen, data_simult, data_dualrecall) = load_multiple_datasets([dict(filename='Exp1.mat', preprocess=preprocess_sequential, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'))), dict(filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), fit_mixturemodel=True)), dict(filename=os.path.join(data_dir, 'DualRecall_Bays', 'rate_data.mat'), preprocess=preprocess_doublerecall, parameters=dict(fit_mixturemodel=True))])
 
 
     # Check for bias towards 0 for the error between response and all items
