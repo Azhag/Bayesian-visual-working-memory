@@ -147,7 +147,7 @@ def preprocess_doublerecall(dataset, parameters):
     # Make some aliases
     dataset['item_angle'] = dataset['item_location']
     dataset['probe_angle'] = dataset['probe_location']
-    dataset['response'] = np.empty(dataset['probe_angle'].size)
+    dataset['response'] = np.empty((dataset['probe_angle'].size, 1))
     dataset['target'] = np.empty(dataset['probe_angle'].size)
     dataset['probe'] = np.zeros(dataset['probe_angle'].shape, dtype= int)
 
@@ -433,8 +433,8 @@ def create_subject_arrays(dataset = {}, double_precision=True   ):
     dataset['precision_subject_nitems_theo_nochance'] = precision_subject_nitems_nochance
     dataset['precision_subject_nitems_bays_notreatment'] = precision_subject_nitems_raw
 
-    dataset['errors_nitems'] = np.array([utils.flatten_list(dataset['errors_subject_nitems'][:, nitem_i]) for nitem_i in xrange(unique_n_items.size)])
-    dataset['errors_all_nitems'] = np.array([utils.flatten_list(dataset['errors_all_subject_nitems'][:, nitem_i]) for nitem_i in xrange(unique_n_items.size)])
+    dataset['errors_nitems'] = np.array([utils.flatten_list(dataset['errors_subject_nitems'][:, n_item_i]) for n_item_i in xrange(unique_n_items.size)])
+    dataset['errors_all_nitems'] = np.array([utils.flatten_list(dataset['errors_all_subject_nitems'][:, n_item_i]) for n_item_i in xrange(unique_n_items.size)])
     dataset['precision_nitems_bays'] = np.mean(precision_subject_nitems, axis=0)
     dataset['precision_nitems_theo'] = np.mean(precision_subject_nitems_theo, axis=0)
     dataset['precision_nitems_theo_nochance'] = np.mean(precision_subject_nitems_nochance, axis=0)
@@ -553,13 +553,17 @@ def plots_check_bias_bestnontarget(dataset, dataio=None):
         Get an histogram of errors between response and best nontarget.
         Should be more biased towards 0 than the overall average
     '''
+    n_items_space = np.unique(dataset['n_items'])
 
     # Compute the errors to the best non target
-    errors_nontargets = dataset['errors_all_nitems'][1:][..., 1:]
-    indices_bestnontarget = np.nanargmin(np.abs(errors_nontargets), axis=2)
+    errors_nontargets = dataset['errors_all_nitems'][n_items_space>1]
+    errors_nontargets = np.array([errors_nontargets_nitem[~np.all(np.isnan(errors_nontargets_nitem), axis=1), :] for errors_nontargets_nitem in errors_nontargets])
+
+    indices_bestnontarget = [np.nanargmin(np.abs(errors_nontargets[n_item_i][..., 1:]), axis=-1) for n_item_i in xrange(errors_nontargets.shape[0])]
+    # indices_bestnontarget = np.nanargmin(np.abs(errors_nontargets), axis=2)
 
     # Index of the argmin of absolute error. Not too bad, easy to index into.
-    errors_bestnontargets_nitems = np.array([ errors_nontargets[n_items_i, xrange(errors_nontargets.shape[1]), indices_bestnontarget[n_items_i]]   for n_items_i in range(np.unique(dataset['n_items']).size-1) ])
+    errors_bestnontargets_nitems = np.array([ errors_nontargets[n_items_i][ xrange(errors_nontargets[n_items_i].shape[0]), indices_bestnontarget[n_items_i] + 1]   for n_items_i in xrange(errors_nontargets.shape[0]) ])
 
     # Show histograms per n_items, like in Bays2009 figure
     utils.plot_hists_bias_nontargets(errors_bestnontargets_nitems, bins=20, label='bestnontarget', dataio=dataio)
@@ -571,6 +575,8 @@ def plots_check_bias_nontarget_randomized(dataset, dataio=None):
         Plot the histogram of errors to nontargets, after replacing all nontargets by random angles.
         If show similar bias, would be indication of low predictive power of distribution of errors to nontargets.
     '''
+
+    n_items_space = np.unique(dataset['n_items'])
 
     # Copy item_angles
     new_item_angles = dataset['item_angle'].copy()
@@ -588,7 +594,7 @@ def plots_check_bias_nontarget_randomized(dataset, dataio=None):
         # Compute errors
         new_all_errors = utils.wrap_angles(new_item_angles - dataset['response'], bound=np.pi)
 
-        for n_items in np.unique(dataset['n_items']):
+        for n_items in n_items_space:
             ids_filtered = (dataset['n_items'] == n_items).flatten()
 
             if n_items in errors_nitems_new_dict:
@@ -598,9 +604,10 @@ def plots_check_bias_nontarget_randomized(dataset, dataio=None):
 
     errors_nitems_new = np.array([val for key, val in errors_nitems_new_dict.items()])
 
-    utils.plot_hists_bias_nontargets(errors_nitems_new[1:, :, 1:], bins=20, label='allnontarget_randomized_%dresamplings' % nb_resampling, dataio=dataio)
+    utils.plot_hists_bias_nontargets(errors_nitems_new[n_items_space>1], bins=20, label='allnontarget_randomized_%dresamplings' % nb_resampling, dataio=dataio, remove_first_column=True)
 
     ### Do same for best non targets
+    # TODO Convert this for data_dualrecall
     errors_nontargets = errors_nitems_new[1:, :, 1:]
     indices_bestnontarget = np.nanargmin(np.abs(errors_nontargets), axis=2)
 

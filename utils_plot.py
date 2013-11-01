@@ -351,11 +351,12 @@ def plot_hists_bias_nontargets(errors_nitems_nontargets, bins=20, label_nontarge
 
     # Get histogram of bias to nontargets, for all items number
     if remove_first_column:
-        # errors_to_nontargets_all = utils_math.dropnan(errors_nitems_nontargets[..., 1:])
         errors_to_nontargets_all = np.array(utils_helper.flatten_list([utils_math.dropnan(errors_nitems_nontargets[n_items_i][..., 1:]) for n_items_i in xrange(errors_nitems_nontargets.shape[0])]))
 
     else:
-        errors_to_nontargets_all = utils_math.dropnan(errors_nitems_nontargets)
+        # errors_to_nontargets_all = utils_math.dropnan(errors_nitems_nontargets)
+        errors_to_nontargets_all = np.array(utils_helper.flatten_list([utils_math.dropnan(errors_nitems_nontargets[n_items_i]) for n_items_i in xrange(errors_nitems_nontargets.shape[0])]))
+
     hist_samples_density_estimation(errors_to_nontargets_all, bins=angle_space, title='Error to nontarget, all %s' % label_nontargets_all, dataio=dataio, filename='hist_bias_nontargets_allitems_%s_{label}_{unique_id}.pdf' % (label_nontargets_all))
 
 
