@@ -26,7 +26,7 @@ samples_w = utils.wrap_angles(samples)
 x = np.linspace(-np.pi, np.pi, 10000)
 
 # KDE
-samples_kde = stmokde.KDEUnivariate(samples_w)
+samples_kde = stmokde.KDEUnivariate(samples)
 samples_kde.fit()
 samples_w_kde = stmokde.KDEUnivariate(samples_w)
 samples_w_kde.fit()

@@ -13,7 +13,9 @@ import os
 import em_circularmixture
 import pandas as pd
 
-from utils import *
+import dataio as DataIO
+
+import utils
 
 
 def convert_wrap(dataset, keys_to_convert = ['item_angle', 'probe_angle', 'response', 'error', 'err'], multiply_factor=2., max_angle=np.pi):
@@ -23,7 +25,7 @@ def convert_wrap(dataset, keys_to_convert = ['item_angle', 'probe_angle', 'respo
     '''
     for key in keys_to_convert:
         if key in dataset:
-            dataset[key] = wrap_angles(np.deg2rad(multiply_factor*dataset[key]), bound = max_angle)
+            dataset[key] = utils.wrap_angles(np.deg2rad(multiply_factor*dataset[key]), bound = max_angle)
 
 
 def preprocess_simultaneous(dataset, parameters):
@@ -53,7 +55,7 @@ def preprocess_simultaneous(dataset, parameters):
     dataset['probe'] = np.zeros(dataset['error'].shape, dtype= int)
 
     # Convert everything to radians, spanning a -np.pi/2:np.pi
-    if convert_radians:
+    if convert_radians: #pylint: disable=E0602
         convert_wrap(dataset)
 
     # Make some aliases
@@ -159,10 +161,10 @@ def preprocess_doublerecall(dataset, parameters):
     dataset['6_items_trials'] = (dataset['n_items'] == 6).flatten()
 
     # Wrap everything around
-    dataset['item_angle'] = wrap_angles(dataset['item_angle'], np.pi)
-    dataset['probe_angle'] = wrap_angles(dataset['probe_angle'], np.pi)
-    dataset['item_colour'] = wrap_angles(dataset['item_colour'], np.pi)
-    dataset['probe_colour'] = wrap_angles(dataset['probe_colour'], np.pi)
+    dataset['item_angle'] = utils.wrap_angles(dataset['item_angle'], np.pi)
+    dataset['probe_angle'] = utils.wrap_angles(dataset['probe_angle'], np.pi)
+    dataset['item_colour'] = utils.wrap_angles(dataset['item_colour'], np.pi)
+    dataset['probe_colour'] = utils.wrap_angles(dataset['probe_colour'], np.pi)
 
     # Remove wrong trials
     reject_ids = (dataset['reject'] == 1.0).flatten()
@@ -171,11 +173,21 @@ def preprocess_doublerecall(dataset, parameters):
             dataset[key][reject_ids] = np.nan
 
     # Compute the errors
-    dataset['errors_angle_all'] = wrap_angles(dataset['item_angle'] - dataset['probe_angle'], np.pi)
-    dataset['errors_colour_all'] = wrap_angles(dataset['item_colour'] - dataset['probe_colour'], np.pi)
+    dataset['errors_angle_all'] = utils.wrap_angles(dataset['item_angle'] - dataset['probe_angle'], np.pi)
+    dataset['errors_colour_all'] = utils.wrap_angles(dataset['item_colour'] - dataset['probe_colour'], np.pi)
     dataset['error_angle'] = dataset['errors_angle_all'][:, 0]
     dataset['error_colour'] = dataset['errors_colour_all'][:, 0]
     dataset['error'] = np.where(~np.isnan(dataset['error_angle']), dataset['error_angle'], dataset['error_colour'])
+
+    dataset['errors_nitems'] = np.empty(np.unique(dataset['n_items']).size, dtype=np.object)
+    dataset['errors_all_nitems'] = np.empty(np.unique(dataset['n_items']).size, dtype=np.object)
+
+    for n_items_i, n_items in enumerate(np.unique(dataset['n_items'])):
+        ids_filtered = dataset['angle_trials'] & (dataset['n_items'] == n_items).flatten()
+
+        dataset['errors_nitems'][n_items_i] = dataset['error_angle'][ids_filtered]
+        dataset['errors_all_nitems'][n_items_i
+        ] = dataset['errors_angle_all'][ids_filtered]
 
 
     ### Fit the mixture model
@@ -311,8 +323,8 @@ def reconstruct_colours_exp1(dataset, datadir='', datasets=('Data/ad.mat', 'Data
         curr_data = sio.loadmat(dataset_fn, mat_dtype=True)
 
         all_colours.append(curr_data['item_colour'])
-        all_preangles.append(wrap_angles(curr_data['probe_pre_angle'], bound=np.pi/2.))
-        all_targets.append(wrap_angles(np.deg2rad(curr_data['item_angle'][:, 0]), bound=np.pi/2.))
+        all_preangles.append(utils.wrap_angles(curr_data['probe_pre_angle'], bound=np.pi))
+        all_targets.append(utils.wrap_angles(np.deg2rad(curr_data['item_angle'][:, 0]), bound=np.pi))
 
     print "Data loaded"
 
@@ -365,7 +377,7 @@ def compute_all_errors(dataset = {}):
 
     # Get the difference between angles
     # Should also wrap it around
-    dataset['errors_all'] = wrap_angles(dataset['item_angle'] - dataset['response'], bound=np.pi/2.)
+    dataset['errors_all'] = utils.wrap_angles(dataset['item_angle'] - dataset['response'], bound=np.pi)
 
     # Sanity check, verify that errors computed are the same as precomputed ones.
     # assert all(np.abs(dataset['errors_all'][np.arange(dataset['probe'].size), dataset['probe'][:, 0]] - dataset['error'][:, 0]) < 10**-6), "Errors computed are different than errors given in the data"
@@ -381,6 +393,7 @@ def create_subject_arrays(dataset = {}, double_precision=True   ):
     unique_n_items = np.unique(dataset['n_items'])
 
     errors_subject_nitems = np.empty((unique_subjects.size, unique_n_items.size), dtype=np.object)
+    errors_all_subject_nitems = np.empty((unique_subjects.size, unique_n_items.size), dtype=np.object)
     precision_subject_nitems = np.zeros((unique_subjects.size, unique_n_items.size))
     precision_subject_nitems_theo = np.zeros((unique_subjects.size, unique_n_items.size))
     precision_subject_nitems_nochance = np.zeros((unique_subjects.size, unique_n_items.size))
@@ -391,10 +404,11 @@ def create_subject_arrays(dataset = {}, double_precision=True   ):
 
     for n_items_i, n_items in enumerate(unique_n_items):
         for subject_i, subject in enumerate(unique_subjects):
-            ids_filtered = (dataset['subject']==subject) & (dataset['n_items'] == n_items)
+            ids_filtered = ((dataset['subject']==subject) & (dataset['n_items'] == n_items)).flatten()
 
             # Get the errors
             errors_subject_nitems[subject_i, n_items_i] = dataset['error'][ids_filtered]
+            errors_all_subject_nitems[subject_i, n_items_i] = dataset['errors_all'][ids_filtered]
 
             # Get the responses and correct item angles
             dataset['response_subject_nitems'][subject_i, n_items_i] = dataset['response'][ids_filtered]
@@ -413,11 +427,14 @@ def create_subject_arrays(dataset = {}, double_precision=True   ):
         precision_subject_nitems_raw *= 2.
 
     dataset['errors_subject_nitems'] = errors_subject_nitems
+    dataset['errors_all_subject_nitems'] = errors_all_subject_nitems
     dataset['precision_subject_nitems_bays'] = precision_subject_nitems
     dataset['precision_subject_nitems_theo'] = precision_subject_nitems_theo
     dataset['precision_subject_nitems_theo_nochance'] = precision_subject_nitems_nochance
     dataset['precision_subject_nitems_bays_notreatment'] = precision_subject_nitems_raw
 
+    dataset['errors_nitems'] = np.array([utils.flatten_list(dataset['errors_subject_nitems'][:, nitem_i]) for nitem_i in xrange(unique_n_items.size)])
+    dataset['errors_all_nitems'] = np.array([utils.flatten_list(dataset['errors_all_subject_nitems'][:, nitem_i]) for nitem_i in xrange(unique_n_items.size)])
     dataset['precision_nitems_bays'] = np.mean(precision_subject_nitems, axis=0)
     dataset['precision_nitems_theo'] = np.mean(precision_subject_nitems_theo, axis=0)
     dataset['precision_nitems_theo_nochance'] = np.mean(precision_subject_nitems_nochance, axis=0)
@@ -434,7 +451,7 @@ def compute_precision(errors, remove_chance_level=True, correct_orientation=True
     #     errors = errors.copy()*2.0
 
     # Circular standard deviation estimate
-    error_std_dev_error = angle_circular_std_dev(errors)
+    error_std_dev_error = utils.angle_circular_std_dev(errors)
 
     # Precision
     if use_wrong_precision:
@@ -444,7 +461,7 @@ def compute_precision(errors, remove_chance_level=True, correct_orientation=True
 
     if remove_chance_level:
         # Remove the chance level
-        precision -= compute_precision_chance(errors.size)
+        precision -= utils.compute_precision_chance(errors.size)
 
     if correct_orientation:
         # The obtained precision is for half angles, correct it
@@ -512,62 +529,91 @@ def fit_mixture_model(dataset):
 
 ######
 
-def check_bias_all(dataset):
+def plots_check_bias_nontarget(dataset, dataio=None):
     '''
         Get an histogram of the errors between the response and all non targets
             If biased towards 0-values, should indicate misbinding errors.
 
         (if you do this with respect to all targets, it's retarded and should always be biased)
     '''
+    n_items_space = np.unique(dataset['n_items'])
+    angle_space = np.linspace(-np.pi, np.pi, 20)
 
-    # Remove all the probes, by setting them to nan
-    all_errors = dataset['errors_all'].copy()
-    all_errors[np.arange(dataset['probe'].size), dataset['probe'][:, 0]] = np.nan
+    # Get histograms of errors, per n_item
+    for nitems_i in xrange(n_items_space.size):
+        utils.hist_samples_density_estimation(dataset['errors_nitems'][nitems_i], bins=angle_space, title='N=%d' % (n_items_space[nitems_i]), dataio=dataio, filename='hist_bias_targets_%ditems_{label}_{unique_id}.pdf' % (n_items_space[nitems_i]))
 
-    # Now filter all nans
-    all_errors = all_errors[~np.isnan(all_errors)]
-
-    # Some plots
-    plt.figure()
-    plt.hist(all_errors, bins=20)
+    # Get histograms of bias to nontargets. Do that by binning the errors to others nontargets of the array.
+    utils.plot_hists_bias_nontargets(dataset['errors_all_nitems'][n_items_space>1], bins=20, dataio=dataio, label='allnontargets', remove_first_column=True)
 
 
-def check_bias_bestnontarget(dataset):
+
+def plots_check_bias_bestnontarget(dataset, dataio=None):
     '''
         Get an histogram of errors between response and best nontarget.
         Should be more biased towards 0 than the overall average
     '''
 
-    # all_errors = dataset['errors_all']
-    all_errors = dataset['errors_all'][(dataset['n_items'] > 1)[:, 0]]  # filter trials with only no nontargets
-    probe_indices = dataset['probe'][(dataset['n_items'] > 1)[:, 0], 0]
+    # Compute the errors to the best non target
+    errors_nontargets = dataset['errors_all_nitems'][1:][..., 1:]
+    indices_bestnontarget = np.nanargmin(np.abs(errors_nontargets), axis=2)
 
-    ## Remove all the probes, by setting them to nan
-    # all_errors[np.arange(probe_indices.size), probe_indices] = np.nan
+    # Index of the argmin of absolute error. Not too bad, easy to index into.
+    errors_bestnontargets_nitems = np.array([ errors_nontargets[n_items_i, xrange(errors_nontargets.shape[1]), indices_bestnontarget[n_items_i]]   for n_items_i in range(np.unique(dataset['n_items']).size-1) ])
 
-    # Keep only the best non target for each trial
-    # Use Bottleneck
-    # min_indices = bn.nanargmin(np.abs(all_errors), axis=1)
-    # all_errors = all_errors[np.arange(probe_indices.size), min_indices]
-
-    ## More efficient, use masked arrays
-    masked_errors = np.ma.masked_invalid(all_errors)
-    # mask the probed item
-    masked_errors[np.arange(probe_indices.size), probe_indices] = np.ma.masked
-
-    # Get the best non targets
-    all_errors = all_errors[np.arange(probe_indices.size), np.ma.argmin(np.abs(masked_errors), axis=1)]
-
-    ## Superslow
-    # all_errors = np.array([all_errors[i, np.nanargmin(np.abs(all_errors[i]))] for i in xrange(all_errors.shape[0]) if not np.isnan(np.nanargmin(np.abs(all_errors[i])))])
-
-    # Some plots
-    plt.figure()
-    plt.hist(all_errors, bins=20)
+    # Show histograms per n_items, like in Bays2009 figure
+    utils.plot_hists_bias_nontargets(errors_bestnontargets_nitems, bins=20, label='bestnontarget', dataio=dataio)
 
 
 
-def check_oblique_effect(data, nb_bins=100):
+def plots_check_bias_nontarget_randomized(dataset, dataio=None):
+    '''
+        Plot the histogram of errors to nontargets, after replacing all nontargets by random angles.
+        If show similar bias, would be indication of low predictive power of distribution of errors to nontargets.
+    '''
+
+    # Copy item_angles
+    new_item_angles = dataset['item_angle'].copy()
+
+    # Will resample multiple times
+    errors_nitems_new_dict = dict()
+    nb_resampling = 100
+
+    for resampling_i in xrange(nb_resampling):
+
+        # Replace nontargets randomly
+        nontarget_indices = np.nonzero(~np.isnan(new_item_angles[:, 1:]))
+        new_item_angles[nontarget_indices[0], nontarget_indices[1]+1] = 2*np.pi*np.random.random(nontarget_indices[0].size) - np.pi
+
+        # Compute errors
+        new_all_errors = utils.wrap_angles(new_item_angles - dataset['response'], bound=np.pi)
+
+        for n_items in np.unique(dataset['n_items']):
+            ids_filtered = (dataset['n_items'] == n_items).flatten()
+
+            if n_items in errors_nitems_new_dict:
+                errors_nitems_new_dict[n_items] = np.r_[errors_nitems_new_dict[n_items], new_all_errors[ids_filtered]]
+            else:
+                errors_nitems_new_dict[n_items] = new_all_errors[ids_filtered]
+
+    errors_nitems_new = np.array([val for key, val in errors_nitems_new_dict.items()])
+
+    utils.plot_hists_bias_nontargets(errors_nitems_new[1:, :, 1:], bins=20, label='allnontarget_randomized_%dresamplings' % nb_resampling, dataio=dataio)
+
+    ### Do same for best non targets
+    errors_nontargets = errors_nitems_new[1:, :, 1:]
+    indices_bestnontarget = np.nanargmin(np.abs(errors_nontargets), axis=2)
+
+    # Index of the argmin of absolute error. Not too bad, easy to index into.
+    errors_bestnontargets_nitems = np.array([ errors_nontargets[n_items_i, xrange(errors_nontargets.shape[1]), indices_bestnontarget[n_items_i]]   for n_items_i in xrange(errors_nontargets.shape[0]) ])
+
+    # Show histograms
+    utils.plot_hists_bias_nontargets(errors_bestnontargets_nitems, bins=20, label='bestnontarget_randomized_%dresamplings' % nb_resampling, dataio=dataio)
+
+
+
+
+def plots_check_oblique_effect(data, nb_bins=100):
     '''
         Humans are more precise for vertical and horizontal bars than diagonal orientations.
 
@@ -577,7 +623,7 @@ def check_oblique_effect(data, nb_bins=100):
     # Construct the list of (target angles, errors), see if there is some structure in that
     errors_per_angle = np.array(zip(data['item_angle'][np.arange(data['probe'].size), data['probe'][:, 0]], data['error'][:, 0]))
 
-    response_per_angle = np.array(zip(data['item_angle'][np.arange(data['probe'].size), data['probe'][:, 0]], data['response']))
+    # response_per_angle = np.array(zip(data['item_angle'][np.arange(data['probe'].size), data['probe'][:, 0]], data['response']))
     # response_per_colour = np.array(zip(data['item_colour'][np.arange(data['probe'].size), data['probe'][:, 0]], data['response']))
 
     plt.figure()
@@ -593,8 +639,8 @@ def check_oblique_effect(data, nb_bins=100):
     for x_i in np.arange(discrete_x.size):
         if x_i < discrete_x.size - 1:
             # Check what data comes in the current interval x[x_i, x_i+1]
-            avg_error[x_i] = mean_angles(errors_per_angle[np.logical_and(errors_per_angle[:, 0] > discrete_x[x_i], errors_per_angle[:, 0] < discrete_x[x_i+1]), 1])
-            std_error[x_i] = angle_circular_std_dev(errors_per_angle[np.logical_and(errors_per_angle[:, 0] > discrete_x[x_i], errors_per_angle[:, 0] < discrete_x[x_i+1]), 1])
+            avg_error[x_i] = utils.mean_angles(errors_per_angle[np.logical_and(errors_per_angle[:, 0] > discrete_x[x_i], errors_per_angle[:, 0] < discrete_x[x_i+1]), 1])
+            std_error[x_i] = utils.angle_circular_std_dev(errors_per_angle[np.logical_and(errors_per_angle[:, 0] > discrete_x[x_i], errors_per_angle[:, 0] < discrete_x[x_i+1]), 1])
 
     plt.figure()
     plt.plot(discrete_x, avg_error)
@@ -626,12 +672,12 @@ def plots_doublerecall(dataset):
     if to_plot['resp_vs_targ']:
 
         # Plot scatter and marginals for the orientation trials
-        scatter_marginals(dropnan(dataset['item_angle'][dataset['angle_trials'] & dataset['3_items_trials'], 0]), dropnan(dataset['probe_angle'][dataset['angle_trials'] & dataset['3_items_trials']]), xlabel ='Target angle', ylabel='Response angle', title='Angle trials, 3 items', figsize=(9, 9), factor_axis=1.1, bins=61)
-        scatter_marginals(dropnan(dataset['item_angle'][dataset['angle_trials'] & dataset['6_items_trials'], 0]), dropnan(dataset['probe_angle'][dataset['angle_trials'] & dataset['6_items_trials']]), xlabel ='Target angle', ylabel='Response angle', title='Angle trials, 6 items', figsize=(9, 9), factor_axis=1.1, bins=61)
+        utils.scatter_marginals(utils.dropnan(dataset['item_angle'][dataset['angle_trials'] & dataset['3_items_trials'], 0]), utils.dropnan(dataset['probe_angle'][dataset['angle_trials'] & dataset['3_items_trials']]), xlabel ='Target angle', ylabel='Response angle', title='Angle trials, 3 items', figsize=(9, 9), factor_axis=1.1, bins=61)
+        utils.scatter_marginals(utils.dropnan(dataset['item_angle'][dataset['angle_trials'] & dataset['6_items_trials'], 0]), utils.dropnan(dataset['probe_angle'][dataset['angle_trials'] & dataset['6_items_trials']]), xlabel ='Target angle', ylabel='Response angle', title='Angle trials, 6 items', figsize=(9, 9), factor_axis=1.1, bins=61)
 
         # Plot scatter and marginals for the colour trials
-        scatter_marginals(dropnan(dataset['item_colour'][dataset['colour_trials']& dataset['3_items_trials'], 0]), dropnan(dataset['probe_colour'][dataset['colour_trials'] & dataset['3_items_trials']]), xlabel ='Target colour', ylabel='Response colour', title='Colour trials, 3 items', figsize=(9, 9), factor_axis=1.1, bins=61, show_colours=True)
-        scatter_marginals(dropnan(dataset['item_colour'][dataset['colour_trials'] & dataset['6_items_trials'], 0]), dropnan(dataset['probe_colour'][dataset['colour_trials'] & dataset['6_items_trials']]), xlabel ='Target colour', ylabel='Response colour', title='Colour trials, 6 items', figsize=(9, 9), factor_axis=1.1, bins=61, show_colours=True)
+        utils.scatter_marginals(utils.dropnan(dataset['item_colour'][dataset['colour_trials']& dataset['3_items_trials'], 0]), utils.dropnan(dataset['probe_colour'][dataset['colour_trials'] & dataset['3_items_trials']]), xlabel ='Target colour', ylabel='Response colour', title='Colour trials, 3 items', figsize=(9, 9), factor_axis=1.1, bins=61, show_colours=True)
+        utils.scatter_marginals(utils.dropnan(dataset['item_colour'][dataset['colour_trials'] & dataset['6_items_trials'], 0]), utils.dropnan(dataset['probe_colour'][dataset['colour_trials'] & dataset['6_items_trials']]), xlabel ='Target colour', ylabel='Response colour', title='Colour trials, 6 items', figsize=(9, 9), factor_axis=1.1, bins=61, show_colours=True)
 
 
     if 'em_fits' in dataset:
@@ -649,7 +695,7 @@ def plots_doublerecall(dataset):
         if to_plot['resp_rating']:
             # dataset_grouped_nona_rating = dataset_pd[dataset_pd.n_items == 3.0].dropna(subset=['error']).groupby(['rating'])
             dataset_grouped_nona_rating = dataset_pd[dataset_pd.n_items == 6.0][dataset_pd.cond == 1.].dropna(subset=['error']).groupby(['rating'])
-            f, axes = plt.subplots(dataset_pd.rating.nunique(), 3)
+            _, axes = plt.subplots(dataset_pd.rating.nunique(), 3)
             i = 0
             bins = np.linspace(0., 1.0, 31)
             for name, group in dataset_grouped_nona_rating:
@@ -790,6 +836,9 @@ def plots_doublerecall(dataset):
 
 
 def load_data_simult(data_dir = '/Users/loicmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/experimental_data/'):
+    '''
+        Convenience function, automatically load the Gorgoraptis_2011 dataset.
+    '''
 
     data_simult =  load_multiple_datasets([dict(filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011')))])[0]
 
@@ -806,6 +855,7 @@ if __name__ == '__main__':
     # keys:
     # 'probe', 'delayed', 'item_colour', 'probe_colour', 'item_angle', 'error', 'probe_angle', 'n_items', 'response', 'subject']
         (data_sequen, data_simult, data_dualrecall) = load_multiple_datasets([dict(filename='Exp1.mat', preprocess=preprocess_sequential, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'))), dict(filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), fit_mixturemodel=True)), dict(filename=os.path.join(data_dir, 'DualRecall_Bays', 'rate_data.mat'), preprocess=preprocess_doublerecall, parameters=dict(fit_mixturemodel=True))])
+        # (data_simult,) = load_multiple_datasets([dict(filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), fit_mixturemodel=True))])
 
 
     # Check for bias towards 0 for the error between response and all items
@@ -835,7 +885,10 @@ if __name__ == '__main__':
 
     # plots_doublerecall(data_dualrecall)
 
-
+    # dataio = DataIO.DataIO(label='experiments')
+    # plots_check_bias_nontarget(data_simult, dataio=dataio)
+    # plots_check_bias_bestnontarget(data_simult, dataio=dataio)
+    # plots_check_bias_nontarget_randomized(data_simult, dataio=dataio)
 
     plt.show()
 

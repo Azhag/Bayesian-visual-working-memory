@@ -22,7 +22,11 @@ from matplotlib.colors import LogNorm
 
 from mpl_toolkits.mplot3d import Axes3D
 
+import statsmodels.nonparametric.kde as stmokde
+
 import utils_math
+import utils_fitting
+import utils_helper
 
 # switch interactive mode on
 plt.ion()
@@ -287,6 +291,72 @@ def hist_angular_data(data, bins=20, in_degrees=False, title=None, norm=None, fi
     ax_handle.set_xlim([x[0]*1.1, 1.1*x[-1]])
 
     ax_handle.get_figure().canvas.draw()
+
+
+def hist_samples_density_estimation(samples, bins=50, ax_handle=None, title=None, show_parameters=True, dataio=None, filename=''):
+    '''
+        Take samples (assumed angular), fit a Kernel Density Estimator and a Von Mises Distribution on them, plot the results on top of each other
+    '''
+
+    if ax_handle is None:
+        _, ax_handle = plt.subplots()
+
+    # KDE fit
+    samples_kde = stmokde.KDEUnivariate(samples)
+    samples_kde.fit()
+
+    # Von Mises fit
+    samples_vonmises = utils_fitting.fit_vonmises_samples(samples, num_points=300, return_fitted_data=True, should_plot=False)
+
+    # Plots
+    ax_handle.hist(samples, bins=bins, normed=True)
+    ax_handle.plot(samples_vonmises['support'], samples_vonmises['fitted_data'], 'r', linewidth=3)
+    ax_handle.plot(samples_kde.support, samples_kde.density, 'g', linewidth=3)
+    ax_handle.set_xlim([-np.pi, np.pi])
+
+    if title is not None:
+        ax_handle.set_title(title)
+
+    if show_parameters:
+        ax_handle.text(0.98, 0.95, "mu: %.2f, kappa:%.2f" % tuple(samples_vonmises['parameters'].tolist()), transform=ax_handle.transAxes, horizontalalignment='right')
+
+    ax_handle.get_figure().canvas.draw()
+
+    if dataio is not None:
+        # Save the figure
+        dataio.save_current_figure(filename)
+
+    return ax_handle
+
+
+def plot_hists_bias_nontargets(errors_nitems_nontargets, bins=20, label_nontargets='', label_nontargets_all='', label='', dataio=None, remove_first_column=False):
+    '''
+        Do multiple plots showing the histograms and density estimations for errors to nontargets
+    '''
+
+    if label_nontargets == '':
+        label_nontargets = label
+    if label_nontargets_all == '':
+        label_nontargets_all = label
+
+    angle_space = np.linspace(-np.pi, np.pi, bins)
+
+    # Plot histogram to new nontargets
+    for n_items_i in xrange(errors_nitems_nontargets.shape[0]):
+        if remove_first_column:
+            errors_to_nontargets = utils_math.dropnan(errors_nitems_nontargets[n_items_i][..., 1:])
+        else:
+            errors_to_nontargets = utils_math.dropnan(errors_nitems_nontargets[n_items_i])
+        hist_samples_density_estimation(errors_to_nontargets, bins=angle_space, title='N=%d, %d Non-target %s' % (n_items_i+2, n_items_i+1, label_nontargets), dataio=dataio, filename='hist_bias_nontargets_%ditems_%s_{label}_{unique_id}.pdf' % (n_items_i+2, label_nontargets))
+
+    # Get histogram of bias to nontargets, for all items number
+    if remove_first_column:
+        # errors_to_nontargets_all = utils_math.dropnan(errors_nitems_nontargets[..., 1:])
+        errors_to_nontargets_all = np.array(utils_helper.flatten_list([utils_math.dropnan(errors_nitems_nontargets[n_items_i][..., 1:]) for n_items_i in xrange(errors_nitems_nontargets.shape[0])]))
+
+    else:
+        errors_to_nontargets_all = utils_math.dropnan(errors_nitems_nontargets)
+    hist_samples_density_estimation(errors_to_nontargets_all, bins=angle_space, title='Error to nontarget, all %s' % label_nontargets_all, dataio=dataio, filename='hist_bias_nontargets_allitems_%s_{label}_{unique_id}.pdf' % (label_nontargets_all))
 
 
 def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorbar=True, ax_handle=None, label_format="%.2f", fignum=None, interpolation='nearest', log_scale=False, ticks_interpolate=None, cmap=None):
