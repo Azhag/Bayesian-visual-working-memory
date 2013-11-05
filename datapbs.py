@@ -181,9 +181,10 @@ class DataPBS:
         datasets_list = []
         parameters_complete = dict()
         parameters_uniques = dict()
+        parameters_dataset_index = dict()
         args_list = []
 
-        for curr_file in all_output_files:
+        for curr_file_i, curr_file in enumerate(all_output_files):
 
             # Load the data
             try:
@@ -237,6 +238,16 @@ class DataPBS:
                     else:
                         parameters_complete[param_name].extend(curr_args[param_name])
 
+            # Create a dictionary of parameters -> datasets index indirection
+            param_index = tuple([curr_args[key] for key in dataset_infos['parameters']])
+            if param_index in parameters_dataset_index:
+                parameters_dataset_index[param_index].append(curr_file_i)
+            else:
+                parameters_dataset_index[param_index] = [curr_file_i]
+
+            # Check number of dataset per parameters, indicating if multiple runs exist.
+            nb_datasets_per_parameters = np.max([len(val) for key, val in parameters_dataset_index.items()])
+
             if self.debug:
                 print curr_file, ', '.join(["%s %.2f" % (param, curr_args[param]) for param in dataset_infos['parameters']])
 
@@ -252,7 +263,7 @@ class DataPBS:
             for i, par_val in enumerate(parameters_uniques[param]):
                 parameters_indirections[param][par_val] = i
 
-        return dict(parameters_uniques=parameters_uniques, parameters_complete=parameters_complete, datasets_list=datasets_list, parameters_indirections=parameters_indirections, args_list=args_list)
+        return dict(parameters_uniques=parameters_uniques, parameters_complete=parameters_complete, datasets_list=datasets_list, parameters_indirections=parameters_indirections, args_list=args_list, parameters_dataset_index=parameters_dataset_index, nb_datasets_per_parameters=nb_datasets_per_parameters)
 
 
 
@@ -277,12 +288,31 @@ class DataPBS:
         parameters_indirections = loaded_data['parameters_indirections']
         list_parameters = dataset_infos['parameters']
 
+
+        # Should we concatenate multiple datasets or not?
+        concatenate_multiple_datasets = dataset_infos.get('concatenate_multiple_datasets', False)
+
+        if concatenate_multiple_datasets:
+            # This is used to accommodate multiple datasets per parameters values, so that the dimensionality of the results_ arrays is increased
+            nb_datasets_per_parameters = loaded_data.get('nb_datasets_per_parameters', 1)
+        else:
+            nb_datasets_per_parameters = 1
+
         # Assume that we will store the whole desired variable for each parameter setting.
         # Discover the shape
         results_shape = (1, )
         for dataset in datasets_list:
             if output_variable_desired in dataset:
                 results_shape = dataset[output_variable_desired].shape
+
+                initial_results_shape = results_shape
+
+                if nb_datasets_per_parameters > 1:
+                    # Found the shape, but now need to take into account number of repeats due to multiple datasets per parameter value
+                    results_shape = list(results_shape)
+                    results_shape[-1] *= nb_datasets_per_parameters
+                    results_shape = tuple(results_shape)
+
                 break
 
         # The indices will go in the same order as the descriptive parameters list
@@ -301,6 +331,8 @@ class DataPBS:
         indices_array = []
         # Get the array of how many repeats were actually finished
         completed_repeats_array = []
+        # Count how many datasets per parameters values were seen in a nice array (param_1*param2*..*paramk of ints)
+        datasets_seen_array = np.zeros(tuple([parameters_uniques[param].size for param in list_parameters]), dtype=int)
 
         # Keep the results in a flat array
         results_flat = []
@@ -313,11 +345,19 @@ class DataPBS:
             curr_dataposition = tuple([parameters_indirections[param][parameters_complete[param][i]] for param in list_parameters])
 
             if output_variable_desired in dataset:
-                if not curr_dataposition in indices_array:
-                    if dataset[output_variable_desired].shape == results_shape:
+
+                # For multiple datasets per parameters, index the good position
+                dataset_seens_repeat_i = datasets_seen_array[curr_dataposition]
+
+                if dataset_seens_repeat_i == 0 or concatenate_multiple_datasets:
+                    if dataset[output_variable_desired].shape == initial_results_shape:
+
                         # Save the dataset at the proper position
-                        results_array[curr_dataposition] = dataset[output_variable_desired]
+                        results_array[curr_dataposition][..., dataset_seens_repeat_i*initial_results_shape[-1]:(dataset_seens_repeat_i+1)*initial_results_shape[-1]] = dataset[output_variable_desired]
+
                         indices_array.append(curr_dataposition)
+
+                        datasets_seen_array[curr_dataposition] += 1
 
                         # For random sampling, it is good to have the results in a flat list.
                         results_flat.append(dataset[output_variable_desired])
@@ -334,14 +374,15 @@ class DataPBS:
                         # Something is wrong with the result shapes... Just put as much as possible.
                         smallest_sizes = tuple([slice(None, min(results_shape[i], dataset[output_variable_desired].shape[i])) for i in xrange(len(results_shape))])
                         results_array[curr_dataposition+smallest_sizes] = dataset[output_variable_desired][smallest_sizes]
+
                 else:
-                    # Duplicate entry
-                    print "duplicate for", curr_dataposition
+                    print "Duplicate parameters not allowed, discarded ", curr_dataposition
             else:
                 print curr_dataposition, " not in dataset. Output variable %s not found." % output_variable_desired
 
+
         # and we're good
-        return dict(results=results_array, indices=np.array(indices_array), repeats_completed=np.array(completed_repeats_array), results_flat=results_flat, parameters_flat=parameters_flat)
+        return dict(results=results_array, indices=np.array(indices_array), repeats_completed=np.array(completed_repeats_array), results_flat=results_flat, parameters_flat=parameters_flat, datasets_seen_array=datasets_seen_array)
 
 
 
