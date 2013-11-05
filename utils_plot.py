@@ -22,7 +22,7 @@ from matplotlib.colors import LogNorm
 
 from mpl_toolkits.mplot3d import Axes3D
 
-import statsmodels.nonparametric.kde as stmokde
+
 
 import utils_math
 import utils_fitting
@@ -302,6 +302,7 @@ def hist_samples_density_estimation(samples, bins=50, ax_handle=None, title=None
         _, ax_handle = plt.subplots()
 
     # KDE fit
+    import statsmodels.nonparametric.kde as stmokde
     samples_kde = stmokde.KDEUnivariate(samples)
     samples_kde.fit()
 

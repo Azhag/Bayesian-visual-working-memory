@@ -203,7 +203,7 @@ def preprocess_doublerecall(dataset, parameters):
             ids_filtered = dataset['angle_trials'] & ids_n_items
 
             dataset['target'][ids_filtered] = dataset['item_angle'][ids_filtered, 0]
-            dataset['response'][ids_filtered] = dataset['probe_angle'][ids_filtered, 0]
+            dataset['response'][ids_filtered] = dataset['probe_angle'][ids_filtered]
 
             # params_fit = em_circularmixture.fit(dataset['probe_angle'][ids_filtered, 0], dataset['item_angle'][ids_filtered, 0], dataset['item_angle'][ids_filtered, 1:])
             print dataset['probe_angle'][ids_filtered, 0].shape, dataset['item_angle'][ids_filtered, 0].shape, dataset['item_angle'][ids_filtered, 1:].shape
@@ -228,7 +228,7 @@ def preprocess_doublerecall(dataset, parameters):
             ids_filtered = dataset['colour_trials'] & ids_n_items
 
             dataset['target'][ids_filtered] = dataset['item_colour'][ids_filtered, 0]
-            dataset['response'][ids_filtered] = dataset['probe_colour'][ids_filtered, 0]
+            dataset['response'][ids_filtered] = dataset['probe_colour'][ids_filtered]
 
             # params_fit = em_circularmixture.fit(dataset['probe_colour'][ids_filtered, 0], dataset['item_colour'][ids_filtered, 0], dataset['item_colour'][ids_filtered, 1:])
             cross_valid_outputs = em_circularmixture.cross_validation_kfold(dataset['probe_colour'][ids_filtered, 0], dataset['item_colour'][ids_filtered, 0], dataset['item_colour'][ids_filtered, 1:], K=10, shuffle=True, debug=False)
@@ -847,7 +847,7 @@ def load_data_simult(data_dir = '/Users/loicmatthey/Dropbox/UCL/1-phd/Work/Visua
         Convenience function, automatically load the Gorgoraptis_2011 dataset.
     '''
 
-    data_simult =  load_multiple_datasets([dict(filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011')))])[0]
+    data_simult =  load_multiple_datasets([dict(filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(fit_mixturemodel=False, datadir=os.path.join(data_dir, 'Gorgoraptis_2011')))])[0]
 
     return data_simult
 
