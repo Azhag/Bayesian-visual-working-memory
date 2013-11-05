@@ -19,9 +19,10 @@ parameter_generation = 'grid'
 submit_cmd = 'qsub'
 # submit_cmd = 'sbatch'
 
-num_repetitions = 5
+num_repetitions = 7
 
-run_label = 'memory_curve_conj_Msigmax_autoset_correctsampling_repetitions{num_repetitions}_211013'
+# run_label = 'memory_curve_conj_Msigmax_autoset_correctsampling_repetitions{num_repetitions}_211013'
+run_label = 'memory_curve_conj_Msigmax_autoset_correctsampling_repetitions{num_repetitions}_021113'
 
 pbs_submission_infos = dict(description='Fit Memory curves using the new code (october 2013). Compute marginal inverse fisher information, which is slightly better at capturing items interactions effects. Also fit Mixture models directly. Seems that a small slice width is necessary for Feature codes and might help here as well.',
                             command='python /nfs/home2/lmatthey/Documents/work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py',
@@ -31,14 +32,14 @@ pbs_submission_infos = dict(description='Fit Memory curves using the new code (o
                                                ratio_conj=0.5,
                                                M=100,
                                                sigmax=0.1,
-                                               N=200,
+                                               N=300,
                                                T=5,
                                                sigmay=0.0001,
                                                inference_method='sample',
                                                num_samples=500,
                                                selection_num_samples=1,
                                                slice_width=0.08,
-                                               burn_samples=100,
+                                               burn_samples=500,
                                                num_repetitions=num_repetitions,
                                                enforce_min_distance=0.17,
                                                specific_stimuli_random_centers=None,
@@ -48,16 +49,16 @@ pbs_submission_infos = dict(description='Fit Memory curves using the new code (o
                                                label=run_label,
                                                experiment_data_dir='/nfs/home2/lmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/experimental_data',
                                                ),
-                            walltime='10:00:00',
+                            walltime='20:00:00',
                             memory='2gb',
                             simul_out_dir=os.path.join(os.getcwd(), run_label.format(num_repetitions=num_repetitions)),
                             pbs_submit_cmd=submit_cmd,
                             submit_label='memorycurves_conj')
 
 
-sigmax_range  =   dict(range=np.linspace(0.01, 0.5, 25.), dtype=float)
+sigmax_range  =   dict(range=np.linspace(0.01, 0.8, 45.), dtype=float)
 # M_range       =   dict(range=(np.arange(1, 21)**2.).astype(int), dtype=int)
-M_range       =   dict(range=np.array([100, 196]), dtype=int)
+M_range       =   dict(range=np.array([64, 100, 196, 225]), dtype=int)
 
 dict_parameters_range =   dict(M=M_range, sigmax=sigmax_range)
 

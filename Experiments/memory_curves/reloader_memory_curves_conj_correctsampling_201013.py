@@ -141,7 +141,7 @@ def plots_memory_curves(data_pbs, generator_module=None):
 
 
     if plot_selected_memory_curves:
-        selected_values = [[100, 0.11], [196, 0.36], [100, 0.19], [196, 0.50]]
+        selected_values = [[100, 0.1], [196, 0.28], [64, 0.05]]
 
         for current_values in selected_values:
             # Find the indices
