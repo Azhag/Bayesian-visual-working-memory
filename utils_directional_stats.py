@@ -17,6 +17,9 @@ import matplotlib.pyplot as plt
 
 ############################## DIRECTIONAL STATISTICS ################################
 
+def sample_angle(size=1):
+    return np.random.random(size=size)*2.*np.pi - np.pi
+
 def mean_angles(angles):
     '''
         Returns the mean angle out of a set of angles
@@ -148,6 +151,24 @@ def compute_mean_std_circular_data(angles):
     return dict(mean=angle_mean_error, std=angle_std_dev_error, population_vector=angle_mean_vector, bias=angle_bias)
 
 
+def compute_precision_samples(samples, square_precision=True, remove_chance_level=False):
+    '''
+        Compute precision from a set of samples.
+
+        Can either use the squared precision definition (~ FI) or the one used in circular statistics (1/circ_std_dev)
+        Can remove the chance level (Bays)
+    '''
+
+    precision = compute_angle_precision_from_std(angle_circular_std_dev(samples), square_precision=square_precision)
+
+    if remove_chance_level:
+        # Remove the chance level
+        precision -= compute_precision_chance(samples.size)
+
+    return precision
+
+
+
 def compute_angle_precision_from_std(circular_std_dev, square_precision=True):
     '''
         Computes the precision from the circular std dev
@@ -156,6 +177,7 @@ def compute_angle_precision_from_std(circular_std_dev, square_precision=True):
     '''
 
     return 1./circular_std_dev**(2.**square_precision)
+
 
 def compute_precision_chance(N):
     '''
@@ -167,6 +189,7 @@ def compute_precision_chance(N):
     x = np.logspace(-2, 2, 100)
 
     return np.trapz(N/(np.sqrt(x)*np.exp(x+N*np.exp(-x))), x)
+
 
 def enforce_distance(theta1, theta2, min_distance=0.1):
     return np.abs(wrap_angles(theta1 - theta2)) > min_distance
