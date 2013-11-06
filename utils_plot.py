@@ -118,7 +118,7 @@ def plot_multiple_mean_std_area(x, y, std, ax_handle=None, fignum=None):
     return ax_handle
 
 
-def plot_mean_std_area(x, y, std, ax_handle=None, fignum=None, linewidth=1, fmt='-', markersize=1, color=None, xlabel=None, ylabel=None):
+def plot_mean_std_area(x, y, std, ax_handle=None, fignum=None, linewidth=1, fmt='-', markersize=1, color=None, xlabel=None, ylabel=None, label=''):
     '''
         Plot a given x-y data, with a transparent area for its standard deviation
 
@@ -132,9 +132,9 @@ def plot_mean_std_area(x, y, std, ax_handle=None, fignum=None, linewidth=1, fmt=
     ishold = plt.ishold()
 
     if color is not None:
-        ax = ax_handle.plot(x, y, fmt, linewidth=linewidth, markersize=markersize, color=color)
+        ax = ax_handle.plot(x, y, fmt, linewidth=linewidth, markersize=markersize, color=color, label=label)
     else:
-        ax = ax_handle.plot(x, y, fmt, linewidth=linewidth, markersize=markersize)
+        ax = ax_handle.plot(x, y, fmt, linewidth=linewidth, markersize=markersize, label=label)
 
     current_color = ax[-1].get_c()
 
@@ -259,6 +259,13 @@ def plot_square_grid(x, y, nb_to_plot=-1):
 
 
 def hist_angular_data(data, bins=20, in_degrees=False, title=None, norm=None, fignum=None, ax_handle=None):
+    '''
+        Histogram for angular data.
+        Can set additional properties automatically.
+
+        bins: number of bins.
+        norm: {max, sum, density}
+    '''
 
     if in_degrees:
         bound_x = 180.
