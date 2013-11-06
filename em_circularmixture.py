@@ -11,7 +11,7 @@ import numpy as np
 import scipy.special as scsp
 from sklearn.cross_validation import KFold
 
-def fit(responses, target_angle, nontarget_angles, initialisation_method='mixed', nb_initialisations=5):
+def fit(responses, target_angle, nontarget_angles=np.array([[]]), initialisation_method='mixed', nb_initialisations=5):
     '''
         Return maximum likelihood values for a mixture model, with:
             - 1 target Von Mises component
@@ -19,8 +19,8 @@ def fit(responses, target_angle, nontarget_angles, initialisation_method='mixed'
             - K nontarget Von Mises components
         Inputs in radian, in the -pi:pi range.
             - responses: Nx1
-            - target_angle: 1x1
-            - nontarget_angles Kx1
+            - target_angle: Nx1
+            - nontarget_angles NxK
 
         Adapted from Matlab code by P. Bays
         Ref: Bays PM, Catalao RFG & Husain M. The precision of visual working

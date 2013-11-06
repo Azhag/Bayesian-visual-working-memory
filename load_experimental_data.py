@@ -842,12 +842,12 @@ def plots_doublerecall(dataset):
         print fitted_parameters
 
 
-def load_data_simult(data_dir = '/Users/loicmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/experimental_data/'):
+def load_data_simult(data_dir = '/Users/loicmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/experimental_data/', fit_mixturemodel=False):
     '''
         Convenience function, automatically load the Gorgoraptis_2011 dataset.
     '''
 
-    data_simult =  load_multiple_datasets([dict(filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(fit_mixturemodel=False, datadir=os.path.join(data_dir, 'Gorgoraptis_2011')))])[0]
+    data_simult =  load_multiple_datasets([dict(filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(fit_mixturemodel=fit_mixturemodel, datadir=os.path.join(data_dir, 'Gorgoraptis_2011')))])[0]
 
     return data_simult
 
