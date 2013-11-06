@@ -63,8 +63,9 @@ def plots_memory_curves(data_pbs, generator_module=None):
     dataio = DataIO.DataIO(output_folder=generator_module.pbs_submission_infos['simul_out_dir'] + '/outputs/', label='global_' + dataset_infos['save_output_filename'])
 
     ## Load Experimental data
-    data_simult = load_experimental_data.load_data_simult(data_dir=os.path.normpath(os.path.join(os.path.split(load_experimental_data.__file__)[0], '../../experimental_data/')))
-    memory_experimental = data_simult['precision_nitems_theo']
+    data_simult = load_experimental_data.load_data_simult(data_dir=os.path.normpath(os.path.join(os.path.split(load_experimental_data.__file__)[0], '../../experimental_data/')), fit_mixturemodel=True)
+    memory_experimental_precision = data_simult['precision_nitems_theo']
+    memory_experimental_kappa = np.array([data['kappa'] for _, data in data_simult['em_fits_nitems']['mean'].items()])
 
     # Compute some landscapes of fit!
     dist_diff_precision_margfi = np.sum(np.abs(result_all_precisions_mean*2. - result_marginal_fi_mean[..., 0])**2., axis=-1)
@@ -72,14 +73,14 @@ def plots_memory_curves(data_pbs, generator_module=None):
     dist_diff_emkappa_margfi = np.sum(np.abs(result_em_fits_mean[..., 0]*2. - result_marginal_fi_mean[..., 0])**2., axis=-1)
     dist_ratio_emkappa_margfi = np.sum(np.abs((result_em_fits_mean[..., 0]*2.)/result_marginal_fi_mean[..., 0] - 1.0)**2., axis=-1)
 
-    dist_diff_precision_experim = np.sum(np.abs(result_all_precisions_mean - memory_experimental)**2., axis=-1)
-    dist_diff_emkappa_experim = np.sum(np.abs(result_em_fits_mean[..., 0] - memory_experimental)**2., axis=-1)
+    dist_diff_precision_experim = np.sum(np.abs(result_all_precisions_mean - memory_experimental_precision)**2., axis=-1)
+    dist_diff_emkappa_experim = np.sum(np.abs(result_em_fits_mean[..., 0] - memory_experimental_kappa)**2., axis=-1)
 
-    dist_diff_precision_experim_1item = np.abs(result_all_precisions_mean[..., 0] - memory_experimental[0])**2.
-    dist_diff_precision_experim_2item = np.abs(result_all_precisions_mean[..., 1] - memory_experimental[1])**2.
+    dist_diff_precision_experim_1item = np.abs(result_all_precisions_mean[..., 0] - memory_experimental_precision[0])**2.
+    dist_diff_precision_experim_2item = np.abs(result_all_precisions_mean[..., 1] - memory_experimental_precision[1])**2.
     dist_diff_precision_margfi_1item = np.abs(result_all_precisions_mean[..., 0]*2. - result_marginal_fi_mean[..., 0, 0])**2.
-    dist_diff_emkappa_experim_1item = np.abs(result_em_fits_mean[..., 0, 0] - memory_experimental[0])**2.
-    dist_diff_margfi_experim_1item = np.abs(result_marginal_fi_mean[..., 0, 0] - memory_experimental[0])**2.
+    dist_diff_emkappa_experim_1item = np.abs(result_em_fits_mean[..., 0, 0] - memory_experimental_kappa[0])**2.
+    dist_diff_margfi_experim_1item = np.abs(result_marginal_fi_mean[..., 0, 0] - memory_experimental_precision[0])**2.
 
 
     if plot_pcolor_fit_precision_to_fisherinfo:
@@ -144,23 +145,37 @@ def plots_memory_curves(data_pbs, generator_module=None):
             dataio.save_current_figure('match_diff_precision_experim_2item_log_pcolor_{label}_{unique_id}.pdf')
 
     # Macro plot
-    def mem_plot(sigmax_i, ratioconj_i):
-        ax = utils.plot_mean_std_area(T_space, memory_experimental, np.zeros(T_space.size), linewidth=3, fmt='o-', markersize=8)
+    def mem_plot_precision(sigmax_i, ratioconj_i):
+        ax = utils.plot_mean_std_area(T_space, memory_experimental_precision, np.zeros(T_space.size), linewidth=3, fmt='o-', markersize=8, label='Experimental data')
 
-        ax = utils.plot_mean_std_area(T_space, result_all_precisions_mean[ratioconj_i, sigmax_i], result_all_precisions_std[ratioconj_i, sigmax_i], ax_handle=ax, linewidth=3, fmt='o-', markersize=8)
+        ax = utils.plot_mean_std_area(T_space, result_all_precisions_mean[ratioconj_i, sigmax_i], result_all_precisions_std[ratioconj_i, sigmax_i], ax_handle=ax, linewidth=3, fmt='o-', markersize=8, label='Precision of samples')
 
-        # ax = utils.plot_mean_std_area(T_space, 0.5*result_marginal_fi_mean[..., 0][ratioconj_i, sigmax_i], 0.5*result_marginal_fi_std[..., 0][ratioconj_i, sigmax_i], ax_handle=ax, linewidth=3, fmt='o-', markersize=8)
+        # ax = utils.plot_mean_std_area(T_space, 0.5*result_marginal_fi_mean[..., 0][ratioconj_i, sigmax_i], 0.5*result_marginal_fi_std[..., 0][ratioconj_i, sigmax_i], ax_handle=ax, linewidth=3, fmt='o-', markersize=8, label='Marginal Fisher Information')
 
-        # ax = utils.plot_mean_std_area(T_space, result_em_fits_mean[..., 0][ratioconj_i, sigmax_i], result_em_fits_std[..., 0][ratioconj_i, sigmax_i], ax_handle=ax, xlabel='Number of items', ylabel="Inverse variance $[rad^{-2}]$", linewidth=3, fmt='o-', markersize=8)
+        # ax = utils.plot_mean_std_area(T_space, result_em_fits_mean[..., 0][ratioconj_i, sigmax_i], result_em_fits_std[..., 0][ratioconj_i, sigmax_i], ax_handle=ax, xlabel='Number of items', ylabel="Inverse variance $[rad^{-2}]$", linewidth=3, fmt='o-', markersize=8, label='Fitted kappa')
 
         ax.set_title('ratio_conj %.2f, sigmax %.2f' % (ratioconj_space[ratioconj_i], sigmax_space[sigmax_i]))
-        plt.legend(['Experimental data', 'Precision of samples', 'Marginal Fisher Information', 'Fitted kappa'])
+        ax.legend()
         ax.set_xlim([0.9, 5.1])
         ax.set_xticks(range(1, 6))
         ax.set_xticklabels(range(1, 6))
 
         if savefigs:
-            dataio.save_current_figure('memorycurves_ratioconj%.2fsigmax%.2f_{label}_{unique_id}.pdf' % (ratioconj_space[ratioconj_i], sigmax_space[sigmax_i]))
+            dataio.save_current_figure('memorycurves_precision_ratioconj%.2fsigmax%.2f_{label}_{unique_id}.pdf' % (ratioconj_space[ratioconj_i], sigmax_space[sigmax_i]))
+
+    def mem_plot_kappa(sigmax_i, ratioconj_i):
+        ax = utils.plot_mean_std_area(T_space, memory_experimental_kappa, np.zeros(T_space.size), linewidth=3, fmt='o-', markersize=8, label='Experimental data')
+
+        ax = utils.plot_mean_std_area(T_space, result_em_fits_mean[..., 0][ratioconj_i, sigmax_i], result_em_fits_std[..., 0][ratioconj_i, sigmax_i], xlabel='Number of items', ylabel="Inverse variance $[rad^{-2}]$", ax_handle=ax, linewidth=3, fmt='o-', markersize=8, label='Fitted kappa')
+
+        ax.set_title('ratio_conj %.2f, sigmax %.2f' % (ratioconj_space[ratioconj_i], sigmax_space[sigmax_i]))
+        ax.legend()
+        ax.set_xlim([0.9, 5.1])
+        ax.set_xticks(range(1, 6))
+        ax.set_xticklabels(range(1, 6))
+
+        if savefigs:
+            dataio.save_current_figure('memorycurves_kappa_ratioconj%.2fsigmax%.2f_{label}_{unique_id}.pdf' % (ratioconj_space[ratioconj_i], sigmax_space[sigmax_i]))
 
     if plot_selected_memory_curves:
         selected_values = [[0.84, 0.23], [0.84, 0.19]]
@@ -171,21 +186,25 @@ def plots_memory_curves(data_pbs, generator_module=None):
             sigmax_i        = np.argmin(np.abs(current_values[1] - sigmax_space))
 
 
-            mem_plot(sigmax_i, ratioconj_i)
+            mem_plot_precision(sigmax_i, ratioconj_i)
+            mem_plot_kappa(sigmax_i, ratioconj_i)
 
     if plot_best_memory_curves:
+        # Best precision fit
         best_axis2_i_all = np.argmin(dist_diff_precision_experim, axis=1)
 
         for axis1_i, best_axis2_i in enumerate(best_axis2_i_all):
-            ratioconj_i = axis1_i
-            sigmax_i = best_axis2_i
+            mem_plot_precision(best_axis2_i, axis1_i)
 
-            mem_plot(sigmax_i, ratioconj_i)
+        # Best kappa fit
+        best_axis2_i_all = np.argmin(dist_diff_emkappa_experim, axis=1)
 
+        for axis1_i, best_axis2_i in enumerate(best_axis2_i_all):
+            mem_plot_kappa(best_axis2_i, axis1_i)
 
 
     all_args = data_pbs.loaded_data['args_list']
-    variables_to_save = ['result_all_precisions_mean', 'result_em_fits_mean', 'result_marginal_inv_fi_mean', 'result_all_precisions_std', 'result_em_fits_std', 'result_marginal_inv_fi_std', 'result_marginal_fi_mean', 'result_marginal_fi_std', 'ratioconj_space', 'sigmax_space', 'T_space', 'all_args']
+    variables_to_save = ['result_all_precisions_mean', 'result_em_fits_mean', 'result_marginal_inv_fi_mean', 'result_all_precisions_std', 'result_em_fits_std', 'result_marginal_inv_fi_std', 'result_marginal_fi_mean', 'result_marginal_fi_std', 'ratioconj_space', 'memory_experimental_precision', 'memory_experimental_kappa', 'sigmax_space', 'T_space', 'all_args']
 
     if savedata:
         dataio.save_variables(variables_to_save, locals())
