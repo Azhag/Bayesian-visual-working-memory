@@ -20,25 +20,25 @@ sigmax = 0.2
 
 run_label = 'misbinding_mixed_varyratio_avgposterior_sigmax{sigmax}_M{M}_ratioconj{ratio_conj}_210613'
 
-pbs_submission_infos = dict(description='Study misbindings, by computing an average posterior for fixed stimuli. Check the distribution of errors as well. Uses a Mixed population, vary ratio_conj to see what happens. Limit to squared ratio_subpop_nb only', 
-                            command='python /nfs/home2/lmatthey/Documents/work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py', 
-                            other_options=dict(action_to_do='launcher_do_average_posterior', 
-                                               code_type='mixed', 
-                                               output_directory='.', 
+pbs_submission_infos = dict(description='Study misbindings, by computing an average posterior for fixed stimuli. Check the distribution of errors as well. Uses a Mixed population, vary ratio_conj to see what happens. Limit to squared ratio_subpop_nb only',
+                            command='python /nfs/home2/lmatthey/Documents/work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py',
+                            other_options=dict(action_to_do='launcher_do_average_posterior',
+                                               code_type='mixed',
+                                               output_directory='.',
                                                ratio_conj=0.5,
-                                               M=M, 
-                                               sigmax=sigmax, 
-                                               N=1000, 
-                                               T=2, 
-                                               sigmay=0.0001, 
-                                               inference_method='none', 
+                                               M=M,
+                                               sigmax=sigmax,
+                                               N=1000,
+                                               T=2,
+                                               sigmay=0.0001,
+                                               inference_method='none',
                                                num_repetitions=1,
                                                stimuli_generation='separated',
                                                stimuli_generation_recall='random',
-                                               autoset_parameters=1,
-                                               label=run_label), 
-                            walltime='10:00:00', 
-                            memory='2gb', 
+                                               autoset_parameters=None,
+                                               label=run_label),
+                            walltime='10:00:00',
+                            memory='2gb',
                             simul_out_dir=os.path.join(os.getcwd(), run_label.format(sigmax=sigmax, M=M, ratio_conj='')),
                             pbs_submit_cmd='qsub',
                             submit_label='avgpost_mixed_MMl')
@@ -50,7 +50,7 @@ dict_parameters_range = dict(ratio_conj=ratio_range)
 
 
 if __name__ == '__main__':
-    
+
     this_file = inspect.getfile(inspect.currentframe())
     print "Running ", this_file
 

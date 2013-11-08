@@ -60,7 +60,7 @@ def kappa_to_stddev(kappa):
     return np.sqrt(-2.*np.log(scsp.i1e(kappa)/scsp.i0e(kappa)))
 
 
-def stddev_to_kappa(stddev):
+def stddev_to_kappa_single(stddev):
     '''
         Converts stddev to kappa
 
@@ -73,6 +73,11 @@ def stddev_to_kappa(stddev):
 
     return kappa_opt[0]
 
+stddev_to_kappa=np.vectorize(stddev_to_kappa_single, doc='''
+        Converts stddev to kappa
+
+        vectorized stddev_to_kappa_single
+    ''')
 
 def test_stability_stddevtokappa(target_kappa=2.):
     '''
