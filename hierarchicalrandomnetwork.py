@@ -28,11 +28,17 @@ class HierarchialRandomNetwork(RandomFactorialNetwork):
 
     #### Constructors
 
-    def __init__(self, M, R=2, gain=1.0, M_layer_one=100, type_layer_one='conjunctive', output_both_layers=False, optimal_coverage=False, rcscale_layer_one=5.0, ratio_layer_one=200.0, gain_layer_one=4.*np.pi**2., nonlinearity_fct='positive_linear', threshold=0.0, sparsity_weights=0.7, distribution_weights='exponential', sigma_weights=0.5, normalise_weights=True, debug=True):
+    def __init__(self, M, R=2, gain=1.0, ratio_hierarchical=None, M_layer_one=100, type_layer_one='conjunctive', output_both_layers=False, optimal_coverage=False, rcscale_layer_one=5.0, ratio_layer_one=200.0, gain_layer_one=4.*np.pi**2., nonlinearity_fct='positive_linear', threshold=0.0, sparsity_weights=0.7, distribution_weights='exponential', sigma_weights=0.5, normalise_weights=True, debug=True):
+
         assert R == 2, 'HiearchialRandomNetwork defined over two features for now'
 
-        self.M_layer_two = M
-        self.M_layer_one = M_layer_one
+        if ratio_hierarchical is not None:
+            self.M_layer_two = int(np.round(ratio_hierarchical*M))
+            self.M_layer_one = M - self.M_layer_two
+        else:
+            self.M_layer_two = M
+            self.M_layer_one = M_layer_one
+
         if output_both_layers:
             self.M = self.M_layer_two + self.M_layer_one
         else:
@@ -229,8 +235,13 @@ class HierarchialRandomNetwork(RandomFactorialNetwork):
             return self.current_layer_two_response
 
 
-    ##### Helper behaviour function
+    ##### Theoretical stuff
 
+    def compute_marginal_inverse_FI(self, k_items, inv_cov_stim, max_n_samples=int(1e5), min_distance=0.1, convergence_epsilon = 1e-7, debug=False):
+        '''
+            Computing the fisher information for a hierarchical code is not yet defined.
+        '''
+        return dict(inv_FI=0.0, inv_FI_std=0.0, FI=0.0, FI_std=0.0)
 
 
     ##### Plots

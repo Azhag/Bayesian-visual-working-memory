@@ -149,6 +149,8 @@ class ExperimentLauncher(object):
             help='Noise along time')
         parser.add_argument('--ratio_conj', type=float, default=0.2,
             help='Ratio of conjunctive/field subpopulations for mixed network')
+        parser.add_argument('--ratio_hierarchical', type=float, default=None,
+            help='Ratio of layer two/layer one subpopulations for hierarchical network')
         parser.add_argument('--inference_method', choices=['sample', 'max_lik', 'none'], default='sample',
             help='Method used to infer the responses. Either sample (default) or set the maximum likelihood/posterior values directly.')
         parser.add_argument('--subaction', default='',
