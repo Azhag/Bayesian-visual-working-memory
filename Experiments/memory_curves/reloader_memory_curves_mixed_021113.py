@@ -48,8 +48,8 @@ def plots_memory_curves(data_pbs, generator_module=None):
     result_em_fits_std = utils.nanstd(np.squeeze(data_pbs.dict_arrays['result_em_fits']['results']), axis=-1)
     result_marginal_inv_fi_mean = utils.nanmean(np.squeeze(data_pbs.dict_arrays['result_marginal_inv_fi']['results']), axis=-1)
     result_marginal_inv_fi_std = utils.nanstd(np.squeeze(data_pbs.dict_arrays['result_marginal_inv_fi']['results']), axis=-1)
-    result_marginal_fi_mean = utils.nanmean(1./np.squeeze(data_pbs.dict_arrays['result_marginal_inv_fi']['results']), axis=-1)
-    result_marginal_fi_std = utils.nanstd(1./np.squeeze(data_pbs.dict_arrays['result_marginal_inv_fi']['results']), axis=-1)
+    result_marginal_fi_mean = utils.nanmean(np.squeeze(1./data_pbs.dict_arrays['result_marginal_inv_fi']['results']), axis=-1)
+    result_marginal_fi_std = utils.nanstd(np.squeeze(1./data_pbs.dict_arrays['result_marginal_inv_fi']['results']), axis=-1)
 
     ratioconj_space = data_pbs.loaded_data['parameters_uniques']['ratio_conj']
     sigmax_space = data_pbs.loaded_data['parameters_uniques']['sigmax']
@@ -168,6 +168,8 @@ def plots_memory_curves(data_pbs, generator_module=None):
 
         ax = utils.plot_mean_std_area(T_space, result_em_fits_mean[..., 0][ratioconj_i, sigmax_i], result_em_fits_std[..., 0][ratioconj_i, sigmax_i], xlabel='Number of items', ylabel="Inverse variance $[rad^{-2}]$", ax_handle=ax, linewidth=3, fmt='o-', markersize=8, label='Fitted kappa')
 
+        ax = utils.plot_mean_std_area(T_space, 0.5*result_marginal_fi_mean[..., 0][ratioconj_i, sigmax_i], 0.5*result_marginal_fi_std[..., 0][ratioconj_i, sigmax_i], ax_handle=ax, linewidth=3, fmt='o-', markersize=8, label='Marginal Fisher Information')
+
         ax.set_title('ratio_conj %.2f, sigmax %.2f' % (ratioconj_space[ratioconj_i], sigmax_space[sigmax_i]))
         ax.legend()
         ax.set_xlim([0.9, 5.1])
@@ -176,6 +178,34 @@ def plots_memory_curves(data_pbs, generator_module=None):
 
         if savefigs:
             dataio.save_current_figure('memorycurves_kappa_ratioconj%.2fsigmax%.2f_{label}_{unique_id}.pdf' % (ratioconj_space[ratioconj_i], sigmax_space[sigmax_i]))
+
+    def em_plot(sigmax_i, ratioconj_i):
+        # TODO finish checking this up.
+        f, ax = plt.subplots()
+        ax2 = ax.twinx()
+
+        # left axis, kappa
+        ax = utils.plot_mean_std_area(T_space, result_em_fits_mean[..., 0][ratioconj_i, sigmax_i], result_em_fits_std[..., 0][ratioconj_i, sigmax_i], xlabel='Number of items', ylabel="Inverse variance $[rad^{-2}]$", ax_handle=ax, linewidth=3, fmt='o-', markersize=8, label='Fitted kappa', color='k')
+
+        # Right axis, mixture probabilities
+        utils.plot_mean_std_area(T_space, result_em_fits_mean[..., 1][ratioconj_i, sigmax_i], result_em_fits_std[..., 1][ratioconj_i, sigmax_i], xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax2, linewidth=3, fmt='o-', markersize=8, label='Target')
+        utils.plot_mean_std_area(T_space, result_em_fits_mean[..., 2][ratioconj_i, sigmax_i], result_em_fits_std[..., 2][ratioconj_i, sigmax_i], xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax2, linewidth=3, fmt='o-', markersize=8, label='Nontarget')
+        utils.plot_mean_std_area(T_space, result_em_fits_mean[..., 3][ratioconj_i, sigmax_i], result_em_fits_std[..., 3][ratioconj_i, sigmax_i], xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax2, linewidth=3, fmt='o-', markersize=8, label='Random')
+
+        lines, labels = ax.get_legend_handles_labels()
+        lines2, labels2 = ax2.get_legend_handles_labels()
+        ax.legend(lines + lines2, labels + labels2)
+
+        ax.set_title('ratio_conj %.2f, sigmax %.2f' % (ratioconj_space[ratioconj_i], sigmax_space[sigmax_i]))
+        ax.set_xlim([0.9, 5.1])
+        ax.set_xticks(range(1, 6))
+        ax.set_xticklabels(range(1, 6))
+
+        f.canvas.draw()
+
+        if savefigs:
+            dataio.save_current_figure('memorycurves_emfits_ratioconj%.2fsigmax%.2f_{label}_{unique_id}.pdf' % (ratioconj_space[ratioconj_i], sigmax_space[sigmax_i]))
+
 
     if plot_selected_memory_curves:
         selected_values = [[0.84, 0.23], [0.84, 0.19]]
@@ -201,7 +231,7 @@ def plots_memory_curves(data_pbs, generator_module=None):
 
         for axis1_i, best_axis2_i in enumerate(best_axis2_i_all):
             mem_plot_kappa(best_axis2_i, axis1_i)
-
+            em_plot(best_axis2_i, axis1_i)
 
     all_args = data_pbs.loaded_data['args_list']
     variables_to_save = ['result_all_precisions_mean', 'result_em_fits_mean', 'result_marginal_inv_fi_mean', 'result_all_precisions_std', 'result_em_fits_std', 'result_marginal_inv_fi_std', 'result_marginal_fi_mean', 'result_marginal_fi_std', 'ratioconj_space', 'memory_experimental_precision', 'memory_experimental_kappa', 'sigmax_space', 'T_space', 'all_args']
