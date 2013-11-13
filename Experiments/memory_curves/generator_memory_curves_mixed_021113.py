@@ -53,7 +53,7 @@ pbs_submission_infos = dict(description='Fit Memory curves using the new code (o
                                                ),
                             walltime='40:00:00',
                             memory='2gb',
-                            simul_out_dir=os.path.join(os.getcwd(), run_label.format(num_repetitions=num_repetitions)),
+                            simul_out_dir=os.path.join(os.getcwd(), run_label.format(**locals())),
                             pbs_submit_cmd=submit_cmd,
                             submit_label='memorycurves_mixed')
 

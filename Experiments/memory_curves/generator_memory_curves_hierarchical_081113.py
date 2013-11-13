@@ -9,7 +9,7 @@ import numpy as np
 import experimentlauncher
 import inspect
 
-# Commit @8c49507 +
+# Commit @4ffae5c
 
 # Read from other scripts
 parameters_entryscript = dict(action_to_do='launcher_do_generate_submit_pbs_from_param_files', output_directory='.')
@@ -55,7 +55,7 @@ pbs_submission_infos = dict(description='Fit Memory curves using the new code (o
                                                ),
                             walltime='40:00:00',
                             memory='2gb',
-                            simul_out_dir=os.path.join(os.getcwd(), run_label.format(num_repetitions=num_repetitions)),
+                            simul_out_dir=os.path.join(os.getcwd(), run_label.format(**locals())),
                             pbs_submit_cmd=submit_cmd,
                             submit_label='memorycurves_hier')
 
