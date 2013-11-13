@@ -168,7 +168,7 @@ def plots_memory_curves(data_pbs, generator_module=None):
 
         ax = utils.plot_mean_std_area(T_space, result_em_fits_mean[..., 0][ratioconj_i, sigmax_i], result_em_fits_std[..., 0][ratioconj_i, sigmax_i], xlabel='Number of items', ylabel="Inverse variance $[rad^{-2}]$", ax_handle=ax, linewidth=3, fmt='o-', markersize=8, label='Fitted kappa')
 
-        ax = utils.plot_mean_std_area(T_space, 0.5*result_marginal_fi_mean[..., 0][ratioconj_i, sigmax_i], 0.5*result_marginal_fi_std[..., 0][ratioconj_i, sigmax_i], ax_handle=ax, linewidth=3, fmt='o-', markersize=8, label='Marginal Fisher Information')
+        # ax = utils.plot_mean_std_area(T_space, 0.5*result_marginal_fi_mean[..., 0][ratioconj_i, sigmax_i], 0.5*result_marginal_fi_std[..., 0][ratioconj_i, sigmax_i], ax_handle=ax, linewidth=3, fmt='o-', markersize=8, label='Marginal Fisher Information')
 
         ax.set_title('ratio_conj %.2f, sigmax %.2f' % (ratioconj_space[ratioconj_i], sigmax_space[sigmax_i]))
         ax.legend()
