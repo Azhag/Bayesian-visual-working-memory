@@ -127,6 +127,31 @@ def do_plots_population_codes():
     return locals()
 
 
+def plot_distribution_errors():
+    '''
+        Plot for central + uniform bump
+    '''
+
+    dataio = DataIO(label='papertheo_histogram_nontargets')
+
+    plt.rcParams['font.size'] = 18
+
+
+    arguments_dict = dict(N=1000, sigmax=0.2, sigmay=0.0001, num_samples=500, burn_samples=500, autoset_parameters=True, M=100, code_type='conj', T=3, inference_method='sample', stimuli_generation='random', stimuli_generation_recall='random')
+
+    # Run the Experiment
+    experiment_launcher = ExperimentLauncher(run=True, arguments_dict=arguments_dict)
+
+    # Plots
+    experiment_launcher.all_vars['sampler'].plot_histogram_errors(bins=51)
+    dataio.save_current_figure('papertheo_histogram_errorsM%dsigmax%.2fT%d.pdf' % tuple([arguments_dict[key] for key in ('M', 'sigmax', 'T')]))
+
+    if arguments_dict['T'] > 1:
+        experiment_launcher.all_vars['sampler'].plot_histogram_bias_nontarget(dataio=dataio)
+
+    return locals()
+
+
 def fisher_information_1obj_2d():
     # %run experimentlauncher.py --action_to_do launcher_do_fisher_information_estimation --subaction rcscale_dependence --M 100 --N 500 --sigmax 0.1 --sigmay 0.0001 --label fi_compare_paper --num_samples 100
     # Used the boxplot. And some
@@ -518,9 +543,15 @@ if __name__ == '__main__':
     # all_vars = plot_experimental_mixture()
     # all_vars = plot_marginalfisherinfo_1d()
     # all_vars = plot_marginal_fisher_info_2d()
-    all_vars = plot_specific_stimuli()
+    # all_vars = plot_specific_stimuli()
 
-    variables_to_reinstantiate = ['data_gen', 'sampler', 'stat_meas', 'random_network', 'args', 'constrained_parameters', 'data_pbs', 'dataio']
+    all_vars = plot_distribution_errors()
+
+    if 'experiment_launcher' in all_vars:
+        all_vars.update(all_vars['experiment_launcher'].all_vars)
+
+
+    variables_to_reinstantiate = ['data_gen', 'sampler', 'stat_meas', 'random_network', 'args', 'constrained_parameters', 'data_pbs', 'dataio', 'experiment_launcher']
 
     for var_reinst in variables_to_reinstantiate:
         if var_reinst in all_vars:
