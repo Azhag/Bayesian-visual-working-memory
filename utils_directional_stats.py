@@ -9,8 +9,9 @@ Copyright (c) 2013 Gatsby Unit. All rights reserved.
 
 import numpy as np
 
-import scipy.special as scsp
+import scipy.special as spsp
 import scipy.optimize as spopt
+import scipy.stats as spst
 
 import matplotlib.pyplot as plt
 
@@ -56,8 +57,8 @@ def kappa_to_stddev(kappa):
 
         std = 1 - I_1(kappa)/I_0(kappa)
     '''
-    # return 1.0 - scsp.i1(kappa)/scsp.i0(kappa)
-    return np.sqrt(-2.*np.log(scsp.i1e(kappa)/scsp.i0e(kappa)))
+    # return 1.0 - spsp.i1(kappa)/spsp.i0(kappa)
+    return np.sqrt(-2.*np.log(spsp.i1e(kappa)/spsp.i0e(kappa)))
 
 
 def stddev_to_kappa_single(stddev):
@@ -67,7 +68,7 @@ def stddev_to_kappa_single(stddev):
         No closed-form, does a line optimisation
     '''
 
-    errfunc = lambda kappa, stddev: (np.exp(-0.5*stddev**2.) - scsp.i1e(kappa)/scsp.i0e(kappa))**2.
+    errfunc = lambda kappa, stddev: (np.exp(-0.5*stddev**2.) - spsp.i1e(kappa)/spsp.i0e(kappa))**2.
     kappa_init = 1.0
     kappa_opt = spopt.fmin(errfunc, kappa_init, args=(stddev, ), disp=False)
 

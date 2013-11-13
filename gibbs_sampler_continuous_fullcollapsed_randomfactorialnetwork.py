@@ -1287,7 +1287,7 @@ class Sampler:
             plt.xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi), (r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=15)
 
 
-    def plot_histogram_bias_nontarget(self, bins=31, in_degrees=False):
+    def plot_histogram_bias_nontarget(self, bins=31, in_degrees=False, dataio=None):
         '''
             Get an histogram of the errors between the response and all non targets
 
@@ -1298,7 +1298,7 @@ class Sampler:
 
         assert self.T > 1, "No nontarget for a single object..."
 
-        (responses, target, nontargets) = self.collect_responses()
+        (responses, _, nontargets) = self.collect_responses()
 
         # Now check the error between the responses and nontargets.
         # Flatten everything, we want the full histogram.
@@ -1309,8 +1309,13 @@ class Sampler:
         errors_best_nontarget = errors_best_nontarget[np.arange(errors_best_nontarget.shape[0]), np.argmin(np.abs(errors_best_nontarget), axis=1)]
 
         # Do the plots
-        hist_angular_data(errors_nontargets, bins=bins, title='Errors between response and non-targets', norm='sum')
-        hist_angular_data(errors_best_nontarget, bins=bins, title='Errors between response and best non-target', norm='sum')
+        angle_space = np.linspace(-np.pi, np.pi, bins)
+
+        # Get histograms of bias to nontargets.
+        hist_samples_density_estimation(errors_nontargets, bins=angle_space, title='Errors between response and non-targets, N=%d' % (self.T), filename='hist_bias_nontargets_%ditems_{label}_{unique_id}.pdf' % (self.T), dataio=dataio)
+
+        # Gest histogram of bias to best non target
+        hist_samples_density_estimation(errors_best_nontarget, bins=angle_space, title='Errors between response and best non-target, N=%d' % (self.T), filename='hist_bias_bestnontarget_%ditems_{label}_{unique_id}.pdf' % (self.T), dataio=dataio)
 
 
     def collect_responses(self):

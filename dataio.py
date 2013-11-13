@@ -269,7 +269,7 @@ class DataIO:
         '''
 
         # Default variables
-        variables_to_save = ['num_repetitions', 'repet_i', 'args', 'filename']
+        variables_to_save = ['num_repetitions', 'repet_i', 'args', 'all_args', 'filename']
 
         # Complete with additional variables
         variables_to_save.extend(additional_variables)
