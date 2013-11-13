@@ -123,6 +123,19 @@ def angle_population_mean(angles=None, angle_population_vec=None):
     return np.angle(angle_population_vec)
 
 
+def angle_population_R(angles=None, angle_population_vec=None):
+    '''
+        Compute R, the length of the angle population complex vector.
+
+        Used to compute Standard deviation and diverse tests.
+    '''
+
+    if angle_population_vec is None:
+        angle_population_vec = angle_population_vector(angles)
+
+    return np.abs(angle_population_vec)
+
+
 def angle_circular_std_dev(angles=None, angle_population_vec=None):
     '''
         Compute the circular standard deviation from an angle population complex vector.
@@ -203,4 +216,66 @@ def enforce_distance(theta1, theta2, min_distance=0.1):
 
 def enforce_distance_set(new_item, other_items, min_distance=0.001):
     return all(enforce_distance(new_item[0], other_item[0], min_distance=min_distance) and enforce_distance(new_item[1], other_item[1], min_distance=min_distance) for other_item in other_items)
+
+
+def rayleigh_test(angles):
+    '''
+        Performs Rayleigh Test for non-uniformity of circular data.
+
+        Compares against Null hypothesis of uniform distribution around circle
+
+        Assume one mode and data sampled from Von Mises.
+
+        Use other tests for different assumptions.
+
+        Uses implementation close to CircStats Matlab toolbox, maths from [Biostatistical Analysis, Zar].
+    '''
+
+    if angles.ndim > 1:
+        angles = angles.flatten()
+
+    N = angles.size
+
+    # Compute Rayleigh's R
+    R = N*angle_population_R(angles)
+
+    # Compute Rayleight's z
+    z = R**2. / N
+
+    # Compute pvalue (Zar, Eq 27.4)
+    pvalue = np.exp(np.sqrt(1. + 4*N + 4*(N**2. - R**2)) - 1. - 2.*N)
+
+    return dict(pvalue=pvalue, z=z)
+
+
+def V_test(angles, mean_apriori=0.0):
+    '''
+        Performs a V Test for non-uniformity of circular data
+
+        The V test assumes a known mean angle a-priori
+    '''
+
+    if angles.ndim > 1:
+        angles = angles.flatten()
+
+
+    # Get some statistics
+    mu = mean_angles(angles)
+    N = angles.size
+
+    # Compute Rayleigh's R
+    R = N*angle_population_R(angles)
+
+    # Compute V statistics (Zar, Eq 26.5)
+    V = R*np.cos(mu - mean_apriori)
+
+    # Compute u statistic (Zar, Eq 26.6)
+    u = V*np.sqrt(2./N)
+
+    # p-value, compared to Univariate gaussian, correct for large sample size (couldn't find min N)
+    pvalue = 1. - spst.norm.cdf(u)
+
+    return dict(pvalue=pvalue, u=u, V=V, R=R)
+
+
 
