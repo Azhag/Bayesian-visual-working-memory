@@ -275,6 +275,51 @@ def preprocess_doublerecall(dataset, parameters):
     dataset['panda'] = pd.DataFrame(dataset_filtered)
 
 
+def preprocess_bays2009(dataset, parameters):
+    '''
+        The Bays2009 dataset is completely different...
+        Some preprocessing is already done, so just do the plots we care about
+    '''
+
+    # Extract parameters
+    # params_lists: List( (param_name, default_value) )
+    params_list = []
+    for curr_param in params_list:
+        if curr_param[0] in parameters:
+            # Set to provided value
+            exec(curr_param[0] +" = parameters['" + curr_param[0] + "']")
+        else:
+            # Default value
+            exec(curr_param[0] +" = " + str(curr_param[1]))
+
+    # Make some aliases
+    dataset['n_items'] = dataset['N'].astype(int)
+    dataset['subject'] = dataset['subject'].astype(int)
+    dataset['error'] = dataset['E']
+    dataset['errors_nitems'] = np.empty(np.unique(dataset['n_items']).size, dtype=np.object)
+    dataset['errors_nontarget_nitems'] = np.empty(np.unique(dataset['n_items']).size, dtype=np.object)
+    dataset['vtest_nitems'] = np.empty(np.unique(dataset['n_items']).size)*np.nan
+
+
+    for n_items_i, n_items in enumerate(np.unique(dataset['n_items'])):
+        ids_filtered = (dataset['n_items'] == n_items).flatten()
+
+        dataset['errors_nitems'][n_items_i] = dataset['error'][ids_filtered, 0]
+        dataset['errors_nontarget_nitems'][n_items_i] = dataset['error'][ids_filtered, 1:n_items]
+
+        utils.hist_samples_density_estimation(dataset['errors_nitems'][n_items_i], bins=angle_space, title='Errors between response and targets, N=%d' % (n_items))
+
+        if n_items > 1:
+            dataset['vtest_nitems'][n_items_i] = utils.V_test(utils.dropnan(dataset['errors_nontarget_nitems'][n_items_i]))['pvalue']
+
+            ax_handle = utils.hist_samples_density_estimation(utils.dropnan(dataset['errors_nontarget_nitems'][n_items_i]), bins=angle_space, title='Errors between response and non-targets, N=%d' % (n_items))
+
+            ax_handle.text(0.02, 0.96, "Vtest pval: %.4f" % (dataset['vtest_nitems'][n_items_i]), transform=ax_handle.transAxes, horizontalalignment='left', fontsize=13)
+
+            ax_handle.get_figure().canvas.draw()
+
+
+######
 
 def load_dataset(filename='', preprocess=lambda x, p: x, parameters={}):
     '''
@@ -863,11 +908,12 @@ if __name__ == '__main__':
 
     print sys.argv
 
-    if False or (len(sys.argv) > 1 and sys.argv[1]):
+    if True or (len(sys.argv) > 1 and sys.argv[1]):
     # keys:
     # 'probe', 'delayed', 'item_colour', 'probe_colour', 'item_angle', 'error', 'probe_angle', 'n_items', 'response', 'subject']
-        (data_sequen, data_simult, data_dualrecall) = load_multiple_datasets([dict(filename='Exp1.mat', preprocess=preprocess_sequential, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'))), dict(filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), fit_mixturemodel=True)), dict(filename=os.path.join(data_dir, 'DualRecall_Bays', 'rate_data.mat'), preprocess=preprocess_doublerecall, parameters=dict(fit_mixturemodel=True))])
+        # (data_sequen, data_simult, data_dualrecall) = load_multiple_datasets([dict(filename='Exp1.mat', preprocess=preprocess_sequential, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'))), dict(filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), fit_mixturemodel=True)), dict(filename=os.path.join(data_dir, 'DualRecall_Bays', 'rate_data.mat'), preprocess=preprocess_doublerecall, parameters=dict(fit_mixturemodel=True))])
         # (data_simult,) = load_multiple_datasets([dict(filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), fit_mixturemodel=True))])
+        (data_bays2009) = load_multiple_datasets([dict(filename='colour_data.mat', preprocess=preprocess_bays2009, parameters=dict(datadir=os.path.join(data_dir, 'Bays2009'), fit_mixturemodel=False))])
 
 
     # Check for bias towards 0 for the error between response and all items
