@@ -91,9 +91,9 @@ def plots_errors_distribution(data_pbs, generator_module=None):
 
                 if T > 1:
                     # Error to nontarget
-                    ax_handle = utils.hist_samples_density_estimation(errors_nontargets[T_i, :, :T_i].reshape(nb_repetitions*N*T_i), bins=angle_space, title='Errors between response and non targets, N=%d' % (T))
+                    ax_handle = utils.hist_samples_density_estimation(errors_nontargets[T_i, :, :T_i].flatten(), bins=angle_space, title='Errors between response and non targets, N=%d' % (T))
 
-                    result_pval_vtest_nontargets[sigmax, T_i] = utils.V_test(errors_nontargets[T_i, :, :T_i].reshape(nb_repetitions*N*T_i))['pvalue']
+                    result_pval_vtest_nontargets[sigmax, T_i] = utils.V_test(errors_nontargets[T_i, :, :T_i].flatten())['pvalue']
 
                     print result_pval_vtest_nontargets[sigmax, T_i]
 
@@ -103,7 +103,7 @@ def plots_errors_distribution(data_pbs, generator_module=None):
                         dataio.save_current_figure('error_nontargets_hist_sigmax%.2f_T%d_{label}_{unique_id}.pdf' % (sigmax, T))
 
                     # Error to best non target
-                    utils.hist_samples_density_estimation(errors_best_nontarget[T_i].reshape(nb_repetitions*N), bins=angle_space, title='Errors between response and best non target, N=%d' % (T))
+                    utils.hist_samples_density_estimation(errors_best_nontarget[T_i].flatten(), bins=angle_space, title='Errors between response and best non target, N=%d' % (T))
 
                     if savefigs:
                         dataio.save_current_figure('error_bestnontarget_hist_sigmax%.2f_T%d_{label}_{unique_id}.pdf' % (sigmax, T))
