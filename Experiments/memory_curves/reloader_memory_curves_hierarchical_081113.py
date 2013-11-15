@@ -204,7 +204,8 @@ this_file = inspect.getfile(inspect.currentframe())
 
 parameters_entryscript=dict(action_to_do='launcher_do_reload_constrained_parameters', output_directory='.')
 
-generator_script = 'generator' + re.split("^reloader", os.path.split(this_file)[-1])[-1]
+# generator_script = 'generator' + re.split("^reloader", os.path.split(this_file)[-1])[-1]
+generator_script = 'generator_memory_curves_hierarchical_newruns_141113.py'
 
 print "Reloader data generated from ", generator_script
 
