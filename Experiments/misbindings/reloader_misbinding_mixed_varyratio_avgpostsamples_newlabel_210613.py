@@ -13,7 +13,7 @@ from experimentlauncher import *
 from dataio import *
 # from smooth import *
 import inspect
-
+import em_circularmixture
 
 # # Commit @2042319 +
 
@@ -29,9 +29,10 @@ def plots_misbinding_logposterior(data_pbs, generator_module=None):
 
     #### SETUP
     #
-    savefigs = True
+    savefigs = False
     plot_logpost = False
-    plot_error = True
+    plot_error = False
+    plot_mixtmodel = True
     #
     #### /SETUP
 
@@ -45,7 +46,11 @@ def plots_misbinding_logposterior(data_pbs, generator_module=None):
     print ratio_space
     print result_all_log_posterior.shape
 
-    result_prob_wrong = np.zeros((ratio_space.size, result_all_log_posterior.shape[1]))
+    N = result_all_thetas.shape[-1]
+
+    result_prob_wrong = np.zeros((ratio_space.size, N))
+    result_em_fits = np.empty((ratio_space.size, 5))*np.nan
+
 
     fixed_means = [-np.pi*0.6, np.pi*0.6]
     all_angles = np.linspace(-np.pi, np.pi, result_all_log_posterior.shape[-1])
@@ -84,7 +89,6 @@ def plots_misbinding_logposterior(data_pbs, generator_module=None):
         if savefigs:
             dataio.save_current_figure('results_misbinding_probwrongpost_allratioconj_{label}_global_{unique_id}.pdf')
 
-
     if plot_error:
 
         ## Compute Standard deviation/precision from samples and plot it as a function of ratio_conj
@@ -100,7 +104,7 @@ def plots_misbinding_logposterior(data_pbs, generator_module=None):
         f = plt.figure()
         plt.plot(ratio_space, compute_angle_precision_from_std(stats['std'], square_precision=False), linewidth=2)
         plt.ylabel('Precision [$1/rad$]')
-        plt.xlabel('Percentage of conjunctive units')
+        plt.xlabel('Proportion of conjunctive units')
         plt.grid()
 
         if savefigs:
@@ -134,10 +138,11 @@ def plots_misbinding_logposterior(data_pbs, generator_module=None):
         f = plt.figure()
         plt.plot(ratio_space, np.max(em_pk, axis=-1), 'g', linewidth=2)
         plt.ylabel('Mixture proportion, correct')
-        plt.xlabel('Percentage of conjunctive units')
+        plt.xlabel('Proportion of conjunctive units')
         plt.grid()
         if savefigs:
             dataio.save_current_figure('results_misbinding_emmixture_allratioconj_{label}_global_{unique_id}.pdf')
+
 
         # Put everything on one figure
         f = plt.figure(figsize=(10, 6))
@@ -150,6 +155,47 @@ def plots_misbinding_logposterior(data_pbs, generator_module=None):
         if savefigs:
             dataio.save_current_figure('results_misbinding_allmetrics_allratioconj_{label}_global_{unique_id}.pdf')
 
+
+    if False and plot_mixtmodel:
+        # Fit Paul's model
+        target_angle = np.ones(N)*fixed_means[1]
+        nontarget_angles = np.ones((N, 1))*fixed_means[0]
+
+        for ratio_conj_i, ratio_conj in enumerate(ratio_space):
+            print "Ratio: ", ratio_conj
+
+            responses = result_all_thetas[ratio_conj_i]
+
+            curr_params_fit = em_circularmixture.fit(responses, target_angle, nontarget_angles)
+
+            result_em_fits[ratio_conj_i] = [curr_params_fit[key] for key in ('kappa', 'mixt_target', 'mixt_nontargets', 'mixt_random', 'train_LL')]
+
+            print curr_params_fit
+
+        f, ax = plt.subplots()
+        ax2 = ax.twinx()
+
+        # left axis, kappa
+        ax = utils.plot_mean_std_area(ratio_space, result_em_fits[:, 0], 0*result_em_fits[:, 0], xlabel='Proportion of conjunctive units', ylabel="Inverse variance $[rad^{-2}]$", ax_handle=ax, linewidth=3, fmt='o-', markersize=8, label='Fitted kappa', color='k')
+
+        # Right axis, mixture probabilities
+        utils.plot_mean_std_area(ratio_space, result_em_fits[:, 1], 0*result_em_fits[:, 1], xlabel='Proportion of conjunctive units', ylabel="Mixture probabilities", ax_handle=ax2, linewidth=3, fmt='o-', markersize=8, label='Target')
+        utils.plot_mean_std_area(ratio_space, result_em_fits[:, 2], 0*result_em_fits[:, 2], xlabel='Proportion of conjunctive units', ylabel="Mixture probabilities", ax_handle=ax2, linewidth=3, fmt='o-', markersize=8, label='Nontarget')
+        utils.plot_mean_std_area(ratio_space, result_em_fits[:, 3], 0*result_em_fits[:, 3], xlabel='Proportion of conjunctive units', ylabel="Mixture probabilities", ax_handle=ax2, linewidth=3, fmt='o-', markersize=8, label='Random')
+
+        lines, labels = ax.get_legend_handles_labels()
+        lines2, labels2 = ax2.get_legend_handles_labels()
+        ax.legend(lines + lines2, labels + labels2, fontsize=12, loc='right')
+
+        # ax.set_xlim([0.9, 5.1])
+        # ax.set_xticks(range(1, 6))
+        # ax.set_xticklabels(range(1, 6))
+        plt.grid()
+
+        f.canvas.draw()
+
+        if savefigs:
+            dataio.save_current_figure('results_misbinding_emmixture_allratioconj_{label}_global_{unique_id}.pdf')
 
 
     # plt.figure()
