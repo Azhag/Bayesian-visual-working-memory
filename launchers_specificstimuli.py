@@ -52,7 +52,7 @@ def launcher_do_mixed_special_stimuli(args):
     # Result arrays
     result_all_precisions = np.nan*np.ones((ratio_space.size, all_parameters['num_repetitions']))
     result_em_fits = np.nan*np.ones((ratio_space.size, 5, all_parameters['num_repetitions']))  # kappa, mixt_target, mixt_nontarget, mixt_random, ll
-    result_em_resp = np.nan*np.ones((ratio_space.size, all_parameters['num_repetitions'], 1+all_parameters['T'], all_parameters['N']))
+    result_em_resp = np.nan*np.ones((ratio_space.size, 1+all_parameters['T'], all_parameters['N'], all_parameters['num_repetitions']))
 
     search_progress = progress.Progress(ratio_space.size*all_parameters['num_repetitions'])
 
@@ -84,9 +84,9 @@ def launcher_do_mixed_special_stimuli(args):
             curr_resp = em_circularmixture.compute_responsibilities(*(sampler.collect_responses() + (curr_params_fit,) ))
 
             result_em_fits[ratio_i, :, repet_i] = [curr_params_fit[key] for key in ('kappa', 'mixt_target', 'mixt_nontargets', 'mixt_random', 'train_LL')]
-            result_em_resp[ratio_i, repet_i, 0] = curr_resp['target']
-            result_em_resp[ratio_i, repet_i, 1:-1] = curr_resp['nontargets'].T
-            result_em_resp[ratio_i, repet_i, -1] = curr_resp['random']
+            result_em_resp[ratio_i, 0, :, repet_i] = curr_resp['target']
+            result_em_resp[ratio_i, 1:-1, :, repet_i] = curr_resp['nontargets'].T
+            result_em_resp[ratio_i, -1, :, repet_i] = curr_resp['random']
 
             print result_all_precisions[ratio_i, repet_i], curr_params_fit
             ### /Work ###

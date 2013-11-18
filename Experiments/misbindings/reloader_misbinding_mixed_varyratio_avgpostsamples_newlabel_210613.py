@@ -29,7 +29,7 @@ def plots_misbinding_logposterior(data_pbs, generator_module=None):
 
     #### SETUP
     #
-    savefigs = False
+    savefigs = True
     plot_logpost = False
     plot_error = False
     plot_mixtmodel = True
@@ -156,7 +156,7 @@ def plots_misbinding_logposterior(data_pbs, generator_module=None):
             dataio.save_current_figure('results_misbinding_allmetrics_allratioconj_{label}_global_{unique_id}.pdf')
 
 
-    if False and plot_mixtmodel:
+    if plot_mixtmodel:
         # Fit Paul's model
         target_angle = np.ones(N)*fixed_means[1]
         nontarget_angles = np.ones((N, 1))*fixed_means[0]
@@ -176,12 +176,12 @@ def plots_misbinding_logposterior(data_pbs, generator_module=None):
         ax2 = ax.twinx()
 
         # left axis, kappa
-        ax = utils.plot_mean_std_area(ratio_space, result_em_fits[:, 0], 0*result_em_fits[:, 0], xlabel='Proportion of conjunctive units', ylabel="Inverse variance $[rad^{-2}]$", ax_handle=ax, linewidth=3, fmt='o-', markersize=8, label='Fitted kappa', color='k')
+        ax = plot_mean_std_area(ratio_space, result_em_fits[:, 0], 0*result_em_fits[:, 0], xlabel='Proportion of conjunctive units', ylabel="Inverse variance $[rad^{-2}]$", ax_handle=ax, linewidth=3, fmt='o-', markersize=8, label='Fitted kappa', color='k')
 
         # Right axis, mixture probabilities
-        utils.plot_mean_std_area(ratio_space, result_em_fits[:, 1], 0*result_em_fits[:, 1], xlabel='Proportion of conjunctive units', ylabel="Mixture probabilities", ax_handle=ax2, linewidth=3, fmt='o-', markersize=8, label='Target')
-        utils.plot_mean_std_area(ratio_space, result_em_fits[:, 2], 0*result_em_fits[:, 2], xlabel='Proportion of conjunctive units', ylabel="Mixture probabilities", ax_handle=ax2, linewidth=3, fmt='o-', markersize=8, label='Nontarget')
-        utils.plot_mean_std_area(ratio_space, result_em_fits[:, 3], 0*result_em_fits[:, 3], xlabel='Proportion of conjunctive units', ylabel="Mixture probabilities", ax_handle=ax2, linewidth=3, fmt='o-', markersize=8, label='Random')
+        plot_mean_std_area(ratio_space, result_em_fits[:, 1], 0*result_em_fits[:, 1], xlabel='Proportion of conjunctive units', ylabel="Mixture probabilities", ax_handle=ax2, linewidth=3, fmt='o-', markersize=8, label='Target')
+        plot_mean_std_area(ratio_space, result_em_fits[:, 2], 0*result_em_fits[:, 2], xlabel='Proportion of conjunctive units', ylabel="Mixture probabilities", ax_handle=ax2, linewidth=3, fmt='o-', markersize=8, label='Nontarget')
+        plot_mean_std_area(ratio_space, result_em_fits[:, 3], 0*result_em_fits[:, 3], xlabel='Proportion of conjunctive units', ylabel="Mixture probabilities", ax_handle=ax2, linewidth=3, fmt='o-', markersize=8, label='Random')
 
         lines, labels = ax.get_legend_handles_labels()
         lines2, labels2 = ax2.get_legend_handles_labels()

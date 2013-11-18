@@ -47,7 +47,7 @@ def plots_specific_stimuli_mixed(data_pbs, generator_module=None):
     result_em_fits_std = nanstd(np.squeeze(data_pbs.dict_arrays['result_em_fits']['results']), axis=-1)
     result_em_kappastddev_mean = nanmean(kappa_to_stddev(np.squeeze(data_pbs.dict_arrays['result_em_fits']['results'])[..., 0, :]), axis=-1)
     result_em_kappastddev_std = nanstd(kappa_to_stddev(np.squeeze(data_pbs.dict_arrays['result_em_fits']['results'])[..., 0, :]), axis=-1)
-    result_em_resp_all = np.squeeze(data_pbs.dict_arrays['result_em_resp']['results'])
+    # result_em_resp_all = np.squeeze(data_pbs.dict_arrays['result_em_resp']['results'])
 
 
     enforce_min_distance_space = data_pbs.loaded_data['parameters_uniques']['enforce_min_distance']
@@ -57,7 +57,7 @@ def plots_specific_stimuli_mixed(data_pbs, generator_module=None):
     print enforce_min_distance_space
     print sigmax_space
     print ratio_space
-    print result_all_precisions_mean.shape, result_em_fits_mean.shape, result_em_resp_all.shape
+    print result_all_precisions_mean.shape, result_em_fits_mean.shape
 
     dataio = DataIO(output_folder=generator_module.pbs_submission_infos['simul_out_dir'] + '/outputs/', label='global_' + dataset_infos['save_output_filename'])
 
