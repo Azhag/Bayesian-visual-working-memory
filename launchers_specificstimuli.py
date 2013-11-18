@@ -220,7 +220,7 @@ def launcher_do_hierarchical_special_stimuli_varyMMlower(args):
     # Result arrays
     result_all_precisions = np.nan*np.ones((MMlower_valid_space.shape[0], all_parameters['num_repetitions']))
     result_em_fits = np.nan*np.ones((MMlower_valid_space.shape[0], 5, all_parameters['num_repetitions']))  # kappa, mixt_target, mixt_nontarget, mixt_random, ll
-    result_em_resp = np.nan*np.ones((MMlower_valid_space.shape[0], all_parameters['num_repetitions'], 1+all_parameters['T'], all_parameters['N']))
+    result_em_resp = np.nan*np.ones((MMlower_valid_space.shape[0], 1+all_parameters['T'], all_parameters['N'], all_parameters['num_repetitions']))
 
     search_progress = progress.Progress(MMlower_valid_space.shape[0]*all_parameters['num_repetitions'])
 
@@ -256,9 +256,9 @@ def launcher_do_hierarchical_special_stimuli_varyMMlower(args):
             print curr_params_fit
 
             result_em_fits[MMlower_i, :, repet_i] = [curr_params_fit[key] for key in ('kappa', 'mixt_target', 'mixt_nontargets', 'mixt_random', 'train_LL')]
-            result_em_resp[MMlower_i, repet_i, 0] = curr_resp['target']
-            result_em_resp[MMlower_i, repet_i, 1:-1] = curr_resp['nontargets'].T
-            result_em_resp[MMlower_i, repet_i, -1] = curr_resp['random']
+            result_em_resp[MMlower_i, 0, :, repet_i] = curr_resp['target']
+            result_em_resp[MMlower_i, 1:-1, :, repet_i] = curr_resp['nontargets'].T
+            result_em_resp[MMlower_i, -1, :, repet_i] = curr_resp['random']
 
             ### /Work ###
 
