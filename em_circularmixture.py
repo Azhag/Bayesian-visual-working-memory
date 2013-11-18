@@ -8,10 +8,13 @@ Copyright (c) 2013 Gatsby Unit. All rights reserved.
 """
 
 import numpy as np
-import scipy.special as scsp
+import scipy.special as spsp
+import scipy.stats as spst
 from sklearn.cross_validation import KFold
 
-def fit(responses, target_angle, nontarget_angles=np.array([[]]), initialisation_method='mixed', nb_initialisations=5):
+import utils
+
+def fit(responses, target_angle, nontarget_angles=np.array([[]]), initialisation_method='mixed', nb_initialisations=5, debug=False):
     '''
         Return maximum likelihood values for a mixture model, with:
             - 1 target Von Mises component
@@ -39,10 +42,14 @@ def fit(responses, target_angle, nontarget_angles=np.array([[]]), initialisation
     # Initial parameters
     initial_parameters_list = initialise_parameters(responses.size, K, initialisation_method, nb_initialisations)
     overall_LL = -np.inf
+    LL = np.nan
     initial_i = 0
     best_kappa, best_mixt_target, best_mixt_random, best_mixt_nontargets = (np.nan, np.nan, np.nan, np.nan)
 
     for (kappa, mixt_target, mixt_random, mixt_nontargets, resp_ik) in initial_parameters_list:
+
+        if debug:
+            print "New initialisation point: ", (kappa, mixt_target, mixt_random, mixt_nontargets)
 
         old_LL = -np.inf
 
@@ -57,6 +64,8 @@ def fit(responses, target_angle, nontarget_angles=np.array([[]]), initialisation
         while i < max_iter and not converged:
 
             # E-step
+            if debug:
+                print "E", i, LL, kappa, mixt_target, mixt_nontargets, mixt_random
             resp_ik[:, 0] = mixt_target * vonmisespdf(error_to_target, 0.0, kappa)
             resp_r = mixt_random/(2.*np.pi)
             if K > 0:
@@ -86,11 +95,15 @@ def fit(responses, target_angle, nontarget_angles=np.array([[]]), initialisation
             r2 = np.nansum(C*rw)
 
             if np.abs(np.nansum(rw)) < 1e-10:
+                if debug:
+                    print "Kappa diverged:", kappa, r1, r2, np.nansum(rw)
                 kappa = 0
             else:
                 R = (r1**2 + r2**2)**0.5/np.nansum(rw)
                 kappa = A1inv(R)
 
+            if debug:
+                print "M", i, LL, kappa, mixt_target, mixt_nontargets, mixt_random
 
             # Weird correction...
             if N <= 15:
@@ -101,16 +114,18 @@ def fit(responses, target_angle, nontarget_angles=np.array([[]]), initialisation
 
             i += 1
 
-        if not converged:
-            print "Warning, Em_circularmixture.fit() did not converge before ", max_iter, "iterations"
-            kappa = np.nan
-            mixt_target = np.nan
-            mixt_nontargets = np.nan
-            mixt_random = np.nan
-            rw = np.nan
+        # if not converged:
+        #     if debug:
+        #         print "Warning, Em_circularmixture.fit() did not converge before ", max_iter, "iterations"
+        #     kappa = np.nan
+        #     mixt_target = np.nan
+        #     mixt_nontargets = np.nan
+        #     mixt_random = np.nan
+        #     rw = np.nan
 
-        if LL > overall_LL :
-            # print initial_i, overall_LL, LL
+        if LL > overall_LL and np.isfinite(LL):
+            if debug:
+                print "New best!", initial_i, overall_LL, LL
             overall_LL = LL
             (best_kappa, best_mixt_target, best_mixt_nontargets, best_mixt_random) = (kappa, mixt_target, mixt_nontargets, mixt_random)
 
@@ -188,7 +203,7 @@ def cross_validation_kfold(responses, target_angle, nontarget_angles, K=2, shuff
 
     for train, test in kf:
         # Fit the model to the training subset
-        curr_fit = fit(responses[train], target_angle[train], nontarget_angles[train], initialisation_method, nb_initialisations)
+        curr_fit = fit(responses[train], target_angle[train], nontarget_angles[train], initialisation_method, nb_initialisations, debug=debug)
 
         # Compute the testing loglikelihood
         test_LL[k_i] = compute_loglikelihood(responses[test], target_angle[test], nontarget_angles[test], curr_fit)
@@ -274,9 +289,9 @@ def initialise_parameters_fixed(N, K):
         Do like Paul and try multiple initial conditions
     '''
 
-    kappa = [1., 10, 100, 300, 4000]
-    mixt_nontargets = [0.01, 0.1, 0.4, 0.01, 0.01]
-    mixt_random = [0.01, 0.1, 0.4, 0.1, 0.01]
+    kappa = [1., 10, 100, 300, 4000, 20, 0.3]
+    mixt_nontargets = [0.01, 0.1, 0.4, 0.01, 0.01, 0.01, 0.1]
+    mixt_random = [0.01, 0.1, 0.4, 0.1, 0.01, 0.5, 0.1]
 
     mixt_target = [1. - mixt_nontargets[i] - mixt_random[i] for i in xrange(len(kappa))]
 
@@ -302,7 +317,10 @@ def wrap(angles):
 
 
 def vonmisespdf(x, mu, K):
-    return np.exp(K*np.cos(x-mu)) / (2.*np.pi * scsp.i0(K))
+    if K > 700.:
+        return spst.norm.pdf(x, mu, 1./np.sqrt(K))
+    else:
+        return np.exp(K*np.cos(x-mu)) / (2.*np.pi * spsp.i0(K))
 
 
 def A1inv(R):
@@ -314,8 +332,35 @@ def A1inv(R):
         return 1./(R**3 - 4*R**2 + 3*R)
 
 
+def test():
+    '''
+        Does a Unit test, samples data from a mixture of one Von mises and random perturbations. Then fits the model and check if everything works.
+    '''
+
+    N = 3000
+    N_rnd = N/3
+    kappa_space = np.array([0.5, 1.0, 5.0, 20., 100, 3000, 5000.])
+
+    target = np.zeros(N)
+
+    kappa_fitted = np.zeros(kappa_space.size)
+
+    for kappa_i, kappa in enumerate(kappa_space):
+        print kappa
+
+        responses = spst.vonmises.rvs(kappa, size=(N))
+        responses[np.random.randint(N, size=N_rnd)] = utils.sample_angle(N_rnd)
+
+        em_fit = fit(responses, target, debug=False)
+
+        kappa_fitted[kappa_i] = em_fit['kappa']
+
+    # Check if estimated kappa is within 20% of target one
+    print kappa_fitted/kappa_space
+    assert np.all(np.abs(kappa_fitted/kappa_space - 1.0) < 0.20)
+
 
 if __name__ == '__main__':
-    # fit(responses, target_angle, nontarget_angles)
-    pass
+    test()
+
 
