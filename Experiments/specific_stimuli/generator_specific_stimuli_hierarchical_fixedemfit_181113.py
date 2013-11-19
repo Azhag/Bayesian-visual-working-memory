@@ -9,7 +9,7 @@ import inspect
 
 from utils import cross
 
-# Commit @2042319 +
+# Commit @8255dc8
 
 # Read from other scripts
 parameters_entryscript=dict(action_to_do='launcher_do_generate_submit_pbs_from_param_files', output_directory='.')

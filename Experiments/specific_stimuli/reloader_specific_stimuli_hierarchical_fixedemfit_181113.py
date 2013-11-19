@@ -6,7 +6,6 @@ import os
 import numpy as np
 from experimentlauncher import *
 from dataio import *
-from utils import *
 import re
 import imp
 
@@ -14,7 +13,7 @@ import inspect
 
 import utils
 
-# Commit @2042319 +
+# Commit @0134c44
 
 
 def plots_specific_stimuli_hierarchical(data_pbs, generator_module=None):
@@ -81,7 +80,7 @@ def plots_specific_stimuli_hierarchical(data_pbs, generator_module=None):
                 dataio.save_current_figure('logemprecision_permindist_mindist%.2f_ratiosigmax_{label}_{unique_id}.pdf' % min_dist)
 
             # Plot estimated Target, nontarget and random mixture components, in multiple subplots
-            f, axes = plt.subplots(1, 3, figsize=(18, 6))
+            _, axes = plt.subplots(1, 3, figsize=(18, 6))
             plt.subplots_adjust(left=0.05, right=0.97, wspace = 0.3, bottom=0.15)
             utils.pcolor_2d_data(result_em_fits_mean[min_dist_i, ..., 1].T, x=ratio_space, y=sigmax_space, xlabel='ratio', ylabel='sigma_x', title='Target, min_dist=%.3f' % min_dist, log_scale=False, ax_handle=axes[0], ticks_interpolate=5)
             utils.pcolor_2d_data(result_em_fits_mean[min_dist_i, ..., 2].T, x=ratio_space, y=sigmax_space, xlabel='ratio', ylabel='sigma_x', title='Nontarget, min_dist=%.3f' % min_dist, log_scale=False, ax_handle=axes[1], ticks_interpolate=5)
