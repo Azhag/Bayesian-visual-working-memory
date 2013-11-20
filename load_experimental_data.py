@@ -317,7 +317,7 @@ def preprocess_bays2009(dataset, parameters):
         utils.hist_samples_density_estimation(dataset['errors_nitems'][n_items_i], bins=angle_space, title='Errors between response and targets, N=%d' % (n_items))
 
         if n_items > 1:
-            dataset['vtest_nitems'][n_items_i] = utils.V_test(utils.dropnan(dataset['errors_nontarget_nitems'][n_items_i]))['pvalue']
+            dataset['vtest_nitems'][n_items_i] = utils.V_test(utils.dropnan(dataset['errors_nontarget_nitems'][n_items_i]).flatten())['pvalue']
 
             ax_handle = utils.hist_samples_density_estimation(utils.dropnan(dataset['errors_nontarget_nitems'][n_items_i]), bins=angle_space, title='Errors between response and non-targets, N=%d' % (n_items))
 
