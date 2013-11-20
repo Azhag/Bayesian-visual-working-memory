@@ -15,11 +15,13 @@ import scipy.stats as spst
 
 import matplotlib.pyplot as plt
 
+import statsmodels.distributions as stmodsdist
 
 ############################## DIRECTIONAL STATISTICS ################################
 
 def sample_angle(size=1):
     return np.random.random(size=size)*2.*np.pi - np.pi
+
 
 def mean_angles(angles):
     '''
@@ -256,12 +258,12 @@ def V_test(angles, mean_apriori=0.0):
     '''
 
     if angles.ndim > 1:
-        angles = angles.flatten()
+        print "V Test on multiple dimensions: ", angles.shape
 
 
     # Get some statistics
     mu = mean_angles(angles)
-    N = angles.size
+    N = angles.shape[0]
 
     # Compute Rayleigh's R
     R = N*angle_population_R(angles)
@@ -276,6 +278,27 @@ def V_test(angles, mean_apriori=0.0):
     pvalue = 1. - spst.norm.cdf(u)
 
     return dict(pvalue=pvalue, u=u, V=V, R=R)
+
+
+def bootstrap_v_test(angles, mean_apriori=0.0, nb_samples=5000):
+    '''
+        Performs a bootstrap evaluation of the v-test score.
+
+        Uses nb_samples reruns
+    '''
+
+    # Compute many bootstrap estimations of the V score
+    angles_bootstrap = sample_angle((angles.size, nb_samples))
+    v_scores_bootstrap = V_test(angles_bootstrap)['V']
+
+    # Estimate Empirical CDF
+    v_scores_ecdf = stmodsdist.empirical_distribution.ECDF(v_scores_bootstrap)
+
+    # Compute current V score
+    v_test = V_test(angles)
+
+    # Check its CDF to compute the bootstrapped p-value
+    p_value_bootstrap = 1. - v_scores_ecdf(v_test['V'])
 
 
 
