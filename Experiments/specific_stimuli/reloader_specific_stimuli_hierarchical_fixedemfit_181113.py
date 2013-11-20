@@ -43,7 +43,6 @@ def plots_specific_stimuli_hierarchical(data_pbs, generator_module=None):
     result_em_fits_std = utils.nanstd(np.squeeze(data_pbs.dict_arrays['result_em_fits']['results']), axis=-1)
     result_em_kappastddev_mean = utils.nanmean(utils.kappa_to_stddev(np.squeeze(data_pbs.dict_arrays['result_em_fits']['results'])[..., 0, :]), axis=-1)
     result_em_kappastddev_std = utils.nanstd(utils.kappa_to_stddev(np.squeeze(data_pbs.dict_arrays['result_em_fits']['results'])[..., 0, :]), axis=-1)
-    # result_em_resp_all = np.squeeze(data_pbs.dict_arrays['result_em_resp']['results'])
 
 
     enforce_min_distance_space = data_pbs.loaded_data['parameters_uniques']['enforce_min_distance']
@@ -147,7 +146,7 @@ def plots_specific_stimuli_hierarchical(data_pbs, generator_module=None):
 
     if savedata:
         dataio.save_variables(variables_to_save, locals())
-
+        dataio.make_link_output_to_dropbox(dropbox_current_experiment_folder='specific_stimuli')
 
     plt.show()
 
@@ -169,8 +168,8 @@ dataset_infos = dict(label='See patterns of errors on Specific Stimuli, with Mix
                      launcher_module=generator_module,
                      loading_type='args',
                      parameters=['enforce_min_distance', 'sigmax'],
-                     variables_to_load=['result_all_precisions', 'result_em_fits', 'result_em_resp'],
-                     variables_description=['Precision of recall', 'Fits mixture model', 'Responsibilities mixture model'],
+                     variables_to_load=['result_all_precisions', 'result_em_fits'],
+                     variables_description=['Precision of recall', 'Fits mixture model'],
                      post_processing=plots_specific_stimuli_hierarchical,
                      save_output_filename='plots_specificstimuli_hierarchical',
                      concatenate_multiple_datasets=True

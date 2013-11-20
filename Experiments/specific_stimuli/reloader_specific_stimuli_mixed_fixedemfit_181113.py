@@ -48,6 +48,7 @@ def plots_specific_stimuli_mixed(data_pbs, generator_module=None):
     result_em_kappastddev_std = utils.nanstd(utils.kappa_to_stddev(np.squeeze(data_pbs.dict_arrays['result_em_fits']['results'])[..., 0, :]), axis=-1)
     # result_em_resp_all = np.squeeze(data_pbs.dict_arrays['result_em_resp']['results'])
 
+    nb_repetitions = np.squeeze(data_pbs.dict_arrays['result_em_fits']['results']).shape[-1]
 
     enforce_min_distance_space = data_pbs.loaded_data['parameters_uniques']['enforce_min_distance']
     sigmax_space = data_pbs.loaded_data['parameters_uniques']['sigmax']
@@ -97,7 +98,7 @@ def plots_specific_stimuli_mixed(data_pbs, generator_module=None):
 
     if specific_plots_paper:
         # We need to choose 3 levels of min_distances
-        target_sigmax = 0.25
+        target_sigmax = 0.15
         target_mindist_low = 0.081
         target_mindist_medium = 0.36
         target_mindist_high = 1.5
@@ -108,7 +109,8 @@ def plots_specific_stimuli_mixed(data_pbs, generator_module=None):
         min_dist_level_high_i = np.argmin(np.abs(enforce_min_distance_space - target_mindist_high))
 
         ## Do for each distance
-        for min_dist_i in [min_dist_level_low_i, min_dist_level_medium_i, min_dist_level_high_i]:
+        # for min_dist_i in [min_dist_level_low_i, min_dist_level_medium_i, min_dist_level_high_i]:
+        for min_dist_i in xrange(enforce_min_distance_space.size):
             # Plot precision
             utils.plot_mean_std_area(ratio_space, result_all_precisions_mean[min_dist_i, sigmax_level_i], result_all_precisions_std[min_dist_i, sigmax_level_i]) #, xlabel='Ratio conjunctivity', ylabel='Precision of recall')
             # plt.title('Min distance %.3f' % enforce_min_distance_space[min_dist_i])
@@ -120,13 +122,13 @@ def plots_specific_stimuli_mixed(data_pbs, generator_module=None):
             # Plot kappa fitted
             utils.plot_mean_std_area(ratio_space, result_em_fits_mean[min_dist_i, sigmax_level_i, :, 0], result_em_fits_std[min_dist_i, sigmax_level_i, :, 0]) #, xlabel='Ratio conjunctivity', ylabel='Fitted kappa')
             plt.ylim([-0.1, np.max(result_em_fits_mean[min_dist_i, sigmax_level_i, :, 0] + result_em_fits_std[min_dist_i, sigmax_level_i, :, 0])])
-            # plt.title('Min distance %.3f' % enforce_min_distance_space[min_dist_i])
+            plt.title('Min distance %.3f' % enforce_min_distance_space[min_dist_i])
             if savefigs:
                 dataio.save_current_figure('mindist%.2f_emkappa_forpaper_{label}_{unique_id}.pdf' % enforce_min_distance_space[min_dist_i])
 
             # Plot kappa-stddev fitted. Easier to visualize
             utils.plot_mean_std_area(ratio_space, result_em_kappastddev_mean[min_dist_i, sigmax_level_i], result_em_kappastddev_std[min_dist_i, sigmax_level_i]) #, xlabel='Ratio conjunctivity', ylabel='Fitted kappa_stddev')
-            # plt.title('Min distance %.3f' % enforce_min_distance_space[min_dist_i])
+            plt.title('Min distance %.3f' % enforce_min_distance_space[min_dist_i])
             plt.ylim([0, 1.1*np.max(result_em_kappastddev_mean[min_dist_i, sigmax_level_i] + result_em_kappastddev_std[min_dist_i, sigmax_level_i])])
             if savefigs:
                 dataio.save_current_figure('mindist%.2f_emkappastddev_forpaper_{label}_{unique_id}.pdf' % enforce_min_distance_space[min_dist_i])
@@ -134,13 +136,14 @@ def plots_specific_stimuli_mixed(data_pbs, generator_module=None):
 
             # Plot LLH
             utils.plot_mean_std_area(ratio_space, result_em_fits_mean[min_dist_i, sigmax_level_i, :, -1], result_em_fits_std[min_dist_i, sigmax_level_i, :, -1]) #, xlabel='Ratio conjunctivity', ylabel='Loglikelihood of Mixture model fit')
-            # plt.title('Min distance %.3f' % enforce_min_distance_space[min_dist_i])
+            plt.title('Min distance %.3f' % enforce_min_distance_space[min_dist_i])
             if savefigs:
                 dataio.save_current_figure('mindist%.2f_emllh_forpaper_{label}_{unique_id}.pdf' % enforce_min_distance_space[min_dist_i])
 
             # Plot mixture parameters
-            utils.plot_multiple_mean_std_area(ratio_space, result_em_fits_mean[min_dist_i, sigmax_level_i, :, 1:4].T, result_em_fits_std[min_dist_i, sigmax_level_i, :, 1:4].T)
+            utils.plot_multiple_mean_std_area(ratio_space, result_em_fits_mean[min_dist_i, sigmax_level_i, :, 1:4].T, result_em_fits_std[min_dist_i, sigmax_level_i, :, 1:4].T/np.sqrt(nb_repetitions))
             plt.ylim([0.0, 1.1])
+            plt.title('Min distance %.3f' % enforce_min_distance_space[min_dist_i])
             # plt.legend("Target", "Non-target", "Random")
             if savefigs:
                 dataio.save_current_figure('mindist%.2f_emprobs_forpaper_{label}_{unique_id}.pdf' % enforce_min_distance_space[min_dist_i])
