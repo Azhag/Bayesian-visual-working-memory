@@ -11,6 +11,7 @@ import numpy as np
 
 import datetime
 import uuid
+import pprint
 
 import smtplib
 from email.mime.text import MIMEText
@@ -163,3 +164,17 @@ def unique_filename(prefix=None, suffix=None, unique_id=None, return_id=False):
         return [''.join(fn), unique_id]
     else:
         return ''.join(fn)
+
+
+def load_npy(filename, debug=True):
+    '''
+        Load and returns a .npy file. Plots its keys as well.
+    '''
+
+    data = np.load(filename).item()
+
+    if debug:
+        pprint.pprint(data.keys())
+
+    return data
+
