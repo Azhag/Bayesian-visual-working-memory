@@ -172,27 +172,41 @@ def plots_misbinding_logposterior(data_pbs, generator_module=None):
 
             print curr_params_fit
 
-        f, ax = plt.subplots()
-        ax2 = ax.twinx()
+        if False:
+            f, ax = plt.subplots()
+            ax2 = ax.twinx()
 
-        # left axis, kappa
-        ax = plot_mean_std_area(ratio_space, result_em_fits[:, 0], 0*result_em_fits[:, 0], xlabel='Proportion of conjunctive units', ylabel="Inverse variance $[rad^{-2}]$", ax_handle=ax, linewidth=3, fmt='o-', markersize=8, label='Fitted kappa', color='k')
+            # left axis, kappa
+            ax = plot_mean_std_area(ratio_space, result_em_fits[:, 0], 0*result_em_fits[:, 0], xlabel='Proportion of conjunctive units', ylabel="Inverse variance $[rad^{-2}]$", ax_handle=ax, linewidth=3, fmt='o-', markersize=8, label='Fitted kappa', color='k')
 
-        # Right axis, mixture probabilities
-        plot_mean_std_area(ratio_space, result_em_fits[:, 1], 0*result_em_fits[:, 1], xlabel='Proportion of conjunctive units', ylabel="Mixture probabilities", ax_handle=ax2, linewidth=3, fmt='o-', markersize=8, label='Target')
-        plot_mean_std_area(ratio_space, result_em_fits[:, 2], 0*result_em_fits[:, 2], xlabel='Proportion of conjunctive units', ylabel="Mixture probabilities", ax_handle=ax2, linewidth=3, fmt='o-', markersize=8, label='Nontarget')
-        plot_mean_std_area(ratio_space, result_em_fits[:, 3], 0*result_em_fits[:, 3], xlabel='Proportion of conjunctive units', ylabel="Mixture probabilities", ax_handle=ax2, linewidth=3, fmt='o-', markersize=8, label='Random')
+            # Right axis, mixture probabilities
+            plot_mean_std_area(ratio_space, result_em_fits[:, 1], 0*result_em_fits[:, 1], xlabel='Proportion of conjunctive units', ylabel="Mixture probabilities", ax_handle=ax2, linewidth=3, fmt='o-', markersize=8, label='Target')
+            plot_mean_std_area(ratio_space, result_em_fits[:, 2], 0*result_em_fits[:, 2], xlabel='Proportion of conjunctive units', ylabel="Mixture probabilities", ax_handle=ax2, linewidth=3, fmt='o-', markersize=8, label='Nontarget')
+            plot_mean_std_area(ratio_space, result_em_fits[:, 3], 0*result_em_fits[:, 3], xlabel='Proportion of conjunctive units', ylabel="Mixture probabilities", ax_handle=ax2, linewidth=3, fmt='o-', markersize=8, label='Random')
 
-        lines, labels = ax.get_legend_handles_labels()
-        lines2, labels2 = ax2.get_legend_handles_labels()
-        ax.legend(lines + lines2, labels + labels2, fontsize=12, loc='right')
+            lines, labels = ax.get_legend_handles_labels()
+            lines2, labels2 = ax2.get_legend_handles_labels()
+            ax.legend(lines + lines2, labels + labels2, fontsize=12, loc='right')
 
-        # ax.set_xlim([0.9, 5.1])
-        # ax.set_xticks(range(1, 6))
-        # ax.set_xticklabels(range(1, 6))
-        plt.grid()
+            # ax.set_xlim([0.9, 5.1])
+            # ax.set_xticks(range(1, 6))
+            # ax.set_xticklabels(range(1, 6))
+            plt.grid()
 
-        f.canvas.draw()
+            f.canvas.draw()
+
+        if True:
+            # Right axis, mixture probabilities
+            ax = plot_mean_std_area(ratio_space, result_em_fits[:, 1], 0*result_em_fits[:, 1], xlabel='Proportion of conjunctive units', ylabel="Mixture probabilities", linewidth=3, fmt='-', markersize=8, label='Target')
+            plot_mean_std_area(ratio_space, result_em_fits[:, 2], 0*result_em_fits[:, 2], xlabel='Proportion of conjunctive units', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='-', markersize=8, label='Nontarget')
+            plot_mean_std_area(ratio_space, result_em_fits[:, 3], 0*result_em_fits[:, 3], xlabel='Proportion of conjunctive units', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='-', markersize=8, label='Random')
+
+            ax.legend(loc='right')
+
+            # ax.set_xlim([0.9, 5.1])
+            # ax.set_xticks(range(1, 6))
+            # ax.set_xticklabels(range(1, 6))
+            plt.grid()
 
         if savefigs:
             dataio.save_current_figure('results_misbinding_emmixture_allratioconj_{label}_global_{unique_id}.pdf')

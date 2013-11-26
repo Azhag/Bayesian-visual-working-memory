@@ -98,7 +98,7 @@ def plots_specific_stimuli_mixed(data_pbs, generator_module=None):
 
     if specific_plots_paper:
         # We need to choose 3 levels of min_distances
-        target_sigmax = 0.15
+        target_sigmax = 0.25
         target_mindist_low = 0.081
         target_mindist_medium = 0.36
         target_mindist_high = 1.5
@@ -122,13 +122,13 @@ def plots_specific_stimuli_mixed(data_pbs, generator_module=None):
             # Plot kappa fitted
             utils.plot_mean_std_area(ratio_space, result_em_fits_mean[min_dist_i, sigmax_level_i, :, 0], result_em_fits_std[min_dist_i, sigmax_level_i, :, 0]) #, xlabel='Ratio conjunctivity', ylabel='Fitted kappa')
             plt.ylim([-0.1, np.max(result_em_fits_mean[min_dist_i, sigmax_level_i, :, 0] + result_em_fits_std[min_dist_i, sigmax_level_i, :, 0])])
-            plt.title('Min distance %.3f' % enforce_min_distance_space[min_dist_i])
+            # plt.title('Min distance %.3f' % enforce_min_distance_space[min_dist_i])
             if savefigs:
                 dataio.save_current_figure('mindist%.2f_emkappa_forpaper_{label}_{unique_id}.pdf' % enforce_min_distance_space[min_dist_i])
 
             # Plot kappa-stddev fitted. Easier to visualize
             utils.plot_mean_std_area(ratio_space, result_em_kappastddev_mean[min_dist_i, sigmax_level_i], result_em_kappastddev_std[min_dist_i, sigmax_level_i]) #, xlabel='Ratio conjunctivity', ylabel='Fitted kappa_stddev')
-            plt.title('Min distance %.3f' % enforce_min_distance_space[min_dist_i])
+            # plt.title('Min distance %.3f' % enforce_min_distance_space[min_dist_i])
             plt.ylim([0, 1.1*np.max(result_em_kappastddev_mean[min_dist_i, sigmax_level_i] + result_em_kappastddev_std[min_dist_i, sigmax_level_i])])
             if savefigs:
                 dataio.save_current_figure('mindist%.2f_emkappastddev_forpaper_{label}_{unique_id}.pdf' % enforce_min_distance_space[min_dist_i])
@@ -136,17 +136,25 @@ def plots_specific_stimuli_mixed(data_pbs, generator_module=None):
 
             # Plot LLH
             utils.plot_mean_std_area(ratio_space, result_em_fits_mean[min_dist_i, sigmax_level_i, :, -1], result_em_fits_std[min_dist_i, sigmax_level_i, :, -1]) #, xlabel='Ratio conjunctivity', ylabel='Loglikelihood of Mixture model fit')
-            plt.title('Min distance %.3f' % enforce_min_distance_space[min_dist_i])
+            # plt.title('Min distance %.3f' % enforce_min_distance_space[min_dist_i])
             if savefigs:
                 dataio.save_current_figure('mindist%.2f_emllh_forpaper_{label}_{unique_id}.pdf' % enforce_min_distance_space[min_dist_i])
 
-            # Plot mixture parameters
-            utils.plot_multiple_mean_std_area(ratio_space, result_em_fits_mean[min_dist_i, sigmax_level_i, :, 1:4].T, result_em_fits_std[min_dist_i, sigmax_level_i, :, 1:4].T/np.sqrt(nb_repetitions))
+            # Plot mixture parameters, std
+            utils.plot_multiple_mean_std_area(ratio_space, result_em_fits_mean[min_dist_i, sigmax_level_i, :, 1:4].T, result_em_fits_std[min_dist_i, sigmax_level_i, :, 1:4].T)
             plt.ylim([0.0, 1.1])
-            plt.title('Min distance %.3f' % enforce_min_distance_space[min_dist_i])
+            # plt.title('Min distance %.3f' % enforce_min_distance_space[min_dist_i])
             # plt.legend("Target", "Non-target", "Random")
             if savefigs:
                 dataio.save_current_figure('mindist%.2f_emprobs_forpaper_{label}_{unique_id}.pdf' % enforce_min_distance_space[min_dist_i])
+
+            # Mixture parameters, SEM
+            utils.plot_multiple_mean_std_area(ratio_space, result_em_fits_mean[min_dist_i, sigmax_level_i, :, 1:4].T, result_em_fits_std[min_dist_i, sigmax_level_i, :, 1:4].T/np.sqrt(nb_repetitions))
+            plt.ylim([0.0, 1.1])
+            # plt.title('Min distance %.3f' % enforce_min_distance_space[min_dist_i])
+            # plt.legend("Target", "Non-target", "Random")
+            if savefigs:
+                dataio.save_current_figure('mindist%.2f_emprobs_forpaper_sem_{label}_{unique_id}.pdf' % enforce_min_distance_space[min_dist_i])
 
 
     all_args = data_pbs.loaded_data['args_list']

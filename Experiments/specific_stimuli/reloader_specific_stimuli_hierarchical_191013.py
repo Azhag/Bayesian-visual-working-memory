@@ -53,13 +53,14 @@ def plots_specific_stimuli_hierarchical(data_pbs, generator_module=None):
     MMlower_valid_space = data_pbs.loaded_data['datasets_list'][0]['MMlower_valid_space']
     ratio_space = MMlower_valid_space[:, 0]/float(np.sum(MMlower_valid_space[0]))
 
+    nb_repetitions = np.squeeze(data_pbs.dict_arrays['result_em_fits']['results']).shape[-1]
+
     print enforce_min_distance_space
     print sigmax_space
     print MMlower_valid_space
     print result_all_precisions_mean.shape, result_em_fits_mean.shape, result_em_resp_all.shape
 
     dataio = DataIO(output_folder=generator_module.pbs_submission_infos['simul_out_dir'] + '/outputs/', label='global_' + dataset_infos['save_output_filename'])
-
 
     if plot_per_min_dist_all:
         # Do one plot per min distance.
@@ -137,9 +138,17 @@ def plots_specific_stimuli_hierarchical(data_pbs, generator_module=None):
 
             # Plot mixture parameters
             plot_multiple_mean_std_area(ratio_space, result_em_fits_mean[min_dist_i, sigmax_level_i, :, 1:4].T, result_em_fits_std[min_dist_i, sigmax_level_i, :, 1:4].T)
+            plt.ylim([0.0, 1.1])
             # plt.legend("Target", "Non-target", "Random")
             if savefigs:
                 dataio.save_current_figure('mindist%.2f_emprobs_forpaper_{label}_{unique_id}.pdf' % enforce_min_distance_space[min_dist_i])
+
+            # Plot mixture parameters, SEM
+            plot_multiple_mean_std_area(ratio_space, result_em_fits_mean[min_dist_i, sigmax_level_i, :, 1:4].T, result_em_fits_std[min_dist_i, sigmax_level_i, :, 1:4].T/np.sqrt(nb_repetitions))
+            plt.ylim([0.0, 1.1])
+            # plt.legend("Target", "Non-target", "Random")
+            if savefigs:
+                dataio.save_current_figure('mindist%.2f_emprobs_forpaper_sem_{label}_{unique_id}.pdf' % enforce_min_distance_space[min_dist_i])
 
 
 

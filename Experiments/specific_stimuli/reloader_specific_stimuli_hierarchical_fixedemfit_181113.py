@@ -44,6 +44,7 @@ def plots_specific_stimuli_hierarchical(data_pbs, generator_module=None):
     result_em_kappastddev_mean = utils.nanmean(utils.kappa_to_stddev(np.squeeze(data_pbs.dict_arrays['result_em_fits']['results'])[..., 0, :]), axis=-1)
     result_em_kappastddev_std = utils.nanstd(utils.kappa_to_stddev(np.squeeze(data_pbs.dict_arrays['result_em_fits']['results'])[..., 0, :]), axis=-1)
 
+    nb_repetitions = np.squeeze(data_pbs.dict_arrays['result_em_fits']['results']).shape[-1]
 
     enforce_min_distance_space = data_pbs.loaded_data['parameters_uniques']['enforce_min_distance']
     sigmax_space = data_pbs.loaded_data['parameters_uniques']['sigmax']
@@ -106,7 +107,8 @@ def plots_specific_stimuli_hierarchical(data_pbs, generator_module=None):
         min_dist_level_high_i = np.argmin(np.abs(enforce_min_distance_space - target_mindist_high))
 
         ## Do for each distance
-        for min_dist_i in [min_dist_level_low_i, min_dist_level_medium_i, min_dist_level_high_i]:
+        # for min_dist_i in [min_dist_level_low_i, min_dist_level_medium_i, min_dist_level_high_i]:
+        for min_dist_i in xrange(enforce_min_distance_space.size):
             # Plot precision
             utils.plot_mean_std_area(ratio_space, result_all_precisions_mean[min_dist_i, sigmax_level_i], result_all_precisions_std[min_dist_i, sigmax_level_i]) #, xlabel='Ratio conjunctivity', ylabel='Precision of recall')
             # plt.title('Min distance %.3f' % enforce_min_distance_space[min_dist_i])
@@ -135,9 +137,17 @@ def plots_specific_stimuli_hierarchical(data_pbs, generator_module=None):
 
             # Plot mixture parameters
             utils.plot_multiple_mean_std_area(ratio_space, result_em_fits_mean[min_dist_i, sigmax_level_i, :, 1:4].T, result_em_fits_std[min_dist_i, sigmax_level_i, :, 1:4].T)
+            plt.ylim([0.0, 1.1])
             # plt.legend("Target", "Non-target", "Random")
             if savefigs:
                 dataio.save_current_figure('mindist%.2f_emprobs_forpaper_{label}_{unique_id}.pdf' % enforce_min_distance_space[min_dist_i])
+
+            # Plot mixture parameters, SEM
+            utils.plot_multiple_mean_std_area(ratio_space, result_em_fits_mean[min_dist_i, sigmax_level_i, :, 1:4].T, result_em_fits_std[min_dist_i, sigmax_level_i, :, 1:4].T/np.sqrt(nb_repetitions))
+            plt.ylim([0.0, 1.1])
+            # plt.legend("Target", "Non-target", "Random")
+            if savefigs:
+                dataio.save_current_figure('mindist%.2f_emprobs_forpaper_sem_{label}_{unique_id}.pdf' % enforce_min_distance_space[min_dist_i])
 
 
 
