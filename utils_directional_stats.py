@@ -289,16 +289,18 @@ def bootstrap_v_test(angles, mean_apriori=0.0, nb_samples=5000):
 
     # Compute many bootstrap estimations of the V score
     angles_bootstrap = sample_angle((angles.size, nb_samples))
-    v_scores_bootstrap = V_test(angles_bootstrap)['V']
+    v_scores_bootstrap = V_test(angles_bootstrap, mean_apriori=mean_apriori)['V']
 
     # Estimate Empirical CDF
     v_scores_ecdf = stmodsdist.empirical_distribution.ECDF(v_scores_bootstrap)
 
     # Compute current V score
-    v_test = V_test(angles)
+    v_test = V_test(angles, mean_apriori=mean_apriori)
 
     # Check its CDF to compute the bootstrapped p-value
     p_value_bootstrap = 1. - v_scores_ecdf(v_test['V'])
+
+    return dict(p_value_bootstrap=p_value_bootstrap, v_scores_ecdf=v_scores_ecdf, v_test=v_test)
 
 
 

@@ -11,8 +11,11 @@ import numpy as np
 import scipy.special as spsp
 import scipy.stats as spst
 from sklearn.cross_validation import KFold
+import statsmodels.distributions as stmodsdist
 
 import utils
+
+import progress
 
 def fit(responses, target_angle, nontarget_angles=np.array([[]]), initialisation_method='mixed', nb_initialisations=5, debug=False):
     '''
@@ -37,7 +40,7 @@ def fit(responses, target_angle, nontarget_angles=np.array([[]]), initialisation
     N = float(np.sum(~np.isnan(responses)))
     K = float(nontarget_angles.shape[1])
     max_iter = 1000
-    epsilon = 1e-4
+    epsilon = 1e-5
 
     # Initial parameters
     initial_parameters_list = initialise_parameters(responses.size, K, initialisation_method, nb_initialisations)
@@ -274,7 +277,7 @@ def initialise_parameters_random(N, K, nb_initialisations=10):
         mixt_nontargets /= mixt_sum
         mixt_random /= mixt_sum
 
-        all_params.append((kappa, mixt_target, mixt_nontargets, mixt_random, resp_ik))
+        all_params.append((kappa, mixt_target, mixt_random, mixt_nontargets, resp_ik))
 
     return all_params
 
@@ -290,8 +293,8 @@ def initialise_parameters_fixed(N, K):
     '''
 
     kappa = [1., 10, 100, 300, 4000, 20, 0.3]
-    mixt_nontargets = [0.01, 0.1, 0.4, 0.01, 0.01, 0.01, 0.1]
-    mixt_random = [0.01, 0.1, 0.4, 0.1, 0.01, 0.5, 0.1]
+    mixt_nontargets = [0.01, 0.1, 0.4, 0.01, 0.01, 0.01, 0.05]
+    mixt_random = [0.01, 0.1, 0.4, 0.1, 0.01, 0.5, 0.05]
 
     mixt_target = [1. - mixt_nontargets[i] - mixt_random[i] for i in xrange(len(kappa))]
 
@@ -317,6 +320,9 @@ def wrap(angles):
 
 
 def vonmisespdf(x, mu, K):
+    '''
+        Von Mises PDF (switch to Normal if high kappa)
+    '''
     if K > 700.:
         return spst.norm.pdf(x, mu, 1./np.sqrt(K))
     else:
@@ -324,12 +330,56 @@ def vonmisespdf(x, mu, K):
 
 
 def A1inv(R):
+    '''
+        Invert A1() function
+    '''
+
     if R >= 0.0 and R < 0.53:
         return 2*R + R**3 + (5.*R**5)/6.
     elif R < 0.85:
         return -0.4 + 1.39*R + 0.43/(1. - R)
     else:
         return 1./(R**3 - 4*R**2 + 3*R)
+
+
+def bootstrap_nontarget_stat(responses, target, nontargets=np.array([[]]), nontarget_bootstrap_ecdf=None, nb_bootstrap_samples=100, resample_responses=False, resample_targets=False):
+    '''
+        Performs a bootstrap evaluation of the nontarget mixture proportion distribution.
+
+        Use that to construct a test for existence of misbinding errors
+    '''
+
+    if nontarget_bootstrap_ecdf is None:
+        # Get samples
+        if resample_responses:
+            bootstrap_responses = utils.sample_angle((responses.size, nb_bootstrap_samples))
+        if resample_targets:
+            bootstrap_targets = utils.sample_angle((responses.size, nb_bootstrap_samples))
+        bootstrap_nontargets = utils.sample_angle((nontargets.shape[0], nontargets.shape[1], nb_bootstrap_samples))
+
+        bootstrap_results = []
+
+        for i in progress.ProgressDisplay(np.arange(nb_bootstrap_samples), display=progress.SINGLE_LINE):
+
+            if resample_responses and resample_targets:
+                em_fit = fit(bootstrap_responses[..., i], bootstrap_targets[..., i], bootstrap_nontargets[..., i])
+            elif resample_responses and not resample_targets:
+                em_fit = fit(bootstrap_responses[..., i], target, bootstrap_nontargets[..., i])
+            elif not resample_responses and not resample_targets:
+                em_fit = fit(responses, target, bootstrap_nontargets[..., i])
+
+            bootstrap_results.append(em_fit)
+
+        nontarget_bootstrap = np.array([bootstr_res['mixt_nontargets'] for bootstr_res in bootstrap_results])
+
+        # Estimate CDF
+        nontarget_bootstrap_ecdf = stmodsdist.empirical_distribution.ECDF(nontarget_bootstrap)
+
+    # Compute the p-value for the provided
+    em_fit = fit(responses, target, nontargets)
+    p_value_bootstrap = 1. - nontarget_bootstrap_ecdf(em_fit['mixt_nontargets'])
+
+    return dict(p_value=p_value_bootstrap, nontarget_ecdf=nontarget_bootstrap_ecdf, em_fit=em_fit, nontarget_bootstrap=nontarget_bootstrap)
 
 
 def test():
@@ -339,9 +389,9 @@ def test():
 
     N = 3000
     N_rnd = N/3
-    kappa_space = np.array([0.5, 1.0, 5.0, 20., 100, 3000, 5000.])
-
     target = np.zeros(N)
+
+    kappa_space = np.array([1.0, 5.0, 20., 100, 3000, 5000., 0.5])
 
     kappa_fitted = np.zeros(kappa_space.size)
 
@@ -356,11 +406,39 @@ def test():
         kappa_fitted[kappa_i] = em_fit['kappa']
 
     # Check if estimated kappa is within 20% of target one
-    print kappa_fitted/kappa_space
+    print kappa_fitted, kappa_fitted/kappa_space
     assert np.all(np.abs(kappa_fitted/kappa_space - 1.0) < 0.20)
+
+
+def test_bootstrap_nontargets():
+    '''
+        Check how the bootstrapped test for misbinding errors behaves
+    '''
+
+    N = 300
+    nb_nontargets = 1
+    kappa = 5.0
+
+    target = np.zeros(N)
+    nontargets = utils.wrap_angles(np.linspace(0.0, 2*np.pi, nb_nontargets + 1, endpoint=False)[1:])*np.ones((N, nb_nontargets))
+
+    responses = spst.vonmises.rvs(kappa, size=(N))
+    responses[np.random.randint(N, size=N/3)] = utils.sample_angle(N/3)
+
+    # em_fit = fit(responses, target, nontargets)
+
+    bootstrap_results = bootstrap_nontarget_stat(responses, target, nontargets)
+
+    print bootstrap_results
+
+    assert bootstrap_results['p_value'] > 0.05, "No misbinding here, should not reject H0"
+
+
+
 
 
 if __name__ == '__main__':
     test()
+    # pass
 
 
