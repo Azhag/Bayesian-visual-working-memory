@@ -521,6 +521,7 @@ def compute_precision(errors, remove_chance_level=True, correct_orientation=True
 
     return precision
 
+
 def fit_mixture_model(dataset, caching_save_filename=None):
     '''
         Fit the mixture model onto classical responses/item_angle values
@@ -562,7 +563,7 @@ def fit_mixture_model(dataset, caching_save_filename=None):
         for subject in np.unique(dataset['subject']):
             dataset['em_fits_subjects_nitems'][subject] = dict()
 
-        dataset['em_fits_nitems'] = dict(mean=dict(), std=dict())
+        dataset['em_fits_nitems'] = dict(mean=dict(), std=dict(), values=dict())
 
         # Compute mixture model fits per n_items and per subject
         for n_items in np.unique(dataset['n_items']):
@@ -595,6 +596,7 @@ def fit_mixture_model(dataset, caching_save_filename=None):
             ## Now compute mean/std em_fits per n_items
             dataset['em_fits_nitems']['mean'][n_items] = dict()
             dataset['em_fits_nitems']['std'][n_items] = dict()
+            dataset['em_fits_nitems']['values'][n_items] = dict()
 
             # Need to extract the values for a subject/nitems pair, for all keys of em_fits. Annoying dictionary indexing needed
             emfits_keys = params_fit.keys()
@@ -603,6 +605,7 @@ def fit_mixture_model(dataset, caching_save_filename=None):
 
                 dataset['em_fits_nitems']['mean'][n_items][key] = np.mean(values_allsubjects)
                 dataset['em_fits_nitems']['std'][n_items][key] = np.std(values_allsubjects)
+                dataset['em_fits_nitems']['values'][n_items][key] = values_allsubjects
 
     if save_caching_file:
         try:
@@ -957,7 +960,7 @@ if __name__ == '__main__':
     # 'probe', 'delayed', 'item_colour', 'probe_colour', 'item_angle', 'error', 'probe_angle', 'n_items', 'response', 'subject']
         # (data_sequen, data_simult, data_dualrecall) = load_multiple_datasets([dict(filename='Exp1.mat', preprocess=preprocess_sequential, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'))), dict(filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), fit_mixturemodel=True)), dict(filename=os.path.join(data_dir, 'DualRecall_Bays', 'rate_data.mat'), preprocess=preprocess_doublerecall, parameters=dict(fit_mixturemodel=True))])
         (data_simult,) = load_multiple_datasets([dict(filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), fit_mixturemodel=True, mixture_model_cache='em_simult.pickle'))])
-        # (data_bays2009) = load_multiple_datasets([dict(filename='colour_data.mat', preprocess=preprocess_bays2009, parameters=dict(datadir=os.path.join(data_dir, 'Bays2009'), fit_mixturemodel=False))])
+        (data_bays2009) = load_multiple_datasets([dict(filename='colour_data.mat', preprocess=preprocess_bays2009, parameters=dict(datadir=os.path.join(data_dir, 'Bays2009'), fit_mixturemodel=False))])
 
 
     # Check for bias towards 0 for the error between response and all items
