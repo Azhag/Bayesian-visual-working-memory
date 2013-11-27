@@ -113,6 +113,13 @@ def angle_population_vector(angles):
     return np.mean(np.exp(1j*angles), axis=0)
 
 
+def angle_population_vector_weighted(angles, weights):
+    '''
+        Compute the weighted mean of the population vector of a set of angles
+    '''
+    return np.nansum(np.exp(1j*angles)*weights, axis=0)/np.nansum(weights)
+
+
 def angle_population_mean(angles=None, angle_population_vec=None):
     '''
         Compute the mean of the angle population complex vector.
@@ -125,15 +132,20 @@ def angle_population_mean(angles=None, angle_population_vec=None):
     return np.angle(angle_population_vec)
 
 
-def angle_population_R(angles=None, angle_population_vec=None):
+def angle_population_R(angles=None, angle_population_vec=None, weights=None):
     '''
         Compute R, the length of the angle population complex vector.
 
         Used to compute Standard deviation and diverse tests.
+
+        If weights is provided, computes a weighted population mean vector instead.
     '''
 
     if angle_population_vec is None:
-        angle_population_vec = angle_population_vector(angles)
+        if weights is None:
+            angle_population_vec = angle_population_vector(angles)
+        else:
+            angle_population_vec = angle_population_vector_weighted(angles, weights)
 
     return np.abs(angle_population_vec)
 
