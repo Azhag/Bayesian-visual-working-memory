@@ -95,7 +95,7 @@ class Sampler:
         self.Y[:,0,:] = self.time_weights[1,0]*features_combined[:,0,:] + np.sqrt(self.sigma2y)*np.random.randn(self.N, self.M)
         
         # t < T
-        for t in np.arange(1, self.T-1):
+        for t in xrange(1, self.T-1):
             self.Y[:, t, :] = self.time_weights[0, t]*self.Y[:, t-1, :] + self.time_weights[1, t]*features_combined[:, t, :] + np.sqrt(self.sigma2y)*np.random.randn(self.N, self.M)
         
         # t= T is fixed
@@ -291,9 +291,9 @@ class Sampler:
         # print np.sum(self.m)
         
         l = self.K*self.T*np.log(self.alpha_k)
-        for t in np.arange(self.T):
-            for r in np.arange(self.R):
-                for k in np.arange(self.K):
+        for t in xrange(self.T):
+            for r in xrange(self.R):
+                for k in xrange(self.K):
                     l += scsp.gammaln(self.N - self.m[t, r, k] + 1.)
                     l -= scsp.gammaln(self.N + self.alpha_k + 1.)
                     l += scsp.gammaln(self.m[t, r, k] + self.alpha_k)
@@ -323,7 +323,7 @@ class Sampler:
         if verbose:
             print "Initialisation: likelihoods = y %.3f, z %.3f, joint: %.3f" % (log_y[0], log_z[0], log_joint[0])
         
-        for i in np.arange(iterations):
+        for i in xrange(iterations):
             # Do a full sampling sweep
             self.sample_all()
             
@@ -395,9 +395,9 @@ class Sampler:
         
         inferred_angles = np.empty((self.N, self.T, self.R))
         
-        for n in np.arange(self.N):
-            for t in np.arange(self.T):
-                for r in np.arange(self.R):
+        for n in xrange(self.N):
+            for t in xrange(self.T):
+                for r in xrange(self.R):
                     # Chosen angles
                     chosen_angles = self.random_network.possible_angles[input_Z[n,t,r]]
                     
