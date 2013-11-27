@@ -108,6 +108,8 @@ def plots_errors_distribution(data_pbs, generator_module=None):
                     if savefigs:
                         dataio.save_current_figure('error_bestnontarget_hist_sigmax%.2f_T%d_{label}_{unique_id}.pdf' % (sigmax, T))
 
+                    # TODO Compute bootstrap v test and bootstrap em fits
+
 
     all_args = data_pbs.loaded_data['args_list']
 
