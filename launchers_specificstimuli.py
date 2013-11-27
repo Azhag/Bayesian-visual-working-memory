@@ -54,6 +54,13 @@ def launcher_do_mixed_special_stimuli(args):
     result_em_fits = np.nan*np.ones((ratio_space.size, 5, all_parameters['num_repetitions']))  # kappa, mixt_target, mixt_nontarget, mixt_random, ll
     result_em_resp = np.nan*np.ones((ratio_space.size, 1+all_parameters['T'], all_parameters['N'], all_parameters['num_repetitions']))
 
+    # If desired, will automatically save all Model responses.
+    if all_parameters['subaction'] == 'collect_responses':
+        result_responses = np.nan*np.ones((ratio_space.size, all_parameters['N'], all_parameters['num_repetitions']))
+        result_target = np.nan*np.ones((ratio_space.size, all_parameters['N'], all_parameters['num_repetitions']))
+        result_nontargets = np.nan*np.ones((ratio_space.size, all_parameters['N'], all_parameters['T']-1, all_parameters['num_repetitions']))
+
+
     search_progress = progress.Progress(ratio_space.size*all_parameters['num_repetitions'])
 
     for repet_i in xrange(all_parameters['num_repetitions']):
@@ -89,6 +96,16 @@ def launcher_do_mixed_special_stimuli(args):
             result_em_resp[ratio_i, -1, :, repet_i] = curr_resp['random']
 
             print result_all_precisions[ratio_i, repet_i], curr_params_fit
+
+            # If needed, store responses
+            if all_parameters['subaction'] == 'collect_responses':
+                (responses, target, nontarget) = sampler.collect_responses()
+                result_responses[ratio_i, :, repet_i] = responses
+                result_target[ratio_i, :, repet_i] = target
+                result_nontargets[ratio_i, ..., repet_i] = nontarget
+
+                print "collected responses"
+
             ### /Work ###
 
             search_progress.increment()

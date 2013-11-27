@@ -177,6 +177,7 @@ this_file = inspect.getfile(inspect.currentframe())
 parameters_entryscript=dict(action_to_do='launcher_do_reload_constrained_parameters', output_directory='.')
 
 generator_script = 'generator' + re.split("^reloader", os.path.split(this_file)[-1])[-1]
+# generator_script = 'generator_specific_stimuli_mixed_fixedemfit_otherrange_201113.py'
 
 print "Reloader data generated from ", generator_script
 
