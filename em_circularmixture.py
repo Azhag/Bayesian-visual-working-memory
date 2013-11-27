@@ -134,8 +134,13 @@ def fit(responses, target_angle, nontarget_angles=np.array([[]]), initialisation
 
         initial_i += 1
 
+    result_dict = dict(kappa=best_kappa, mixt_target=best_mixt_target, mixt_nontargets=best_mixt_nontargets, mixt_random=best_mixt_random, train_LL=overall_LL, K=K)
 
-    return dict(kappa=best_kappa, mixt_target=best_mixt_target, mixt_nontargets=best_mixt_nontargets, mixt_random=best_mixt_random, train_LL=overall_LL)
+    # Compute BIC and AIC scores
+    result_dict['bic'] = bic(result_dict, N)
+    result_dict['aic'] = aic(result_dict)
+
+    return result_dict
 
 
 def compute_loglikelihood(responses, target_angle, nontarget_angles, parameters):
@@ -382,16 +387,46 @@ def bootstrap_nontarget_stat(responses, target, nontargets=np.array([[]]), nonta
     return dict(p_value=p_value_bootstrap, nontarget_ecdf=nontarget_bootstrap_ecdf, em_fit=em_fit, nontarget_bootstrap=nontarget_bootstrap)
 
 
+def aic(em_fit_result_dict):
+    '''
+        Compute Akaike Information Criterion.
+    '''
+    # Number of parameters:
+    # - mixt_target: 1
+    # - mixt_random: 1
+    # - mixt_nontarget: K
+    # - kappa: 1
+    K = 3 + em_fit_result_dict['K']
+
+    return utils.aic(K, em_fit_result_dict['train_LL'])
+
+
+def bic(em_fit_result_dict, N):
+    '''
+        Compute the Bayesian Information Criterion score
+    '''
+
+    # Number of parameters:
+    # - mixt_target: 1
+    # - mixt_random: 1
+    # - mixt_nontarget: K
+    # - kappa: 1
+    K = 3 + em_fit_result_dict['K']
+
+    return utils.bic(K, em_fit_result_dict['train_LL'], N)
+
+
 def test():
     '''
         Does a Unit test, samples data from a mixture of one Von mises and random perturbations. Then fits the model and check if everything works.
     '''
 
-    N = 3000
-    N_rnd = N/3
+    N = 5000
+    N_rnd = N/5
     target = np.zeros(N)
 
-    kappa_space = np.array([1.0, 5.0, 20., 100, 3000, 5000., 0.5])
+    # kappa_space = np.array([1.0, 5.0, 20., 100, 3000, 5000., 0.5])
+    kappa_space = np.array([5.0])
 
     kappa_fitted = np.zeros(kappa_space.size)
 
@@ -404,6 +439,8 @@ def test():
         em_fit = fit(responses, target, debug=False)
 
         kappa_fitted[kappa_i] = em_fit['kappa']
+
+        print em_fit
 
     # Check if estimated kappa is within 20% of target one
     print kappa_fitted, kappa_fitted/kappa_space

@@ -197,3 +197,24 @@ def ashman_d(xdata, ydata):
 
     return D
 
+
+def aic(K, LL):
+    '''
+        Compute Akaike Information Criterion
+
+        K: number of parameters
+        LL: loglikelihood of model
+    '''
+
+    return 2*K - 2.*LL
+
+def bic(K, LL, N):
+    '''
+        Compute Bayesian Information Criterion
+
+        K: number of parameters
+        LL: loglikelihood of model
+    '''
+
+    return -LL + K/2.*np.log(N)
+
