@@ -273,8 +273,11 @@ def hist_angular_data(data, bins=20, in_degrees=False, title=None, norm=None, fi
     else:
         bound_x = np.pi
 
-    x = np.linspace(-bound_x, bound_x, bins)
-    # x_centers = (x + bound_x/(bins-1.))[:-1]
+    if np.isscalar(bins):
+        x = np.linspace(-bound_x, bound_x, bins)
+    else:
+        x = bins
+        bins = bins.size
 
     x_edges = x - bound_x/bins  # np.histogram wants the left-right boundaries...
     x_edges = np.r_[x_edges, -x_edges[0]]  # the rightmost boundary is the mirror of the leftmost one
@@ -298,6 +301,8 @@ def hist_angular_data(data, bins=20, in_degrees=False, title=None, norm=None, fi
     ax_handle.set_xlim([x[0]*1.1, 1.1*x[-1]])
 
     ax_handle.get_figure().canvas.draw()
+
+    return ax_handle
 
 
 def hist_samples_density_estimation(samples, bins=50, ax_handle=None, title=None, show_parameters=True, dataio=None, filename=''):
