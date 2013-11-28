@@ -15,6 +15,8 @@ import matplotlib.pyplot as plt
 
 import inspect
 
+import em_circularmixture
+import em_circularmixture_allitems
 
 # Commit @4ffae5c +
 
@@ -86,29 +88,49 @@ def plots_errors_distribution(data_pbs, generator_module=None):
                 # Now, per T items, show the distribution of errors and of errors to non target
 
                 # Error to target
-                utils.hist_samples_density_estimation(errors_targets[T_i].reshape(nb_repetitions*N), bins=angle_space, title='Errors between response and target, N=%d' % (T))
+                # hist_errors_targets = np.zeros((angle_space.size, nb_repetitions))
+                # for repet_i in xrange(nb_repetitions):
+                #     hist_errors_targets[:, repet_i], _, _ = utils_math.histogram_binspace(errors_targets[T_i, :, repet_i], bins=angle_space)
+
+                # f, ax = plt.subplots()
+                # ax.bar(angle_space, np.mean(hist_errors_targets, axis=-1), width=2.*np.pi/(angle_space.size-1), align='center')
+                # ax.set_xlim([angle_space[0] - np.pi/(angle_space.size-1), angle_space[-1] + np.pi/(angle_space.size-1)])
+
+                # utils.plot_mean_std_area(angle_space, np.mean(hist_errors_targets, axis=-1), np.std(hist_errors_targets, axis=-1))
+
+                ax_handle = utils.hist_angular_data(errors_targets[T_i].reshape(nb_repetitions*N), bins=angle_space, title='Errors between response and target, N=%d' % (T), norm='density')
+
 
                 if savefigs:
                     dataio.save_current_figure('error_target_hist_sigmax%.2f_T%d_{label}_{unique_id}.pdf' % (sigmax, T))
 
                 if T > 1:
                     # Error to nontarget
-                    ax_handle = utils.hist_samples_density_estimation(errors_nontargets[T_i, :, :T_i].reshape(nb_repetitions*N*T_i), bins=angle_space, title='Errors between response and non targets, N=%d' % (T))
+                    # ax_handle = utils.hist_samples_density_estimation(errors_nontargets[T_i, :, :T_i].reshape(nb_repetitions*N*T_i), bins=angle_space, title='Errors between response and non targets, N=%d' % (T))
+                    ax_handle = utils.hist_angular_data(errors_nontargets[T_i, :, :T_i].reshape(nb_repetitions*N*T_i), bins=angle_space, title='Errors between response and non-targets, N=%d' % (T), norm='density')
+                    # ax_handle.set_xlim([-np.pi, np.pi])
 
-                    result_pval_vtest_nontargets[sigmax, T_i] = utils.V_test(errors_nontargets[T_i, :, :T_i].reshape(nb_repetitions*N*T_i))['pvalue']
+                    result_pval_vtest_nontargets[sigmax_i, T_i] = utils.V_test(errors_nontargets[T_i, :, :T_i].reshape(nb_repetitions*N*T_i))['pvalue']
 
-                    print result_pval_vtest_nontargets[sigmax, T_i]
+                    print result_pval_vtest_nontargets[sigmax_i, T_i]
 
-                    ax_handle.text(0.02, 0.97, "Vtest pval: %.2f" % (result_pval_vtest_nontargets[sigmax, T_i]), transform=ax_handle.transAxes, horizontalalignment='left', fontsize=12)
+                    ax_handle.text(0.03, 0.96, "Vtest pval: %.2f" % (result_pval_vtest_nontargets[sigmax_i, T_i]), transform=ax_handle.transAxes, horizontalalignment='left', fontsize=12)
 
                     if savefigs:
                         dataio.save_current_figure('error_nontargets_hist_sigmax%.2f_T%d_{label}_{unique_id}.pdf' % (sigmax, T))
 
                     # Error to best non target
-                    utils.hist_samples_density_estimation(errors_best_nontarget[T_i].reshape(nb_repetitions*N), bins=angle_space, title='Errors between response and best non target, N=%d' % (T))
+                    # utils.hist_samples_density_estimation(errors_best_nontarget[T_i].reshape(nb_repetitions*N), bins=angle_space, title='Errors between response and best non target, N=%d' % (T))
 
-                    if savefigs:
-                        dataio.save_current_figure('error_bestnontarget_hist_sigmax%.2f_T%d_{label}_{unique_id}.pdf' % (sigmax, T))
+                    # if savefigs:
+                    #     dataio.save_current_figure('error_bestnontarget_hist_sigmax%.2f_T%d_{label}_{unique_id}.pdf' % (sigmax, T))
+
+
+                # Fit Mixture model and get P-value from them
+                em_fit = em_circularmixture.fit(result_responses_all[sigmax_i, T_i].flatten(), result_target_all[sigmax_i, T_i].flatten(), result_nontargets_all[sigmax_i, T_i, :, :T_i].transpose((0, 2, 1)).reshape((N*nb_repetitions, T_i)))
+                em_fit_nonontargets = em_circularmixture.fit(result_responses_all[sigmax_i, T_i].flatten(), result_target_all[sigmax_i, T_i].flatten())
+                em_fit_allitems = em_circularmixture_allitems.fit(result_responses_all[sigmax_i, T_i].flatten(), result_target_all[sigmax_i, T_i].flatten(), result_nontargets_all[sigmax_i, T_i, :, :T_i].transpose((0, 2, 1)).reshape((N*nb_repetitions, T_i)))
+
 
 
 
