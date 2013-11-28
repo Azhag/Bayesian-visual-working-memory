@@ -273,32 +273,17 @@ def hist_angular_data(data, bins=20, in_degrees=False, title=None, norm=None, fi
     else:
         bound_x = np.pi
 
-    if np.isscalar(bins):
-        x = np.linspace(-bound_x, bound_x, bins)
-    else:
-        x = bins
-        bins = bins.size
-
-    x_edges = x - bound_x/bins  # np.histogram wants the left-right boundaries...
-    x_edges = np.r_[x_edges, -x_edges[0]]  # the rightmost boundary is the mirror of the leftmost one
-
-    bar_heights, _ = np.histogram(data, bins=x_edges)
-
-    if norm == 'max':
-        bar_heights = bar_heights/np.max(bar_heights).astype('float')
-    elif norm == 'sum':
-        bar_heights = bar_heights/np.sum(bar_heights.astype('float'))
-    elif norm == 'density':
-        bar_heights, _ = np.histogram(data, bins=x_edges, density=True)
+    bar_heights, x, bins = utils_math.histogram_binspace(data, bins=bins, norm=norm, bound_x=bound_x)
 
     if ax_handle is None:
         f = plt.figure(fignum)
         ax_handle = f.add_subplot(1, 1, 1)
 
     ax_handle.bar(x, bar_heights, alpha=0.75, width=2.*bound_x/(bins-1), align='center')
+
     if title:
         ax_handle.set_title(title)
-    ax_handle.set_xlim([x[0]*1.1, 1.1*x[-1]])
+    ax_handle.set_xlim([x[0]-bound_x/(bins-1), x[-1]+bound_x/(bins-1)])
 
     ax_handle.get_figure().canvas.draw()
 

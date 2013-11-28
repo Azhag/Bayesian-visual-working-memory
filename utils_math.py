@@ -218,3 +218,28 @@ def bic(K, LL, N):
 
     return -LL + K/2.*np.log(N)
 
+def histogram_binspace(data, bins=20, norm='density', bound_x=np.pi):
+    '''
+        Compute the histogram given a number of bins or a set of bins.
+    '''
+
+    if np.isscalar(bins):
+        x = np.linspace(-bound_x, bound_x, bins)
+    else:
+        x = bins
+        bins = bins.size
+
+    # np.histogram wants the left-right boundaries
+    # x_edges = x - bound_x/bins
+    # x_edges = np.r_[x_edges, -x_edges[0]]
+
+    if norm == 'max':
+        bar_heights, _ = np.histogram(data, bins=x)
+        bar_heights /= np.max(bar_heights).astype('float')
+    elif norm == 'sum':
+        bar_heights, _ = np.histogram(data, bins=x)
+        bar_heights /= np.sum(bar_heights.astype('float'))
+    elif norm == 'density':
+        bar_heights, _ = np.histogram(data, bins=x, density=True)
+
+    return bar_heights, x[:-1] + bound_x/(bins-1), bins
