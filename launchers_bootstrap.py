@@ -50,19 +50,16 @@ def launcher_do_nontarget_bootstrap(args):
     data_nontargets_all = model_outputs['result_nontargets_all'][..., 0]
     T_space = model_outputs['T_space']
     sigmax_space = model_outputs['sigmax_space']
-    # nb_repetitions = data_responses_all.shape[-1]
-    nb_repetitions = 1
-    N = data_responses_all.shape[-2]
 
     # Result arrays
     result_bootstrap_samples_allitems = np.nan*np.ones((sigmax_space.size, T_space.size, all_parameters['num_repetitions']))
     result_bootstrap_samples = np.nan*np.ones((sigmax_space.size, T_space.size, all_parameters['num_repetitions']))
 
-    search_progress = progress.Progress(sigmax_space.size*(T_space.size-1)* all_parameters['num_repetitions'])
+    search_progress = progress.Progress(sigmax_space.size*(T_space.size-1))
 
-    for T_i, T in enumerate(T_space[1:]):
-        T_i += 1
-        for sigmax_i, sigmax in enumerate(sigmax_space):
+    for sigmax_i, sigmax in enumerate(sigmax_space):
+        for T_i, T in enumerate(T_space[1:]):
+            T_i += 1
 
             print "%.2f%%, %s left - %s" % (search_progress.percentage(), search_progress.time_remaining_str(), search_progress.eta_str())
 
@@ -74,15 +71,15 @@ def launcher_do_nontarget_bootstrap(args):
 
             # Get some bootstrap samples
             bootstrap_allitems_nontargets_allitems = em_circularmixture_allitems.bootstrap_nontarget_stat(
-                    data_responses_all[sigmax_i, T_i].flatten(),
-                    data_target_all[sigmax_i, T_i].flatten(),
-                    data_nontargets_all[sigmax_i, T_i, :, :T_i].transpose((0, 2, 1)).reshape((N*nb_repetitions, T_i)),
+                    data_responses_all[sigmax_i, T_i],
+                    data_target_all[sigmax_i, T_i],
+                    data_nontargets_all[sigmax_i, T_i, :, :T_i],
                     nb_bootstrap_samples=all_parameters['num_repetitions'],
                     resample_targets=False)
             bootstrap_allitems_nontargets = em_circularmixture.bootstrap_nontarget_stat(
-                    data_responses_all[sigmax_i, T_i].flatten(),
-                    data_target_all[sigmax_i, T_i].flatten(),
-                    data_nontargets_all[sigmax_i, T_i, :, :T_i].transpose((0, 2, 1)).reshape((N*nb_repetitions, T_i)),
+                    data_responses_all[sigmax_i, T_i],
+                    data_target_all[sigmax_i, T_i],
+                    data_nontargets_all[sigmax_i, T_i, :, :T_i],
                     nb_bootstrap_samples=all_parameters['num_repetitions'],
                     resample_targets=False)
 
