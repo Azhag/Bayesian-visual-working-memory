@@ -370,10 +370,17 @@ def bootstrap_nontarget_stat(responses, target, nontargets=np.array([[]]), nonta
                 em_fit = fit(responses, bootstrap_targets[..., i], bootstrap_nontargets[..., i])
             elif not resample_responses and not resample_targets:
                 em_fit = fit(responses, target, bootstrap_nontargets[..., i])
-
+            else:
+                raise ValueError('Weird! %d %d' % (resample_responses, resample_targets))
             bootstrap_results.append(em_fit)
 
-        targetsnontargets_bootstrap_samples = np.array([np.sum(bootstr_res['mixt_nontargets']) for bootstr_res in bootstrap_results] + [bootstr_res['mixt_target'] for bootstr_res in bootstrap_results])
+        if resample_targets:
+            if nontargets.shape[1] > 0:
+                targetsnontargets_bootstrap_samples = np.array([np.nansum(bootstr_res['mixt_nontargets']) for bootstr_res in bootstrap_results] + [bootstr_res['mixt_target'] for bootstr_res in bootstrap_results])
+            else:
+                targetsnontargets_bootstrap_samples = np.array([bootstr_res['mixt_target'] for bootstr_res in bootstrap_results])
+        else:
+            targetsnontargets_bootstrap_samples = np.array([np.sum(bootstr_res['mixt_nontargets']) for bootstr_res in bootstrap_results])
 
         # Estimate CDF
         targetsnontargets_bootstrap_ecdf = stmodsdist.empirical_distribution.ECDF(targetsnontargets_bootstrap_samples)
