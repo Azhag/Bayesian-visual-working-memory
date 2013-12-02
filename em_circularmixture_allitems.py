@@ -17,7 +17,7 @@ import utils
 
 import progress
 
-def fit(responses, target_angle, nontarget_angles=np.array([[]]), initialisation_method='mixed', nb_initialisations=5, debug=False):
+def fit(responses, target_angle, nontarget_angles=np.array([[]]), initialisation_method='mixed', nb_initialisations=5, debug=False, force_random_less_than=None):
     '''
         Return maximum likelihood values for a different mixture model, with:
             - 1 target Von Mises component, kappa target
@@ -88,6 +88,10 @@ def fit(responses, target_angle, nontarget_angles=np.array([[]]), initialisation
             mixt_target = np.nansum(resp_ik[:, 0]/W)/N
             mixt_nontargets = np.nansum(resp_ik[:, 1:]/W[:, np.newaxis], axis=0)/N
             mixt_random = np.nansum(resp_r/W)/N
+
+            if force_random_less_than is not None:
+                # Hacky, force mixt_random to be below this value
+                mixt_random = np.min((mixt_random, force_random_less_than))
 
             # Update kappa
             rw = resp_ik/W[:, np.newaxis]
@@ -188,7 +192,7 @@ def compute_responsibilities(responses, target_angle, nontarget_angles, paramete
     return dict(target=resp_target, nontargets=resp_nontargets, random=resp_random, W=W)
 
 
-def cross_validation_kfold(responses, target_angle, nontarget_angles, K=2, shuffle=False, initialisation_method='fixed', nb_initialisations=5, debug=False):
+def cross_validation_kfold(responses, target_angle, nontarget_angles, K=2, shuffle=False, initialisation_method='fixed', nb_initialisations=5, debug=False, force_random_less_than=None):
     '''
         Perform a k-fold cross validation fit.
 
@@ -211,7 +215,7 @@ def cross_validation_kfold(responses, target_angle, nontarget_angles, K=2, shuff
 
     for train, test in kf:
         # Fit the model to the training subset
-        curr_fit = fit(responses[train], target_angle[train], nontarget_angles[train], initialisation_method, nb_initialisations, debug=debug)
+        curr_fit = fit(responses[train], target_angle[train], nontarget_angles[train], initialisation_method, nb_initialisations, debug=debug, force_random_less_than=force_random_less_than)
 
         # Compute the testing loglikelihood
         test_LL[k_i] = compute_loglikelihood(responses[test], target_angle[test], nontarget_angles[test], curr_fit)
