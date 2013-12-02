@@ -277,7 +277,7 @@ class Sampler:
         print "Likelihood: %.2f" % self.compute_likelihood()
 
 
-    def sample_theta(self, num_samples=500, return_samples=False, burn_samples=100, integrate_tc_out=False, selection_method='median',         selection_num_samples=250, subset_theta=None, slice_width=np.pi/8.0, slice_jump_prob=0.3, debug=True):
+    def sample_theta(self, num_samples=500, return_samples=False, burn_samples=100, integrate_tc_out=False, selection_method='last',selection_num_samples=250, subset_theta=None, slice_width=np.pi/16.0, slice_jump_prob=0.3, debug=True):
         '''
             Sample the thetas
             Need to use a slice sampler, as we do not know the normalization constant.

@@ -117,6 +117,8 @@ class ExperimentLauncher(object):
             help='Minimal distance between items of the same array')
         parser.add_argument('--specific_stimuli_random_centers', dest='specific_stimuli_random_centers', action='store_true', default=False,
             help='Should the centers in the specific stimuli be moved randomly?')
+        parser.add_argument('--specific_stimuli_asymmetric', dest='specific_stimuli_asymmetric', action='store_true', default=False,
+            help='Should the specific stimuli be asymmetric?')
         parser.add_argument('--alpha', default=1.0, type=float,
             help='Weighting of the decay through time')
         parser.add_argument('--code_type', choices=['conj', 'feat', 'mixed', 'wavelet', 'hierarchical'], default='conj',
