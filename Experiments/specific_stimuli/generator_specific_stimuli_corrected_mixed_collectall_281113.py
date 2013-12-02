@@ -19,9 +19,9 @@ submit_cmd = 'sbatch'
 M = 200
 num_repetitions = 5
 
-run_label = 'specific_stimuli_mixed_sigmaxmindistance_autoset_M{M}_repetitions{num_repetitions}mult_collectall_261113'
+run_label = 'specific_stimuli_corrected_mixed_sigmaxmindistance_autoset_repetitions{num_repetitions}mult_collectall_281113'
 
-pbs_submission_infos = dict(description='See patterns of errors on Specific Stimuli, with Mixed population code. Internally vary ratio_conj. Vary sigmax and enforce_min_distance here. Still need to play around with M, do it in different folders. Collect everything there',
+pbs_submission_infos = dict(description='See patterns of errors on Specific Stimuli, with Mixed population code. Internally vary ratio_conj. Vary sigmax and enforce_min_distance here. Collect everything there. Randomise target now, stupid stupid.',
                             command='python /nfs/home2/lmatthey/Documents/work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py',
                             other_options=dict(action_to_do='launcher_do_mixed_special_stimuli',
                                                subaction='collect_responses',
@@ -47,7 +47,7 @@ pbs_submission_infos = dict(description='See patterns of errors on Specific Stim
                                                label=run_label,
                                                experiment_data_dir='/nfs/home2/lmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/experimental_data',
                                                ),
-                            walltime='40:00:00',
+                            walltime='10:00:00',
                             memory='2gb',
                             simul_out_dir=os.path.join(os.getcwd(), run_label.format(**locals())),
                             pbs_submit_cmd=submit_cmd,
