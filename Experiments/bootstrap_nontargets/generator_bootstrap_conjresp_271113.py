@@ -1,5 +1,5 @@
 """
-    ExperimentDescriptor to collect responses, used then to create histograms of errors and bias to nontarget responses
+    ExperimentDescriptor to get bootstrap samples of the full item mixture model.
 
     Mixed population code.
 
