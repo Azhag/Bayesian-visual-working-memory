@@ -33,8 +33,14 @@ def fit(responses, target_angle, nontarget_angles=np.array([[]]), initialisation
     '''
 
     # Clean inputs
+    not_nan_indices = ~np.isnan(responses)
+    responses = responses[not_nan_indices]
+    target_angle = target_angle[not_nan_indices]
+
     if nontarget_angles.size > 0:
         nontarget_angles = nontarget_angles[:, ~np.all(np.isnan(nontarget_angles), axis=0)]
+
+        nontarget_angles = nontarget_angles[not_nan_indices]
 
     N = float(np.sum(~np.isnan(responses)))
     K = float(nontarget_angles.shape[1])
@@ -340,14 +346,14 @@ def A1inv(R):
         return 1./(R**3 - 4*R**2 + 3*R)
 
 
-def bootstrap_nontarget_stat(responses, target, nontargets=np.array([[]]), nontarget_bootstrap_ecdf=None, nb_bootstrap_samples=100, resample_responses=False, resample_targets=False):
+def bootstrap_nontarget_stat(responses, target, nontargets=np.array([[]]), sumnontargets_bootstrap_ecdf=None, allnontargets_bootstrap_ecdf=None, nb_bootstrap_samples=100, resample_responses=False, resample_targets=False):
     '''
         Performs a bootstrap evaluation of the nontarget mixture proportion distribution.
 
         Use that to construct a test for existence of misbinding errors
     '''
 
-    if nontarget_bootstrap_ecdf is None:
+    if sumnontargets_bootstrap_ecdf is None and allnontargets_bootstrap_ecdf is None:
         # Get samples
         if resample_responses:
             bootstrap_responses = utils.sample_angle((responses.size, nb_bootstrap_samples))
@@ -383,11 +389,20 @@ def bootstrap_nontarget_stat(responses, target, nontargets=np.array([[]]), nonta
         # Estimate CDF
         sumnontargets_bootstrap_ecdf = stmodsdist.empirical_distribution.ECDF(sumnontargets_bootstrap_samples)
         allnontargets_bootstrap_ecdf = stmodsdist.empirical_distribution.ECDF(allnontargets_bootstrap_samples)
+    else:
+        allnontargets_bootstrap_samples = None
+        sumnontargets_bootstrap_samples = None
+        bootstrap_results = None
 
     # Compute the p-value for the current em_fit under the empirical CDF
+    p_value_sum_bootstrap = np.nan
+    p_value_all_bootstrap = np.nan
+
     em_fit = fit(responses, target, nontargets)
-    p_value_sum_bootstrap = 1. - sumnontargets_bootstrap_ecdf(np.sum(em_fit['mixt_nontargets']))
-    p_value_all_bootstrap = 1. - allnontargets_bootstrap_ecdf(em_fit['mixt_nontargets'])
+    if sumnontargets_bootstrap_ecdf is not None:
+        p_value_sum_bootstrap = 1. - sumnontargets_bootstrap_ecdf(np.sum(em_fit['mixt_nontargets']))
+    if allnontargets_bootstrap_ecdf is not None:
+        p_value_all_bootstrap = 1. - allnontargets_bootstrap_ecdf(em_fit['mixt_nontargets'])
 
     return dict(p_value=p_value_sum_bootstrap, nontarget_ecdf=sumnontargets_bootstrap_ecdf, em_fit=em_fit, nontarget_bootstrap_samples=sumnontargets_bootstrap_samples, bootstrap_results_all=bootstrap_results, allnontarget_bootstrap_samples=allnontargets_bootstrap_samples, allnontarget_ecdf=allnontargets_bootstrap_ecdf, allnontarget_p_value=p_value_all_bootstrap)
 
