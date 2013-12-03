@@ -258,7 +258,7 @@ def plot_square_grid(x, y, nb_to_plot=-1):
     return (f, subaxes)
 
 
-def hist_angular_data(data, bins=20, in_degrees=False, title=None, norm=None, fignum=None, ax_handle=None):
+def hist_angular_data(data, bins=20, alpha=1.0, in_degrees=False, title=None, norm=None, fignum=None, ax_handle=None, pretty_xticks=False):
     '''
         Histogram for angular data.
         Can set additional properties automatically.
@@ -279,11 +279,16 @@ def hist_angular_data(data, bins=20, in_degrees=False, title=None, norm=None, fi
         f = plt.figure(fignum)
         ax_handle = f.add_subplot(1, 1, 1)
 
-    ax_handle.bar(x, bar_heights, alpha=0.75, width=2.*bound_x/(bins-1), align='center')
+    ax_handle.bar(x, bar_heights, alpha=alpha, width=2.*bound_x/(bins-1), align='center')
 
     if title:
         ax_handle.set_title(title)
     ax_handle.set_xlim([x[0]-bound_x/(bins-1), x[-1]+bound_x/(bins-1)])
+
+    if pretty_xticks:
+        ax_handle.set_xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
+        ax_handle.set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=16)
+
 
     ax_handle.get_figure().canvas.draw()
 
