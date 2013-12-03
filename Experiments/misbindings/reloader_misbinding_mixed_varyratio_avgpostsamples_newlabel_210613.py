@@ -5,7 +5,7 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-from utils import *
+
 
 import pypr.clustering.gmm as pygmm
 
@@ -14,6 +14,9 @@ from dataio import *
 # from smooth import *
 import inspect
 import em_circularmixture
+import em_circularmixture_allitems_uniquekappa
+
+import utils
 
 # # Commit @2042319 +
 
@@ -30,9 +33,13 @@ def plots_misbinding_logposterior(data_pbs, generator_module=None):
     #### SETUP
     #
     savefigs = True
+
     plot_logpost = False
     plot_error = False
     plot_mixtmodel = True
+
+    use_allitems_mixturesmodel = True
+
     #
     #### /SETUP
 
@@ -49,7 +56,7 @@ def plots_misbinding_logposterior(data_pbs, generator_module=None):
     N = result_all_thetas.shape[-1]
 
     result_prob_wrong = np.zeros((ratio_space.size, N))
-    result_em_fits = np.empty((ratio_space.size, 5))*np.nan
+    result_em_fits = np.empty((ratio_space.size, 6))*np.nan
 
 
     fixed_means = [-np.pi*0.6, np.pi*0.6]
@@ -64,7 +71,7 @@ def plots_misbinding_logposterior(data_pbs, generator_module=None):
 
     if plot_logpost:
         for ratio_conj_i, ratio_conj in enumerate(ratio_space):
-            # ax = plot_mean_std_area(all_angles, nanmean(result_all_log_posterior[ratio_conj_i], axis=0), nanstd(result_all_log_posterior[ratio_conj_i], axis=0))
+            # ax = utils.plot_mean_std_area(all_angles, nanmean(result_all_log_posterior[ratio_conj_i], axis=0), nanstd(result_all_log_posterior[ratio_conj_i], axis=0))
 
             # ax.set_xlim((-np.pi, np.pi))
             # ax.set_xticks((-np.pi, -np.pi / 2, 0, np.pi / 2., np.pi))
@@ -79,11 +86,11 @@ def plots_misbinding_logposterior(data_pbs, generator_module=None):
 
             # Compute the probability of answering wrongly (from fitting mixture distrib onto posterior)
             for n in xrange(result_all_log_posterior.shape[1]):
-                result_prob_wrong[ratio_conj_i, n], _, _ = fit_gaussian_mixture_fixedmeans(all_angles, np.exp(result_all_log_posterior[ratio_conj_i, n]), fixed_means=fixed_means, normalise=True, return_fitted_data=False, should_plot=False)
+                result_prob_wrong[ratio_conj_i, n], _, _ = utils.fit_gaussian_mixture_fixedmeans(all_angles, np.exp(result_all_log_posterior[ratio_conj_i, n]), fixed_means=fixed_means, normalise=True, return_fitted_data=False, should_plot=False)
 
-        # ax = plot_mean_std_area(ratio_space, nanmean(result_prob_wrong, axis=-1), nanstd(result_prob_wrong, axis=-1))
+        # ax = utils.plot_mean_std_area(ratio_space, nanmean(result_prob_wrong, axis=-1), nanstd(result_prob_wrong, axis=-1))
         plt.figure()
-        plt.plot(ratio_space, nanmean(result_prob_wrong, axis=-1))
+        plt.plot(ratio_space, utils.nanmean(result_prob_wrong, axis=-1))
 
         # ax.get_figure().canvas.draw()
         if savefigs:
@@ -92,7 +99,7 @@ def plots_misbinding_logposterior(data_pbs, generator_module=None):
     if plot_error:
 
         ## Compute Standard deviation/precision from samples and plot it as a function of ratio_conj
-        stats = compute_mean_std_circular_data(wrap_angles(result_all_thetas - fixed_means[1]).T)
+        stats = utils.compute_mean_std_circular_data(utils.wrap_angles(result_all_thetas - fixed_means[1]).T)
 
         f = plt.figure()
         plt.plot(ratio_space, stats['std'])
@@ -102,7 +109,7 @@ def plots_misbinding_logposterior(data_pbs, generator_module=None):
             dataio.save_current_figure('results_misbinding_stddev_allratioconj_{label}_global_{unique_id}.pdf')
 
         f = plt.figure()
-        plt.plot(ratio_space, compute_angle_precision_from_std(stats['std'], square_precision=False), linewidth=2)
+        plt.plot(ratio_space, utils.compute_angle_precision_from_std(stats['std'], square_precision=False), linewidth=2)
         plt.ylabel('Precision [$1/rad$]')
         plt.xlabel('Proportion of conjunctive units')
         plt.grid()
@@ -147,7 +154,7 @@ def plots_misbinding_logposterior(data_pbs, generator_module=None):
         # Put everything on one figure
         f = plt.figure(figsize=(10, 6))
         norm_for_plot = lambda x: (x - np.min(x))/np.max((x - np.min(x)))
-        plt.plot(ratio_space, norm_for_plot(stats['std']), ratio_space, norm_for_plot(compute_angle_precision_from_std(stats['std'], square_precision=False)), ratio_space, norm_for_plot(prob_smaller0), ratio_space, norm_for_plot(em_pk[:, 1]), ratio_space, norm_for_plot(em_pk[:, 0]))
+        plt.plot(ratio_space, norm_for_plot(stats['std']), ratio_space, norm_for_plot(utils.compute_angle_precision_from_std(stats['std'], square_precision=False)), ratio_space, norm_for_plot(prob_smaller0), ratio_space, norm_for_plot(em_pk[:, 1]), ratio_space, norm_for_plot(em_pk[:, 0]))
         plt.legend(('Std dev', 'Precision', 'Prob smaller 1', 'Mixture proportion correct', 'Mixture proportion misbinding'))
         # plt.plot(ratio_space, norm_for_plot(compute_angle_precision_from_std(stats['std'], square_precision=False)), ratio_space, norm_for_plot(em_pk[:, 1]), linewidth=2)
         # plt.legend(('Precision', 'Mixture proportion correct'), loc='best')
@@ -166,9 +173,13 @@ def plots_misbinding_logposterior(data_pbs, generator_module=None):
 
             responses = result_all_thetas[ratio_conj_i]
 
-            curr_params_fit = em_circularmixture.fit(responses, target_angle, nontarget_angles)
-
-            result_em_fits[ratio_conj_i] = [curr_params_fit[key] for key in ('kappa', 'mixt_target', 'mixt_nontargets', 'mixt_random', 'train_LL')]
+            if not use_allitems_mixturesmodel:
+                curr_params_fit = em_circularmixture.fit(responses, target_angle, nontarget_angles)
+                result_em_fits[ratio_conj_i] = [curr_params_fit[key] for key in ('kappa', 'mixt_target', 'mixt_nontargets', 'mixt_random', 'train_LL')]
+            else:
+                curr_params_fit = em_circularmixture_allitems_uniquekappa.fit(responses, target_angle, nontarget_angles)
+                print curr_params_fit
+                result_em_fits[ratio_conj_i] = [curr_params_fit['kappa'], curr_params_fit['mixt_target']] + curr_params_fit['mixt_nontargets'].tolist() + [curr_params_fit[key] for key in ('mixt_random', 'train_LL', 'bic')]
 
             print curr_params_fit
 
@@ -177,12 +188,12 @@ def plots_misbinding_logposterior(data_pbs, generator_module=None):
             ax2 = ax.twinx()
 
             # left axis, kappa
-            ax = plot_mean_std_area(ratio_space, result_em_fits[:, 0], 0*result_em_fits[:, 0], xlabel='Proportion of conjunctive units', ylabel="Inverse variance $[rad^{-2}]$", ax_handle=ax, linewidth=3, fmt='o-', markersize=8, label='Fitted kappa', color='k')
+            ax = utils.plot_mean_std_area(ratio_space, result_em_fits[:, 0], 0*result_em_fits[:, 0], xlabel='Proportion of conjunctive units', ylabel="Inverse variance $[rad^{-2}]$", ax_handle=ax, linewidth=3, fmt='o-', markersize=8, label='Fitted kappa', color='k')
 
             # Right axis, mixture probabilities
-            plot_mean_std_area(ratio_space, result_em_fits[:, 1], 0*result_em_fits[:, 1], xlabel='Proportion of conjunctive units', ylabel="Mixture probabilities", ax_handle=ax2, linewidth=3, fmt='o-', markersize=8, label='Target')
-            plot_mean_std_area(ratio_space, result_em_fits[:, 2], 0*result_em_fits[:, 2], xlabel='Proportion of conjunctive units', ylabel="Mixture probabilities", ax_handle=ax2, linewidth=3, fmt='o-', markersize=8, label='Nontarget')
-            plot_mean_std_area(ratio_space, result_em_fits[:, 3], 0*result_em_fits[:, 3], xlabel='Proportion of conjunctive units', ylabel="Mixture probabilities", ax_handle=ax2, linewidth=3, fmt='o-', markersize=8, label='Random')
+            utils.plot_mean_std_area(ratio_space, result_em_fits[:, 1], 0*result_em_fits[:, 1], xlabel='Proportion of conjunctive units', ylabel="Mixture probabilities", ax_handle=ax2, linewidth=3, fmt='o-', markersize=8, label='Target')
+            utils.plot_mean_std_area(ratio_space, result_em_fits[:, 2], 0*result_em_fits[:, 2], xlabel='Proportion of conjunctive units', ylabel="Mixture probabilities", ax_handle=ax2, linewidth=3, fmt='o-', markersize=8, label='Nontarget')
+            utils.plot_mean_std_area(ratio_space, result_em_fits[:, 3], 0*result_em_fits[:, 3], xlabel='Proportion of conjunctive units', ylabel="Mixture probabilities", ax_handle=ax2, linewidth=3, fmt='o-', markersize=8, label='Random')
 
             lines, labels = ax.get_legend_handles_labels()
             lines2, labels2 = ax2.get_legend_handles_labels()
@@ -196,10 +207,10 @@ def plots_misbinding_logposterior(data_pbs, generator_module=None):
             f.canvas.draw()
 
         if True:
-            # Right axis, mixture probabilities
-            ax = plot_mean_std_area(ratio_space, result_em_fits[:, 1], 0*result_em_fits[:, 1], xlabel='Proportion of conjunctive units', ylabel="Mixture probabilities", linewidth=3, fmt='-', markersize=8, label='Target')
-            plot_mean_std_area(ratio_space, result_em_fits[:, 2], 0*result_em_fits[:, 2], xlabel='Proportion of conjunctive units', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='-', markersize=8, label='Nontarget')
-            plot_mean_std_area(ratio_space, result_em_fits[:, 3], 0*result_em_fits[:, 3], xlabel='Proportion of conjunctive units', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='-', markersize=8, label='Random')
+            # Mixture probabilities
+            ax = utils.plot_mean_std_area(ratio_space, result_em_fits[:, 1], 0*result_em_fits[:, 1], xlabel='Proportion of conjunctive units', ylabel="Mixture probabilities", linewidth=3, fmt='-', markersize=8, label='Target')
+            utils.plot_mean_std_area(ratio_space, result_em_fits[:, 2], 0*result_em_fits[:, 2], xlabel='Proportion of conjunctive units', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='-', markersize=8, label='Nontarget')
+            utils.plot_mean_std_area(ratio_space, result_em_fits[:, 3], 0*result_em_fits[:, 3], xlabel='Proportion of conjunctive units', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='-', markersize=8, label='Random')
 
             ax.legend(loc='right')
 
