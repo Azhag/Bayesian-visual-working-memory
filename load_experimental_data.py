@@ -304,26 +304,28 @@ def preprocess_bays2009(dataset, parameters):
     dataset['error'] = dataset['E']
     dataset['errors_nitems'] = np.empty(np.unique(dataset['n_items']).size, dtype=np.object)
     dataset['errors_nontarget_nitems'] = np.empty(np.unique(dataset['n_items']).size, dtype=np.object)
+    dataset['errors_subject_nitems'] = np.empty((np.unique(dataset['subject']).size, np.unique(dataset['n_items']).size), dtype=np.object)
+    dataset['errors_nontarget_subject_nitems'] = np.empty((np.unique(dataset['subject']).size, np.unique(dataset['n_items']).size), dtype=np.object)
     dataset['vtest_nitems'] = np.empty(np.unique(dataset['n_items']).size)*np.nan
 
     angle_space = np.linspace(-np.pi, np.pi, 31)
 
     for n_items_i, n_items in enumerate(np.unique(dataset['n_items'])):
+        for subject_i, subject in enumerate(np.unique(dataset['subject'])):
+            # Data per subject
+            ids_filtered = (dataset['subject']==subject).flatten() & (dataset['n_items'] == n_items).flatten()
+
+            dataset['errors_subject_nitems'][subject_i, n_items_i] = dataset['error'][ids_filtered, 0]
+            dataset['errors_nontarget_subject_nitems'][subject_i, n_items_i] = dataset['error'][ids_filtered, 1:n_items]
+
+        # Data collapsed accross subjects
         ids_filtered = (dataset['n_items'] == n_items).flatten()
 
         dataset['errors_nitems'][n_items_i] = dataset['error'][ids_filtered, 0]
         dataset['errors_nontarget_nitems'][n_items_i] = dataset['error'][ids_filtered, 1:n_items]
 
-        utils.hist_samples_density_estimation(dataset['errors_nitems'][n_items_i], bins=angle_space, title='Errors between response and targets, N=%d' % (n_items))
-
         if n_items > 1:
             dataset['vtest_nitems'][n_items_i] = utils.V_test(utils.dropnan(dataset['errors_nontarget_nitems'][n_items_i]).flatten())['pvalue']
-
-            ax_handle = utils.hist_samples_density_estimation(utils.dropnan(dataset['errors_nontarget_nitems'][n_items_i]), bins=angle_space, title='Errors between response and non-targets, N=%d' % (n_items))
-
-            ax_handle.text(0.02, 0.96, "Vtest pval: %.4f" % (dataset['vtest_nitems'][n_items_i]), transform=ax_handle.transAxes, horizontalalignment='left', fontsize=13)
-
-            ax_handle.get_figure().canvas.draw()
 
 
 ######
@@ -760,6 +762,104 @@ def plots_check_oblique_effect(data, nb_bins=100):
     plt.plot(discrete_x, avg_error, 'ro')
 
 
+def plots_bays2009(dataset, dataio=None):
+    '''
+
+    Some plots for the Bays2009 data
+    '''
+
+    angle_space = np.linspace(-np.pi, np.pi, 51)
+    # angle_space = np.linspace(-np.pi, np.pi, 20)
+
+    # Histogram, collapsing across subjects
+    f1, axes1 = plt.subplots(ncols=np.unique(dataset['n_items']).size, figsize=(np.unique(dataset['n_items']).size*6, 6), sharey=True)
+    f2, axes2 = plt.subplots(ncols=np.unique(dataset['n_items']).size-1, figsize=((np.unique(dataset['n_items']).size-1)*6, 6), sharey=True)
+
+    for n_items_i, n_items in enumerate(np.unique(dataset['n_items'])):
+        utils.hist_angular_data(dataset['errors_nitems'][n_items_i], bins=angle_space, title='N=%d' % (n_items), norm='density', ax_handle=axes1[n_items_i], pretty_xticks=True)
+        axes1[n_items_i].set_ylim([0., 2.0])
+
+        if n_items > 1:
+            utils.hist_angular_data(utils.dropnan(dataset['errors_nontarget_nitems'][n_items_i]), bins=angle_space, title='N=%d' % (n_items), norm='density', ax_handle=axes2[n_items_i-1], pretty_xticks=True)
+
+            axes2[n_items_i-1].text(0.02, 0.96, "Vtest pval: %.4f" % (dataset['vtest_nitems'][n_items_i]), transform=axes2[n_items_i-1].transAxes, horizontalalignment='left', fontsize=13)
+
+            axes2[n_items_i - 1].set_ylim([0., 0.3])
+
+
+
+    f1.canvas.draw()
+    f2.canvas.draw()
+
+    if dataio is not None:
+        plt.figure(f1.number)
+        plt.tight_layout()
+        dataio.save_current_figure("hist_error_target_all_{label}_{unique_id}.pdf")
+        plt.figure(f2.number)
+        plt.tight_layout()
+        dataio.save_current_figure("hist_error_nontarget_all_{label}_{unique_id}.pdf")
+
+    # Do per subject and nitems, get average histogram
+    hist_cnts_target_subject_nitems = np.empty((np.unique(dataset['subject']).size, np.unique(dataset['n_items']).size, angle_space.size - 1))*np.nan
+    hist_cnts_nontarget_subject_nitems = np.empty((np.unique(dataset['subject']).size, np.unique(dataset['n_items']).size, angle_space.size - 1))*np.nan
+    pvalue_nontarget_subject_nitems = np.empty((np.unique(dataset['subject']).size, np.unique(dataset['n_items']).size))*np.nan
+
+    for subject_i, subject in enumerate(np.unique(dataset['subject'])):
+        for n_items_i, n_items in enumerate(np.unique(dataset['n_items'])):
+            hist_cnts_target_subject_nitems[subject_i, n_items_i], x, bins = utils.histogram_binspace(utils.dropnan(dataset['errors_subject_nitems'][subject_i, n_items_i]), bins=angle_space, norm='density')
+
+            hist_cnts_nontarget_subject_nitems[subject_i, n_items_i], x, bins = utils.histogram_binspace(utils.dropnan(dataset['errors_nontarget_subject_nitems'][subject_i, n_items_i]), bins=angle_space, norm='density')
+
+            if n_items > 1:
+                pvalue_nontarget_subject_nitems[subject_i, n_items_i] = utils.V_test(utils.dropnan(dataset['errors_nontarget_subject_nitems'][subject_i, n_items_i]).flatten())['pvalue']
+
+    hist_cnts_target_nitems_mean = np.mean(hist_cnts_target_subject_nitems, axis=0)
+    hist_cnts_target_nitems_std = np.std(hist_cnts_target_subject_nitems, axis=0)
+    hist_cnts_target_nitems_sem = hist_cnts_target_nitems_std/np.sqrt(np.unique(dataset['subject']).size)
+    hist_cnts_nontarget_nitems_mean = np.mean(hist_cnts_nontarget_subject_nitems, axis=0)
+    hist_cnts_nontarget_nitems_std = np.std(hist_cnts_nontarget_subject_nitems, axis=0)
+    hist_cnts_nontarget_nitems_sem = hist_cnts_nontarget_nitems_std/np.sqrt(np.unique(dataset['subject']).size)
+    pvalue_nontarget_subject_nitems_mean = np.mean(pvalue_nontarget_subject_nitems, axis=0)
+
+    # Now do similar plots
+    f3, axes3 = plt.subplots(ncols=np.unique(dataset['n_items']).size, figsize=(np.unique(dataset['n_items']).size*6, 6), sharey=True)
+    f4, axes4 = plt.subplots(ncols=np.unique(dataset['n_items']).size-1, figsize=((np.unique(dataset['n_items']).size-1)*6, 6), sharey=True)
+
+    for n_items_i, n_items in enumerate(np.unique(dataset['n_items'])):
+
+        axes3[n_items_i].bar(x, hist_cnts_target_nitems_mean[n_items_i], width=2.*np.pi/(angle_space.size-1), align='center', yerr=hist_cnts_target_nitems_sem[n_items_i])
+        # axes3[n_items_i].set_title('N=%d' % n_items)
+        axes3[n_items_i].set_xlim([x[0]-np.pi/(angle_space.size-1), x[-1]+np.pi/(angle_space.size-1)])
+        axes3[n_items_i].set_ylim([0., 2.0])
+        axes3[n_items_i].set_xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
+        axes3[n_items_i].set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=16)
+
+        if n_items > 1:
+            axes4[n_items_i-1].bar(x, hist_cnts_nontarget_nitems_mean[n_items_i], width=2.*np.pi/(angle_space.size-1), align='center', yerr=hist_cnts_nontarget_nitems_sem[n_items_i])
+            # axes4[n_items_i-1].set_title('N=%d' % n_items)
+            axes4[n_items_i-1].set_xlim([x[0]-np.pi/(angle_space.size-1), x[-1]+np.pi/(angle_space.size-1)])
+
+            # axes4[n_items_i-1].text(0.02, 0.96, "Vtest pval: %.4f" % (pvalue_nontarget_subject_nitems_mean[n_items_i]), transform=axes4[n_items_i-1].transAxes, horizontalalignment='left', fontsize=13)
+            axes4[n_items_i-1].text(0.02, 0.96, "Vtest pval: %.4f" % (dataset['vtest_nitems'][n_items_i]), transform=axes4[n_items_i-1].transAxes, horizontalalignment='left', fontsize=14)
+
+            axes4[n_items_i-1].set_ylim([0., 0.3])
+            axes4[n_items_i-1].set_xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
+            axes4[n_items_i-1].set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=16)
+
+    f3.canvas.draw()
+    f4.canvas.draw()
+
+    if dataio is not None:
+        plt.figure(f3.number)
+        plt.tight_layout()
+        dataio.save_current_figure("hist_error_target_persubj_{label}_{unique_id}.pdf")
+        plt.figure(f4.number)
+        plt.tight_layout()
+        dataio.save_current_figure("hist_error_nontarget_persubj_{label}_{unique_id}.pdf")
+
+
+
+
 
 def plots_doublerecall(dataset):
     '''
@@ -959,8 +1059,8 @@ if __name__ == '__main__':
     # keys:
     # 'probe', 'delayed', 'item_colour', 'probe_colour', 'item_angle', 'error', 'probe_angle', 'n_items', 'response', 'subject']
         # (data_sequen, data_simult, data_dualrecall) = load_multiple_datasets([dict(filename='Exp1.mat', preprocess=preprocess_sequential, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'))), dict(filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), fit_mixturemodel=True)), dict(filename=os.path.join(data_dir, 'DualRecall_Bays', 'rate_data.mat'), preprocess=preprocess_doublerecall, parameters=dict(fit_mixturemodel=True))])
-        (data_simult,) = load_multiple_datasets([dict(filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), fit_mixturemodel=True, mixture_model_cache='em_simult.pickle'))])
-        (data_bays2009) = load_multiple_datasets([dict(filename='colour_data.mat', preprocess=preprocess_bays2009, parameters=dict(datadir=os.path.join(data_dir, 'Bays2009'), fit_mixturemodel=False))])
+        # (data_simult,) = load_multiple_datasets([dict(filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), fit_mixturemodel=True, mixture_model_cache='em_simult.pickle'))])
+        (data_bays2009, ) = load_multiple_datasets([dict(filename='colour_data.mat', preprocess=preprocess_bays2009, parameters=dict(datadir=os.path.join(data_dir, 'Bays2009'), fit_mixturemodel=False))])
 
 
     # Check for bias towards 0 for the error between response and all items
@@ -990,10 +1090,12 @@ if __name__ == '__main__':
 
     # plots_doublerecall(data_dualrecall)
 
-    # dataio = DataIO.DataIO(label='experiments')
+    dataio = DataIO.DataIO(label='experiments_bays2009')
     # plots_check_bias_nontarget(data_simult, dataio=dataio)
     # plots_check_bias_bestnontarget(data_simult, dataio=dataio)
     # plots_check_bias_nontarget_randomized(data_simult, dataio=dataio)
+
+    plots_bays2009(data_bays2009, dataio=dataio)
 
     plt.show()
 
