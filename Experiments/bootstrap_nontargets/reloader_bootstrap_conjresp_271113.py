@@ -91,13 +91,14 @@ def plots_boostrap(data_pbs, generator_module=None):
             # Fit bootstrap
             for sigmax_i, sigmax in enumerate(sigmax_space):
                 for T_i, T in enumerate(T_space):
-                    # One bootstrap CDF per condition
-                    bootstrap_ecdf_allitems = stmodsdist.empirical_distribution.ECDF(result_bootstrap_samples_allitems[sigmax_i, T_i])
-                    bootstrap_ecdf_bays = stmodsdist.empirical_distribution.ECDF(result_bootstrap_samples[sigmax_i, T_i])
+                    if T>1:
+                        # One bootstrap CDF per condition
+                        bootstrap_ecdf_allitems = stmodsdist.empirical_distribution.ECDF(utils.dropnan(result_bootstrap_samples_allitems[sigmax_i, T_i]))
+                        bootstrap_ecdf_bays = stmodsdist.empirical_distribution.ECDF(utils.dropnan(result_bootstrap_samples[sigmax_i, T_i]))
 
-                    # Store in a dict(sigmax) -> dict(T) -> ECDF object
-                    bootstrap_ecdf_allitems_sigmax_T.setdefault(sigmax_i, dict())[T_i] = dict(ecdf=bootstrap_ecdf_allitems, T=T, sigmax=sigmax)
-                    bootstrap_ecdf_bays_sigmax_T.setdefault(sigmax_i, dict())[T_i] = dict(ecdf=bootstrap_ecdf_bays, T=T, sigmax=sigmax)
+                        # Store in a dict(sigmax) -> dict(T) -> ECDF object
+                        bootstrap_ecdf_allitems_sigmax_T.setdefault(sigmax_i, dict())[T_i] = dict(ecdf=bootstrap_ecdf_allitems, T=T, sigmax=sigmax)
+                        bootstrap_ecdf_bays_sigmax_T.setdefault(sigmax_i, dict())[T_i] = dict(ecdf=bootstrap_ecdf_bays, T=T, sigmax=sigmax)
 
 
             # Save everything to a file, for faster later plotting

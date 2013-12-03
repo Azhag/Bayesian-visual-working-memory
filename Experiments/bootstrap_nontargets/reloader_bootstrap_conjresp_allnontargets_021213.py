@@ -21,7 +21,7 @@ import cPickle as pickle
 
 import statsmodels.distributions as stmodsdist
 
-# Commit @2042319 +
+# Commit @04754b3
 
 
 def plots_boostrap(data_pbs, generator_module=None):
@@ -34,11 +34,13 @@ def plots_boostrap(data_pbs, generator_module=None):
     savefigs = True
     savedata = True
 
-    plots_hist_cdf = True
+    load_fit_bootstrap = True
+    plots_hist_cdf = False
+    estimate_bootstrap = False
 
     should_fit_bootstrap = True
     # caching_bootstrap_filename = None
-    caching_bootstrap_filename = os.path.join(generator_module.pbs_submission_infos['simul_out_dir'], 'outputs', 'cache_bootstrap_conjresp.pickle')
+    caching_bootstrap_filename = os.path.join(generator_module.pbs_submission_infos['simul_out_dir'], 'outputs', 'cache_bootstrap.pickle')
 
     plt.rcParams['font.size'] = 16
     #
@@ -46,28 +48,21 @@ def plots_boostrap(data_pbs, generator_module=None):
 
     print "Order parameters: ", generator_module.dict_parameters_range.keys()
 
-    result_bootstrap_samples_allitems = np.squeeze(data_pbs.dict_arrays['result_bootstrap_samples_allitems']['results'])
+    result_bootstrap_samples_allitems_uniquekappa_sumnontarget = np.squeeze(data_pbs.dict_arrays['result_bootstrap_samples_allitems_uniquekappa_sumnontarget']['results'])
     result_bootstrap_samples = np.squeeze(data_pbs.dict_arrays['result_bootstrap_samples']['results'])
+    result_bootstrap_samples_allitems_uniquekappa_allnontarget = np.squeeze(data_pbs.dict_arrays['result_bootstrap_samples_allitems_uniquekappa_allnontarget']['results'])
 
 
     sigmax_space = data_pbs.loaded_data['datasets_list'][0]['sigmax_space']
     T_space = data_pbs.loaded_data['datasets_list'][0]['T_space']
 
-    print result_bootstrap_samples_allitems.shape
+    print result_bootstrap_samples_allitems_uniquekappa_sumnontarget.shape
     print result_bootstrap_samples.shape
+    print result_bootstrap_samples_allitems_uniquekappa_allnontarget.shape
 
     dataio = DataIO(output_folder=generator_module.pbs_submission_infos['simul_out_dir'] + '/outputs/', label='global_' + dataset_infos['save_output_filename'])
 
-
-    if plots_hist_cdf:
-        # Do one plot per min distance.
-
-        # # Plot Log-likelihood of Mixture model, sanity check
-        # utils.pcolor_2d_data(result_em_fits_mean[min_dist_i, ..., -1].T, x=ratio_space, y=sigmax_space, xlabel='ratio', ylabel='sigma_x', title='EM loglik, min_dist=%.3f' % min_dist, log_scale=False)
-        # if savefigs:
-        #     dataio.save_current_figure('em_loglik_permindist_mindist%.2f_ratiosigmax_{label}_{unique_id}.pdf' % min_dist)
-
-
+    if load_fit_bootstrap:
         if caching_bootstrap_filename is not None:
 
             if os.path.exists(caching_bootstrap_filename):
@@ -76,8 +71,9 @@ def plots_boostrap(data_pbs, generator_module=None):
                     with open(caching_bootstrap_filename, 'r') as file_in:
                         # Load and assign values
                         cached_data = pickle.load(file_in)
-                        bootstrap_ecdf_allitems_sigmax_T = cached_data['bootstrap_ecdf_allitems_sigmax_T']
                         bootstrap_ecdf_bays_sigmax_T = cached_data['bootstrap_ecdf_bays_sigmax_T']
+                        bootstrap_ecdf_allitems_sum_sigmax_T = cached_data['bootstrap_ecdf_allitems_sum_sigmax_T']
+                        bootstrap_ecdf_allitems_all_sigmax_T = cached_data['bootstrap_ecdf_allitems_all_sigmax_T']
                         should_fit_bootstrap = False
 
                 except IOError:
@@ -85,55 +81,76 @@ def plots_boostrap(data_pbs, generator_module=None):
 
         if should_fit_bootstrap:
 
-            bootstrap_ecdf_allitems_sigmax_T = dict()
             bootstrap_ecdf_bays_sigmax_T = dict()
+            bootstrap_ecdf_allitems_sum_sigmax_T = dict()
+            bootstrap_ecdf_allitems_all_sigmax_T = dict()
 
             # Fit bootstrap
             for sigmax_i, sigmax in enumerate(sigmax_space):
                 for T_i, T in enumerate(T_space):
-                    # One bootstrap CDF per condition
-                    bootstrap_ecdf_allitems = stmodsdist.empirical_distribution.ECDF(result_bootstrap_samples_allitems[sigmax_i, T_i])
-                    bootstrap_ecdf_bays = stmodsdist.empirical_distribution.ECDF(result_bootstrap_samples[sigmax_i, T_i])
+                    if T>1:
+                        # One bootstrap CDF per condition
+                        bootstrap_ecdf_bays = stmodsdist.empirical_distribution.ECDF(utils.dropnan(result_bootstrap_samples[sigmax_i, T_i]))
+                        bootstrap_ecdf_allitems_sum = stmodsdist.empirical_distribution.ECDF(utils.dropnan(result_bootstrap_samples_allitems_uniquekappa_sumnontarget[sigmax_i, T_i]))
+                        bootstrap_ecdf_allitems_all = stmodsdist.empirical_distribution.ECDF(utils.dropnan(result_bootstrap_samples_allitems_uniquekappa_allnontarget[sigmax_i, T_i]))
 
-                    # Store in a dict(sigmax) -> dict(T) -> ECDF object
-                    bootstrap_ecdf_allitems_sigmax_T.setdefault(sigmax_i, dict())[T_i] = dict(ecdf=bootstrap_ecdf_allitems, T=T, sigmax=sigmax)
-                    bootstrap_ecdf_bays_sigmax_T.setdefault(sigmax_i, dict())[T_i] = dict(ecdf=bootstrap_ecdf_bays, T=T, sigmax=sigmax)
+
+                        # Store in a dict(sigmax) -> dict(T) -> ECDF object
+                        bootstrap_ecdf_bays_sigmax_T.setdefault(sigmax_i, dict())[T_i] = dict(ecdf=bootstrap_ecdf_bays, T=T, sigmax=sigmax)
+                        bootstrap_ecdf_allitems_sum_sigmax_T.setdefault(sigmax_i, dict())[T_i] = dict(ecdf=bootstrap_ecdf_allitems_sum, T=T, sigmax=sigmax)
+                        bootstrap_ecdf_allitems_all_sigmax_T.setdefault(sigmax_i, dict())[T_i] = dict(ecdf=bootstrap_ecdf_allitems_all, T=T, sigmax=sigmax)
+
 
 
             # Save everything to a file, for faster later plotting
             if caching_bootstrap_filename is not None:
                 try:
                     with open(caching_bootstrap_filename, 'w') as filecache_out:
-                        data_bootstrap = dict(bootstrap_ecdf_allitems_sigmax_T=bootstrap_ecdf_allitems_sigmax_T, bootstrap_ecdf_bays_sigmax_T=bootstrap_ecdf_bays_sigmax_T)
+                        data_bootstrap = dict(bootstrap_ecdf_allitems_sum_sigmax_T=bootstrap_ecdf_allitems_sum_sigmax_T, bootstrap_ecdf_allitems_all_sigmax_T=bootstrap_ecdf_allitems_all_sigmax_T, bootstrap_ecdf_bays_sigmax_T=bootstrap_ecdf_bays_sigmax_T)
                         pickle.dump(data_bootstrap, filecache_out, protocol=2)
                 except IOError:
                     print "Error writing out to caching file ", caching_bootstrap_filename
 
 
+    if plots_hist_cdf:
         ## Plots now
         for sigmax_i, sigmax in enumerate(sigmax_space):
             for T_i, T in enumerate(T_space):
                 if T > 1:
                     # Histogram of samples
-                    _, axes = plt.subplots(ncols=2, figsize=(12, 6))
+                    _, axes = plt.subplots(ncols=3, figsize=(18, 6))
                     axes[0].hist(utils.dropnan(result_bootstrap_samples[sigmax_i, T_i]), bins=100, normed='density')
                     axes[0].set_xlim([0.0, 1.0])
-                    axes[1].hist(utils.dropnan(result_bootstrap_samples_allitems[sigmax_i, T_i]), bins=100, normed='density')
+                    axes[1].hist(utils.dropnan(result_bootstrap_samples_allitems_uniquekappa_sumnontarget[sigmax_i, T_i]), bins=100, normed='density')
                     axes[1].set_xlim([0.0, 1.0])
+                    axes[2].hist(utils.dropnan(result_bootstrap_samples_allitems_uniquekappa_allnontarget[sigmax_i, T_i]), bins=100, normed='density')
+                    axes[2].set_xlim([0.0, 1.0])
 
                     if savefigs:
                         dataio.save_current_figure('hist_bootstrap_sigmax%.2f_T%d_{label}_{unique_id}.pdf' % (sigmax, T))
 
                     # ECDF now
-                    _, axes = plt.subplots(ncols=2, sharey=True, figsize=(12, 6))
+                    _, axes = plt.subplots(ncols=3, sharey=True, figsize=(18, 6))
                     axes[0].plot(bootstrap_ecdf_bays_sigmax_T[sigmax_i][T_i]['ecdf'].x, bootstrap_ecdf_bays_sigmax_T[sigmax_i][T_i]['ecdf'].y, linewidth=2)
                     axes[0].set_xlim([0.0, 1.0])
-                    axes[1].plot(bootstrap_ecdf_allitems_sigmax_T[sigmax_i][T_i]['ecdf'].x, bootstrap_ecdf_allitems_sigmax_T[sigmax_i][T_i]['ecdf'].y, linewidth=2)
+                    axes[1].plot(bootstrap_ecdf_allitems_sum_sigmax_T[sigmax_i][T_i]['ecdf'].x, bootstrap_ecdf_allitems_sum_sigmax_T[sigmax_i][T_i]['ecdf'].y, linewidth=2)
                     axes[1].set_xlim([0.0, 1.0])
+                    axes[2].plot(bootstrap_ecdf_allitems_all_sigmax_T[sigmax_i][T_i]['ecdf'].x, bootstrap_ecdf_allitems_all_sigmax_T[sigmax_i][T_i]['ecdf'].y, linewidth=2)
+                    axes[2].set_xlim([0.0, 1.0])
 
                     if savefigs:
                         dataio.save_current_figure('ecdf_bootstrap_sigmax%.2f_T%d_{label}_{unique_id}.pdf' % (sigmax, T))
 
+    if estimate_bootstrap:
+        model_outputs = utils.load_npy( '/nfs/home2/lmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/code/git-bayesian-visual-working-memory/Experiments/error_distribution/error_distribution_conj_M100T6repetitions5_121113_outputs/global_plots_errors_distribution-plots_errors_distribution-cc1a49b0-f5f0-4e82-9f0f-5a16a2bfd4e8.npy')
+        data_responses_all = model_outputs['result_responses_all'][..., 0]
+        data_target_all = model_outputs['result_target_all'][..., 0]
+        data_nontargets_all = model_outputs['result_nontargets_all'][..., 0]
+
+        # Compute bootstrap p-value
+        for sigmax_i, sigmax in enumerate(sigmax_space):
+            for T in T_space[1:]:
+                bootstrap_allitems_nontargets_allitems_uniquekappa = em_circularmixture_allitems_uniquekappa.bootstrap_nontarget_stat(data_responses_all[sigmax_i, (T-1)], data_target_all[sigmax_i, (T-1)], data_nontargets_all[sigmax_i, (T-1), :, :(T-1)], sumnontargets_bootstrap_ecdf=bootstrap_ecdf_allitems_sum_sigmax_T[sigmax_i][T-1]['ecdf'], allnontargets_bootstrap_ecdf=bootstrap_ecdf_allitems_all_sigmax_T[sigmax_i][T-1]['ecdf'])
 
     all_args = data_pbs.loaded_data['args_list']
     variables_to_save = ['nb_repetitions']
@@ -166,8 +183,8 @@ dataset_infos = dict(label='Collect bootstrap samples, using past responses from
                      launcher_module=generator_module,
                      loading_type='args',
                      parameters=['enforce_min_distance', 'sigmax'],
-                     variables_to_load=['result_bootstrap_samples_allitems', 'result_bootstrap_samples'],
-                     variables_description=['Bootstrap samples for model with all items', 'Bootstrap samples for Bays model'],
+                     variables_to_load=['result_bootstrap_samples', 'result_bootstrap_samples_allitems_uniquekappa_sumnontarget', 'result_bootstrap_samples_allitems_uniquekappa_allnontarget'],
+                     variables_description=['Bootstrap samples for Bays model', 'Bootstrap samples for model with all items, sum of mixt nontargets', 'Bootstrap samples for model with all items, all nontargets mixt'],
                      post_processing=plots_boostrap,
                      save_output_filename='plots_boostrap',
                      concatenate_multiple_datasets=True
