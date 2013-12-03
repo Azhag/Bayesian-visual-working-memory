@@ -17,7 +17,7 @@ import inspect
 import utils
 import cPickle as pickle
 
-import em_circularmixture_allitems
+import em_circularmixture_allitems_uniquekappa
 
 # Commit @2042319 +
 
@@ -34,12 +34,12 @@ def plots_specific_stimuli_mixed(data_pbs, generator_module=None):
     savedata = True
 
     plot_per_min_dist_all = False
-    specific_plots_paper = True
+    specific_plots_paper = False
     plots_emfit_allitems = True
 
     should_fit_allitems_model = True
     # caching_emfit_filename = None
-    caching_emfit_filename = os.path.join(generator_module.pbs_submission_infos['simul_out_dir'], 'cache_emfitallitems_norandom01.pickle')
+    caching_emfit_filename = os.path.join(generator_module.pbs_submission_infos['simul_out_dir'], 'cache_emfitallitems_uniquekappa.pickle')
 
     colormap = None  # or 'cubehelix'
     plt.rcParams['font.size'] = 16
@@ -200,9 +200,9 @@ def plots_specific_stimuli_mixed(data_pbs, generator_module=None):
 
         if should_fit_allitems_model:
 
-            # kappa (K+1), mixt_target, mixt_nontargets (K), mixt_random, LL, bic
+            # kappa, mixt_target, mixt_nontargets (K), mixt_random, LL, bic
             # result_emfitallitems = np.empty((min_dist_i_plotting_space.size, ratio_space.size, 2*K+5))*np.nan
-            result_emfitallitems = np.empty((enforce_min_distance_space.size, ratio_space.size, 2*K+5))*np.nan
+            result_emfitallitems = np.empty((enforce_min_distance_space.size, ratio_space.size, K+5))*np.nan
 
             ## Do for each distance
             # for min_dist_plotting_i, min_dist_i in enumerate(min_dist_i_plotting_space):
@@ -210,12 +210,12 @@ def plots_specific_stimuli_mixed(data_pbs, generator_module=None):
                 # Fit the mixture model
                 for ratio_i, ratio in enumerate(ratio_space):
                     print "Refitting EM all items. Ratio:", ratio, "Dist:", enforce_min_distance_space[min_dist_i]
-                    em_fit = em_circularmixture_allitems.fit(
+                    em_fit = em_circularmixture_allitems_uniquekappa.fit(
                         result_responses_all[min_dist_i, sigmax_level_i, ratio_i].flatten(),
                         result_target_all[min_dist_i, sigmax_level_i, ratio_i].flatten(),
-                        result_nontargets_all[min_dist_i, sigmax_level_i, ratio_i].transpose((0, 2, 1)).reshape((N*nb_repetitions, K)), force_random_less_than=0.1)
+                        result_nontargets_all[min_dist_i, sigmax_level_i, ratio_i].transpose((0, 2, 1)).reshape((N*nb_repetitions, K)))
 
-                    result_emfitallitems[min_dist_i, ratio_i] = em_fit['kappa'].tolist() + [em_fit['mixt_target']] + em_fit['mixt_nontargets'].tolist() + [em_fit[key] for key in ('mixt_random', 'train_LL', 'bic')]
+                    result_emfitallitems[min_dist_i, ratio_i] = [em_fit['kappa'], em_fit['mixt_target']] + em_fit['mixt_nontargets'].tolist() + [em_fit[key] for key in ('mixt_random', 'train_LL', 'bic')]
 
             # Save everything to a file, for faster later plotting
             if caching_emfit_filename is not None:
@@ -233,13 +233,12 @@ def plots_specific_stimuli_mixed(data_pbs, generator_module=None):
 
             # Plot now
             _, ax = plt.subplots()
-            ax.plot(ratio_space, result_emfitallitems[min_dist_i, :, 3:7], linewidth=3)
+            ax.plot(ratio_space, result_emfitallitems[min_dist_i, :, 1:5], linewidth=3)
             plt.ylim([0.0, 1.1])
             plt.legend(['Target', 'Nontarget 1', 'Nontarget 2', 'Random'], loc='upper left')
 
             if savefigs:
                 dataio.save_current_figure('mindist%.2f_emprobsfullitems_{label}_{unique_id}.pdf' % enforce_min_distance_space[min_dist_i])
-
 
 
     all_args = data_pbs.loaded_data['args_list']
