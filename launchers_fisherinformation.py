@@ -339,7 +339,7 @@ def launcher_do_fisher_information_estimation(args):
             # prec_samples = sampler.estimate_precision_from_samples(n=0, num_samples=1000, num_repetitions=10)
             # (FI_rc_samples[i, 0], FI_rc_samples[i, 1])=(prec_samples['mean'], prec_samples['std'])
 
-            if False:
+            if True:
                 print "from samples..."
 
                 if single_point_estimate:
@@ -411,7 +411,7 @@ def launcher_do_fisher_information_estimation(args):
 
         dataio.save_current_figure('FI_rcscale_comparison_median_std_{unique_id}.pdf')
 
-        if not single_point_estimate:
+        if False and not single_point_estimate:
 
             for rc_scale_i, rc_scale in enumerate(rcscale_space):
                 # Show the precision from posterior estimate against the FI from posterior estimate
@@ -746,80 +746,95 @@ def launcher_do_fisher_information_param_search_pbs(args):
         - Then build a constraint between sigmax/rc_scale based on the experimental value for 1 object.
     '''
 
-    all_parameters = vars(args)
+    try:
+        # Convert Argparse.Namespace to dict
+        all_parameters = vars(args)
+    except TypeError:
+        # Assume it's already done
+        assert type(args) is dict, "args is neither Namespace nor dict, WHY?"
+        all_parameters = args
+
+    print all_parameters
+
     data_to_plot = {}
 
-    dataio = DataIO(output_folder=args.output_directory, label=args.label)
-    variables_to_save = ['rcscale_space', 'sigma_space', 'FI_rc_curv_mult', 'FI_rc_precision_mult', 'FI_rc_theo_mult', 'FI_rc_truevar_mult', 'repet_i', 'num_repetitions']
 
+    dataio = DataIO(output_folder=all_parameters['output_directory'], label=all_parameters['label'].format(**all_parameters))
+    variables_to_save = ['repet_i', 'num_repetitions']
+
+    do_samples = True
     save_every = 5
     run_counter = 0
 
     num_repetitions = all_parameters['num_repetitions']
 
     # rcscale_space = np.linspace(0.5, 15.0, 21.)
-    rcscale_space = np.linspace(all_parameters['rc_scale'], all_parameters['rc_scale'], 1.)
+    # rcscale_space = np.linspace(all_parameters['rc_scale'], all_parameters['rc_scale'], 1.)
 
     # sigma_space = np.linspace(0.01, 1.1, 20.)
-    sigma_space = np.linspace(all_parameters['sigmax'], all_parameters['sigmax'], 1.)
+    # sigma_space = np.linspace(all_parameters['sigmax'], all_parameters['sigmax'], 1.)
 
-    FI_rc_curv_mult = np.zeros((rcscale_space.size, sigma_space.size, 2, num_repetitions), dtype=float)
-    FI_rc_precision_mult = np.zeros((rcscale_space.size, sigma_space.size, num_repetitions), dtype=float)
-    FI_rc_theo_mult = np.zeros((rcscale_space.size, sigma_space.size, 2, num_repetitions), dtype=float)
-    FI_rc_truevar_mult = np.zeros((rcscale_space.size, sigma_space.size, 2, num_repetitions), dtype=float)
+    result_FI_rc_curv_mult = np.empty((2, num_repetitions), dtype=float)*np.nan
+    result_FI_rc_curv_all  = np.empty((all_parameters['N'], num_repetitions), dtype=float)*np.nan
+    result_FI_rc_precision_mult = np.empty((num_repetitions), dtype=float)*np.nan
+    result_FI_rc_theo_mult = np.empty((2, num_repetitions), dtype=float)*np.nan
+    result_FI_rc_truevar_mult = np.empty((2, num_repetitions), dtype=float)*np.nan
+    result_FI_rc_samples_mult = np.empty((2, num_repetitions), dtype=float)*np.nan
+    result_FI_rc_samples_all = np.empty((all_parameters['N'], num_repetitions), dtype=float)*np.nan
 
     # Show the progress in a nice way
-    search_progress = progress.Progress(rcscale_space.size*sigma_space.size*num_repetitions)
+    search_progress = progress.Progress(num_repetitions)
 
     for repet_i in xrange(num_repetitions):
-        for j, sigma in enumerate(sigma_space):
-            for i, rc_scale in enumerate(rcscale_space):
-                ### Estimate the Fisher Information
-                print "Estimating the Fisher Information, rcscale %.3f, sigma %.3f (%d/%d). %.2f%%, %s left - %s" % (rc_scale, sigma, repet_i+1, num_repetitions, search_progress.percentage(), search_progress.time_remaining_str(), search_progress.eta_str())
+        ### Estimate the Fisher Information
+        print "Estimating the Fisher Information, sigmax %.3f (%d/%d). %.2f%%, %s left - %s" % (all_parameters['sigmax'], repet_i+1, num_repetitions, search_progress.percentage(), search_progress.time_remaining_str(), search_progress.eta_str())
 
-                # Current parameter values
-                all_parameters['rc_scale']  = rc_scale
-                all_parameters['sigmax']    = sigma
+        # Current parameter values
+        # all_parameters['rc_scale']  = rc_scale
+        # all_parameters['sigmax']    = sigma
 
 
-                ### WORK UNIT
-                (random_network, data_gen, stat_meas, sampler) = init_everything(all_parameters)
+        ### WORK UNIT
+        (random_network, data_gen, stat_meas, sampler) = launchers.init_everything(all_parameters)
 
-                print "from curvature..."
-                fi_curv_dict = sampler.estimate_fisher_info_from_posterior_avg(num_points=1000, full_stats=True)
-                (FI_rc_curv_mult[i, j, 0, repet_i], FI_rc_curv_mult[i, j, 1, repet_i]) = (fi_curv_dict['mean'], fi_curv_dict['std'])
-                print FI_rc_curv_mult[i, j, :, repet_i]
+        print "from curvature..."
+        fi_curv_dict = sampler.estimate_fisher_info_from_posterior_avg(num_points=1000, full_stats=True)
+        (result_FI_rc_curv_mult[0, repet_i], result_FI_rc_curv_mult[1, repet_i]) = (fi_curv_dict['mean'], fi_curv_dict['std'])
+        result_FI_rc_curv_all[:, repet_i] = fi_curv_dict['all']
 
-                print "theoretical FI"
-                FI_rc_theo_mult[i, j, 0, repet_i] = random_network.compute_fisher_information(stimulus_input=(0.0, 0.0), cov_stim=sampler.noise_covariance)
-                FI_rc_theo_mult[i, j, 1, repet_i] = random_network.compute_fisher_information_theoretical(sigma=all_parameters['sigmax'], kappa1=all_parameters['rc_scale'], kappa2=all_parameters['rc_scale'])
-                print FI_rc_theo_mult[i, j, :, repet_i]
+        print result_FI_rc_curv_mult[:, repet_i]
 
-                print "true variance..."
-                fi_truevar_dict = sampler.estimate_truevariance_from_posterior_avg(full_stats=True)
-                (FI_rc_truevar_mult[i, j, 0, repet_i], FI_rc_truevar_mult[i, j, 1, repet_i]) =  (fi_truevar_dict['mean'], fi_truevar_dict['std'])
-                print FI_rc_truevar_mult[i, j, :, repet_i]
+        print "theoretical FI"
+        result_FI_rc_theo_mult[0, repet_i] = sampler.estimate_fisher_info_theocov(use_theoretical_cov=False, kappa_different=True)
+        result_FI_rc_theo_mult[1, repet_i] = random_network.compute_fisher_information_theoretical(sigma=all_parameters['sigmax'])
+        print result_FI_rc_theo_mult[:, repet_i]
 
-                print "from precision of recall..."
-                sampler.sample_theta(num_samples=all_parameters['num_samples'], burn_samples=100, selection_method=all_parameters['selection_method'], selection_num_samples=all_parameters['selection_num_samples'], integrate_tc_out=False, debug=False)
-                FI_rc_precision_mult[i, j, repet_i] = sampler.get_precision()
-                print FI_rc_precision_mult[i, j, repet_i]
-                ### DONE WORK UNIT
+        print "true variance..."
+        fi_truevar_dict = sampler.estimate_truevariance_from_posterior_avg(full_stats=True)
+        (result_FI_rc_truevar_mult[0, repet_i], result_FI_rc_truevar_mult[1, repet_i]) =  (fi_truevar_dict['mean'], fi_truevar_dict['std'])
+        print result_FI_rc_truevar_mult[:, repet_i]
 
+        if do_samples:
+            prec_samples_dict = sampler.estimate_precision_from_samples_avg_randomsubset(subset_size=all_parameters['N']/10, num_samples=all_parameters['num_samples'], full_stats=True, num_repetitions=10, selection_method='last')
+            (result_FI_rc_samples_mult[0, repet_i], result_FI_rc_samples_mult[1, repet_i]) = (prec_samples_dict['mean'], prec_samples_dict['std'])
+            result_FI_rc_samples_all[:, repet_i] = prec_samples_dict['all'].flatten()
 
-                search_progress.increment()
+        print "from precision of recall..."
+        sampler.sample_theta(num_samples=all_parameters['num_samples'], burn_samples=all_parameters['burn_samples'], selection_method=all_parameters['selection_method'], selection_num_samples=all_parameters['selection_num_samples'], integrate_tc_out=False, debug=False)
+        result_FI_rc_precision_mult[repet_i] = sampler.get_precision()
+        print result_FI_rc_precision_mult[repet_i]
+        ### DONE WORK UNIT
 
-                if run_counter % save_every == 0 or search_progress.done():
-                    dataio.save_variables(variables_to_save, locals())
+        search_progress.increment()
+        if run_counter % save_every == 0 or search_progress.done():
+            dataio.save_variables_default(locals(), variables_to_save)
 
-                    # plots
-                    for curr_data in variables_to_save:
-                        data_to_plot[curr_data] = locals()[curr_data]
+            # # plots
+            # for curr_data in variables_to_save:
+            #     data_to_plot[curr_data] = locals()[curr_data]
+            # plots_fisher_info_param_search(data_to_plot, dataio)
 
-                    # plots_fisher_info_param_search(data_to_plot, dataio)
-
-                run_counter += 1
-
+        run_counter += 1
 
     return locals()
 

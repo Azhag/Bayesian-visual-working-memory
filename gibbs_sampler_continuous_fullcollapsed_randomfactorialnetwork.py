@@ -850,7 +850,7 @@ class Sampler:
         return self.random_network.compute_covariance_KL(sigma_2=(self.data_gen.sigma_x**2. + self.data_gen.sigma_y**2.), T=self.T, beta=1.0, precision=precision, ignore_cache=ignore_cache)
 
 
-    def estimate_fisher_info_theocov(self, use_theoretical_cov=True, kappa_different=False):
+    def estimate_fisher_info_theocov(self, use_theoretical_cov=True, kappa_different=True):
         '''
             Compute the theoretical Fisher Information, using the KL-derived covariance matrix if desired
         '''
