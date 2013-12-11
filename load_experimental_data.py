@@ -13,6 +13,7 @@ import os.path
 import cPickle as pickle
 # import bottleneck as bn
 import em_circularmixture
+import em_circularmixture_allitems_uniquekappa
 import pandas as pd
 
 import dataio as DataIO
@@ -75,7 +76,7 @@ def preprocess_simultaneous(dataset, parameters):
         reconstruct_colours_exp1(dataset, datadir = parameters.get('datadir', ''))
 
     # Fit the mixture model, and save the responsibilities per datapoint.
-    if parameters['fit_mixturemodel']:
+    if parameters['fit_mixture_model']:
         if 'mixture_model_cache' in parameters:
             mixture_model_cache_filename = os.path.join(parameters.get('datadir', ''), parameters['mixture_model_cache'])
             fit_mixture_model(dataset, caching_save_filename=mixture_model_cache_filename)
@@ -197,7 +198,7 @@ def preprocess_doublerecall(dataset, parameters):
 
 
     ### Fit the mixture model
-    if parameters['fit_mixturemodel']:
+    if parameters['fit_mixture_model']:
 
         dataset['em_fits'] = dict(kappa=np.empty(dataset['probe_angle'].size), mixt_target=np.empty(dataset['probe_angle'].size), mixt_nontarget=np.empty(dataset['probe_angle'].size), mixt_random=np.empty(dataset['probe_angle'].size), resp_target=np.empty(dataset['probe_angle'].size), resp_nontarget=np.empty(dataset['probe_angle'].size), resp_random=np.empty(dataset['probe_angle'].size), train_LL=np.empty(dataset['probe_angle'].size), test_LL=np.empty(dataset['probe_angle'].size))
         for key in dataset['em_fits']:
@@ -269,13 +270,10 @@ def preprocess_doublerecall(dataset, parameters):
         dataset['data_to_fit'][n_items]['item_features'][..., 1] = dataset['item_colour'][ids_filtered, :n_items]
         dataset['data_to_fit'][n_items]['response'] = dataset['probe_angle'][ids_filtered].flatten()
 
-
-
-
     # Try with Pandas for some advanced plotting
     dataset_filtered = dict((k, dataset[k].flatten()) for k in ('n_items', 'trial', 'subject', 'reject', 'rating', 'probe_colour', 'probe_angle', 'cond', 'error', 'error_angle', 'error_colour', 'response', 'target'))
 
-    if parameters['fit_mixturemodel']:
+    if parameters['fit_mixture_model']:
         dataset_filtered.update(dataset['em_fits'])
 
     dataset['panda'] = pd.DataFrame(dataset_filtered)
@@ -298,17 +296,31 @@ def preprocess_bays2009(dataset, parameters):
             # Default value
             exec(curr_param[0] +" = " + str(curr_param[1]))
 
+    should_compute_bootstrap = parameters.get('should_compute_bootstrap', False)
+
     # Make some aliases
     dataset['n_items'] = dataset['N'].astype(int)
     dataset['subject'] = dataset['subject'].astype(int)
     dataset['error'] = dataset['E']
+    dataset['response'] = dataset['Y']
+    dataset['item_angle'] = dataset['X']
+    dataset['probe'] = np.zeros(dataset['error'].shape, dtype= int)
     dataset['errors_nitems'] = np.empty(np.unique(dataset['n_items']).size, dtype=np.object)
     dataset['errors_nontarget_nitems'] = np.empty(np.unique(dataset['n_items']).size, dtype=np.object)
     dataset['errors_subject_nitems'] = np.empty((np.unique(dataset['subject']).size, np.unique(dataset['n_items']).size), dtype=np.object)
     dataset['errors_nontarget_subject_nitems'] = np.empty((np.unique(dataset['subject']).size, np.unique(dataset['n_items']).size), dtype=np.object)
     dataset['vtest_nitems'] = np.empty(np.unique(dataset['n_items']).size)*np.nan
+    dataset['bootstrap_pval'] = np.empty(np.unique(dataset['n_items']).size)*np.nan
 
     angle_space = np.linspace(-np.pi, np.pi, 31)
+
+    # Fit mixture model
+    if parameters.get('fit_mixture_model', False):
+        if 'mixture_model_cache' in parameters:
+            mixture_model_cache_filename = os.path.join(parameters.get('datadir', ''), parameters['mixture_model_cache'])
+            fit_mixture_model(dataset, caching_save_filename=mixture_model_cache_filename)
+        else:
+            fit_mixture_model(dataset)
 
     for n_items_i, n_items in enumerate(np.unique(dataset['n_items'])):
         for subject_i, subject in enumerate(np.unique(dataset['subject'])):
@@ -326,6 +338,12 @@ def preprocess_bays2009(dataset, parameters):
 
         if n_items > 1:
             dataset['vtest_nitems'][n_items_i] = utils.V_test(utils.dropnan(dataset['errors_nontarget_nitems'][n_items_i]).flatten())['pvalue']
+
+            # Compute bootstrap if required
+            if should_compute_bootstrap:
+                bootstrap = em_circularmixture_allitems_uniquekappa.bootstrap_nontarget_stat(dataset['response'][ids_filtered, 0], dataset['item_angle'][ids_filtered, 0], dataset['item_angle'][ids_filtered, 1:n_items])
+                dataset['bootstrap_pval'][n_items_i] = bootstrap['p_value']
+
 
 
 ######
@@ -575,16 +593,20 @@ def fit_mixture_model(dataset, caching_save_filename=None):
 
                 dataset['target'][ids_filtered] = dataset['item_angle'][ids_filtered, 0]
 
-                params_fit = em_circularmixture.fit(dataset['response'][ids_filtered, 0], dataset['item_angle'][ids_filtered, 0], dataset['item_angle'][ids_filtered, 1:])
+                # params_fit = em_circularmixture.fit(dataset['response'][ids_filtered, 0], dataset['item_angle'][ids_filtered, 0], dataset['item_angle'][ids_filtered, 1:])
+                params_fit = em_circularmixture_allitems_uniquekappa.fit(dataset['response'][ids_filtered, 0], dataset['item_angle'][ids_filtered, 0], dataset['item_angle'][ids_filtered, 1:])
+                params_fit['mixt_nontargets_sum'] = np.sum(params_fit['mixt_nontargets'])
                 # print dataset['response'][ids_filtered, 0].shape, dataset['item_angle'][ids_filtered, 0].shape, dataset['item_angle'][ids_filtered, 1:].shape
 
                 # cross_valid_outputs = em_circularmixture.cross_validation_kfold(dataset['response'][ids_filtered, 0], dataset['item_angle'][ids_filtered, 0], dataset['item_angle'][ids_filtered, 1:], K=10, shuffle=True, debug=False)
                 # params_fit = cross_valid_outputs['best_fit']
-                resp = em_circularmixture.compute_responsibilities(dataset['response'][ids_filtered, 0], dataset['item_angle'][ids_filtered, 0], dataset['item_angle'][ids_filtered, 1:], params_fit)
+                # resp = em_circularmixture.compute_responsibilities(dataset['response'][ids_filtered, 0], dataset['item_angle'][ids_filtered, 0], dataset['item_angle'][ids_filtered, 1:], params_fit)
+                resp = em_circularmixture_allitems_uniquekappa.compute_responsibilities(dataset['response'][ids_filtered, 0], dataset['item_angle'][ids_filtered, 0], dataset['item_angle'][ids_filtered, 1:], params_fit)
 
                 dataset['em_fits']['kappa'][ids_filtered] = params_fit['kappa']
                 dataset['em_fits']['mixt_target'][ids_filtered] = params_fit['mixt_target']
-                dataset['em_fits']['mixt_nontarget'][ids_filtered] = params_fit['mixt_nontargets']
+                # dataset['em_fits']['mixt_nontarget'][ids_filtered] = params_fit['mixt_nontargets']
+                dataset['em_fits']['mixt_nontarget'][ids_filtered] = params_fit['mixt_nontargets_sum']
                 dataset['em_fits']['mixt_random'][ids_filtered] = params_fit['mixt_random']
                 dataset['em_fits']['resp_target'][ids_filtered] = resp['target']
                 dataset['em_fits']['resp_nontarget'][ids_filtered] = np.sum(resp['nontargets'], axis=1)
@@ -609,10 +631,15 @@ def fit_mixture_model(dataset, caching_save_filename=None):
                 dataset['em_fits_nitems']['std'][n_items][key] = np.std(values_allsubjects)
                 dataset['em_fits_nitems']['values'][n_items][key] = values_allsubjects
 
+        ## Construct array versions of the em_fits_nitems mixture proportions, for convenience
+        dataset['em_fits_nitems_arrays'] = dict()
+        dataset['em_fits_nitems_arrays']['mean'] = np.array([[dataset['em_fits_nitems']['mean'][item][em_key] for item in np.unique(dataset['n_items'])] for em_key in ['kappa', 'mixt_target', 'mixt_nontargets_sum', 'mixt_random']])
+        dataset['em_fits_nitems_arrays']['std'] = np.array([[dataset['em_fits_nitems']['std'][item][em_key] for item in np.unique(dataset['n_items'])] for em_key in ['kappa', 'mixt_target', 'mixt_nontargets_sum', 'mixt_random']])
+
     if save_caching_file:
         try:
             with open(caching_save_filename, 'w') as filecache_out:
-                data_em = dict((key, dataset[key]) for key in ['em_fits', 'em_fits_nitems', 'em_fits_subjects_nitems'])
+                data_em = dict((key, dataset[key]) for key in ['em_fits', 'em_fits_nitems', 'em_fits_subjects_nitems', 'em_fits_nitems_arrays'])
 
                 pickle.dump(data_em, filecache_out, protocol=2)
 
@@ -842,6 +869,8 @@ def plots_bays2009(dataset, dataio=None):
             # axes4[n_items_i-1].text(0.02, 0.96, "Vtest pval: %.4f" % (pvalue_nontarget_subject_nitems_mean[n_items_i]), transform=axes4[n_items_i-1].transAxes, horizontalalignment='left', fontsize=13)
             axes4[n_items_i-1].text(0.02, 0.96, "Vtest pval: %.4f" % (dataset['vtest_nitems'][n_items_i]), transform=axes4[n_items_i-1].transAxes, horizontalalignment='left', fontsize=14)
 
+            # TODO Add bootstrap there instead.
+
             axes4[n_items_i-1].set_ylim([0., 0.3])
             axes4[n_items_i-1].set_xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
             axes4[n_items_i-1].set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=16)
@@ -1039,14 +1068,25 @@ def plots_doublerecall(dataset):
         print fitted_parameters
 
 
-def load_data_simult(data_dir = '/Users/loicmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/experimental_data/', fit_mixturemodel=False):
+def load_data_simult(data_dir = '/Users/loicmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/experimental_data/', fit_mixture_model=False):
     '''
         Convenience function, automatically load the Gorgoraptis_2011 dataset.
     '''
 
-    data_simult =  load_multiple_datasets([dict(filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(fit_mixturemodel=fit_mixturemodel, datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), mixture_model_cache='em_simult.pickle'))])[0]
+    data_simult =  load_multiple_datasets([dict(filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(fit_mixture_model=fit_mixture_model, datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), mixture_model_cache='em_simult.pickle'))])[0]
 
     return data_simult
+
+
+def load_data_bays2009(data_dir = '/Users/loicmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/experimental_data/', fit_mixture_model=False):
+    '''
+        Convenience function, automatically load the Bays2009 dataset.
+    '''
+
+    (data_bays2009, ) = load_multiple_datasets([dict(filename='colour_data.mat', preprocess=preprocess_bays2009, parameters=dict(datadir=os.path.join(data_dir, 'Bays2009'), fit_mixture_model=fit_mixture_model, mixture_model_cache='em_bays_allitems.pickle'))])
+
+    return data_bays2009
+
 
 
 if __name__ == '__main__':
@@ -1058,9 +1098,9 @@ if __name__ == '__main__':
     if True or (len(sys.argv) > 1 and sys.argv[1]):
     # keys:
     # 'probe', 'delayed', 'item_colour', 'probe_colour', 'item_angle', 'error', 'probe_angle', 'n_items', 'response', 'subject']
-        # (data_sequen, data_simult, data_dualrecall) = load_multiple_datasets([dict(filename='Exp1.mat', preprocess=preprocess_sequential, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'))), dict(filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), fit_mixturemodel=True)), dict(filename=os.path.join(data_dir, 'DualRecall_Bays', 'rate_data.mat'), preprocess=preprocess_doublerecall, parameters=dict(fit_mixturemodel=True))])
-        # (data_simult,) = load_multiple_datasets([dict(filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), fit_mixturemodel=True, mixture_model_cache='em_simult.pickle'))])
-        (data_bays2009, ) = load_multiple_datasets([dict(filename='colour_data.mat', preprocess=preprocess_bays2009, parameters=dict(datadir=os.path.join(data_dir, 'Bays2009'), fit_mixturemodel=False))])
+        # (data_sequen, data_simult, data_dualrecall) = load_multiple_datasets([dict(filename='Exp1.mat', preprocess=preprocess_sequential, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'))), dict(filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), fit_mixture_model=True)), dict(filename=os.path.join(data_dir, 'DualRecall_Bays', 'rate_data.mat'), preprocess=preprocess_doublerecall, parameters=dict(fit_mixture_model=True))])
+        # (data_simult,) = load_multiple_datasets([dict(filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), fit_mixture_model=True, mixture_model_cache='em_simult.pickle'))])
+        (data_bays2009, ) = load_multiple_datasets([dict(filename='colour_data.mat', preprocess=preprocess_bays2009, parameters=dict(datadir=os.path.join(data_dir, 'Bays2009'), fit_mixture_model=True, mixture_model_cache='em_bays.pickle'))])
 
 
     # Check for bias towards 0 for the error between response and all items
@@ -1095,7 +1135,7 @@ if __name__ == '__main__':
     # plots_check_bias_bestnontarget(data_simult, dataio=dataio)
     # plots_check_bias_nontarget_randomized(data_simult, dataio=dataio)
 
-    plots_bays2009(data_bays2009, dataio=dataio)
+    # plots_bays2009(data_bays2009, dataio=dataio)
 
     plt.show()
 
