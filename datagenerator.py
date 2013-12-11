@@ -502,7 +502,7 @@ class DataGeneratorRFN(DataGenerator):
 
 
 
-    def show_datapoint(self, n=0):
+    def show_datapoint(self, n=0, colormap=None):
         '''
             Show a datapoint.
 
@@ -512,18 +512,20 @@ class DataGeneratorRFN(DataGenerator):
         display_type = self.random_network.population_code_type
 
         if display_type == 'conjunctive':
-            self.show_datapoint_conjunctive(n=n)
-        elif display_type == 'features':
-            self.show_datapoint_features(n=n)
+            self.show_datapoint_conjunctive(n=n, colormap=colormap)
+        elif display_type == 'feature':
+            self.show_datapoint_features(n=n, colormap=colormap)
         elif display_type == 'wavelet':
-            self.show_datapoint_wavelet(n=n)
+            self.show_datapoint_wavelet(n=n, colormap=colormap)
         elif display_type == 'mixed':
-            self.show_datapoint_mixed(n=n)
+            self.show_datapoint_mixed(n=n, colormap=colormap)
         elif display_type == 'hierarchical':
-            self.show_datapoint_hierarchical(n=n)
+            self.show_datapoint_hierarchical(n=n, colormap=colormap)
+        else:
+            raise ValueError("Unknown population type:" + self.random_network.population_code_type)
 
 
-    def show_datapoint_conjunctive(self, n=0):
+    def show_datapoint_conjunctive(self, n=0, colormap=None):
         '''
             Show a datapoint, as a 2D grid plot (for now, assumes R==2).
 
@@ -537,7 +539,7 @@ class DataGeneratorRFN(DataGenerator):
 
         f = plt.figure()
         ax = f.add_subplot(111)
-        im = ax.imshow(np.reshape(self.Y[n][:M_sqrt*M_sqrt], (M_sqrt, M_sqrt)).T, origin='lower', aspect='equal', interpolation='nearest')
+        im = ax.imshow(np.reshape(self.Y[n][:M_sqrt*M_sqrt], (M_sqrt, M_sqrt)).T, origin='lower', aspect='equal', interpolation='nearest', cmap=colormap)
         im.set_extent((-np.pi, np.pi, -np.pi, np.pi))
         ax.set_xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
         ax.set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'))
@@ -547,13 +549,14 @@ class DataGeneratorRFN(DataGenerator):
         # Show ellipses at the stimuli positions
         colmap = plt.get_cmap('gist_rainbow')
         color_gen = [colmap(1.*(i)/self.T) for i in xrange(self.T)][::-1]  # use 22 colors
+        # color_gen = ["blue", "green", "red", "cyan", "magenta", "yellow"]
 
         for t in xrange(self.T):
-            w = plt_patches.Wedge((self.stimuli_correct[n, t, 0], self.stimuli_correct[n, t, 1]), 0.25, 0, 360, 0.03, color=color_gen[t], alpha=0.7, linewidth=2)
+            w = plt_patches.Wedge((self.stimuli_correct[n, t, 0], self.stimuli_correct[n, t, 1]), 0.25, 0, 360, 0.12, color=color_gen[t], alpha=1.0, linewidth=2)
             ax.add_patch(w)
 
 
-    def show_datapoint_features(self, n=0):
+    def show_datapoint_features(self, n=0, colormap=None):
         '''
             Show a datapoint for a features code.
             Will show 2 "lines", with the output of horizontal/vertical neurons.
@@ -579,7 +582,7 @@ class DataGeneratorRFN(DataGenerator):
         ax.set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'))
 
         ax.set_yticks(())
-        ax.legend(['Horizontal cells', 'Vertical cells'], fancybox=True, borderpad=0.3, columnspacing=0.5, borderaxespad=0.7, handletextpad=0, handlelength=1.5)
+        ax.legend(['Horizontal cells', 'Vertical cells'], fancybox=True, borderpad=0.3, columnspacing=0.5, borderaxespad=0.1, handletextpad=0, handlelength=1.5, bbox_to_anchor=(1.0, 1.0))
 
         # Show ellipses at the stimuli positions
         colmap = plt.get_cmap('gist_rainbow')
@@ -588,10 +591,10 @@ class DataGeneratorRFN(DataGenerator):
         for t in xrange(self.T):
 
             # max_pos = np.argmin((np.linspace(-np.pi, np.pi, horiz_cells.size, endpoint=False) - self.stimuli_correct[n, t, 0])**2.)
-            w = plt_patches.Wedge((self.stimuli_correct[n, t, 0], 1.2*self.Y[n, horiz_cells].max()), 0.1, 0, 360, color=color_gen[t], alpha=0.7, linewidth=2)
+            w = plt_patches.Wedge((self.stimuli_correct[n, t, 0], 1.2*self.Y[n, horiz_cells].max()), 0.1, 0, 360, color=color_gen[t], alpha=1.0, linewidth=2)
             ax.add_patch(w)
 
-            w = plt_patches.Wedge((self.stimuli_correct[n, t, 1], 1.1*self.Y[n, horiz_cells].max() + factor_2lines*self.Y[n, horiz_cells].max()), 0.1, 0, 360, color=color_gen[t], alpha=0.7, linewidth=2)
+            w = plt_patches.Wedge((self.stimuli_correct[n, t, 1], 1.1*self.Y[n, horiz_cells].max() + factor_2lines*self.Y[n, horiz_cells].max()), 0.1, 0, 360, color=color_gen[t], alpha=1.0, linewidth=2)
             ax.add_patch(w)
 
         plt.xlim((-np.pi, np.pi))
@@ -603,7 +606,7 @@ class DataGeneratorRFN(DataGenerator):
         # ax.set_yticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'))
 
 
-    def show_datapoint_mixed(self, n=0):
+    def show_datapoint_mixed(self, n=0, colormap=None):
         '''
             Show a datapoint for a mixed code
         '''
@@ -614,7 +617,7 @@ class DataGeneratorRFN(DataGenerator):
         ax = f.add_subplot(211)
         conj_sqrt = int(self.random_network.conj_subpop_size**0.5)
         # TODO Fix for conj_subpop_size = 0
-        im = ax.imshow(np.reshape(self.Y[n][:conj_sqrt**2.], (conj_sqrt, conj_sqrt)).T, origin='lower', aspect='equal', interpolation='nearest')
+        im = ax.imshow(np.reshape(self.Y[n][:conj_sqrt**2.], (conj_sqrt, conj_sqrt)).T, origin='lower', aspect='equal', interpolation='nearest', cmap=colormap)
         im.set_extent((-np.pi, np.pi, -np.pi, np.pi))
         ax.set_xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
         ax.set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'))
@@ -626,7 +629,7 @@ class DataGeneratorRFN(DataGenerator):
         color_gen = [colmap(1.*(i)/self.T) for i in xrange(self.T)][::-1]  # use 22 colors
 
         for t in xrange(self.T):
-            w = plt_patches.Wedge((self.stimuli_correct[n, t, 0], self.stimuli_correct[n, t, 1]), 0.25, 0, 360, 0.03, color=color_gen[t], alpha=0.7, linewidth=2)
+            w = plt_patches.Wedge((self.stimuli_correct[n, t, 0], self.stimuli_correct[n, t, 1]), 0.25, 0, 360, 0.12, color=color_gen[t], alpha=1.0, linewidth=2)
             ax.add_patch(w)
 
         ##### Show the feature units
@@ -653,10 +656,10 @@ class DataGeneratorRFN(DataGenerator):
         for t in xrange(self.T):
 
             # max_pos = np.argmin((np.linspace(-np.pi, np.pi, horiz_cells.size, endpoint=False) - self.stimuli_correct[n, t, 0])**2.)
-            w = plt_patches.Wedge((self.stimuli_correct[n, t, 0], 1.2*self.Y[n, horiz_cells].max()), 0.1, 0, 360, color=color_gen[t], alpha=0.7, linewidth=2)
+            w = plt_patches.Wedge((self.stimuli_correct[n, t, 0], 1.2*self.Y[n, horiz_cells].max()), 0.1, 0, 360, color=color_gen[t], alpha=1.0, linewidth=2)
             ax.add_patch(w)
 
-            w = plt_patches.Wedge((self.stimuli_correct[n, t, 1], 1.1*self.Y[n, horiz_cells].max() + factor_2lines*self.Y[n, horiz_cells].max()), 0.1, 0, 360, color=color_gen[t], alpha=0.7, linewidth=2)
+            w = plt_patches.Wedge((self.stimuli_correct[n, t, 1], 1.1*self.Y[n, horiz_cells].max() + factor_2lines*self.Y[n, horiz_cells].max()), 0.1, 0, 360, color=color_gen[t], alpha=1.0, linewidth=2)
             ax.add_patch(w)
 
         ax.set_xlim((-np.pi, np.pi))
@@ -664,9 +667,7 @@ class DataGeneratorRFN(DataGenerator):
 
 
 
-
-
-    def show_datapoint_wavelet(self, n=0, single_figure=True):
+    def show_datapoint_wavelet(self, n=0, single_figure=True, colormap=None):
         '''
             Show a datapoint for wavelet code.
             Will print several 2D grid plots (for now, assumes R==2).
@@ -728,7 +729,7 @@ class DataGeneratorRFN(DataGenerator):
             pass
 
 
-    def show_datapoint_hierarchical(self, n=0):
+    def show_datapoint_hierarchical(self, n=0, colormap=None):
         '''
             Show a datapoint from a hiearchical random network
 
