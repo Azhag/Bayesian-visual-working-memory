@@ -9,6 +9,7 @@ Copyright (c) 2013 . All rights reserved.
 """
 
 import numpy as np
+import os
 
 import utils
 import dataio as DataIO
@@ -44,8 +45,12 @@ def launcher_do_nontarget_bootstrap(args):
     run_counter = 0
 
     # Load the data
-    model_outputs = utils.load_npy( '/nfs/home2/lmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/code/git-bayesian-visual-working-memory/Experiments/error_distribution/error_distribution_conj_M100T6repetitions5_121113_outputs/global_plots_errors_distribution-plots_errors_distribution-cc1a49b0-f5f0-4e82-9f0f-5a16a2bfd4e8.npy')
-    # model_outputs = utils.load_npy( '/Users/loicmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/code/git-bayesian-visual-working-memory/Experiments/bootstrap_nontargets/global_plots_errors_distribution-plots_errors_distribution-cc1a49b0-f5f0-4e82-9f0f-5a16a2bfd4e8.npy')
+    if all_parameters['subaction'] == 'mixed':
+        # Mixed runs
+        model_outputs = utils.load_npy( os.path.join(os.getenv("WORKDIR_DROP", None), 'Experiments', 'bootstrap_nontargets', 'global_plots_errors_distribution-plots_errors_distribution-d977e237-cfce-473b-a292-00695e725259.npy'))
+    else:
+        # Conjunctive runs
+        model_outputs = utils.load_npy( os.path.join(os.getenv("WORKDIR_DROP", None), 'Experiments', 'bootstrap_nontargets', 'global_plots_errors_distribution-plots_errors_distribution-cc1a49b0-f5f0-4e82-9f0f-5a16a2bfd4e8.npy'))
 
     data_responses_all = model_outputs['result_responses_all'][..., 0]
     data_target_all = model_outputs['result_target_all'][..., 0]
@@ -120,6 +125,93 @@ def launcher_do_nontarget_bootstrap(args):
     print "All finished"
     return locals()
 
+
+def launcher_do_nontarget_bootstrap_misbindingruns(args):
+    '''
+        Compute a bootstrap estimate, using outputs from a Misbinding generator run.
+    '''
+
+    print "Doing a piece of work for launcher_do_nontarget_bootstrap"
+
+    try:
+        # Convert Argparse.Namespace to dict
+        all_parameters = vars(args)
+    except TypeError:
+        # Assume it's already done
+        assert type(args) is dict, "args is neither Namespace nor dict, WHY?"
+        all_parameters = args
+
+    print all_parameters
+
+    # Create DataIO
+    #  (complete label with current variable state)
+    dataio = DataIO.DataIO(output_folder=all_parameters['output_directory'], label=all_parameters['label'].format(**all_parameters))
+    save_every = 1
+    run_counter = 0
+
+    # Load the data
+    if all_parameters['subaction'] == 'mixed' or all_parameters['subaction'] == '':
+        # Mixed runs
+        model_outputs = utils.load_npy( os.path.join(os.getenv("WORKDIR_DROP", None), 'Experiments', 'bootstrap_nontargets', 'global_plots_misbinding_logposterior-plots_misbinding_logposterior-36eb41e9-6370-453e-995e-3876d5105388.npy'))
+
+    data_responses_all = model_outputs['result_all_thetas']
+    data_target = model_outputs['target_angle']
+    data_nontargets = model_outputs['nontarget_angles']
+    ratio_space = model_outputs['ratio_space']
+
+    # Result arrays
+    result_bootstrap_samples_allitems = np.nan*np.ones((ratio_space.size, all_parameters['num_repetitions']))
+    result_bootstrap_samples = np.nan*np.ones((ratio_space.size, all_parameters['num_repetitions']))
+    result_bootstrap_samples_allitems_uniquekappa_sumnontarget = np.nan*np.ones((ratio_space.size, all_parameters['num_repetitions']))
+    result_bootstrap_samples_allitems_uniquekappa_allnontarget = np.nan*np.ones((ratio_space.size, all_parameters['num_repetitions']))
+
+    search_progress = progress.Progress(ratio_space.size)
+
+    for ratio_conj_i, ratio_conj in enumerate(ratio_space):
+        print "%.2f%%, %s left - %s" % (search_progress.percentage(), search_progress.time_remaining_str(), search_progress.eta_str())
+
+        print "Bootstrap for ratio=%.2f, %d bootstrap samples" % (ratio_conj, all_parameters['num_repetitions'])
+
+        ### WORK WORK WORK work? ###
+
+        # Get some bootstrap samples
+        bootstrap_allitems_nontargets_allitems_uniquekappa = em_circularmixture_allitems_uniquekappa.bootstrap_nontarget_stat(
+                data_responses_all[ratio_conj_i],
+                data_target,
+                data_nontargets,
+                nb_bootstrap_samples=all_parameters['num_repetitions'],
+                resample_targets=False)
+
+        bootstrap_allitems_nontargets = em_circularmixture.bootstrap_nontarget_stat(
+                data_responses_all[ratio_conj_i],
+                data_target,
+                data_nontargets,
+                nb_bootstrap_samples=all_parameters['num_repetitions'],
+                resample_targets=False)
+
+        # Collect and store responses
+        result_bootstrap_samples[ratio_conj_i] = bootstrap_allitems_nontargets['nontarget_bootstrap_samples']
+
+        result_bootstrap_samples_allitems_uniquekappa_sumnontarget[ratio_conj_i] = bootstrap_allitems_nontargets_allitems_uniquekappa['nontarget_bootstrap_samples']
+        result_bootstrap_samples_allitems_uniquekappa_allnontarget[ratio_conj_i] = bootstrap_allitems_nontargets_allitems_uniquekappa['allnontarget_bootstrap_samples']
+
+        print result_bootstrap_samples_allitems[ratio_conj_i]
+        print result_bootstrap_samples[ratio_conj_i]
+        print result_bootstrap_samples_allitems_uniquekappa_sumnontarget[ratio_conj_i]
+        print result_bootstrap_samples_allitems_uniquekappa_allnontarget[ratio_conj_i]
+
+        ### /Work ###
+
+        search_progress.increment()
+        if run_counter % save_every == 0 or search_progress.done():
+            dataio.save_variables_default(locals())
+        run_counter += 1
+
+    # Finished
+    dataio.save_variables_default(locals())
+
+    print "All finished"
+    return locals()
 
 
 

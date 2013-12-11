@@ -148,6 +148,12 @@ def launcher_do_mixed_special_stimuli_fixratio(args):
     result_all_precisions = np.nan*np.ones(all_parameters['num_repetitions'])
     result_em_fits = np.nan*np.ones((5, all_parameters['num_repetitions']))  # kappa, mixt_target, mixt_nontarget, mixt_random, ll
     result_em_resp = np.nan*np.ones((all_parameters['num_repetitions'], 1+all_parameters['T'], all_parameters['N']))
+    # If desired, will automatically save all Model responses.
+    if all_parameters['subaction'] == 'collect_responses':
+        result_responses = np.nan*np.ones((all_parameters['N'], all_parameters['num_repetitions']))
+        result_target = np.nan*np.ones((all_parameters['N'], all_parameters['num_repetitions']))
+        result_nontargets = np.nan*np.ones((all_parameters['N'], all_parameters['T']-1, all_parameters['num_repetitions']))
+
 
     search_progress = progress.Progress(all_parameters['num_repetitions'])
 
@@ -178,6 +184,16 @@ def launcher_do_mixed_special_stimuli_fixratio(args):
         result_em_resp[repet_i, 0] = curr_resp['target']
         result_em_resp[repet_i, 1:-1] = curr_resp['nontargets'].T
         result_em_resp[repet_i, -1] = curr_resp['random']
+
+        # If needed, store responses
+        if all_parameters['subaction'] == 'collect_responses':
+            (responses, target, nontarget) = sampler.collect_responses()
+            result_responses[:, repet_i] = responses
+            result_target[:, repet_i] = target
+            result_nontargets[..., repet_i] = nontarget
+
+            print "collected responses"
+
 
         ### /Work ###
 
@@ -239,6 +255,13 @@ def launcher_do_hierarchical_special_stimuli_varyMMlower(args):
     result_em_fits = np.nan*np.ones((MMlower_valid_space.shape[0], 5, all_parameters['num_repetitions']))  # kappa, mixt_target, mixt_nontarget, mixt_random, ll
     result_em_resp = np.nan*np.ones((MMlower_valid_space.shape[0], 1+all_parameters['T'], all_parameters['N'], all_parameters['num_repetitions']))
 
+    # If desired, will automatically save all Model responses.
+    if all_parameters['subaction'] == 'collect_responses':
+        result_responses = np.nan*np.ones((MMlower_valid_space.shape[0], all_parameters['N'], all_parameters['num_repetitions']))
+        result_target = np.nan*np.ones((MMlower_valid_space.shape[0], all_parameters['N'], all_parameters['num_repetitions']))
+        result_nontargets = np.nan*np.ones((MMlower_valid_space.shape[0], all_parameters['N'], all_parameters['T']-1, all_parameters['num_repetitions']))
+
+
     search_progress = progress.Progress(MMlower_valid_space.shape[0]*all_parameters['num_repetitions'])
 
     for repet_i in xrange(all_parameters['num_repetitions']):
@@ -276,6 +299,15 @@ def launcher_do_hierarchical_special_stimuli_varyMMlower(args):
             result_em_resp[MMlower_i, 0, :, repet_i] = curr_resp['target']
             result_em_resp[MMlower_i, 1:-1, :, repet_i] = curr_resp['nontargets'].T
             result_em_resp[MMlower_i, -1, :, repet_i] = curr_resp['random']
+
+            # If needed, store responses
+            if all_parameters['subaction'] == 'collect_responses':
+                (responses, target, nontarget) = sampler.collect_responses()
+                result_responses[MMlower_i, :, repet_i] = responses
+                result_target[MMlower_i, :, repet_i] = target
+                result_nontargets[MMlower_i, ..., repet_i] = nontarget
+
+                print "collected responses"
 
             ### /Work ###
 
