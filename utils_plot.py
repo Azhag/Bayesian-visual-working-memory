@@ -98,7 +98,7 @@ def lab2rgb(lab):
 
     return C
 
-def plot_multiple_mean_std_area(x, y, std, ax_handle=None, fignum=None):
+def plot_multiple_mean_std_area(x, y, std, ax_handle=None, fignum=None, linewidth=1, fmt='-', markersize=1, color=None, xlabel=None, ylabel=None, label=''):
     '''
         Plots multiple x-y data with standard error, on the same graph
 
@@ -113,7 +113,7 @@ def plot_multiple_mean_std_area(x, y, std, ax_handle=None, fignum=None):
         x = np.tile(x, (y.shape[0], 1))
 
     for curr_plt in xrange(x.shape[0]):
-        ax_handle = plot_mean_std_area(x[curr_plt], y[curr_plt], std[curr_plt], ax_handle=ax_handle)
+        ax_handle = plot_mean_std_area(x[curr_plt], y[curr_plt], std[curr_plt], ax_handle=ax_handle, linewidth=linewidth, fmt=fmt, markersize=markersize, color=color, xlabel=xlabel, ylabel=ylabel, label=label)
 
     return ax_handle
 

@@ -594,7 +594,7 @@ class Sampler:
                 return (ll_x, x)
 
 
-    def plot_likelihood_variation_twoangles(self, num_points=100, amplify_diag=1.0, should_plot=True, should_return=False, should_exponentiate = False, remove_mean=False, n=0, t=0, interpolation='nearest'):
+    def plot_likelihood_variation_twoangles(self, num_points=100, amplify_diag=1.0, should_plot=True, should_return=False, should_exponentiate = False, remove_mean=False, n=0, t=0, interpolation='nearest', normalize=False, colormap=None):
         '''
             Compute the likelihood, varying two angles around.
             Plot the result
@@ -618,6 +618,10 @@ class Sampler:
         if remove_mean:
             llh_2angles -= np.mean(llh_2angles)
 
+        # Normalise if required.
+        if normalize:
+            llh_2angles -= self.normalization[n]
+
         if should_exponentiate:
             llh_2angles = np.exp(llh_2angles)
 
@@ -625,7 +629,7 @@ class Sampler:
             # Plot the obtained landscape
             f = plt.figure()
             ax = f.add_subplot(111)
-            im= ax.imshow(llh_2angles.T, origin='lower')
+            im= ax.imshow(llh_2angles.T, origin='lower', cmap=colormap)
             im.set_extent((-np.pi, np.pi, -np.pi, np.pi))
             im.set_interpolation(interpolation)
             f.colorbar(im)
@@ -651,7 +655,7 @@ class Sampler:
             color_gen = [colmap(1.*(i)/self.T) for i in xrange(self.T)][::-1]  # use 22 colors
 
             for t in xrange(self.T):
-                w = plt_patches.Wedge((correct_angles[t, 0], correct_angles[t, 1]), 0.25, 0, 360, 0.03, color=color_gen[t], alpha=0.7)
+                w = plt_patches.Wedge((correct_angles[t, 0], correct_angles[t, 1]), 0.25, 0, 360, 0.10, color=color_gen[t], alpha=0.9)
                 ax.add_patch(w)
 
             # plt.annotate('O', (correct_angles[1, 0], correct_angles[1, 1]), color='blue', fontweight='bold', fontsize=30, horizontalalignment='center', verticalalignment='center')
@@ -661,7 +665,7 @@ class Sampler:
             return llh_2angles
 
 
-    def plot_likelihood_correctlycuedtimes(self, n=0, amplify_diag=1.0, all_angles=None, num_points=500, should_plot=True, should_return=False, should_exponentiate = False, show_legend=True, debug=True, ax_handle=None):
+    def plot_likelihood_correctlycuedtimes(self, n=0, amplify_diag=1.0, all_angles=None, num_points=500, should_plot=True, should_return=False, should_exponentiate = False, show_legend=True, show_current_theta=True, debug=True, ax_handle=None):
         '''
             Plot the log-likelihood function, over the space of the sampled theta, keeping the other thetas fixed to their correct cued value.
         '''
@@ -701,14 +705,15 @@ class Sampler:
             for t in xrange(self.T):
                 # Put the legends
                 if show_legend:
-                    ax_handle.legend(lines, legends, loc='upper center', bbox_to_anchor=(0.5, 1.1), ncol=self.T, fancybox=True, shadow=True)
+                    ax_handle.legend(lines, legends, loc='upper center', bbox_to_anchor=(0.5, 1.11), ncol=self.T, fancybox=True, shadow=True)
 
                 # Put a vertical line at the true answer
                 ax_handle.axvline(x=self.data_gen.stimuli_correct[n, t, 0], color=lines[t].get_c())  # ax_handle[t] returns the plotted line
 
 
-            # Put a dot at the current theta sample, for tc
-            ax_handle.axvline(x=self.theta[n, self.theta_to_sample[n]], color='k', linestyle="--")
+            # Put a dotted line at the current theta sample, for tc
+            if show_current_theta:
+                ax_handle.axvline(x=self.theta[n, self.theta_to_sample[n]], color='k', linestyle="--")
 
             ax_handle.get_figure().canvas.draw()
 
@@ -729,6 +734,8 @@ class Sampler:
 
         if should_return:
             return llh_2angles_out
+
+        return ax_handle
 
 
     def plot_likelihood_comparison(self, n=0):
