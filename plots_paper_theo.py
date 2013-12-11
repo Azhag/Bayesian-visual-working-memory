@@ -15,6 +15,7 @@ from utils import *
 from dataio import *
 from gibbs_sampler_continuous_fullcollapsed_randomfactorialnetwork import *
 from launchers import *
+import load_experimental_data
 
 plt.rcParams['font.size'] = 17
 
@@ -154,13 +155,12 @@ def plot_distribution_errors():
 
 def fisher_information_1obj_2d():
     # %run experimentlauncher.py --action_to_do launcher_do_fisher_information_estimation --subaction rcscale_dependence --M 100 --N 500 --sigmax 0.1 --sigmay 0.0001 --label fi_compare_paper --num_samples 100
+    # fi_compare_paper-launcher_do_fisher_information_estimation-d563945d-4af3-4983-8250-09731352cbf9.npy
     # Used the boxplot. And some
 
     dataio = DataIO(label='papertheo_fisherinfo_1obj2d', calling_function='')
 
-    plt.rcParams['font.size'] = 18
-
-    plt.figure()
+    plt.rcParams['font.size'] = 16
 
     # Do a boxplot
     # b = plt.boxplot([FI_rc_curv_all[0], FI_rc_samples_all[0].flatten(), FI_rc_precision_all[0], FI_rc_theo_all[0, 0], FI_rc_theo_all[0, 1]])
@@ -169,13 +169,28 @@ def fisher_information_1obj_2d():
     #         line.set_linewidth(2)
 
     # Do a bar plot instead
-    FI_rc_curv_mean = np.mean(FI_rc_curv_all)
-    FI_rc_curv_std = np.std(FI_rc_curv_all)
-    FI_rc_samples_mean = np.mean(FI_rc_samples_all)
-    FI_rc_samples_std = np.std(FI_rc_samples_all)
+    if True:
+        FI_rc_curv_mean_rcscale = np.mean(FI_rc_curv_all, axis=-1)
+        FI_rc_curv_std_rcscale = np.std(FI_rc_curv_all, axis=-1)
+        FI_rc_samples_mean_rcscale = np.mean(FI_rc_samples_all.reshape((rcscale_space.size, FI_rc_samples_all.shape[1]*FI_rc_samples_all.shape[2])), axis=-1)
+        FI_rc_samples_std_rcscale = np.std(FI_rc_samples_all.reshape((rcscale_space.size, FI_rc_samples_all.shape[1]*FI_rc_samples_all.shape[2])), axis=-1)
 
-    values_bars = np.array([FI_rc_curv_mean, FI_rc_samples_mean, FI_rc_precision_all[0], FI_rc_theo_all[0, 0], FI_rc_theo_all[0, 1]])
-    values_bars_std = np.array([FI_rc_curv_std, FI_rc_samples_std, np.nan, np.nan, np.nan])
+        rcscale_i = 4
+        FI_rc_curv_mean = FI_rc_curv_mean_rcscale[rcscale_i]
+        FI_rc_curv_std = FI_rc_curv_std_rcscale[rcscale_i]
+        FI_rc_samples_mean = FI_rc_samples_mean_rcscale[rcscale_i]
+        FI_rc_samples_std = FI_rc_samples_std_rcscale[rcscale_i]
+        FI_rc_precision = FI_rc_precision_all[rcscale_i]
+        FI_rc_theo = FI_rc_theo_all[rcscale_i, 0]
+        FI_rc_theo_largen = FI_rc_theo_all[rcscale_i, 1]
+    else:
+        FI_rc_curv_mean = np.mean(FI_rc_curv_all)
+        FI_rc_curv_std = np.std(FI_rc_curv_all)
+        FI_rc_samples_mean = np.mean(FI_rc_samples_all)
+        FI_rc_samples_std = np.std(FI_rc_samples_all)
+
+    values_bars = np.array([FI_rc_precision, FI_rc_theo, FI_rc_theo_largen, FI_rc_samples_mean, FI_rc_curv_mean])
+    values_bars_std = np.array([np.nan, np.nan, np.nan, FI_rc_samples_std, FI_rc_curv_std])
 
     # set_colormap = plt.cm.gnuplot
     color_gen = [set_colormap((i+0.1)/(float(len(values_bars))+0.1)) for i in xrange(len(values_bars))][::-1]
@@ -183,14 +198,19 @@ def fisher_information_1obj_2d():
     bars_indices = np.arange(values_bars.size)
     width = 0.7
 
-    for bar_i in xrange(values_bars.size):
-        plt.bar(bars_indices[bar_i], values_bars[bar_i], width=width, color=color_gen[bar_i])
-        plt.errorbar(bars_indices[bar_i] + width/2., values_bars[bar_i], yerr=values_bars_std[bar_i], ecolor='k', capsize=20, capthick=2, linewidth=2)
+    ## Plot all as bars
+    f, ax = plt.subplots(figsize=(10,6))
 
-    #
-    plt.xticks(bars_indices + width/2., ['Curvature', 'Samples', 'Precision', 'Fisher Information', 'Fisher Information\n Large N'], rotation=0)
+    for bar_i in xrange(values_bars.size):
+        plt.bar(bars_indices[bar_i], values_bars[bar_i], width=width, color=color_gen[bar_i], zorder=2)
+        plt.errorbar(bars_indices[bar_i] + width/2., values_bars[bar_i], yerr=values_bars_std[bar_i], ecolor='k', capsize=20, capthick=2, linewidth=2, zorder=3)
+
+    # Add the precision bar times 2
+    plt.bar(bars_indices[0], 2*values_bars[0], width=width, color=color_gen[0], alpha=0.5, hatch='/', linestyle='dashed', zorder=1)
+
+    plt.xticks(bars_indices + width/2., ['Precision', 'Fisher Information', 'Fisher Information\n Large N', 'Samples', 'Curvature'], rotation=0)
     plt.xlim((-0.2, 5.))
-    plt.ylim((0.0, 190))
+    f.canvas.draw()
     plt.tight_layout()
 
     dataio.save_current_figure('FI_rc_comparison_curv_samples-papertheo-{label}_{unique_id}.pdf')
@@ -212,13 +232,21 @@ def posterior_plots():
 
     plt.rcParams['font.size'] = 18
 
-    if False:
+    if True:
         (random_network, data_gen, stat_meas, sampler) = init_everything(all_parameters)
 
-        data_gen.show_datapoint(n=1)
-        sampler.plot_likelihood_variation_twoangles(n=1, interpolation='bilinear')
-        sampler.plot_likelihood_correctlycuedtimes(n=1)
-        sampler.plot_likelihood_correctlycuedtimes(n=1, should_exponentiate=True)
+        data_gen.show_datapoint(n=1, colormap='gray')
+        sampler.plot_likelihood_variation_twoangles(n=1, interpolation='bilinear', normalize=True, colormap='gray')
+        # sampler.plot_likelihood_correctlycuedtimes(n=1)
+
+        ax_handle = sampler.plot_likelihood_correctlycuedtimes(n=1, should_exponentiate=True, show_current_theta=False)
+
+        ax_handle.set_yticks([])
+        ax_handle.set_xticks((-np.pi, -np.pi / 2, 0, np.pi / 2., np.pi))
+        ax_handle.set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=18)
+        ax_handle.get_figure().canvas.draw()
+        plt.tight_layout(pad=1.6)
+        ax_handle.get_figure().canvas.draw()
 
     # Feature population
     all_parameters['code_type'] = 'feat'
@@ -232,27 +260,46 @@ def posterior_plots():
         (random_network, data_gen, stat_meas, sampler) = init_everything(all_parameters)
 
         data_gen.show_datapoint(n=1)
-        sampler.plot_likelihood_variation_twoangles(n=1, interpolation='bilinear')
-        sampler.plot_likelihood_correctlycuedtimes(n=1)
-        sampler.plot_likelihood_correctlycuedtimes(n=1, should_exponentiate=True)
+        sampler.plot_likelihood_variation_twoangles(n=1, interpolation='bilinear', normalize=True, colormap='gray')
+        # sampler.plot_likelihood_correctlycuedtimes(n=1)
+        ax_handle = sampler.plot_likelihood_correctlycuedtimes(n=1, should_exponentiate=True, show_current_theta=False)
+
+        ax_handle.set_yticks([])
+        ax_handle.set_xticks((-np.pi, -np.pi / 2, 0, np.pi / 2., np.pi))
+        ax_handle.set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=18)
+        ax_handle.get_figure().canvas.draw()
+        plt.tight_layout(pad=1.6)
+        ax_handle.get_figure().canvas.draw()
 
     # Mixed population
     all_parameters['code_type'] = 'mixed'
     all_parameters['M'] = 200
-    all_parameters['sigmax'] = 0.15
+    all_parameters['autoset_parameters'] = True
+    all_parameters['sigmax'] = 0.05
     all_parameters['rc_scale'] = 2.5
     all_parameters['rc_scale2'] = stddev_to_kappa(np.pi)
     all_parameters['ratio_conj'] = 0.5
     all_parameters['feat_ratio'] = stddev_to_kappa(2.*np.pi/int(all_parameters['M']*all_parameters['ratio_conj']/2.))/stddev_to_kappa(np.pi)
 
 
-    if True:
+    if False:
         (random_network, data_gen, stat_meas, sampler) = init_everything(all_parameters)
 
-        data_gen.show_datapoint(n=1)
-        sampler.plot_likelihood_variation_twoangles(n=1, interpolation='bilinear')
-        sampler.plot_likelihood_correctlycuedtimes(n=1)
-        sampler.plot_likelihood_correctlycuedtimes(n=1, should_exponentiate=True)
+        data_gen.show_datapoint(n=1, colormap='gray')
+
+        sampler.plot_likelihood_variation_twoangles(n=1, interpolation='bilinear', normalize=True, colormap='gray')
+
+        # sampler.plot_likelihood_correctlycuedtimes(n=1)
+
+        ax_handle = sampler.plot_likelihood_correctlycuedtimes(n=1, should_exponentiate=True, show_current_theta=False)
+
+        ax_handle.set_yticks([])
+        ax_handle.set_xticks((-np.pi, -np.pi / 2, 0, np.pi / 2., np.pi))
+        ax_handle.set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=18)
+        ax_handle.get_figure().canvas.draw()
+        plt.tight_layout(pad=1.6)
+        ax_handle.get_figure().canvas.draw()
+
 
 
     return locals()
@@ -281,46 +328,23 @@ def plot_experimental_mixture():
         Cheat and get data from Bays 2008 from figure...
     '''
 
-    nontargets_experimental = [dict(mean=(1., 0.0), high=(1, 0.0), low=(1, 0.0)),
-                               dict(mean=(2., 0.028789279477880285), high=(2, 0.037857142857142805), low=(2.0110497237569063, 0.018571428571428558)),
-                               dict(mean=(4., 0.11428571428571427), low=(3.9999999999999996, 0.10214285714285715), high=(4, 0.12714285714285717)),
-                               dict(mean=(6.0, 0.2857142857142857), low=(6, 0.2628571428571429), high=(6, 0.3107142857142857))
-                               ]
+    data_bays2009 = load_experimental_data.load_data_bays2009(fit_mixture_model=True)
+    experimental_mixtures_mean = data_bays2009['em_fits_nitems_arrays']['mean'][1:]
+    experimental_mixtures_std = data_bays2009['em_fits_nitems_arrays']['std'][1:]
+    experimental_mixtures_mean[np.isnan(experimental_mixtures_mean)] = 0.0
+    experimental_mixtures_std[np.isnan(experimental_mixtures_std)] = 0.0
 
-    random_experimental = [dict(mean=(1.0, 0.011275727401285185), high=(1, 0.028457857985477633), low=(1, -0.005906403182907263)),
-                           dict(mean=(2.0, 0.04962594977981958), high=(2.0, 0.059935228130335055), low=(2.0, 0.03862938620593646)),
-                           dict(mean=(4.0, 0.15725569501535036), high=(4.0, 0.17993610738648436), low=(4.0, 0.13526110244066858)),
-                           dict(mean=(6.0, 0.13567435283083845), high=(6., 0.15354376863839858), low=(6., 0.11780493702327834))]
-
-    # Fill up the rest of the fields and construct the target response rates
-    targets_experimental = []
-
-    for i in xrange(len(nontargets_experimental)):
-        nontargets_experimental[i]['std'] = np.mean((nontargets_experimental[i]['high'][1] - nontargets_experimental[i]['mean'][1], nontargets_experimental[i]['mean'][1] - nontargets_experimental[i]['low'][1]))
-
-        random_experimental[i]['std'] = np.mean((random_experimental[i]['high'][1] - random_experimental[i]['mean'][1], random_experimental[i]['mean'][1] - random_experimental[i]['low'][1]))
-
-        targets_experimental.append(dict(mean=(i+1.0, 1.0 - nontargets_experimental[i]['mean'][1] - random_experimental[i]['mean'][1])))
-
-    print targets_experimental
-
-    # Construct arrays
-    items_space = np.array([1, 2, 4, 6])
-    nontargets_experimental_arr = np.array([nontarget_curr['mean'][1] for nontarget_curr in nontargets_experimental])
-    nontargets_experimental_arr_std = np.array([nontarget_curr['std'] for nontarget_curr in nontargets_experimental])
-    random_experimental_arr = np.array([random_curr['mean'][1] for random_curr in random_experimental])
-    random_experimental_arr_std = np.array([random_curr['std'] for random_curr in random_experimental])
-    targets_experimental_arr = np.array([target_curr['mean'][1] for target_curr in targets_experimental])
+    experimental_mixtures_sem = experimental_mixtures_std/np.sqrt(np.unique(data_bays2009['subject']).size)
+    items_space = np.unique(data_bays2009['n_items'])
 
     f, ax = plt.subplots()
-    ax = plot_mean_std_area(items_space, targets_experimental_arr, np.zeros(items_space.size), ax_handle=ax, linewidth=2)
-    ax = plot_mean_std_area(items_space, nontargets_experimental_arr, nontargets_experimental_arr_std, ax_handle=ax, linewidth=2)
-    ax = plot_mean_std_area(items_space, random_experimental_arr, random_experimental_arr_std, ax_handle=ax, linewidth=2)
-    ax.set_xlim((1.0, 6))
-    ax.set_ylim((0.0, 1.0))
-    # ax.set_yticks((0.0, 0.25, 0.5, 0.75, 1.0))
+    ax = plot_multiple_mean_std_area(items_space, experimental_mixtures_mean, experimental_mixtures_sem, ax_handle=ax, linewidth=2)
+
+    ax.set_xlim((1.0, 5.0))
+    ax.set_ylim((0.0, 1.1))
+    # # ax.set_yticks((0.0, 0.25, 0.5, 0.75, 1.0))
     ax.set_yticks((0.0, 0.2, 0.4, 0.6, 0.8, 1.0))
-    ax.set_xticks((1, 2, 3, 4, 5, 6))
+    ax.set_xticks((1, 2, 3, 4, 5))
     # plt.legend(['Target', 'Non-target', 'Random'], loc='upper right', fancybox=True, borderpad=0.3)
 
     return locals()
@@ -539,13 +563,14 @@ if __name__ == '__main__':
 
     # all_vars = do_plots_population_codes()
     # all_vars = posterior_plots()
+    # all_vars = fisher_information_1obj_2d()
     # all_vars = compare_fishertheo_precision()
-    # all_vars = plot_experimental_mixture()
+    all_vars = plot_experimental_mixture()
     # all_vars = plot_marginalfisherinfo_1d()
     # all_vars = plot_marginal_fisher_info_2d()
     # all_vars = plot_specific_stimuli()
 
-    all_vars = plot_distribution_errors()
+    # all_vars = plot_distribution_errors()
 
     if 'experiment_launcher' in all_vars:
         all_vars.update(all_vars['experiment_launcher'].all_vars)
