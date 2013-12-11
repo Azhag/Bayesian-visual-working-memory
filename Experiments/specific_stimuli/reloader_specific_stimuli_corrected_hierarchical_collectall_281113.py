@@ -1,7 +1,5 @@
 """
-    ExperimentDescriptor for Fitting experiments in a mixed population code
-
-    reloader_specific_stimuli_mixed_sigmaxrangebis_191013
+    ExperimentDescriptor for Fitting experiments in a hierarchical population code
 """
 
 import os
@@ -9,20 +7,18 @@ import numpy as np
 from experimentlauncher import *
 from dataio import *
 import re
-
-import matplotlib.pyplot as plt
+import imp
 
 import inspect
 
 import utils
+
 import cPickle as pickle
-
 import em_circularmixture_allitems_uniquekappa
+# Commit @0134c44
 
-# Commit @2042319 +
 
-
-def plots_specific_stimuli_mixed(data_pbs, generator_module=None):
+def plots_specific_stimuli_hierarchical(data_pbs, generator_module=None):
     '''
         Reload and plot behaviour of mixed population code on specific Stimuli
         of 3 items.
@@ -38,11 +34,10 @@ def plots_specific_stimuli_mixed(data_pbs, generator_module=None):
     plots_emfit_allitems = False
     plot_min_distance_effect = True
 
-    compute_bootstraps = False
-
     should_fit_allitems_model = True
     # caching_emfit_filename = None
     caching_emfit_filename = os.path.join(generator_module.pbs_submission_infos['simul_out_dir'], 'cache_emfitallitems_uniquekappa.pickle')
+
 
     colormap = None  # or 'cubehelix'
     plt.rcParams['font.size'] = 16
@@ -51,7 +46,6 @@ def plots_specific_stimuli_mixed(data_pbs, generator_module=None):
 
     print "Order parameters: ", generator_module.dict_parameters_range.keys()
 
-    all_args = data_pbs.loaded_data['args_list']
     result_all_precisions_mean = utils.nanmean(np.squeeze(data_pbs.dict_arrays['result_all_precisions']['results']), axis=-1)
     result_all_precisions_std = utils.nanstd(np.squeeze(data_pbs.dict_arrays['result_all_precisions']['results']), axis=-1)
     result_em_fits_mean = utils.nanmean(np.squeeze(data_pbs.dict_arrays['result_em_fits']['results']), axis=-1)
@@ -62,19 +56,26 @@ def plots_specific_stimuli_mixed(data_pbs, generator_module=None):
     result_target_all = np.squeeze(data_pbs.dict_arrays['result_target']['results'])
     result_nontargets_all = np.squeeze(data_pbs.dict_arrays['result_nontargets']['results'])
 
+    all_args = data_pbs.loaded_data['args_list']
+
+    nb_repetitions = np.squeeze(data_pbs.dict_arrays['result_em_fits']['results']).shape[-1]
+    print nb_repetitions
     nb_repetitions = result_responses_all.shape[-1]
+    print nb_repetitions
     K = result_nontargets_all.shape[-2]
     N = result_responses_all.shape[-2]
 
+
     enforce_min_distance_space = data_pbs.loaded_data['parameters_uniques']['enforce_min_distance']
     sigmax_space = data_pbs.loaded_data['parameters_uniques']['sigmax']
-    ratio_space = data_pbs.loaded_data['datasets_list'][0]['ratio_space']
+
+    MMlower_valid_space = data_pbs.loaded_data['datasets_list'][0]['MMlower_valid_space']
+    ratio_space = MMlower_valid_space[:, 0]/float(np.sum(MMlower_valid_space[0]))
 
     print enforce_min_distance_space
     print sigmax_space
-    print ratio_space
+    print MMlower_valid_space
     print result_all_precisions_mean.shape, result_em_fits_mean.shape
-    print result_responses_all.shape
 
     dataio = DataIO(output_folder=generator_module.pbs_submission_infos['simul_out_dir'] + '/outputs/', label='global_' + dataset_infos['save_output_filename'])
 
@@ -96,18 +97,18 @@ def plots_specific_stimuli_mixed(data_pbs, generator_module=None):
         # Do one plot per min distance.
         for min_dist_i, min_dist in enumerate(enforce_min_distance_space):
             # Show log precision
-            utils.pcolor_2d_data(result_all_precisions_mean[min_dist_i].T, x=ratio_space, y=sigmax_space, xlabel='ratio', ylabel='sigma_x', title='Precision, min_dist=%.3f' % min_dist)
+            utils.pcolor_2d_data(result_all_precisions_mean[min_dist_i].T, x=ratio_space, y=sigmax_space, xlabel='ratio layer two', ylabel='sigma_x', title='Precision, min_dist=%.3f' % min_dist)
             if savefigs:
                 dataio.save_current_figure('precision_permindist_mindist%.2f_ratiosigmax_{label}_{unique_id}.pdf' % min_dist)
 
             # Show log precision
-            utils.pcolor_2d_data(result_all_precisions_mean[min_dist_i].T, x=ratio_space, y=sigmax_space, xlabel='ratio', ylabel='sigma_x', title='Precision, min_dist=%.3f' % min_dist, log_scale=True)
+            utils.pcolor_2d_data(result_all_precisions_mean[min_dist_i].T, x=ratio_space, y=sigmax_space, xlabel='ratio layer two', ylabel='sigma_x', title='Precision, min_dist=%.3f' % min_dist, log_scale=True)
             if savefigs:
                 dataio.save_current_figure('logprecision_permindist_mindist%.2f_ratiosigmax_{label}_{unique_id}.pdf' % min_dist)
 
 
-            # Plot estimated model precision
-            utils.pcolor_2d_data(result_em_fits_mean[min_dist_i, ..., 0].T, x=ratio_space, y=sigmax_space, xlabel='ratio', ylabel='sigma_x', title='EM precision, min_dist=%.3f' % min_dist, log_scale=False)
+            # Plot estimated model precision (kappa)
+            utils.pcolor_2d_data(result_em_fits_mean[min_dist_i, ..., 0].T, x=ratio_space, y=sigmax_space, xlabel='ratio layer two', ylabel='sigma_x', title='EM precision, min_dist=%.3f' % min_dist, log_scale=False)
             if savefigs:
                 dataio.save_current_figure('logemprecision_permindist_mindist%.2f_ratiosigmax_{label}_{unique_id}.pdf' % min_dist)
 
@@ -129,7 +130,7 @@ def plots_specific_stimuli_mixed(data_pbs, generator_module=None):
     if specific_plots_paper:
         # We need to choose 3 levels of min_distances
         target_sigmax = 0.25
-        target_mindist_low = 0.15
+        target_mindist_low = 0.09
         target_mindist_medium = 0.36
         target_mindist_high = 1.5
 
@@ -141,6 +142,7 @@ def plots_specific_stimuli_mixed(data_pbs, generator_module=None):
         ## Do for each distance
         # for min_dist_i in [min_dist_level_low_i, min_dist_level_medium_i, min_dist_level_high_i]:
         for min_dist_i in xrange(enforce_min_distance_space.size):
+
             # Plot precision
             if False:
                 utils.plot_mean_std_area(ratio_space, result_all_precisions_mean[min_dist_i, sigmax_level_i], result_all_precisions_std[min_dist_i, sigmax_level_i]) #, xlabel='Ratio conjunctivity', ylabel='Precision of recall')
@@ -277,55 +279,14 @@ def plots_specific_stimuli_mixed(data_pbs, generator_module=None):
                 dataio.save_current_figure('ratio%.2f_mindistpred_ratiotargetnontarget_{label}_{unique_id}.pdf' % ratio_conj)
 
 
-    if compute_bootstraps:
-        ## Bootstrap evaluation
-
-        # We need to choose 3 levels of min_distances
-        target_sigmax = 0.25
-        target_mindist_low = 0.15
-        target_mindist_medium = 0.5
-        target_mindist_high = 1.
-
-        sigmax_level_i = np.argmin(np.abs(sigmax_space - target_sigmax))
-        min_dist_level_low_i = np.argmin(np.abs(enforce_min_distance_space - target_mindist_low))
-        min_dist_level_medium_i = np.argmin(np.abs(enforce_min_distance_space - target_mindist_medium))
-        min_dist_level_high_i = np.argmin(np.abs(enforce_min_distance_space - target_mindist_high))
-
-        # cache_bootstrap_fn = os.path.join(generator_module.pbs_submission_infos['simul_out_dir'], 'outputs', 'cache_bootstrap.pickle')
-        cache_bootstrap_fn = '/Users/loicmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/code/git-bayesian-visual-working-memory/Experiments/specific_stimuli/specific_stimuli_corrected_mixed_sigmaxmindistance_autoset_repetitions5mult_collectall_281113_outputs/cache_bootstrap.pickle'
-        try:
-            with open(cache_bootstrap_fn, 'r') as file_in:
-                # Load and assign values
-                cached_data = pickle.load(file_in)
-                bootstrap_ecdf_bays_sigmax_T = cached_data['bootstrap_ecdf_bays_sigmax_T']
-                bootstrap_ecdf_allitems_sum_sigmax_T = cached_data['bootstrap_ecdf_allitems_sum_sigmax_T']
-                bootstrap_ecdf_allitems_all_sigmax_T = cached_data['bootstrap_ecdf_allitems_all_sigmax_T']
-                should_fit_bootstrap = False
-
-        except IOError:
-            print "Error while loading ", cache_bootstrap_fn
-
-        ratio_i = 0
-
-        # bootstrap_allitems_nontargets_allitems_uniquekappa = em_circularmixture_allitems_uniquekappa.bootstrap_nontarget_stat(
-        # result_responses_all[min_dist_level_low_i, sigmax_level_i, ratio_i].flatten(),
-        # result_target_all[min_dist_level_low_i, sigmax_level_i, ratio_i].flatten(),
-        # result_nontargets_all[min_dist_level_low_i, sigmax_level_i, ratio_i].transpose((0, 2, 1)).reshape((N*nb_repetitions, K)),
-        # sumnontargets_bootstrap_ecdf=bootstrap_ecdf_allitems_sum_sigmax_T[sigmax_level_i][K]['ecdf'],
-        # allnontargets_bootstrap_ecdf=bootstrap_ecdf_allitems_all_sigmax_T[sigmax_level_i][K]['ecdf']
-
-        # TODO FINISH HERE
 
     variables_to_save = ['nb_repetitions']
 
     if savedata:
         dataio.save_variables_default(locals(), variables_to_save)
-
         dataio.make_link_output_to_dropbox(dropbox_current_experiment_folder='specific_stimuli')
 
-
     plt.show()
-
 
     return locals()
 
@@ -336,22 +297,24 @@ this_file = inspect.getfile(inspect.currentframe())
 parameters_entryscript=dict(action_to_do='launcher_do_reload_constrained_parameters', output_directory='.')
 
 generator_script = 'generator' + re.split("^reloader", os.path.split(this_file)[-1])[-1]
-# generator_script = 'generator_specific_stimuli_mixed_fixedemfit_otherrange_201113.py'
 
 print "Reloader data generated from ", generator_script
 
 generator_module = imp.load_source(os.path.splitext(generator_script)[0], generator_script)
-dataset_infos = dict(label='See patterns of errors on Specific Stimuli, with Mixed population code. Internally vary ratio_conj. Vary sigmax and enforce_min_distance here. Did collect all responses for these, need to fit Mixture models',
+dataset_infos = dict(label='See patterns of errors on Specific Stimuli, with Mixed population code. Internally vary ratio_conj. Vary sigmax and enforce_min_distance here. Still need to play around with M, do it in different folders.',
                      files="%s/%s*.npy" % (generator_module.pbs_submission_infos['simul_out_dir'], generator_module.pbs_submission_infos['other_options']['label'].split('{')[0]),
                      launcher_module=generator_module,
                      loading_type='args',
                      parameters=['enforce_min_distance', 'sigmax'],
                      variables_to_load=['result_all_precisions', 'result_em_fits', 'result_em_resp', 'result_responses', 'result_target', 'result_nontargets'],
                      variables_description=['Precision of recall', 'Fits mixture model', 'Responsibilities mixture model', 'Responses', 'Target', 'Non-targets'],
-                     post_processing=plots_specific_stimuli_mixed,
-                     save_output_filename='plots_specificstimuli_mixed',
+                     post_processing=plots_specific_stimuli_hierarchical,
+                     save_output_filename='plots_specificstimuli_hierarchical',
                      concatenate_multiple_datasets=True
                      )
+
+
+
 
 if __name__ == '__main__':
 

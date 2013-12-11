@@ -16,6 +16,8 @@ import inspect
 import em_circularmixture
 import em_circularmixture_allitems_uniquekappa
 
+import cPickle as pickle
+
 import utils
 
 # # Commit @2042319 +
@@ -32,13 +34,16 @@ def plots_misbinding_logposterior(data_pbs, generator_module=None):
 
     #### SETUP
     #
+    savedata = False
     savefigs = True
 
     plot_logpost = False
     plot_error = False
     plot_mixtmodel = True
+    compute_plot_bootstrap = True
 
     use_allitems_mixturesmodel = True
+
 
     #
     #### /SETUP
@@ -183,6 +188,7 @@ def plots_misbinding_logposterior(data_pbs, generator_module=None):
 
             print curr_params_fit
 
+
         if False:
             f, ax = plt.subplots()
             ax2 = ax.twinx()
@@ -219,8 +225,74 @@ def plots_misbinding_logposterior(data_pbs, generator_module=None):
             # ax.set_xticklabels(range(1, 6))
             plt.grid()
 
+            if savefigs:
+                dataio.save_current_figure('results_misbinding_emmixture_allratioconj_{label}_global_{unique_id}.pdf')
+
+    if compute_plot_bootstrap:
+        ## Compute the bootstrap pvalue for each ratio
+        #       use the bootstrap CDF from mixed runs, not the exact current ones, not sure if good idea.
+
+        bootstrap_to_load = 1
+        if bootstrap_to_load == 1:
+            cache_bootstrap_fn = os.path.join(generator_module.pbs_submission_infos['simul_out_dir'], 'outputs', 'cache_bootstrap_mixed_from_bootstrapnontargets.pickle')
+            bootstrap_ecdf_sum_label = 'bootstrap_ecdf_allitems_sum_sigmax_T'
+            bootstrap_ecdf_all_label = 'bootstrap_ecdf_allitems_all_sigmax_T'
+        elif bootstrap_to_load == 2:
+            cache_bootstrap_fn = os.path.join(generator_module.pbs_submission_infos['simul_out_dir'], 'outputs', 'cache_bootstrap_misbinding_mixed.pickle')
+            bootstrap_ecdf_sum_label = 'bootstrap_ecdf_allitems_sum_ratioconj'
+            bootstrap_ecdf_all_label = 'bootstrap_ecdf_allitems_all_ratioconj'
+
+        try:
+            with open(cache_bootstrap_fn, 'r') as file_in:
+                # Load and assign values
+                cached_data = pickle.load(file_in)
+                assert bootstrap_ecdf_sum_label in cached_data
+                assert bootstrap_ecdf_all_label in cached_data
+                should_fit_bootstrap = False
+
+        except IOError:
+            print "Error while loading ", cache_bootstrap_fn
+
+        # Select the ECDF to use
+        if bootstrap_to_load == 1:
+            sigmax_i = 3    # corresponds to sigmax = 2, input here.
+            T_i = 1         # two possible targets here.
+            bootstrap_ecdf_sum_used = cached_data[bootstrap_ecdf_sum_label][sigmax_i][T_i]['ecdf']
+            bootstrap_ecdf_all_used = cached_data[bootstrap_ecdf_all_label][sigmax_i][T_i]['ecdf']
+        elif bootstrap_to_load == 2:
+            ratio_conj_i = 4
+            bootstrap_ecdf_sum_used = cached_data[bootstrap_ecdf_sum_label][ratio_conj_i]['ecdf']
+            bootstrap_ecdf_all_used = cached_data[bootstrap_ecdf_all_label][ratio_conj_i]['ecdf']
+
+
+        result_pvalue_bootstrap_sum = np.empty(ratio_space.size)*np.nan
+        result_pvalue_bootstrap_all = np.empty((ratio_space.size, nontarget_angles.shape[-1]))*np.nan
+
+        for ratio_conj_i, ratio_conj in enumerate(ratio_space):
+            print "Ratio: ", ratio_conj
+
+            responses = result_all_thetas[ratio_conj_i]
+
+            bootstrap_allitems_nontargets_allitems_uniquekappa = em_circularmixture_allitems_uniquekappa.bootstrap_nontarget_stat(responses, target_angle, nontarget_angles,
+                sumnontargets_bootstrap_ecdf=bootstrap_ecdf_sum_used,
+                allnontargets_bootstrap_ecdf=bootstrap_ecdf_all_used)
+
+            result_pvalue_bootstrap_sum[ratio_conj_i] = bootstrap_allitems_nontargets_allitems_uniquekappa['p_value']
+            result_pvalue_bootstrap_all[ratio_conj_i] = bootstrap_allitems_nontargets_allitems_uniquekappa['allnontarget_p_value']
+
+        ## Plots
+        # f, ax = plt.subplots()
+        # ax.plot(ratio_space, result_pvalue_bootstrap_all, linewidth=2)
+
+        # if savefigs:
+        #     dataio.save_current_figure("pvalue_bootstrap_all_ratioconj_{label}_{unique_id}.pdf")
+
+        f, ax = plt.subplots()
+        ax.plot(ratio_space, result_pvalue_bootstrap_sum, linewidth=2)
+        plt.grid()
+
         if savefigs:
-            dataio.save_current_figure('results_misbinding_emmixture_allratioconj_{label}_global_{unique_id}.pdf')
+            dataio.save_current_figure("pvalue_bootstrap_sum_ratioconj_{label}_{unique_id}.pdf")
 
 
     # plt.figure()
@@ -233,10 +305,11 @@ def plots_misbinding_logposterior(data_pbs, generator_module=None):
     # plt.xticks(np.linspace(0, 1.0, 5))
 
     all_args = data_pbs.loaded_data['args_list']
-    variables_to_save = ['result_all_log_posterior', 'ratio_space', 'all_args']
+    variables_to_save = ['target_angle', 'nontarget_angles']
 
-    if savefigs:
-        dataio.save_variables(variables_to_save, locals())
+    if savedata:
+        dataio.save_variables_default(locals(), variables_to_save)
+        dataio.make_link_output_to_dropbox(dropbox_current_experiment_folder='misbindings')
 
 
     plt.show()

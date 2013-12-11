@@ -21,7 +21,7 @@ submit_cmd = 'qsub'
 M = 200
 num_repetitions = 5
 
-run_label = 'specific_stimuli_corrected_hierarchical_sigmaxmindistance_autoset_repetitions{num_repetitions}mult_collectall_181113'
+run_label = 'specific_stimuli_corrected_hierarchical_sigmaxmindistance_autoset_repetitions{num_repetitions}mult_collectall_041213'
 
 pbs_submission_infos = dict(description='See patterns of errors on Specific Stimuli, with Mixed population code. Internally vary ratio_conj. Vary sigmax and enforce_min_distance here. Collect everything, with corrected varying stimuli',
                             command='python /nfs/home2/lmatthey/Documents/work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py',
@@ -59,7 +59,7 @@ pbs_submission_infos = dict(description='See patterns of errors on Specific Stim
                             pbs_submit_cmd=submit_cmd,
                             submit_label='spec_stim_hier')
 
-sigmax_range          =   dict(range=np.linspace(0.01, 0.8, 25.), dtype=float)
+sigmax_range          =   dict(range=np.array([0.10, 0.153, 0.20, 0.255, 0.3, 0.4]), dtype=float)
 min_distance_range    =   dict(range=np.linspace(0.01, np.pi/2., 23.), dtype=float)
 
 dict_parameters_range =   dict(enforce_min_distance=min_distance_range, sigmax=sigmax_range)
