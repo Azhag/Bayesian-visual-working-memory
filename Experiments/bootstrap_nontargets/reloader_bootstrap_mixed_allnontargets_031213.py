@@ -21,6 +21,8 @@ import cPickle as pickle
 
 import statsmodels.distributions as stmodsdist
 
+import em_circularmixture_allitems_uniquekappa
+
 # Commit @04754b3
 
 
@@ -35,8 +37,8 @@ def plots_boostrap(data_pbs, generator_module=None):
     savedata = True
 
     load_fit_bootstrap = True
-    plots_hist_cdf = False
-    estimate_bootstrap = False
+    plots_hist_cdf = True
+    estimate_bootstrap = True
 
     should_fit_bootstrap = True
     # caching_bootstrap_filename = None
@@ -142,17 +144,24 @@ def plots_boostrap(data_pbs, generator_module=None):
                         dataio.save_current_figure('ecdf_bootstrap_sigmax%.2f_T%d_{label}_{unique_id}.pdf' % (sigmax, T))
 
     if estimate_bootstrap:
-        model_outputs = utils.load_npy( '/nfs/home2/lmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/code/git-bayesian-visual-working-memory/Experiments/error_distribution/error_distribution_conj_M100T6repetitions5_121113_outputs/global_plots_errors_distribution-plots_errors_distribution-cc1a49b0-f5f0-4e82-9f0f-5a16a2bfd4e8.npy')
+        ## Should be in reloader_error_distribution_mixed_121113 instead
+        model_outputs = utils.load_npy( os.path.join(os.getenv("WORKDIR_DROP", None), 'Experiments', 'bootstrap_nontargets', 'global_plots_errors_distribution-plots_errors_distribution-d977e237-cfce-473b-a292-00695e725259.npy'))
+
         data_responses_all = model_outputs['result_responses_all'][..., 0]
         data_target_all = model_outputs['result_target_all'][..., 0]
         data_nontargets_all = model_outputs['result_nontargets_all'][..., 0]
 
         # Compute bootstrap p-value
+        result_pvalue_bootstrap_sum = np.empty((sigmax_space.size, T_space.size-1))*np.nan
+        result_pvalue_bootstrap_all = np.empty((sigmax_space.size, T_space.size-1, T_space.size-1))*np.nan
         for sigmax_i, sigmax in enumerate(sigmax_space):
             for T in T_space[1:]:
                 bootstrap_allitems_nontargets_allitems_uniquekappa = em_circularmixture_allitems_uniquekappa.bootstrap_nontarget_stat(data_responses_all[sigmax_i, (T-1)], data_target_all[sigmax_i, (T-1)], data_nontargets_all[sigmax_i, (T-1), :, :(T-1)], sumnontargets_bootstrap_ecdf=bootstrap_ecdf_allitems_sum_sigmax_T[sigmax_i][T-1]['ecdf'], allnontargets_bootstrap_ecdf=bootstrap_ecdf_allitems_all_sigmax_T[sigmax_i][T-1]['ecdf'])
 
-                # TODO finish here!
+                result_pvalue_bootstrap_sum[sigmax_i, T-2] = bootstrap_allitems_nontargets_allitems_uniquekappa['p_value']
+                result_pvalue_bootstrap_all[sigmax_i, T-2, :(T-1)] = bootstrap_allitems_nontargets_allitems_uniquekappa['allnontarget_p_value']
+
+                print sigmax, T, result_pvalue_bootstrap_sum[sigmax_i, T-2], result_pvalue_bootstrap_all[sigmax_i, T-2, :(T-1)], np.sum(result_pvalue_bootstrap_all[sigmax_i, T-2, :(T-1)] < 0.05)
 
     all_args = data_pbs.loaded_data['args_list']
     variables_to_save = ['nb_repetitions']
