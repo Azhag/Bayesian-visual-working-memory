@@ -64,9 +64,25 @@ def plots_memory_curves(data_pbs, generator_module=None):
     dataio = DataIO.DataIO(output_folder=generator_module.pbs_submission_infos['simul_out_dir'] + '/outputs/', label='global_' + dataset_infos['save_output_filename'])
 
     ## Load Experimental data
-    data_simult = load_experimental_data.load_data_simult(data_dir=os.path.normpath(os.path.join(os.path.split(load_experimental_data.__file__)[0], '../../experimental_data/')), fit_mixturemodel=True)
+    data_simult = load_experimental_data.load_data_simult(data_dir=os.path.normpath(os.path.join(os.path.split(load_experimental_data.__file__)[0], '../../experimental_data/')), fit_mixture_model=True)
     memory_experimental_precision = data_simult['precision_nitems_theo']
     memory_experimental_kappa = np.array([data_s['kappa'] for _, data_s in data_simult['em_fits_nitems']['mean'].items()])
+
+    data_bays2009 = load_experimental_data.load_data_bays2009(data_dir=os.path.normpath(os.path.join(os.path.split(load_experimental_data.__file__)[0], '../../experimental_data/')), fit_mixture_model=True)
+    bays09_experimental_mixtures_mean = data_bays2009['em_fits_nitems_arrays']['mean'][1:]
+    # add interpolated points for 3 and 5 items
+    bays3 = (bays09_experimental_mixtures_mean[:, 2] + bays09_experimental_mixtures_mean[:, 1])/2.
+    bays5 = (bays09_experimental_mixtures_mean[:, -1] + bays09_experimental_mixtures_mean[:, -2])/2.
+    bays09_experimental_mixtures_mean_compatible = c_[bays09_experimental_mixtures_mean[:,:2], bays3, bays09_experimental_mixtures_mean[:, 2], bays5]
+
+    # Boost non-targets
+    bays09_experimental_mixtures_mean_compatible[1] *= 1.5
+    bays09_experimental_mixtures_mean_compatible[2] /= 1.5
+    bays09_experimental_mixtures_mean_compatible /= np.sum(bays09_experimental_mixtures_mean_compatible, axis=0)
+
+    # Force non target em fit mixture to be zero and not nan
+    result_em_fits_mean[..., 0, 2] = 0
+    result_em_fits_std[..., 0, 2] = 0
 
     # Compute some landscapes of fit!
     dist_diff_precision_margfi = np.sum(np.abs(result_all_precisions_mean*2. - result_marginal_fi_mean[..., 0])**2., axis=-1)
@@ -83,6 +99,7 @@ def plots_memory_curves(data_pbs, generator_module=None):
     dist_diff_emkappa_experim_1item = np.abs(result_em_fits_mean[..., 0, 0] - memory_experimental_kappa[0])**2.
     dist_diff_margfi_experim_1item = np.abs(result_marginal_fi_mean[..., 0, 0] - memory_experimental_precision[0])**2.
 
+    dist_diff_emkappa_mixtures_bays09 = np.sum(np.sum((result_em_fits_mean[..., 1:4] - bays09_experimental_mixtures_mean_compatible.T)**2., axis=-1), axis=-1)
 
     if plot_pcolor_fit_precision_to_fisherinfo:
         # Check fit between precision and fisher info
@@ -140,6 +157,10 @@ def plots_memory_curves(data_pbs, generator_module=None):
         if savefigs:
             dataio.save_current_figure('match_diff_margfi_experim_1item_log_pcolor_{label}_{unique_id}.pdf')
 
+        utils.pcolor_2d_data(dist_diff_emkappa_mixtures_bays09, log_scale=True, x=M_space, y=sigmax_space, xlabel='M', ylabel='sigmax')
+        if savefigs:
+            dataio.save_current_figure('match_diff_mixtures_experbays09_pcolor_{label}_{unique_id}.pdf')
+
 
     # Macro plot
     def mem_plot_precision(sigmax_i, M_i):
@@ -181,6 +202,27 @@ def plots_memory_curves(data_pbs, generator_module=None):
         if savefigs:
             dataio.save_current_figure('memorycurves_kappa_M%dsigmax%.2f_{label}_{unique_id}.pdf' % (M_space[M_i], sigmax_space[sigmax_i]))
 
+    def em_plot_paper(sigmax_i, M_i):
+        f, ax = plt.subplots()
+
+        # Right axis, mixture probabilities
+        utils.plot_mean_std_area(T_space, result_em_fits_mean[..., 1][M_i, sigmax_i], result_em_fits_std[..., 1][M_i, sigmax_i], xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Target')
+        utils.plot_mean_std_area(T_space, result_em_fits_mean[..., 2][M_i, sigmax_i], result_em_fits_std[..., 2][M_i, sigmax_i], xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Nontarget')
+        utils.plot_mean_std_area(T_space, result_em_fits_mean[..., 3][M_i, sigmax_i], result_em_fits_std[..., 3][M_i, sigmax_i], xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Random')
+
+        ax.legend(prop={'size':15})
+
+        ax.set_title('M %d, sigmax %.2f' % (M_space[M_i], sigmax_space[sigmax_i]))
+        ax.set_xlim([1.0, 5.0])
+        ax.set_ylim([0.0, 1.1])
+        ax.set_xticks(range(1, 6))
+        ax.set_xticklabels(range(1, 6))
+
+        f.canvas.draw()
+
+        if savefigs:
+            dataio.save_current_figure('memorycurves_emfits_paper_M%.2fsigmax%.2f_{label}_{unique_id}.pdf' % (M_space[M_i], sigmax_space[sigmax_i]))
+
 
     if plot_selected_memory_curves:
         selected_values = [[100, 0.1], [196, 0.28], [64, 0.05]]
@@ -193,6 +235,7 @@ def plots_memory_curves(data_pbs, generator_module=None):
             mem_plot_precision(sigmax_i, M_i)
 
             mem_plot_kappa(sigmax_i, M_i)
+
 
     if plot_best_memory_curves:
         # Best precision fit
@@ -208,6 +251,12 @@ def plots_memory_curves(data_pbs, generator_module=None):
             mem_plot_kappa(best_axis2_i, axis1_i)
 
             mem_plot_precision(best_axis2_i, axis1_i)
+
+        # Best mixtures fit
+        best_axis2_i_all = np.argmin(dist_diff_emkappa_mixtures_bays09, axis=1)
+
+        for axis1_i, best_axis2_i in enumerate(best_axis2_i_all):
+            em_plot_paper(best_axis2_i, axis1_i)
 
 
 
