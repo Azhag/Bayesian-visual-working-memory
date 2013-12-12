@@ -20,9 +20,9 @@ num_workers = 500
 submit_cmd = 'qsub'
 # submit_cmd = 'sbatch'
 
-run_label = 'fisherinfo_singleitem_conj_repetitions{num_repetitions}mult_071213'
+run_label = 'fisherinfo_singleitem_conj_correctlargen_repetitions{num_repetitions}mult_121213'
 
-pbs_submission_infos = dict(description='Runs multiple metric to get estimate of fisher information for a single item, using a conjunctive code here. Should then put everything back nicely.',
+pbs_submission_infos = dict(description='Runs multiple metric to get estimate of fisher information for a single item, using a conjunctive code here. Should then put everything back nicely. Corrected larg N FI now.',
                             command='python /nfs/home2/lmatthey/Documents/work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py',
                             other_options=dict(action_to_do='launcher_do_fisher_information_param_search_pbs',
                                                code_type='conj',
