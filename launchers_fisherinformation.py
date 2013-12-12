@@ -806,7 +806,9 @@ def launcher_do_fisher_information_param_search_pbs(args):
 
         print "theoretical FI"
         result_FI_rc_theo_mult[0, repet_i] = sampler.estimate_fisher_info_theocov(use_theoretical_cov=False, kappa_different=True)
-        result_FI_rc_theo_mult[1, repet_i] = random_network.compute_fisher_information_theoretical(sigma=all_parameters['sigmax'])
+        # result_FI_rc_theo_mult[1, repet_i] = random_network.compute_fisher_information_theoretical(sigma=all_parameters['sigmax'])
+        result_FI_rc_theo_mult[1, repet_i] = sampler.estimate_fisher_info_theocov_largen(use_theoretical_cov=True)
+
         print result_FI_rc_theo_mult[:, repet_i]
 
         print "true variance..."

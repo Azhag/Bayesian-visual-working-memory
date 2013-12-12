@@ -884,6 +884,24 @@ class Sampler:
         return self.random_network.compute_fisher_information(stimulus_input=(0.0, 0.0), cov_stim=computed_cov, kappa_different=kappa_different)
 
 
+    def estimate_fisher_info_theocov_largen(self, use_theoretical_cov=True):
+        '''
+            Compute the theoretical Fisher Information, using the KL-derived covariance matrix if desired
+        '''
+
+        if use_theoretical_cov:
+            # Get the computed covariance
+            computed_cov = self.compute_covariance_theoretical(precision=50, ignore_cache=False)
+            sigma = np.mean(np.diag(computed_cov))**0.5
+        else:
+            # Use the measured one...
+            computed_cov = self.noise_covariance
+            sigma = np.mean(np.diag(computed_cov))**0.5
+
+        # Compute the theoretical FI
+        return self.random_network.compute_fisher_information_theoretical(sigma=sigma)
+
+
     def estimate_marginal_inverse_fisher_info_montecarlo(self):
         '''
             Compute a Monte Carlo estimate of the Marginal Inverse Fisher Information.

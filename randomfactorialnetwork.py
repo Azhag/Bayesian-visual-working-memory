@@ -780,7 +780,7 @@ class RandomFactorialNetwork():
 
 
 
-    def compute_fisher_information_theoretical(self, sigma=0.01, kappa1=None, kappa2=None):
+    def compute_fisher_information_theoretical(self, sigma=None, sigmax=None, kappa1=None, kappa2=None):
         '''
             Compute the theoretical, large N limit estimate of the Fisher Information
             This one assumes a diagonal covariance matrix, wrong for the complete model.
@@ -794,6 +794,11 @@ class RandomFactorialNetwork():
             rho = 1./(np.pi**2./self.M**2.)
         else:
             raise NotImplementedError('Fisher information not defined for population type ' + self.population_code_type)
+
+        if sigmax is not None and sigma is None:
+            # Compute sigma as sigma_x + cov(mu(\theta))
+            computed_cov = self.compute_covariance_KL(precision=50, sigma_2=sigmax**2.)
+            sigma = np.mean(np.diag(computed_cov))**0.5
 
         if kappa1 is None:
             kappa1 = self.rc_scale[0]
