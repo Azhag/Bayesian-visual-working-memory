@@ -50,6 +50,12 @@ def launcher_do_memory_curve_marginal_fi(args):
     result_marginal_inv_fi = np.nan*np.ones((T_space.size, 4, all_parameters['num_repetitions']))  # inv_FI, inv_FI_std, FI, FI_std
     result_em_fits = np.nan*np.ones((T_space.size, 5, all_parameters['num_repetitions']))  # kappa, mixt_target, mixt_nontarget, mixt_random, ll
 
+    # If desired, will automatically save all Model responses.
+    if all_parameters['subaction'] == 'collect_responses':
+        result_responses = np.nan*np.ones((T_space.size, all_parameters['N'], all_parameters['num_repetitions']))
+        result_target = np.nan*np.ones((T_space.size, all_parameters['N'], all_parameters['num_repetitions']))
+        result_nontargets = np.nan*np.ones((T_space.size, all_parameters['N'], all_parameters['T']-1, all_parameters['num_repetitions']))
+
     search_progress = progress.Progress(T_space.size*all_parameters['num_repetitions'])
 
     for repet_i in xrange(all_parameters['num_repetitions']):
@@ -79,13 +85,23 @@ def launcher_do_memory_curve_marginal_fi(args):
 
             # Fit mixture model
             print "fit mixture model..."
-            curr_params_fit = sampler.fit_mixture_model()
-            result_em_fits[T_i, :, repet_i] = [curr_params_fit[key] for key in ('kappa', 'mixt_target', 'mixt_nontargets', 'mixt_random', 'train_LL')]
+            curr_params_fit = sampler.fit_mixture_model(use_all_targets=True)
+            curr_params_fit['mixt_nontargets_sum'] = np.sum(curr_params_fit['mixt_nontargets'])
+            result_em_fits[T_i, :, repet_i] = [curr_params_fit[key] for key in ('kappa', 'mixt_target', 'mixt_nontargets_sum', 'mixt_random', 'train_LL')]
 
             # Compute marginal inverse fisher info
             print "compute marginal inverse fisher info"
             marginal_fi_dict = sampler.estimate_marginal_inverse_fisher_info_montecarlo()
             result_marginal_inv_fi[T_i, :, repet_i] = [marginal_fi_dict[key] for key in ('inv_FI', 'inv_FI_std', 'FI', 'FI_std')]
+
+            # If needed, store responses
+            if all_parameters['subaction'] == 'collect_responses':
+                (responses, target, nontarget) = sampler.collect_responses()
+                result_responses[T_i, :, repet_i] = responses
+                result_target[T_i, :, repet_i] = target
+                result_nontargets[T_i, :, :T_i, repet_i] = nontarget
+
+                print "collected responses"
 
 
             print result_all_precisions[T_i, repet_i], curr_params_fit, marginal_fi_dict

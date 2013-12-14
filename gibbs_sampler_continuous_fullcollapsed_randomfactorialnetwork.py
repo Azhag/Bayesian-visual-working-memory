@@ -27,6 +27,7 @@ import sys
 from utils import *
 
 import em_circularmixture
+import em_circularmixture_allitems_uniquekappa
 
 from slicesampler import *
 
@@ -753,18 +754,23 @@ class Sampler:
 
     ########
 
-    def fit_mixture_model(self, compute_responsibilities=False):
+    def fit_mixture_model(self, compute_responsibilities=False, use_all_targets=False):
         '''
             Fit Paul Bays' Mixture model.
 
             Can provide responsibilities as well if required
         '''
 
+        if use_all_targets:
+            em_circular_mixture_to_use = em_circularmixture_allitems_uniquekappa
+        else:
+            em_circular_mixture_to_use = em_circularmixture
+
         results = {}
-        params_fit = em_circularmixture.fit(*self.collect_responses())
+        params_fit = em_circular_mixture_to_use.fit(*self.collect_responses())
 
         if compute_responsibilities:
-            params_fit['resp'] = em_circularmixture.compute_responsibilities(*(self.collect_responses() + (params_fit,) ))
+            params_fit['resp'] = em_circular_mixture_to_use.compute_responsibilities(*(self.collect_responses() + (params_fit,) ))
 
         return params_fit
 
