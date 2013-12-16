@@ -1305,10 +1305,14 @@ class RandomFactorialNetwork():
         '''
             Show the preferred stimuli coverage on a sphere/torus.
         '''
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-        ax.scatter(self.neurons_preferred_stimulus_vect[~self.mask_neurons_unset, 0], self.neurons_preferred_stimulus_vect[~self.mask_neurons_unset, 1], self.neurons_preferred_stimulus_vect[~self.mask_neurons_unset, 2])
-        plt.show()
+
+        if self.coordinates == 'full_angles_sym':
+            scatter3d_torus(self.neurons_preferred_stimulus[:, 0], self.neurons_preferred_stimulus[:, 1])
+        elif self.coordinates == 'spherical':
+            fig = plt.figure()
+            ax = fig.add_subplot(111, projection='3d')
+            ax.scatter(self.neurons_preferred_stimulus_vect[~self.mask_neurons_unset, 0], self.neurons_preferred_stimulus_vect[~self.mask_neurons_unset, 1], self.neurons_preferred_stimulus_vect[~self.mask_neurons_unset, 2])
+            plt.show()
 
 
     def plot_neuron_activity_3d(self, neuron_index=0, precision=20, weight_deform=0.5, params={}, draw_colorbar=True):
@@ -2174,6 +2178,14 @@ if __name__ == '__main__':
         plt.xlabel('kappa')
         plt.ylabel('Number of neurons responding at %.f %%' % (percent_max*100.))
         plt.show()
+
+    if True:
+        ## Check if covariance approximation with Toeplitz structure works.
+
+        # Run %run experimentlauncher before.
+        kappa = 4.0
+        def cov_toeplitz(theta_n, theta_m, kappa):
+            return (scsp.i0(2*kappa*np.cos((theta_n - theta_m)/2.)) - scsp.i0(kappa)**2.)/(4.*np.pi**2.*scsp.i0(kappa)**2.)
 
 
 

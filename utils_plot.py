@@ -363,7 +363,7 @@ def plot_hists_bias_nontargets(errors_nitems_nontargets, bins=20, label_nontarge
     hist_samples_density_estimation(errors_to_nontargets_all, bins=angle_space, title='Error to nontarget, all %s' % label_nontargets_all, dataio=dataio, filename='hist_bias_nontargets_allitems_%s_{label}_{unique_id}.pdf' % (label_nontargets_all))
 
 
-def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorbar=True, ax_handle=None, label_format="%.2f", fignum=None, interpolation='nearest', log_scale=False, ticks_interpolate=None, cmap=None):
+def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorbar=True, ax_handle=None, label_format="%.2f", xlabel_format=None, ylabel_format=None, fignum=None, interpolation='nearest', log_scale=False, ticks_interpolate=None, cmap=None):
     '''
         Plots a Pcolor-like 2d grid plot. Can give x and y arrays, which will provide ticks.
 
@@ -375,6 +375,11 @@ def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorba
          ticks_interpolate  If set, number of ticks to use instead of the x/y
                             values directly
     '''
+
+    if xlabel_format is None:
+        xlabel_format = label_format
+    if ylabel_format is None:
+        ylabel_format = label_format
 
     if ax_handle is None:
         f = plt.figure(fignum)
@@ -429,10 +434,10 @@ def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorba
             if not ticks_interpolate is None:
                 selected_ticks = np.array(np.linspace(0, x.size-1, ticks_interpolate), dtype=int)
                 ax_handle.set_xticks(selected_ticks)
-                ax_handle.set_xticklabels([label_format % x[tick_i] for tick_i in selected_ticks], rotation=90)
+                ax_handle.set_xticklabels([xlabel_format % x[tick_i] for tick_i in selected_ticks], rotation=90)
             else:
                 ax_handle.set_xticks(np.arange(x.size))
-                ax_handle.set_xticklabels([label_format % curr for curr in x], rotation=90)
+                ax_handle.set_xticklabels([xlabel_format % curr for curr in x], rotation=90)
 
         if not y is None:
             assert data.shape[1] == y.size, 'Wrong y dimension'
@@ -440,10 +445,10 @@ def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorba
             if not ticks_interpolate is None:
                 selected_ticks = np.array(np.linspace(0, y.size-1, ticks_interpolate), dtype=int)
                 ax_handle.set_yticks(selected_ticks)
-                ax_handle.set_yticklabels([label_format % y[tick_i] for tick_i in selected_ticks])
+                ax_handle.set_yticklabels([ylabel_format % y[tick_i] for tick_i in selected_ticks])
             else:
                 ax_handle.set_yticks(np.arange(y.size))
-                ax_handle.set_yticklabels([label_format % curr for curr in y])
+                ax_handle.set_yticklabels([ylabel_format % curr for curr in y])
 
         if xlabel:
             ax_handle.set_xlabel(xlabel)
@@ -642,7 +647,7 @@ def plot_torus(theta, gamma, Z, weight_deform=0., torus_radius=5., tube_radius=3
         Plot a torus, with the color set by Z.
             Also possible to deform the sphere according to Z, by putting a nonzero weight_deform.
 
-        Need theta \in [0, 2pi] and gamma \in [0, pi]
+        Need theta in [0, 2pi] and gamma in [0, pi]
     '''
 
 
@@ -687,6 +692,43 @@ def plot_torus(theta, gamma, Z, weight_deform=0., torus_radius=5., tube_radius=3
             plt.colorbar(m)
 
         # plt.show()
+
+
+def scatter3d_torus(theta, gamma, torus_radius=5., tube_radius=3.0, try_mayavi=True):
+    '''
+        Plot points on a torus.
+
+        Need theta \in [0, 2pi] and gamma \in [0, pi]
+    '''
+
+    x = (torus_radius+ tube_radius*np.cos(theta))*np.cos(gamma)
+    y = (torus_radius+ tube_radius*np.cos(theta))*np.sin(gamma)
+    z = tube_radius*np.sin(theta)
+
+    use_mayavi = False
+    if try_mayavi:
+        try:
+            import mayavi.mlab as mplt
+
+            use_mayavi = True
+        except:
+            pass
+
+    if use_mayavi:
+        # mplt.figure(bgcolor=(0.7,0.7,0.7))
+        mplt.figure(bgcolor=(1.0, 1.0, 1.0))
+        mplt.points3d(x, y, z, scale_factor=1, color=(0.0, 0.2, 0.9))
+
+        mplt.outline(color=(0., 0., 0.))
+        mplt.draw()
+
+    else:
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+
+        ax.scatter(x, y, z)
+
+        fig.canvas.draw()
 
 
 def plot_powerlaw_fit(xdata, ydata, amp, index, yerr=None, fignum=None):
