@@ -762,7 +762,7 @@ def launcher_do_fisher_information_param_search_pbs(args):
     dataio = DataIO(output_folder=all_parameters['output_directory'], label=all_parameters['label'].format(**all_parameters))
     variables_to_save = ['repet_i', 'num_repetitions']
 
-    do_samples = True
+    do_samples = False
     save_every = 5
     run_counter = 0
 
@@ -782,6 +782,8 @@ def launcher_do_fisher_information_param_search_pbs(args):
     result_FI_rc_samples_mult = np.empty((2, num_repetitions), dtype=float)*np.nan
     result_FI_rc_samples_all = np.empty((all_parameters['N'], num_repetitions), dtype=float)*np.nan
 
+    result_em_fits = np.nan*np.ones((5, num_repetitions))
+
     # Show the progress in a nice way
     search_progress = progress.Progress(num_repetitions)
 
@@ -797,6 +799,19 @@ def launcher_do_fisher_information_param_search_pbs(args):
         ### WORK UNIT
         (random_network, data_gen, stat_meas, sampler) = launchers.init_everything(all_parameters)
 
+        print "theoretical FI"
+        result_FI_rc_theo_mult[0, repet_i] = sampler.estimate_fisher_info_theocov(use_theoretical_cov=True, kappa_different=False)
+        # result_FI_rc_theo_mult[1, repet_i] = random_network.compute_fisher_information_theoretical(sigma=all_parameters['sigmax'])
+        result_FI_rc_theo_mult[1, repet_i] = sampler.estimate_fisher_info_theocov_largen(use_theoretical_cov=True)
+
+        print result_FI_rc_theo_mult[:, repet_i]
+
+        print "fit mixture model..."
+        curr_params_fit = sampler.fit_mixture_model(use_all_targets=True)
+        curr_params_fit['mixt_nontargets_sum'] = np.sum(curr_params_fit['mixt_nontargets'])
+        result_em_fits[..., repet_i] = [curr_params_fit[key] for key in ('kappa', 'mixt_target', 'mixt_nontargets_sum', 'mixt_random', 'train_LL')]
+
+
         print "from curvature..."
         fi_curv_dict = sampler.estimate_fisher_info_from_posterior_avg(num_points=1000, full_stats=True)
         (result_FI_rc_curv_mult[0, repet_i], result_FI_rc_curv_mult[1, repet_i]) = (fi_curv_dict['mean'], fi_curv_dict['std'])
@@ -804,12 +819,6 @@ def launcher_do_fisher_information_param_search_pbs(args):
 
         print result_FI_rc_curv_mult[:, repet_i]
 
-        print "theoretical FI"
-        result_FI_rc_theo_mult[0, repet_i] = sampler.estimate_fisher_info_theocov(use_theoretical_cov=False, kappa_different=True)
-        # result_FI_rc_theo_mult[1, repet_i] = random_network.compute_fisher_information_theoretical(sigma=all_parameters['sigmax'])
-        result_FI_rc_theo_mult[1, repet_i] = sampler.estimate_fisher_info_theocov_largen(use_theoretical_cov=True)
-
-        print result_FI_rc_theo_mult[:, repet_i]
 
         print "true variance..."
         fi_truevar_dict = sampler.estimate_truevariance_from_posterior_avg(full_stats=True)
