@@ -14,6 +14,7 @@ parameters_entryscript = dict(action_to_do='launcher_do_generate_submit_pbs_from
 submit_jobs = True
 parameter_generation = 'grid'
 
+#M = 196
 M = 100
 num_repetitions = 1
 num_workers = 500
@@ -48,7 +49,7 @@ pbs_submission_infos = dict(description='Runs multiple metric to get estimate of
                                                label=run_label,
                                                experiment_data_dir='/nfs/home2/lmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/experimental_data',
                                                ),
-                            walltime='10:00:00',
+                            walltime='1:00:00',
                             memory='2gb',
                             simul_out_dir=os.path.join(os.getcwd(), run_label.format(**locals())),
                             pbs_submit_cmd=submit_cmd,

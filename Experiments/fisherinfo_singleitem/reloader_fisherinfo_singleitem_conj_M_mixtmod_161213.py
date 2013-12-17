@@ -50,6 +50,7 @@ def plots_fisherinfo_singleitem(data_pbs, generator_module=None):
     result_FI_rc_truevar_mult = np.squeeze(data_pbs.dict_arrays['result_FI_rc_truevar_mult']['results'])
     result_FI_rc_samples_mult = np.squeeze(data_pbs.dict_arrays['result_FI_rc_samples_mult']['results'])
     result_FI_rc_samples_all = np.squeeze(data_pbs.dict_arrays['result_FI_rc_samples_all']['results'])
+    result_em_fits_all = np.squeeze(data_pbs.dict_arrays['result_em_fits']['results'])
 
     print result_FI_rc_curv_mult.shape
     print result_FI_rc_curv_all.shape
@@ -57,8 +58,8 @@ def plots_fisherinfo_singleitem(data_pbs, generator_module=None):
     dataio = DataIO(output_folder=generator_module.pbs_submission_infos['simul_out_dir'] + '/outputs/', label='global_' + dataset_infos['save_output_filename'])
 
     if plot_metric_comparison:
-        values_bars = np.array([np.mean(result_FI_rc_precision_mult), np.mean(result_FI_rc_theo_mult[0]), np.mean(result_FI_rc_theo_mult[1]), np.mean(result_FI_rc_curv_all)])
-        values_bars_std = np.array([np.std(result_FI_rc_precision_mult), np.std(result_FI_rc_theo_mult[0]), np.std(result_FI_rc_theo_mult[1]), np.std(result_FI_rc_curv_all)])
+        values_bars = np.array([np.mean(result_em_fits_all[0]), np.mean(result_FI_rc_theo_mult[0]), np.mean(result_FI_rc_theo_mult[1]), np.mean(result_FI_rc_curv_all)])
+        values_bars_std = np.array([np.std(result_em_fits_all[0]), np.std(result_FI_rc_theo_mult[0]), np.std(result_FI_rc_theo_mult[1]), np.std(result_FI_rc_curv_all)])
 
         set_colormap = plt.cm.cubehelix
         color_gen = [set_colormap((i+0.1)/(float(np.max((5, len(values_bars)))+0.1))) for i in xrange(np.max((5, len(values_bars))))][::-1]
@@ -117,7 +118,7 @@ dataset_infos = dict(label='Runs multiple metric to get estimate of fisher infor
                      launcher_module=generator_module,
                      loading_type='args',
                      parameters=['num_repetitions'],
-                     variables_to_load=['result_FI_rc_curv_mult', 'result_FI_rc_curv_all', 'result_FI_rc_precision_mult', 'result_FI_rc_theo_mult', 'result_FI_rc_truevar_mult', 'result_FI_rc_samples_mult', 'result_FI_rc_samples_all'],
+                     variables_to_load=['result_FI_rc_curv_mult', 'result_FI_rc_curv_all', 'result_FI_rc_precision_mult', 'result_FI_rc_theo_mult', 'result_FI_rc_truevar_mult', 'result_FI_rc_samples_mult', 'result_FI_rc_samples_all', 'result_em_fits'],
                      variables_description=['FI from curvature mean/std', 'FI from curvature all samples', 'FI from precision', 'FI from theory, both finite size and large N', 'FI from posterior samples mean/std', 'FI from posterior samples all samples'],
                      post_processing=plots_fisherinfo_singleitem,
                      save_output_filename='plots_fisherinfo_singleitem',
