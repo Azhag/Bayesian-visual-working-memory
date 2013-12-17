@@ -34,13 +34,13 @@ def plots_misbinding_logposterior(data_pbs, generator_module=None):
 
     #### SETUP
     #
-    savedata = False
+    savedata = True
     savefigs = True
 
     plot_logpost = False
     plot_error = False
     plot_mixtmodel = True
-    compute_plot_bootstrap = True
+    compute_plot_bootstrap = False
 
     use_allitems_mixturesmodel = True
 
@@ -212,7 +212,7 @@ def plots_misbinding_logposterior(data_pbs, generator_module=None):
 
             f.canvas.draw()
 
-        if True:
+        if False:
             # Mixture probabilities
             ax = utils.plot_mean_std_area(ratio_space, result_em_fits[:, 1], 0*result_em_fits[:, 1], xlabel='Proportion of conjunctive units', ylabel="Mixture probabilities", linewidth=3, fmt='-', markersize=8, label='Target')
             utils.plot_mean_std_area(ratio_space, result_em_fits[:, 2], 0*result_em_fits[:, 2], xlabel='Proportion of conjunctive units', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='-', markersize=8, label='Nontarget')
@@ -227,6 +227,21 @@ def plots_misbinding_logposterior(data_pbs, generator_module=None):
 
             if savefigs:
                 dataio.save_current_figure('results_misbinding_emmixture_allratioconj_{label}_global_{unique_id}.pdf')
+
+        if True:
+            # Kappa
+            # ax = utils.plot_mean_std_area(ratio_space, result_em_fits[:, 0], 0*result_em_fits[:, 0], xlabel='Proportion of conjunctive units', ylabel="$\kappa [rad^{-2}]$", linewidth=3, fmt='-', markersize=8, label='Kappa')
+            ax = utils.plot_mean_std_area(ratio_space, utils.kappa_to_stddev(result_em_fits[:, 0]), 0*result_em_fits[:, 2], xlabel='Proportion of conjunctive units', ylabel="Standard deviation [rad]", linewidth=3, fmt='-', markersize=8, label='Precision')
+
+            ax.legend(loc='best')
+
+            # ax.set_xlim([0.9, 5.1])
+            # ax.set_xticks(range(1, 6))
+            # ax.set_xticklabels(range(1, 6))
+            plt.grid()
+
+            if savefigs:
+                dataio.save_current_figure('results_misbinding_kappa_allratioconj_{label}_global_{unique_id}.pdf')
 
     if compute_plot_bootstrap:
         ## Compute the bootstrap pvalue for each ratio
