@@ -36,7 +36,7 @@ def launcher_do_hierarchical_precision_M_Mlower(args):
     M_lower_space = np.array([49, 100])
     T_space = np.arange(1, all_parameters['T']+1)
 
-    results_precision_M_T = np.zeros((M_space.size, M_lower_space.size, T_space.size, num_repetitions), dtype=float)
+    results_precision_M_T = np.nan*np.empty((M_space.size, M_lower_space.size, T_space.size, num_repetitions), dtype=float)
 
     # Show the progress
     search_progress = progress.Progress(M_space.size*M_lower_space.size)
@@ -76,7 +76,7 @@ def launcher_do_hierarchical_precision_M_sparsity_sigmaweight_feature(args):
     code_type = 'hierarchical'
 
     dataio = DataIO(output_folder=args.output_directory, label=args.label)
-    # variables_to_save = ['M_space', 'T_space',  'repet_i', 'num_repetitions', 'results_precision_N', 'all_responses', 'all_targets', 'all_nontargets']
+    # variables_to_save = ['M_space', 'T_space',  'repet_i', 'num_repetitions', 'results_precision_N', 'result_responses', 'result_targets', 'result_nontargets']
     variables_to_save = ['M_space', 'T_space', 'sparsity_space', 'sigma_weights_space', 'repet_i', 'num_repetitions', 'results_precision_N']
 
     save_every = 5
@@ -91,10 +91,10 @@ def launcher_do_hierarchical_precision_M_sparsity_sigmaweight_feature(args):
     sigma_weights_space = np.linspace(0.1, 2.0, 10)
     T_space = np.arange(1, all_parameters['T']+1)
 
-    results_precision_M_T = np.zeros((M_space.size, sparsity_space.size, sigma_weights_space.size, T_space.size, num_repetitions), dtype=float)
-    # all_responses = np.zeros((M_space.size, sparsity_space.size, sigma_weights_space.size, T_space.size, num_repetitions, all_parameters['N']))
-    # all_targets = np.zeros((M_space.size, sparsity_space.size, sigma_weights_space.size, T_space.size, num_repetitions, all_parameters['N']))
-    # all_nontargets = np.zeros((M_space.size, sparsity_space.size, sigma_weights_space.size, T_space.size, num_repetitions, all_parameters['N'], all_parameters['T']-1))
+    results_precision_M_T = np.nan*np.empty((M_space.size, sparsity_space.size, sigma_weights_space.size, T_space.size, num_repetitions), dtype=float)
+    # result_responses = np.nan*np.empty((M_space.size, sparsity_space.size, sigma_weights_space.size, T_space.size, num_repetitions, all_parameters['N']))
+    # result_targets = np.nan*np.empty((M_space.size, sparsity_space.size, sigma_weights_space.size, T_space.size, num_repetitions, all_parameters['N']))
+    # result_nontargets = np.nan*np.empty((M_space.size, sparsity_space.size, sigma_weights_space.size, T_space.size, num_repetitions, all_parameters['N'], all_parameters['T']-1))
 
     all_parameters['type_layer_one'] = 'feature'
 
@@ -135,7 +135,7 @@ def launcher_do_hierarchical_precision_M_sparsity_sigmaweight_feature(args):
                         results_precision_M_T[m_i, s_i, sw_i, t_i, repet_i] = sampler.get_precision()
                         print results_precision_M_T[m_i, s_i, sw_i, t_i, repet_i]
 
-                        # (all_responses[m_i, s_i, t_i, repet_i], all_targets[m_i, s_i, t_i, repet_i], all_nontargets[m_i, s_i, t_i, repet_i, :, :t_i]) = sampler.collect_responses()
+                        # (result_responses[m_i, s_i, t_i, repet_i], result_targets[m_i, s_i, t_i, repet_i], result_nontargets[m_i, s_i, t_i, repet_i, :, :t_i]) = sampler.collect_responses()
 
                         ### DONE WORK UNIT
 
@@ -149,7 +149,6 @@ def launcher_do_hierarchical_precision_M_sparsity_sigmaweight_feature(args):
     return locals()
 
 
-
 ###### PBS runners #####
 
 def launcher_do_hierarchical_precision_M_Mlower_pbs(args):
@@ -159,7 +158,7 @@ def launcher_do_hierarchical_precision_M_Mlower_pbs(args):
 
 
     print "Doing a piece of work for launcher_do_hierarchical_precision_M_Mlower_pbs"
-    save_all_output = False
+    save_all_output = True
 
     try:
         # Convert Argparse.Namespace to dict
@@ -172,7 +171,7 @@ def launcher_do_hierarchical_precision_M_Mlower_pbs(args):
     code_type = 'hierarchical'
 
     dataio = DataIO(output_folder=all_parameters['output_directory'], label=all_parameters['label'])
-    variables_to_save = ['M_space', 'T_space', 'M_lower_space', 'repet_i', 'num_repetitions', 'results_precision_M_T']
+    variables_to_save = ['repet_i', 'num_repetitions']
 
     save_every = 5
     run_counter = 0
@@ -183,14 +182,14 @@ def launcher_do_hierarchical_precision_M_Mlower_pbs(args):
     M_lower_space = np.array([all_parameters['M_layer_one']])
     T_space = np.arange(1, all_parameters['T']+1)
 
-    results_precision_M_T = np.zeros((M_space.size, M_lower_space.size, T_space.size, num_repetitions), dtype=float)
+    results_precision_M_T = np.nan*np.empty((M_space.size, M_lower_space.size, T_space.size, num_repetitions), dtype=float)
 
     if save_all_output:
-        variables_to_save.extend(['all_responses', 'all_targets', 'all_nontargets'])
+        variables_to_save.extend(['result_responses', 'result_targets', 'result_nontargets'])
 
-        all_responses = np.zeros((M_space.size, M_lower_space.size, T_space.size, num_repetitions, all_parameters['N']))
-        all_targets = np.zeros((M_space.size, M_lower_space.size, T_space.size, num_repetitions, all_parameters['N']))
-        all_nontargets = np.zeros((M_space.size, M_lower_space.size, T_space.size, num_repetitions, all_parameters['N'], all_parameters['T']-1))
+        result_responses = np.nan*np.empty((M_space.size, M_lower_space.size, T_space.size, num_repetitions, all_parameters['N']))
+        result_targets = np.nan*np.empty((M_space.size, M_lower_space.size, T_space.size, num_repetitions, all_parameters['N']))
+        result_nontargets = np.nan*np.empty((M_space.size, M_lower_space.size, T_space.size, num_repetitions, all_parameters['N'], all_parameters['T']-1))
 
     # Show the progress
     search_progress = progress.Progress(T_space.size*M_space.size*M_lower_space.size*num_repetitions)
@@ -227,14 +226,14 @@ def launcher_do_hierarchical_precision_M_Mlower_pbs(args):
                     print results_precision_M_T[m_i, m_l_i, t_i, repet_i]
 
                     if save_all_output:
-                        (all_responses[m_i, m_l_i, t_i, repet_i], all_targets[m_i, m_l_i, t_i, repet_i], all_nontargets[m_i, m_l_i, t_i, repet_i, :, :t_i]) = sampler.collect_responses()
+                        (result_responses[m_i, m_l_i, t_i, repet_i], result_targets[m_i, m_l_i, t_i, repet_i], result_nontargets[m_i, m_l_i, t_i, repet_i, :, :t_i]) = sampler.collect_responses()
 
                     ### DONE WORK UNIT
 
                     search_progress.increment()
 
                     if run_counter % save_every == 0 or search_progress.done():
-                        dataio.save_variables(variables_to_save, locals())
+                        dataio.save_variables_default(locals(), variables_to_save)
 
                     run_counter += 1
 
@@ -272,13 +271,13 @@ def launcher_do_hierarchical_precision_M_sparsity_sigmaweight_feature_pbs(args):
     T_space = np.arange(1, all_parameters['T']+1)
 
 
-    results_precision_M_T = np.zeros((M_space.size, sparsity_space.size, sigma_weights_space.size, T_space.size, num_repetitions), dtype=float)
+    results_precision_M_T = np.nan*np.empty((M_space.size, sparsity_space.size, sigma_weights_space.size, T_space.size, num_repetitions), dtype=float)
     if save_all_output:
-        variables_to_save.extend(['all_responses', 'all_targets', 'all_nontargets'])
+        variables_to_save.extend(['result_responses', 'result_targets', 'result_nontargets'])
 
-        all_responses = np.zeros((M_space.size, sparsity_space.size, sigma_weights_space.size, T_space.size, num_repetitions, all_parameters['N']))
-        all_targets = np.zeros((M_space.size, sparsity_space.size, sigma_weights_space.size, T_space.size, num_repetitions, all_parameters['N']))
-        all_nontargets = np.zeros((M_space.size, sparsity_space.size, sigma_weights_space.size, T_space.size, num_repetitions, all_parameters['N'], all_parameters['T']-1))
+        result_responses = np.nan*np.empty((M_space.size, sparsity_space.size, sigma_weights_space.size, T_space.size, num_repetitions, all_parameters['N']))
+        result_targets = np.nan*np.empty((M_space.size, sparsity_space.size, sigma_weights_space.size, T_space.size, num_repetitions, all_parameters['N']))
+        result_nontargets = np.nan*np.empty((M_space.size, sparsity_space.size, sigma_weights_space.size, T_space.size, num_repetitions, all_parameters['N'], all_parameters['T']-1))
 
 
     all_parameters['type_layer_one'] = 'feature'
@@ -321,7 +320,7 @@ def launcher_do_hierarchical_precision_M_sparsity_sigmaweight_feature_pbs(args):
                         print results_precision_M_T[m_i, s_i, sw_i, t_i, repet_i]
 
                         if save_all_output:
-                            (all_responses[m_i, m_l_i, t_i, repet_i], all_targets[m_i, m_l_i, t_i, repet_i], all_nontargets[m_i, m_l_i, t_i, repet_i, :, :t_i]) = sampler.collect_responses()
+                            (result_responses[m_i, m_l_i, t_i, repet_i], result_targets[m_i, m_l_i, t_i, repet_i], result_nontargets[m_i, m_l_i, t_i, repet_i, :, :t_i]) = sampler.collect_responses()
 
                         ### DONE WORK UNIT
 

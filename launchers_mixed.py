@@ -52,12 +52,12 @@ def launcher_do_mixed_varyratio_precision_pbs(args):
     ratio_space = np.array([all_parameters['ratio_conj']])
     T_space = np.arange(1, all_parameters['T']+1)
 
-    results_precision_ratio_T = np.zeros((ratio_space.size, T_space.size, num_repetitions), dtype=float)
+    results_precision_ratio_T = np.nan*np.empty((ratio_space.size, T_space.size, num_repetitions), dtype=float)
 
     # if save_all_output:
-    #     results_all_responses = np.zeros((M_space.size, M_lower_space.size, T_space.size, num_repetitions, all_parameters['N']))
-    #     results_all_targets = np.zeros((M_space.size, M_lower_space.size, T_space.size, num_repetitions, all_parameters['N']))
-    #     results_all_nontargets = np.zeros((M_space.size, M_lower_space.size, T_space.size, num_repetitions, all_parameters['N'], all_parameters['T']-1))
+    #     results_all_responses = np.nan*np.empty((M_space.size, M_lower_space.size, T_space.size, num_repetitions, all_parameters['N']))
+    #     results_all_targets = np.nan*np.empty((M_space.size, M_lower_space.size, T_space.size, num_repetitions, all_parameters['N']))
+    #     results_all_nontargets = np.nan*np.empty((M_space.size, M_lower_space.size, T_space.size, num_repetitions, all_parameters['N'], all_parameters['T']-1))
 
     # Show the progress
     search_progress = progress.Progress(T_space.size*ratio_space.size*num_repetitions)

@@ -56,7 +56,7 @@ def launcher_do_fisher_information_estimation(args):
     if args.subaction == 'M_dependence':
 
         M_space = np.arange(10, 500, 20)
-        FI_rc_theo = np.zeros((M_space.size, 2), dtype=float)
+        FI_rc_theo = np.nan*np.empty((M_space.size, 2), dtype=float)
 
         for i, M in enumerate(M_space):
 
@@ -115,14 +115,14 @@ def launcher_do_fisher_information_estimation(args):
         print 'selection_method: %s' % selection_method
         print "Stimuli_generation: %s" % stimuli_generation
 
-        FI_samples_curv = np.zeros((samples_space.size, 3), dtype=float)
-        FI_samples_curv_quantiles = np.zeros((samples_space.size, 3), dtype=float)
+        FI_samples_curv = np.nan*np.empty((samples_space.size, 3), dtype=float)
+        FI_samples_curv_quantiles = np.nan*np.empty((samples_space.size, 3), dtype=float)
         FI_samples_curv_all = []
-        FI_samples_samples = np.zeros((samples_space.size, 3), dtype=float)
-        FI_samples_samples_quantiles = np.zeros((samples_space.size, 3), dtype=float)
+        FI_samples_samples = np.nan*np.empty((samples_space.size, 3), dtype=float)
+        FI_samples_samples_quantiles = np.nan*np.empty((samples_space.size, 3), dtype=float)
         FI_samples_samples_all = []
-        FI_samples_precision = np.zeros(samples_space.size, dtype=float)
-        FI_samples_precision_quantiles = np.zeros((samples_space.size, 3), dtype=float)
+        FI_samples_precision = np.nan*np.empty(samples_space.size, dtype=float)
+        FI_samples_precision_quantiles = np.nan*np.empty((samples_space.size, 3), dtype=float)
         FI_samples_precision_all = []
 
         for i, num_samples in enumerate(samples_space):
@@ -272,17 +272,17 @@ def launcher_do_fisher_information_estimation(args):
         rcscale_space = np.linspace(0.5, 10.0, 10)
         # rcscale_space = np.linspace(args.rc_scale, args.rc_scale, 1.)
 
-        FI_rc_curv = np.zeros((rcscale_space.size, 3), dtype=float)
-        FI_rc_curv_quantiles = np.zeros((rcscale_space.size, 3), dtype=float)
+        FI_rc_curv = np.nan*np.empty((rcscale_space.size, 3), dtype=float)
+        FI_rc_curv_quantiles = np.nan*np.empty((rcscale_space.size, 3), dtype=float)
         FI_rc_curv_all = []
-        FI_rc_samples = np.zeros((rcscale_space.size, 3), dtype=float)
-        FI_rc_samples_quantiles = np.zeros((rcscale_space.size, 3), dtype=float)
+        FI_rc_samples = np.nan*np.empty((rcscale_space.size, 3), dtype=float)
+        FI_rc_samples_quantiles = np.nan*np.empty((rcscale_space.size, 3), dtype=float)
         FI_rc_samples_all = []
-        FI_rc_precision = np.zeros(rcscale_space.size, dtype=float)
-        FI_rc_precision_quantiles = np.zeros((rcscale_space.size, 3), dtype=float)
+        FI_rc_precision = np.nan*np.empty(rcscale_space.size, dtype=float)
+        FI_rc_precision_quantiles = np.nan*np.empty((rcscale_space.size, 3), dtype=float)
         FI_rc_precision_all = []
-        FI_rc_theo = np.zeros((rcscale_space.size, 2), dtype=float)
-        FI_rc_theo_quantiles = np.zeros((rcscale_space.size, 3), dtype=float)
+        FI_rc_theo = np.nan*np.empty((rcscale_space.size, 2), dtype=float)
+        FI_rc_theo_quantiles = np.nan*np.empty((rcscale_space.size, 3), dtype=float)
         FI_rc_theo_all = []
 
         for i, rc_scale in enumerate(rcscale_space):
@@ -508,9 +508,9 @@ def launcher_do_compare_fisher_info_theo(args):
     rcscale_space = np.linspace(0.5, 20.0, 10)
     M_space = np.arange(5, 30, 2)**2.
 
-    result_FI_rc_theo_finiteN = np.zeros((rcscale_space.size, M_space.size))
-    result_FI_rc_theo_largeN = np.zeros((rcscale_space.size, M_space.size))
-    result_precision = np.zeros((rcscale_space.size, M_space.size))
+    result_FI_rc_theo_finiteN = np.nan*np.empty((rcscale_space.size, M_space.size))
+    result_FI_rc_theo_largeN = np.nan*np.empty((rcscale_space.size, M_space.size))
+    result_precision = np.nan*np.empty((rcscale_space.size, M_space.size))
 
     search_progress = progress.Progress(rcscale_space.size*M_space.size)
     save_every = 1
@@ -598,10 +598,10 @@ def launcher_do_fisher_information_param_search(args):
     sigma_space = np.linspace(0.1, 0.8, 10.)
     # sigma_space = np.linspace(0.1, 0.1, 1.)
 
-    FI_rc_curv = np.zeros((rcscale_space.size, sigma_space.size, 2), dtype=float)
-    FI_rc_precision = np.zeros((rcscale_space.size, sigma_space.size), dtype=float)
-    FI_rc_theo = np.zeros((rcscale_space.size, sigma_space.size, 2), dtype=float)
-    FI_rc_truevar = np.zeros((rcscale_space.size, sigma_space.size, 2), dtype=float)
+    FI_rc_curv = np.nan*np.empty((rcscale_space.size, sigma_space.size, 2), dtype=float)
+    FI_rc_precision = np.nan*np.empty((rcscale_space.size, sigma_space.size), dtype=float)
+    FI_rc_theo = np.nan*np.empty((rcscale_space.size, sigma_space.size, 2), dtype=float)
+    FI_rc_truevar = np.nan*np.empty((rcscale_space.size, sigma_space.size, 2), dtype=float)
 
     # Show the progress in a nice way
     search_progress = progress.Progress(rcscale_space.size*sigma_space.size)
@@ -678,10 +678,10 @@ def launcher_do_fisher_information_M_effect(args):
     # M_space = np.arange(30, 30, 2, dtype=int)**2.
     M_space = np.array([900])
 
-    FI_rc_curv = np.zeros((rcscale_space.size, M_space.size, 2), dtype=float)
-    FI_rc_precision = np.zeros((rcscale_space.size, M_space.size), dtype=float)
-    FI_rc_theo = np.zeros((rcscale_space.size, M_space.size, 2), dtype=float)
-    FI_rc_truevar = np.zeros((rcscale_space.size, M_space.size, 2), dtype=float)
+    FI_rc_curv = np.nan*np.empty((rcscale_space.size, M_space.size, 2), dtype=float)
+    FI_rc_precision = np.nan*np.empty((rcscale_space.size, M_space.size), dtype=float)
+    FI_rc_theo = np.nan*np.empty((rcscale_space.size, M_space.size, 2), dtype=float)
+    FI_rc_truevar = np.nan*np.empty((rcscale_space.size, M_space.size, 2), dtype=float)
 
     # Show the progress in a nice way
     search_progress = progress.Progress(rcscale_space.size*M_space.size)
@@ -774,15 +774,21 @@ def launcher_do_fisher_information_param_search_pbs(args):
     # sigma_space = np.linspace(0.01, 1.1, 20.)
     # sigma_space = np.linspace(all_parameters['sigmax'], all_parameters['sigmax'], 1.)
 
-    result_FI_rc_curv_mult = np.empty((2, num_repetitions), dtype=float)*np.nan
-    result_FI_rc_curv_all  = np.empty((all_parameters['N'], num_repetitions), dtype=float)*np.nan
-    result_FI_rc_precision_mult = np.empty((num_repetitions), dtype=float)*np.nan
-    result_FI_rc_theo_mult = np.empty((2, num_repetitions), dtype=float)*np.nan
-    result_FI_rc_truevar_mult = np.empty((2, num_repetitions), dtype=float)*np.nan
-    result_FI_rc_samples_mult = np.empty((2, num_repetitions), dtype=float)*np.nan
-    result_FI_rc_samples_all = np.empty((all_parameters['N'], num_repetitions), dtype=float)*np.nan
+    result_FI_rc_curv_mult = np.nan*np.empty((2, num_repetitions), dtype=float)
+    result_FI_rc_curv_all  = np.nan*np.empty((all_parameters['N'], num_repetitions), dtype=float)
+    result_FI_rc_precision_mult = np.nan*np.empty((num_repetitions), dtype=float)
+    result_FI_rc_theo_mult = np.nan*np.empty((2, num_repetitions), dtype=float)
+    result_FI_rc_truevar_mult = np.nan*np.empty((2, num_repetitions), dtype=float)
+    result_FI_rc_samples_mult = np.nan*np.empty((2, num_repetitions), dtype=float)
+    result_FI_rc_samples_all = np.nan*np.empty((all_parameters['N'], num_repetitions), dtype=float)
+    result_em_fits = np.nan*np.empty((5, num_repetitions))
 
-    result_em_fits = np.nan*np.ones((5, num_repetitions))
+    # If desired, will automatically save all Model responses.
+    if all_parameters['subaction'] == 'collect_responses':
+        result_responses = np.nan*np.empty((all_parameters['N'], num_repetitions))
+        result_target = np.nan*np.empty((all_parameters['N'], num_repetitions))
+        result_nontargets = np.nan*np.empty((all_parameters['N'], all_parameters['T']-1, num_repetitions))
+
 
     # Show the progress in a nice way
     search_progress = progress.Progress(num_repetitions)
@@ -799,6 +805,9 @@ def launcher_do_fisher_information_param_search_pbs(args):
         ### WORK UNIT
         (random_network, data_gen, stat_meas, sampler) = launchers.init_everything(all_parameters)
 
+        # Sample
+        sampler.run_inference(all_parameters)
+
         print "theoretical FI"
         result_FI_rc_theo_mult[0, repet_i] = sampler.estimate_fisher_info_theocov(use_theoretical_cov=True, kappa_different=False)
         # result_FI_rc_theo_mult[1, repet_i] = random_network.compute_fisher_information_theoretical(sigma=all_parameters['sigmax'])
@@ -806,19 +815,12 @@ def launcher_do_fisher_information_param_search_pbs(args):
 
         print result_FI_rc_theo_mult[:, repet_i]
 
-        print "fit mixture model..."
-        curr_params_fit = sampler.fit_mixture_model(use_all_targets=True)
-        curr_params_fit['mixt_nontargets_sum'] = np.sum(curr_params_fit['mixt_nontargets'])
-        result_em_fits[..., repet_i] = [curr_params_fit[key] for key in ('kappa', 'mixt_target', 'mixt_nontargets_sum', 'mixt_random', 'train_LL')]
-
-
         print "from curvature..."
         fi_curv_dict = sampler.estimate_fisher_info_from_posterior_avg(num_points=1000, full_stats=True)
         (result_FI_rc_curv_mult[0, repet_i], result_FI_rc_curv_mult[1, repet_i]) = (fi_curv_dict['mean'], fi_curv_dict['std'])
         result_FI_rc_curv_all[:, repet_i] = fi_curv_dict['all']
 
         print result_FI_rc_curv_mult[:, repet_i]
-
 
         print "true variance..."
         fi_truevar_dict = sampler.estimate_truevariance_from_posterior_avg(full_stats=True)
@@ -831,9 +833,23 @@ def launcher_do_fisher_information_param_search_pbs(args):
             result_FI_rc_samples_all[:, repet_i] = prec_samples_dict['all'].flatten()
 
         print "from precision of recall..."
-        sampler.sample_theta(num_samples=all_parameters['num_samples'], burn_samples=all_parameters['burn_samples'], selection_method=all_parameters['selection_method'], selection_num_samples=all_parameters['selection_num_samples'], integrate_tc_out=False, debug=False)
         result_FI_rc_precision_mult[repet_i] = sampler.get_precision()
         print result_FI_rc_precision_mult[repet_i]
+
+        print "fit mixture model..."
+        curr_params_fit = sampler.fit_mixture_model(use_all_targets=True)
+        curr_params_fit['mixt_nontargets_sum'] = np.sum(curr_params_fit['mixt_nontargets'])
+        result_em_fits[..., repet_i] = [curr_params_fit[key] for key in ('kappa', 'mixt_target', 'mixt_nontargets_sum', 'mixt_random', 'train_LL')]
+
+        # If needed, store responses
+        if all_parameters['subaction'] == 'collect_responses':
+            (responses, target, nontarget) = sampler.collect_responses()
+            result_responses[:, repet_i] = responses
+            result_target[:, repet_i] = target
+            result_nontargets[:, :all_parameters['T'], repet_i] = nontarget
+
+            print "collected responses"
+
         ### DONE WORK UNIT
 
         search_progress.increment()

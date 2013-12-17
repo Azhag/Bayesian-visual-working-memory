@@ -107,8 +107,10 @@ class FitExperiment:
 
         if self.experiment_id == 'doublerecall':
             experiment_descriptor = dict(filename=os.path.join(data_dir, 'DualRecall_Bays', 'rate_data.mat'), preprocess=loader_exp_data.preprocess_doublerecall, parameters=dict(fit_mixturemodel=fit_mixturemodel))
+            print "Using Double Recall dataset"
         elif self.experiment_id == 'gorgo_simult':
             experiment_descriptor = dict(filename='Exp2_withcolours.mat', preprocess=loader_exp_data.preprocess_simultaneous, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), fit_mixturemodel=fit_mixturemodel))
+            print "Using Gorgo simult dataset"
 
         # Load the data
         self.dataset_experiment = loader_exp_data.load_dataset(**experiment_descriptor)

@@ -62,7 +62,7 @@ def launcher_do_average_posterior(args):
         do_precision = True
 
     result_all_log_posterior = np.nan*np.ones((all_parameters['N'], num_points))
-    result_all_thetas = np.zeros(all_parameters['N'])
+    result_all_thetas = np.nan*np.empty(all_parameters['N'])
 
     search_progress = progress.Progress(all_parameters['N'])
     save_every = 10

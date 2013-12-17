@@ -31,7 +31,7 @@ def launcher_do_neuron_number_precision(args):
     T = args.T
     code_type = args.code_type
     output_dir = os.path.join(args.output_directory, args.label)
-    
+
     R = 2
     param1_space = np.array([10, 20, 50, 100, 150, 200, 300, 500, 1000, 1500])
     # param1_space = np.array([10, 50, 100, 300])
@@ -42,7 +42,7 @@ def launcher_do_neuron_number_precision(args):
     # After searching the big N/scale space, get some relation for scale = f(N)
     fitted_scale_space = np.array([4.0, 4.0, 1.5, 1.0, 0.8, 0.55, 0.45, 0.35, 0.2, 0.2])
     # fitted_scale_space = np.array([0.4])
-    
+
     output_string = unique_filename(prefix=strcat(output_dir, 'neuron_number_precision'))
 
     # Build the random network
@@ -55,7 +55,7 @@ def launcher_do_neuron_number_precision(args):
     print "param1_space: %s" % param1_space
     print "File: %s" % output_string
 
-    all_precisions = np.zeros((param1_space.size, num_repetitions))
+    all_precisions = np.nan*np.empty((param1_space.size, num_repetitions))
     for param1_i in xrange(param1_space.size):
         for repet_i in xrange(num_repetitions):
             #### Get multiple examples of precisions, for different number of neurons. #####
@@ -72,36 +72,36 @@ def launcher_do_neuron_number_precision(args):
             # random_network = RandomFactorialNetwork.create_full_conjunctive(param1_space[param1_i], R=R, scale_moments=(fitted_scale_space[param1_i], 0.001), ratio_moments=(1.0, 0.2))
             # random_network = RandomFactorialNetwork.create_full_features(param1_space[param1_i], R=R, scale=0.3)
             # random_network = RandomFactorialNetwork.create_mixed(param1_space[param1_i], R=R, ratio_feature_conjunctive=0.2)
-            
+
             # Construct the real dataset
             data_gen = DataGeneratorRFN(N, T, random_network, sigma_y=sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time)
-            
+
             # Measure the noise structure
             data_gen_noise = DataGeneratorRFN(3000, T, random_network, sigma_y=sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time)
             stat_meas = StatisticsMeasurer(data_gen_noise)
             # stat_meas = StatisticsMeasurer(data_gen)
-            
+
             sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters=stat_meas.model_parameters, tc=cued_feature_time)
-            
+
             # Cheat here, just use the ML value for the theta
             sampler.set_theta_max_likelihood(num_points=200, post_optimise=True)
-            
+
             # Save the precision
             # all_precisions[param1_i, repet_i] = sampler.get_precision()
             all_precisions[param1_i, repet_i] = sampler.compute_angle_error()['std']
 
             print "-> %.5f" % all_precisions[param1_i, repet_i]
-        
+
         # Save to disk, unique filename
         np.save(output_string, {'all_precisions': all_precisions, 'param1_space': param1_space, 'args': args, 'num_repetitions': num_repetitions, 'fitted_scale_space': fitted_scale_space, 'output_string': output_string})
-            
+
     # Plot
     f = plt.figure()
     ax = f.add_subplot(111)
     plot_mean_std_area(param1_space, np.mean(1./all_precisions, 1), np.std(1./all_precisions, 1), ax_handle=ax)
     ax.set_xlabel('Number of neurons in population')
     ax.set_ylabel('Precision [rad]')
-    
+
     print all_precisions
 
     print "Done: %s" % output_string
@@ -125,7 +125,7 @@ def launcher_plot_neuron_number_precision(args):
     elif 'param1_space' in loaded_data:
         param1_space = loaded_data['param1_space']
 
-    
+
     # Do the plot(s)
     f = plt.figure()
     ax = f.add_subplot(111)
@@ -136,7 +136,7 @@ def launcher_plot_neuron_number_precision(args):
         plot_mean_std_area(param1_space, np.mean(1./all_precisions, 1), np.std(1./all_precisions, 1), ax_handle=ax)
         ax.set_ylabel('Precision [rad]^-1')
     ax.set_xlabel('Number of neurons in population')
-    
+
 
     return locals()
 
@@ -165,7 +165,7 @@ def launcher_plot_multiple_neuron_number_precision(args):
             param1_space = loaded_data['param1_space']
 
         ax = semilogy_mean_std_area(param1_space, np.mean(loaded_precision, 1), np.std(loaded_precision, 1), ax_handle=ax)
-    
+
 
 def launcher_do_size_receptive_field(args):
     '''
@@ -180,9 +180,9 @@ def launcher_do_size_receptive_field(args):
     num_repetitions = args.num_repetitions
     code_type = args.code_type
     rc_scale = args.rc_scale
-    
+
     output_dir = os.path.join(args.output_directory, args.label)
-    
+
     R = 2
 
     # param1_space = np.array([0.05, 0.1, 0.15, 0.2, 0.3, 0.5, 1.0, 1.5])
@@ -200,7 +200,7 @@ def launcher_do_size_receptive_field(args):
     print "Scale_space: %s" % param1_space
     print "File: %s" % output_string
 
-    all_precisions = np.zeros((param1_space.size, num_repetitions))
+    all_precisions = np.nan*np.empty((param1_space.size, num_repetitions))
     for param1_i in xrange(param1_space.size):
         for repet_i in xrange(num_repetitions):
             #### Get multiple examples of precisions, for different number of neurons. #####
@@ -209,27 +209,27 @@ def launcher_do_size_receptive_field(args):
             random_network = RandomFactorialNetwork.create_full_conjunctive(M, R=R,  scale_moments=(param1_space[param1_i], 0.001), ratio_moments=(1.0, 0.1))
             # random_network = RandomFactorialNetwork.create_full_features(M_space[param1_i], R=R)
             # random_network = RandomFactorialNetwork.create_mixed(M_space[param1_i], R=R, ratio_feature_conjunctive=0.2)
-            
+
             # Construct the real dataset
             data_gen = DataGeneratorRFN(N, T, random_network, sigma_y=sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time)
-            
+
             # Measure the noise structure
             data_gen_noise = DataGeneratorRFN(3000, T, random_network, sigma_y=sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time)
             stat_meas = StatisticsMeasurer(data_gen_noise)
             # stat_meas = StatisticsMeasurer(data_gen)
-            
+
             sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters=stat_meas.model_parameters, tc=cued_feature_time)
-            
+
             # Cheat here, just use the ML value for the theta
             sampler.set_theta_max_likelihood(num_points=200, post_optimise=True)
-            
+
             # Save the precision
             # all_precisions[param1_i, repet_i] = sampler.get_precision()
             all_precisions[param1_i, repet_i] = sampler.compute_angle_error()['std']
 
-            
+
             print "-> %.5f" % all_precisions[param1_i, repet_i]
-        
+
         # Save to disk, unique filename
         np.save(output_string, {'all_precisions': all_precisions, 'param1_space': param1_space, 'args': args, 'num_repetitions': num_repetitions, 'output_string': output_string})
 
@@ -240,7 +240,7 @@ def launcher_do_size_receptive_field(args):
     plot_mean_std_area(param1_space, np.mean(all_precisions, 1), np.std(all_precisions, 1), ax_handle=ax)
     ax.set_xlabel('Size of receptive fields')
     ax.set_ylabel('Precision [rad]')
-    
+
     print "Done: %s" % output_string
 
     return locals()
@@ -315,7 +315,7 @@ def launcher_do_size_receptive_field_number_neurons(args):
     print "Scale_space: %s" % param2_space
     print "File: %s" % output_string
 
-    all_precisions = np.zeros((param1_space.size, param2_space.size, num_repetitions))
+    all_precisions = np.nan*np.empty((param1_space.size, param2_space.size, num_repetitions))
     for param1_i in xrange(param1_space.size):
         for param2_i in xrange(param2_space.size):
             for repet_i in xrange(num_repetitions):
@@ -328,20 +328,20 @@ def launcher_do_size_receptive_field_number_neurons(args):
                     random_network = RandomFactorialNetwork.create_full_features(param1_space[param1_i], R=R, scale=param2_space[param2_i])
                 elif code_type == 'mixed':
                     random_network = RandomFactorialNetwork.create_mixed(param1_space[param1_i], R=R, ratio_feature_conjunctive=0.2)
-                
+
                 # Construct the real dataset
                 data_gen = DataGeneratorRFN(N, T, random_network, sigma_y=sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time)
-                
+
                 # Measure the noise structure
                 data_gen_noise = DataGeneratorRFN(3000, T, random_network, sigma_y=sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time)
                 stat_meas = StatisticsMeasurer(data_gen_noise)
                 # stat_meas = StatisticsMeasurer(data_gen)
-                
+
                 sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters=stat_meas.model_parameters, tc=cued_feature_time)
-                
+
                 # Cheat here, just use the ML value for the theta
                 sampler.set_theta_max_likelihood(num_points=200, post_optimise=True)
-                
+
                 # Save the precision
                 # all_precisions[param1_i, repet_i] = sampler.get_precision()
                 all_precisions[param1_i, param2_i, repet_i] = sampler.compute_angle_error()['std']
@@ -351,9 +351,9 @@ def launcher_do_size_receptive_field_number_neurons(args):
             # Save to disk, unique filename
             np.save(output_string, {'all_precisions': all_precisions, 'param1_space': param1_space, 'param2_space': param2_space, 'args': args, 'num_repetitions': num_repetitions, 'output_string': output_string})
 
-            
-    
-    
+
+
+
     print all_precisions
 
     f = plt.figure()
@@ -374,7 +374,7 @@ def launcher_do_size_receptive_field_number_neurons(args):
     # plot_mean_std_area(param1_space, np.mean(1./all_precisions, 1), np.std(1./all_precisions, 1), ax_handle=ax)
     # ax.set_xlabel('Number of neurons in population')
     # ax.set_ylabel('Precision [rad]')
-    
+
     print "Done: %s" % output_string
 
     return locals()
@@ -427,7 +427,7 @@ def launcher_plot_size_receptive_field_number_neurons(args):
     f1.colorbar(cs)
 
     ### Print the 1D plot for each N
-    
+
     for i in xrange(param1_space.size):
         f = plt.figure()
         ax = f.add_subplot(111)
@@ -447,7 +447,7 @@ def launcher_plot_size_receptive_field_number_neurons(args):
 
     return locals()
 
-    
+
 
 
 def launcher_do_mixed_ratioconj(args):
@@ -470,7 +470,7 @@ def launcher_do_mixed_ratioconj(args):
     args.R = 2
     args.code_type = 'mixed'
     param1_space = np.array([0.0, 0.1, 0.3, 0.5, 0.7])
-    
+
     output_string = unique_filename(prefix=strcat(output_dir, 'mixed_ratioconj'))
 
     # Build the random network
@@ -484,7 +484,7 @@ def launcher_do_mixed_ratioconj(args):
     print "rc_scales: %.3f %.3f" % (rc_scale, rc_scale2)
     print "File: %s" % output_string
 
-    all_precisions = np.zeros((param1_space.size, num_repetitions))
+    all_precisions = np.nan*np.empty((param1_space.size, num_repetitions))
     for param1_i in xrange(param1_space.size):
         for repet_i in xrange(num_repetitions):
             #### Get multiple examples of precisions, for different number of neurons. #####
@@ -495,36 +495,36 @@ def launcher_do_mixed_ratioconj(args):
             feat_params = dict(scale=rc_scale2, ratio=40.)
 
             random_network = RandomFactorialNetwork.create_mixed(M, R=R, ratio_feature_conjunctive=param1_space[param1_i], conjunctive_parameters=conj_params, feature_parameters=feat_params)
-            
+
             # Construct the real dataset
             data_gen = DataGeneratorRFN(N, T, random_network, sigma_y=sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time)
-            
+
             # Measure the noise structure
             data_gen_noise = DataGeneratorRFN(3000, T, random_network, sigma_y=sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time)
             stat_meas = StatisticsMeasurer(data_gen_noise)
             # stat_meas = StatisticsMeasurer(data_gen)
-            
+
             sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters=stat_meas.model_parameters, tc=cued_feature_time)
-            
+
             # Cheat here, just use the ML value for the theta
             sampler.set_theta_max_likelihood(num_points=200, post_optimise=True)
-            
+
             # Save the precision
             # all_precisions[param1_i, repet_i] = sampler.get_precision()
             all_precisions[param1_i, repet_i] = sampler.compute_angle_error()['std']
 
             print "-> %.5f" % all_precisions[param1_i, repet_i]
-        
+
         # Save to disk, unique filename
         np.save(output_string, {'all_precisions': all_precisions, 'param1_space': param1_space, 'args': args, 'num_repetitions': num_repetitions, 'output_string': output_string})
-            
+
     # Plot
     f = plt.figure()
     ax = f.add_subplot(111)
     plot_mean_std_area(param1_space, np.mean(1./all_precisions, 1), np.std(1./all_precisions, 1), ax_handle=ax)
     ax.set_xlabel('Number of neurons in population')
     ax.set_ylabel('Precision [rad]')
-    
+
     print all_precisions
 
     print "Done: %s" % output_string
@@ -555,7 +555,7 @@ def launcher_do_mixed_two_scales(args):
     args.code_type = 'mixed'
     param1_space = np.logspace(np.log10(0.05), np.log10(4.0), num_samples)
     param2_space = np.logspace(np.log10(0.05), np.log10(4.0), num_samples)
-    
+
     output_string = unique_filename(prefix=strcat(output_dir, 'mixed_two_scales'))
 
     # Build the random network
@@ -570,7 +570,7 @@ def launcher_do_mixed_two_scales(args):
     print "ratio_conj: %.3f" % (ratio_conj)
     print "File: %s" % output_string
 
-    all_precisions = np.zeros((param1_space.size, param2_space.size, num_repetitions))
+    all_precisions = np.nan*np.empty((param1_space.size, param2_space.size, num_repetitions))
     for param1_i in xrange(param1_space.size):
         for param2_i in xrange(param2_space.size):
             for repet_i in xrange(num_repetitions):
@@ -582,29 +582,29 @@ def launcher_do_mixed_two_scales(args):
                 feat_params = dict(scale=param2_space[param2_i], ratio=40.)
 
                 random_network = RandomFactorialNetwork.create_mixed(M, R=R, ratio_feature_conjunctive=ratio_conj, conjunctive_parameters=conj_params, feature_parameters=feat_params)
-                
+
                 # Construct the real dataset
                 data_gen = DataGeneratorRFN(N, T, random_network, sigma_y=sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time)
-                
+
                 # Measure the noise structure
                 data_gen_noise = DataGeneratorRFN(3000, T, random_network, sigma_y=sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time)
                 stat_meas = StatisticsMeasurer(data_gen_noise)
                 # stat_meas = StatisticsMeasurer(data_gen)
-                
+
                 sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters=stat_meas.model_parameters, tc=cued_feature_time)
-                
+
                 # Cheat here, just use the ML value for the theta
                 sampler.set_theta_max_likelihood(num_points=200, post_optimise=True)
-                
+
                 # Save the precision
                 # all_precisions[param1_i, repet_i] = sampler.get_precision()
                 all_precisions[param1_i, param2_i, repet_i] = sampler.compute_angle_error()['std']
 
                 print "-> %.5f" % all_precisions[param1_i, param2_i, repet_i]
-            
+
             # Save to disk, unique filename
             np.save(output_string, {'all_precisions': all_precisions, 'param1_space': param1_space, 'param2_space': param2_space, 'args': args, 'num_repetitions': num_repetitions, 'output_string': output_string})
-          
+
     print all_precisions
 
     f = plt.figure()
@@ -619,7 +619,7 @@ def launcher_do_mixed_two_scales(args):
     ax.set_xlabel('Scale of conjunctive neurons')
     ax.set_ylabel('Scale of feature neurons')
     f.colorbar(im)
-    
+
     print "Done: %s" % output_string
 
     return locals()
