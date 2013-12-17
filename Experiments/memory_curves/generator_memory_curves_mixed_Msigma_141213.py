@@ -16,8 +16,8 @@ import inspect
 parameters_entryscript = dict(action_to_do='launcher_do_generate_submit_pbs_from_param_files', output_directory='.')
 submit_jobs = True
 parameter_generation = 'grid'
-submit_cmd = 'qsub'
-# submit_cmd = 'sbatch'
+#submit_cmd = 'qsub'
+submit_cmd = 'sbatch'
 
 num_repetitions = 5
 # num_repetitions = 10
