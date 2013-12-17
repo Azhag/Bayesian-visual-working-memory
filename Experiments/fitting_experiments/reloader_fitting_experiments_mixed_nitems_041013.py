@@ -6,10 +6,11 @@ import os
 import numpy as np
 from experimentlauncher import *
 from dataio import *
-from utils import *
-import re
 
+import re
 import inspect
+
+import utils
 
 # Commit @2042319 +
 
@@ -39,6 +40,8 @@ def plots_logposterior_mixed_autoset(data_pbs, generator_module=None):
     ratio_space = data_pbs.loaded_data['parameters_uniques']['ratio_conj']
     sigmax_space = data_pbs.loaded_data['parameters_uniques']['sigmax']
 
+    exp_dataset = data_pbs.loaded_data['args_list'][0]['experiment_id']
+
     print ratio_space
     print sigmax_space
     print result_log_posterior_mean.shape, result_log_posterior_std.shape
@@ -49,27 +52,27 @@ def plots_logposterior_mixed_autoset(data_pbs, generator_module=None):
     if plot_per_ratio:
         # Plot the evolution of loglike as a function of sigmax, with std shown
         for ratio_conj_i, ratio_conj in enumerate(ratio_space):
-            ax = plot_mean_std_area(sigmax_space, result_log_posterior_mean[ratio_conj_i], result_log_posterior_std[ratio_conj_i])
+            ax = utils.plot_mean_std_area(sigmax_space, result_log_posterior_mean[ratio_conj_i], result_log_posterior_std[ratio_conj_i])
 
             ax.get_figure().canvas.draw()
 
             if savefigs:
-                dataio.save_current_figure('results_fitexp_loglike_ratioconj%.2f_{label}_global_{unique_id}.pdf' % ratio_conj)
+                dataio.save_current_figure('results_fitexp_%s_loglike_ratioconj%.2f_{label}_global_{unique_id}.pdf' % (exp_dataset, ratio_conj))
 
     if plot_2d_pcolor:
         # Plot the mean loglikelihood as a 2d surface
-        pcolor_2d_data(result_log_posterior_mean, x=ratio_space, y=sigmax_space, xlabel="Ratio conj", ylabel="Sigma x", title="Loglikelihood of experimental data, \n3 items dualrecall, rcscale automatically set", ticks_interpolate=5, cmap=colormap)
+        utils.pcolor_2d_data(result_log_posterior_mean, x=ratio_space, y=sigmax_space, xlabel="Ratio conj", ylabel="Sigma x", title="Loglikelihood of experimental data, \n3 items dualrecall, rcscale automatically set", ticks_interpolate=5, cmap=colormap)
         # plt.tight_layout()
 
         if savefigs:
-            dataio.save_current_figure('results_fitexp_loglike_2d_ratiosigmax_{label}_global_{unique_id}.pdf')
+            dataio.save_current_figure('results_fitexp_%s_loglike_2d_ratiosigmax_{label}_global_{unique_id}.pdf' % exp_dataset)
 
 
     all_args = data_pbs.loaded_data['args_list']
-    variables_to_save = ['result_log_posterior_mean', 'result_log_posterior_std', 'ratio_space', 'sigmax_space', 'all_args']
+    variables_to_save = ['exp_dataset']
 
     if savefigs:
-        dataio.save_variables(variables_to_save, locals())
+        dataio.save_variables_default(locals(), variables_to_save)
 
 
     plt.show()
