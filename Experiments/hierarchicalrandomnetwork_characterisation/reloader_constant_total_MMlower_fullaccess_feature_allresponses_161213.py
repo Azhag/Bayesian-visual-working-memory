@@ -184,14 +184,15 @@ print "Reloader data generated from ", generator_script
 
 generator_module = imp.load_source(os.path.splitext(generator_script)[0], generator_script)
 dataset_infos = dict(label='Hierarchical network. Assume we want to allocate a fixed number of neurons between the two layers. Do that by constraining the sum of M and M_layer_one to be some constant. Corrected logic so that whole population is accessible now. Outputs all responses for later fits. Sampling.',
-                     files="%s/%s-*.npy" % (generator_module.pbs_submission_infos['simul_out_dir'], generator_module.pbs_submission_infos['other_options']['label']),
+                     files="%s/%s*.npy" % (generator_module.pbs_submission_infos['simul_out_dir'], generator_module.pbs_submission_infos['other_options']['label'].split('{')[0]),
                      launcher_module=generator_module,
                      loading_type='args',
                      parameters=['M', 'M_layer_one'],
                      variables_to_load=['results_precision_M_T', 'result_responses', 'result_targets', 'result_nontargets'],
                      variables_description=['Precision volume'],
                      post_processing=plots_3dvolume_hierarchical_M_Mlayerone,
-                     save_output_filename='3dvolume_hierarchical_constant_M_Mlayerone_feature'
+                     save_output_filename='3dvolume_hierarchical_constant_M_Mlayerone_feature',
+                     concatenate_multiple_datasets=True
                      )
 
 

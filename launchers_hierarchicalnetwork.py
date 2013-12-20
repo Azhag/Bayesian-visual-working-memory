@@ -231,7 +231,7 @@ def launcher_do_hierarchical_precision_M_Mlower_pbs(args):
                     print "fit mixture model..."
                     curr_params_fit = sampler.fit_mixture_model(use_all_targets=True)
                     curr_params_fit['mixt_nontargets_sum'] = np.sum(curr_params_fit['mixt_nontargets'])
-                    result_em_fits[m_i, m_l_i, t_i, :, repet_i] = [curr_params_fit[key] for key in ('kappa', 'mixt_target', 'mixt_nontargets_sum', 'mixt_random', 'train_LL')]
+                    results_emfits_M_T[m_i, m_l_i, t_i, :, repet_i] = [curr_params_fit[key] for key in ('kappa', 'mixt_target', 'mixt_nontargets_sum', 'mixt_random', 'train_LL')]
 
                     if save_all_output:
                         (result_responses[m_i, m_l_i, t_i, repet_i], result_targets[m_i, m_l_i, t_i, repet_i], result_nontargets[m_i, m_l_i, t_i, repet_i, :, :t_i]) = sampler.collect_responses()
