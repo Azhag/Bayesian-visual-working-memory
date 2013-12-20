@@ -45,6 +45,10 @@ def plots_3dvolume_hierarchical_M_Mlayerone(data_pbs, generator_module=None):
     results_precision_constant_M_Mlower = np.squeeze(utils.nanmean(data_pbs.dict_arrays['results_precision_M_T']['results'], axis=-1))
     results_precision_constant_M_Mlower_std = np.squeeze(utils.nanstd(data_pbs.dict_arrays['results_precision_M_T']['results'], axis=-1))
 
+    result_responses = np.squeeze(data_pbs.dict_arrays['result_responses']['results'])
+    result_targets = np.squeeze(data_pbs.dict_arrays['result_targets']['results'])
+    result_nontargets = np.squeeze(data_pbs.dict_arrays['result_nontargets']['results'])
+
     M_space = data_pbs.loaded_data['parameters_uniques']['M']
     M_layer_one_space = data_pbs.loaded_data['parameters_uniques']['M_layer_one']
 
