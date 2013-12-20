@@ -184,6 +184,8 @@ def launcher_do_hierarchical_precision_M_Mlower_pbs(args):
 
     results_precision_M_T = np.nan*np.empty((M_space.size, M_lower_space.size, T_space.size, num_repetitions), dtype=float)
 
+    results_emfits_M_T = np.nan*np.empty((M_space.size, M_lower_space.size, T_space.size, 5, num_repetitions), dtype=float)
+
     if save_all_output:
         variables_to_save.extend(['result_responses', 'result_targets', 'result_nontargets'])
 
@@ -222,8 +224,14 @@ def launcher_do_hierarchical_precision_M_Mlower_pbs(args):
                         # Just use the ML value for the theta
                         sampler.set_theta_max_likelihood(num_points=100, post_optimise=True)
 
+                    print 'get precision...'
                     results_precision_M_T[m_i, m_l_i, t_i, repet_i] = sampler.get_precision()
                     print results_precision_M_T[m_i, m_l_i, t_i, repet_i]
+
+                    print "fit mixture model..."
+                    curr_params_fit = sampler.fit_mixture_model(use_all_targets=True)
+                    curr_params_fit['mixt_nontargets_sum'] = np.sum(curr_params_fit['mixt_nontargets'])
+                    result_em_fits[m_i, m_l_i, t_i, :, repet_i] = [curr_params_fit[key] for key in ('kappa', 'mixt_target', 'mixt_nontargets_sum', 'mixt_random', 'train_LL')]
 
                     if save_all_output:
                         (result_responses[m_i, m_l_i, t_i, repet_i], result_targets[m_i, m_l_i, t_i, repet_i], result_nontargets[m_i, m_l_i, t_i, repet_i, :, :t_i]) = sampler.collect_responses()

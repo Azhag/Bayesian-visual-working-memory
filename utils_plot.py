@@ -574,7 +574,7 @@ def pcolor_square_grid(data, nb_to_plot=-1):
 
     return (f, subaxes)
 
-def pcolor_line_grid(data, nb_to_plot=-1, orientation=0):
+def pcolor_line_grid(data, nb_to_plot=-1):
     '''
         Construct a line of pcolor
 
@@ -583,18 +583,15 @@ def pcolor_line_grid(data, nb_to_plot=-1, orientation=0):
     if nb_to_plot < 0:
         nb_to_plot = data.shape[0]
 
-    if orientation == 0:
-        f, subaxes = plt.subplots(nb_to_plot, 1)
-    else:
-        f, subaxes = plt.subplots(1, nb_to_plot)
+    f, subaxes = plt.subplots(nb_to_plot, 1, squeeze=False)
 
     for i in xrange(nb_to_plot):
         try:
-            subaxes[i].imshow(data[i], interpolation='nearest')
-            subaxes[i].xaxis.set_major_locator(plttic.NullLocator())
-            subaxes[i].yaxis.set_major_locator(plttic.NullLocator())
+            subaxes[i, 0].imshow(data[i], interpolation='nearest')
+            subaxes[i, 0].xaxis.set_major_locator(plttic.NullLocator())
+            subaxes[i, 0].yaxis.set_major_locator(plttic.NullLocator())
         except IndexError:
-            subaxes[i].set_visible(False)
+            subaxes[i, 0].set_visible(False)
 
     return (f, subaxes)
 

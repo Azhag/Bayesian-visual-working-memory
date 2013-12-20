@@ -31,9 +31,12 @@ def filtering_function(new_parameters, dict_parameters_range, function_parameter
 
 filtering_function_parameters = {'target_M_total': 200., 'comparison_type': 'equal'}
 
-run_label = 'hierarchical_all_responses_constant_total_MMlower_fullaccess_volume_featurelayer_threshopt_161213'
+sigmax = 0.4
 
-pbs_submission_infos = dict(description='Hierarchical network. Assume we want to allocate a fixed number of neurons between the two layers. Do that by constraining the sum of M and M_layer_one to be some constant. Corrected logic so that whole population is accessible now',
+run_label = 'hierarchical_all_responses_constant_total_MMlower_fullaccess_volume_featurelayer_threshopt_sigmax{sigmax}_161213'
+
+
+pbs_submission_infos = dict(description='Hierarchical network. Assume we want to allocate a fixed number of neurons between the two layers. Do that by constraining the sum of M and M_layer_one to be some constant. Corrected logic so that whole population is accessible now. Outputs all responses for later fits. Sampling.',
                             command='python /nfs/home2/lmatthey/Documents/work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py',
                             other_options=dict(action_to_do='launcher_do_hierarchical_precision_M_Mlower_pbs',
                                                code_type='hierarchical',
@@ -41,7 +44,7 @@ pbs_submission_infos = dict(description='Hierarchical network. Assume we want to
                                                M=100,
                                                M_layer_one=100,
                                                type_layer_one='feature',
-                                               sigmax=0.2,
+                                               sigmax=sigmax,
                                                N=500,
                                                T=6,
                                                sigmay=0.0001,
@@ -52,13 +55,13 @@ pbs_submission_infos = dict(description='Hierarchical network. Assume we want to
                                                selection_method='last',
                                                slice_width=0.07,
                                                enforce_min_distance=0.17,
-                                               num_repetitions=5,
+                                               num_repetitions=1,
                                                normalise_weights=1,
                                                threshold=1.0,
                                                label=run_label),
                             walltime='1:00:00',
                             memory='2gb',
-                            simul_out_dir=os.path.join(os.getcwd(), run_label),
+                            simul_out_dir=os.path.join(os.getcwd(), run_label.format(**locals())),
                             pbs_submit_cmd=submit_cmd,
                             submit_label='hier_MMl_feat_cst')
 
