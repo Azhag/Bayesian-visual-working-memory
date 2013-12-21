@@ -183,12 +183,9 @@ def launcher_do_hierarchical_precision_M_Mlower_pbs(args):
     T_space = np.arange(1, all_parameters['T']+1)
 
     results_precision_M_T = np.nan*np.empty((M_space.size, M_lower_space.size, T_space.size, num_repetitions), dtype=float)
-
     results_emfits_M_T = np.nan*np.empty((M_space.size, M_lower_space.size, T_space.size, 5, num_repetitions), dtype=float)
 
     if save_all_output:
-        variables_to_save.extend(['result_responses', 'result_targets', 'result_nontargets'])
-
         result_responses = np.nan*np.empty((M_space.size, M_lower_space.size, T_space.size, num_repetitions, all_parameters['N']))
         result_targets = np.nan*np.empty((M_space.size, M_lower_space.size, T_space.size, num_repetitions, all_parameters['N']))
         result_nontargets = np.nan*np.empty((M_space.size, M_lower_space.size, T_space.size, num_repetitions, all_parameters['N'], all_parameters['T']-1))
@@ -217,12 +214,8 @@ def launcher_do_hierarchical_precision_M_Mlower_pbs(args):
                     ### WORK UNIT
                     (random_network, data_gen, stat_meas, sampler) = launchers.init_everything(all_parameters)
 
-                    if all_parameters['inference_method'] == 'sample':
-                        # Sample thetas
-                        sampler.sample_theta(num_samples=all_parameters['num_samples'], burn_samples=100, selection_method=all_parameters['selection_method'], selection_num_samples=all_parameters['selection_num_samples'], integrate_tc_out=False, debug=False)
-                    elif all_parameters['inference_method'] == 'max_lik':
-                        # Just use the ML value for the theta
-                        sampler.set_theta_max_likelihood(num_points=100, post_optimise=True)
+                    # Sample / max like
+                    sampler.run_inference(all_parameters)
 
                     print 'get precision...'
                     results_precision_M_T[m_i, m_l_i, t_i, repet_i] = sampler.get_precision()
