@@ -186,9 +186,9 @@ def launcher_do_hierarchical_precision_M_Mlower_pbs(args):
     results_emfits_M_T = np.nan*np.empty((M_space.size, M_lower_space.size, T_space.size, 5, num_repetitions), dtype=float)
 
     if save_all_output:
-        result_responses = np.nan*np.empty((M_space.size, M_lower_space.size, T_space.size, num_repetitions, all_parameters['N']))
-        result_targets = np.nan*np.empty((M_space.size, M_lower_space.size, T_space.size, num_repetitions, all_parameters['N']))
-        result_nontargets = np.nan*np.empty((M_space.size, M_lower_space.size, T_space.size, num_repetitions, all_parameters['N'], all_parameters['T']-1))
+        result_responses = np.nan*np.empty((M_space.size, M_lower_space.size, T_space.size, all_parameters['N'], num_repetitions))
+        result_targets = np.nan*np.empty((M_space.size, M_lower_space.size, T_space.size, all_parameters['N'], num_repetitions))
+        result_nontargets = np.nan*np.empty((M_space.size, M_lower_space.size, T_space.size, all_parameters['N'], all_parameters['T']-1, num_repetitions))
 
     # Show the progress
     search_progress = progress.Progress(T_space.size*M_space.size*M_lower_space.size*num_repetitions)
@@ -227,7 +227,7 @@ def launcher_do_hierarchical_precision_M_Mlower_pbs(args):
                     results_emfits_M_T[m_i, m_l_i, t_i, :, repet_i] = [curr_params_fit[key] for key in ('kappa', 'mixt_target', 'mixt_nontargets_sum', 'mixt_random', 'train_LL')]
 
                     if save_all_output:
-                        (result_responses[m_i, m_l_i, t_i, repet_i], result_targets[m_i, m_l_i, t_i, repet_i], result_nontargets[m_i, m_l_i, t_i, repet_i, :, :t_i]) = sampler.collect_responses()
+                        (result_responses[m_i, m_l_i, t_i, :, repet_i], result_targets[m_i, m_l_i, t_i, :, repet_i], result_nontargets[m_i, m_l_i, t_i, :, :t_i, repet_i]) = sampler.collect_responses()
 
                     ### DONE WORK UNIT
 

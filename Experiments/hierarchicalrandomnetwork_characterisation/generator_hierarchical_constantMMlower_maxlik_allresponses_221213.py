@@ -31,7 +31,7 @@ def filtering_function(new_parameters, dict_parameters_range, function_parameter
 
 filtering_function_parameters = {'target_M_total': 200., 'comparison_type': 'equal'}
 
-sigmax = 0.2
+sigmax = 0.5
 
 run_label = 'hierarchical_allresponses_constantMMlower_maxlik_sigmax{sigmax}_221213'
 
@@ -55,7 +55,7 @@ pbs_submission_infos = dict(description='Hierarchical network. Assume we want to
                                                selection_method='last',
                                                slice_width=0.07,
                                                enforce_min_distance=0.17,
-                                               num_repetitions=1,
+                                               num_repetitions=5,
                                                normalise_weights=1,
                                                threshold=1.0,
                                                label=run_label),
