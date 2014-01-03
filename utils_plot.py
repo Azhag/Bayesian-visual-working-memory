@@ -258,7 +258,7 @@ def plot_square_grid(x, y, nb_to_plot=-1):
     return (f, subaxes)
 
 
-def hist_angular_data(data, bins=20, alpha=1.0, in_degrees=False, title=None, norm=None, fignum=None, ax_handle=None, pretty_xticks=False):
+def hist_angular_data(data, bins=20, alpha=1.0, in_degrees=False, title=None, norm='density', fignum=None, ax_handle=None, pretty_xticks=False):
     '''
         Histogram for angular data.
         Can set additional properties automatically.

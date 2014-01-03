@@ -241,5 +241,7 @@ def histogram_binspace(data, bins=20, norm='density', bound_x=np.pi):
         bar_heights /= np.sum(bar_heights.astype('float'))
     elif norm == 'density':
         bar_heights, _ = np.histogram(data, bins=x, density=True)
+    else:
+        raise ValueError('nom undefined')
 
     return bar_heights, x[:-1] + bound_x/(bins-1), bins
