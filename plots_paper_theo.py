@@ -11,11 +11,14 @@ from hierarchicalrandomnetwork import *
 from randomfactorialnetwork import *
 from statisticsmeasurer import *
 from slicesampler import *
-from utils import *
 from dataio import *
 from gibbs_sampler_continuous_fullcollapsed_randomfactorialnetwork import *
 from launchers import *
 import load_experimental_data
+
+import cPickle as pickle
+
+import utils
 
 plt.rcParams['font.size'] = 17
 
@@ -380,7 +383,7 @@ def plot_marginalfisherinfo_1d():
     theta2_space = all_angles
 
     def enforce_distance(theta1, theta2, min_distance=0.1):
-        return np.abs(wrap_angles(theta1 - theta2)) > min_distance
+        return np.abs(utils.wrap_angles(theta1 - theta2)) > min_distance
 
 
     min_distance_space = np.array([np.pi/30., np.pi/10., np.pi/4.])
@@ -557,6 +560,106 @@ def plot_specific_stimuli():
     return locals()
 
 
+def plot_bootstrap_randomsamples():
+    '''
+        Do histograms with random samples from bootstrap nontarget estimates
+    '''
+
+    dataio = DataIO.DataIO(label='plotpaper_bootstrap_randomized')
+
+    nb_bootstrap_samples = 200
+    use_precomputed = True
+
+    angle_space = np.linspace(-np.pi, np.pi, 51)
+    bins_center = angle_space[:-1] + np.diff(angle_space)[0]/2
+
+    data_bays2009 = load_experimental_data.load_data_bays2009(fit_mixture_model=True)
+
+    ## Super long simulation, use precomputed data maybe?
+    if use_precomputed:
+        data = pickle.load(open('/Users/loicmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/code/git-bayesian-visual-working-memory/Data/cache_randomized_bootstrap_samples_plots_paper_theo_plotbootstrapsamples/bootstrap_histo_katz.npy', 'r'))
+
+        responses_resampled = data['responses_resampled']
+        error_nontargets_resampled = data['error_nontargets_resampled']
+        error_targets_resampled = data['error_targets_resampled']
+        hist_cnts_nontarget_bootstraps_nitems = data['hist_cnts_nontarget_bootstraps_nitems']
+        hist_cnts_target_bootstraps_nitems = data['hist_cnts_target_bootstraps_nitems']
+    else:
+        responses_resampled = np.empty((np.unique(data_bays2009['n_items']).size, nb_bootstrap_samples), dtype=np.object)
+        error_nontargets_resampled = np.empty((np.unique(data_bays2009['n_items']).size, nb_bootstrap_samples), dtype=np.object)
+        error_targets_resampled = np.empty((np.unique(data_bays2009['n_items']).size, nb_bootstrap_samples), dtype=np.object)
+        hist_cnts_nontarget_bootstraps_nitems = np.empty((np.unique(data_bays2009['n_items']).size, nb_bootstrap_samples, angle_space.size - 1))*np.nan
+        hist_cnts_target_bootstraps_nitems = np.empty((np.unique(data_bays2009['n_items']).size, nb_bootstrap_samples, angle_space.size - 1))*np.nan
+
+        for n_items_i, n_items in enumerate(np.unique(data_bays2009['n_items'])):
+            # Data collapsed accross subjects
+            ids_filtered = (data_bays2009['n_items'] == n_items).flatten()
+
+            if n_items > 1:
+
+                # Get random bootstrap nontargets
+                bootstrap_nontargets = utils.sample_angle(data_bays2009['item_angle'][ids_filtered, 1:n_items].shape + (nb_bootstrap_samples, ))
+
+                # Compute associated EM fits
+                bootstrap_results = []
+                for bootstrap_i in progress.ProgressDisplay(np.arange(nb_bootstrap_samples), display=progress.SINGLE_LINE):
+
+                    em_fit = em_circularmixture_allitems_uniquekappa.fit(data_bays2009['response'][ids_filtered, 0], data_bays2009['item_angle'][ids_filtered, 0], bootstrap_nontargets[..., bootstrap_i])
+
+                    bootstrap_results.append(em_fit)
+
+                    # Get EM samples
+                    responses_resampled[n_items_i, bootstrap_i] = em_circularmixture_allitems_uniquekappa.sample_from_fit(em_fit, data_bays2009['item_angle'][ids_filtered, 0], bootstrap_nontargets[..., bootstrap_i])
+
+                    # Compute the errors
+                    error_nontargets_resampled[n_items_i, bootstrap_i] = utils.wrap_angles(responses_resampled[n_items_i, bootstrap_i][:, np.newaxis] - bootstrap_nontargets[..., bootstrap_i])
+                    error_targets_resampled[n_items_i, bootstrap_i] = utils.wrap_angles(responses_resampled[n_items_i, bootstrap_i] - data_bays2009['item_angle'][ids_filtered, 0])
+
+                    # Bin everything
+                    hist_cnts_nontarget_bootstraps_nitems[n_items_i, bootstrap_i], x, bins = utils.histogram_binspace(utils.dropnan(error_nontargets_resampled[n_items_i, bootstrap_i]), bins=angle_space, norm='density')
+                    hist_cnts_target_bootstraps_nitems[n_items_i, bootstrap_i], x, bins = utils.histogram_binspace(utils.dropnan(error_targets_resampled[n_items_i, bootstrap_i]), bins=angle_space, norm='density')
+
+    # Now show average histogram
+    hist_cnts_target_bootstraps_nitems_mean = np.mean(hist_cnts_target_bootstraps_nitems, axis=-2)
+    hist_cnts_target_bootstraps_nitems_std = np.std(hist_cnts_target_bootstraps_nitems, axis=-2)
+    hist_cnts_target_bootstraps_nitems_sem = hist_cnts_target_bootstraps_nitems_std/np.sqrt(hist_cnts_target_bootstraps_nitems.shape[1])
+
+    hist_cnts_nontarget_bootstraps_nitems_mean = np.mean(hist_cnts_nontarget_bootstraps_nitems, axis=-2)
+    hist_cnts_nontarget_bootstraps_nitems_std = np.std(hist_cnts_nontarget_bootstraps_nitems, axis=-2)
+    hist_cnts_nontarget_bootstraps_nitems_sem = hist_cnts_nontarget_bootstraps_nitems_std/np.sqrt(hist_cnts_target_bootstraps_nitems.shape[1])
+
+    f1, axes1 = plt.subplots(ncols=np.unique(data_bays2009['n_items']).size-1, figsize=((np.unique(data_bays2009['n_items']).size-1)*6, 6), sharey=True)
+    for n_items_i, n_items in enumerate(np.unique(data_bays2009['n_items'])):
+        if n_items>1:
+            utils.plot_mean_std_area(bins_center, hist_cnts_nontarget_bootstraps_nitems_mean[n_items_i], hist_cnts_nontarget_bootstraps_nitems_sem[n_items_i], ax_handle=axes1[n_items_i-1], color='k')
+
+            # Now add the Data histograms
+            axes1[n_items_i-1].bar(bins_center, data_bays2009['hist_cnts_nontarget_nitems_stats']['mean'][n_items_i], width=2.*np.pi/(angle_space.size-1), align='center', yerr=data_bays2009['hist_cnts_nontarget_nitems_stats']['sem'][n_items_i])
+            # axes4[n_items_i-1].set_title('N=%d' % n_items)
+            axes1[n_items_i-1].set_xlim([bins_center[0]-np.pi/(angle_space.size-1), bins_center[-1]+np.pi/(angle_space.size-1)])
+
+            # axes3[n_items_i-1].set_ylim([0., 2.0])
+            axes1[n_items_i-1].set_xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
+            axes1[n_items_i-1].set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=16)
+
+            # axes1[n_items_i-1].bar(bins_center, hist_cnts_nontarget_bootstraps_nitems_mean[n_items_i], width=2.*np.pi/(angle_space.size-1), align='center', yerr=hist_cnts_nontarget_bootstraps_nitems_std[n_items_i])
+            axes1[n_items_i-1].get_figure().canvas.draw()
+
+    if dataio is not None:
+        plt.tight_layout()
+        dataio.save_current_figure("hist_error_nontarget_persubj_{label}_{unique_id}.pdf")
+
+
+    if False:
+        f2, axes2 = plt.subplots(ncols=np.unique(data_bays2009['n_items']).size-1, figsize=((np.unique(data_bays2009['n_items']).size-1)*6, 6), sharey=True)
+        for n_items_i, n_items in enumerate(np.unique(data_bays2009['n_items'])):
+            utils.plot_mean_std_area(bins_center, hist_cnts_target_bootstraps_nitems_mean[n_items_i], hist_cnts_target_bootstraps_nitems_std[n_items_i], ax_handle=axes2[n_items_i-1])
+            # axes2[n_items_i-1].bar(bins_center, hist_cnts_target_bootstraps_nitems_mean[n_items_i], width=2.*np.pi/(angle_space.size-1), align='center', yerr=hist_cnts_target_bootstraps_nitems_std[n_items_i])
+
+    return locals()
+
+
+
 if __name__ == '__main__':
 
     all_vars = {}
@@ -565,12 +668,14 @@ if __name__ == '__main__':
     # all_vars = posterior_plots()
     # all_vars = fisher_information_1obj_2d()
     # all_vars = compare_fishertheo_precision()
-    all_vars = plot_experimental_mixture()
+    # all_vars = plot_experimental_mixture()
     # all_vars = plot_marginalfisherinfo_1d()
     # all_vars = plot_marginal_fisher_info_2d()
     # all_vars = plot_specific_stimuli()
 
     # all_vars = plot_distribution_errors()
+
+    all_vars = plot_bootstrap_randomsamples()
 
     if 'experiment_launcher' in all_vars:
         all_vars.update(all_vars['experiment_launcher'].all_vars)

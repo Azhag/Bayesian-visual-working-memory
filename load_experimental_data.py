@@ -100,6 +100,12 @@ def preprocess_simultaneous(dataset, parameters):
         dataset['data_to_fit'][n_items]['item_features'][..., 1] = dataset['item_colour'][ids_n_items, :n_items]
         dataset['data_to_fit'][n_items]['response'] = dataset['response'][ids_n_items].flatten()
 
+    # Perform Vtest for circular uniformity
+    dataset['vtest_nitems'] = np.empty(np.unique(dataset['n_items']).size)*np.nan
+    for n_items_i, n_items in enumerate(np.unique(dataset['n_items'])):
+        if n_items > 1:
+            dataset['vtest_nitems'][n_items_i] = utils.V_test(utils.dropnan(dataset['errors_nontarget_nitems'][n_items_i]).flatten())['pvalue']
+
 
 
 def preprocess_sequential(dataset, parameters):
@@ -296,8 +302,6 @@ def preprocess_bays2009(dataset, parameters):
             # Default value
             exec(curr_param[0] +" = " + str(curr_param[1]))
 
-    should_compute_bootstrap = parameters.get('should_compute_bootstrap', False)
-
     # Make some aliases
     dataset['n_items'] = dataset['N'].astype(int)
     dataset['subject'] = dataset['subject'].astype(int)
@@ -310,9 +314,10 @@ def preprocess_bays2009(dataset, parameters):
     dataset['errors_subject_nitems'] = np.empty((np.unique(dataset['subject']).size, np.unique(dataset['n_items']).size), dtype=np.object)
     dataset['errors_nontarget_subject_nitems'] = np.empty((np.unique(dataset['subject']).size, np.unique(dataset['n_items']).size), dtype=np.object)
     dataset['vtest_nitems'] = np.empty(np.unique(dataset['n_items']).size)*np.nan
-    dataset['bootstrap_pval'] = np.empty(np.unique(dataset['n_items']).size)*np.nan
 
-    angle_space = np.linspace(-np.pi, np.pi, 31)
+    if parameters.get('should_compute_bootstrap', False):
+        dataset['bootstrap_pval'] = np.empty(np.unique(dataset['n_items']).size)*np.nan
+        dataset['bootstrap'] = np.empty(np.unique(dataset['n_items']).size, dtype=np.object)
 
     # Fit mixture model
     if parameters.get('fit_mixture_model', False):
@@ -340,10 +345,13 @@ def preprocess_bays2009(dataset, parameters):
             dataset['vtest_nitems'][n_items_i] = utils.V_test(utils.dropnan(dataset['errors_nontarget_nitems'][n_items_i]).flatten())['pvalue']
 
             # Compute bootstrap if required
-            if should_compute_bootstrap:
+            if parameters.get('should_compute_bootstrap', False):
                 bootstrap = em_circularmixture_allitems_uniquekappa.bootstrap_nontarget_stat(dataset['response'][ids_filtered, 0], dataset['item_angle'][ids_filtered, 0], dataset['item_angle'][ids_filtered, 1:n_items])
+                dataset['bootstrap'][n_items_i] = bootstrap
                 dataset['bootstrap_pval'][n_items_i] = bootstrap['p_value']
 
+    # Do per subject and nitems, get average histogram
+    compute_average_histograms(dataset)
 
 
 ######
@@ -464,12 +472,13 @@ def create_subject_arrays(dataset = {}, double_precision=True   ):
     unique_subjects = np.unique(dataset['subject'])
     unique_n_items = np.unique(dataset['n_items'])
 
-    errors_subject_nitems = np.empty((unique_subjects.size, unique_n_items.size), dtype=np.object)
-    errors_all_subject_nitems = np.empty((unique_subjects.size, unique_n_items.size), dtype=np.object)
-    precision_subject_nitems = np.zeros((unique_subjects.size, unique_n_items.size))
-    precision_subject_nitems_theo = np.zeros((unique_subjects.size, unique_n_items.size))
-    precision_subject_nitems_nochance = np.zeros((unique_subjects.size, unique_n_items.size))
-    precision_subject_nitems_raw = np.zeros((unique_subjects.size, unique_n_items.size))
+    dataset['errors_subject_nitems'] = np.empty((unique_subjects.size, unique_n_items.size), dtype=np.object)
+    dataset['errors_all_subject_nitems'] = np.empty((unique_subjects.size, unique_n_items.size), dtype=np.object)
+    dataset['errors_nontarget_subject_nitems'] = np.empty((unique_subjects.size, unique_n_items.size), dtype=np.object)
+    precision_subject_nitems = np.nan*np.empty((unique_subjects.size, unique_n_items.size))
+    precision_subject_nitems_theo = np.nan*np.empty((unique_subjects.size, unique_n_items.size))
+    precision_subject_nitems_nochance = np.nan*np.empty((unique_subjects.size, unique_n_items.size))
+    precision_subject_nitems_raw = np.nan*np.empty((unique_subjects.size, unique_n_items.size))
 
     dataset['response_subject_nitems'] = np.empty((unique_subjects.size, unique_n_items.size), dtype=np.object)
     dataset['item_angle_subject_nitems'] = np.empty((unique_subjects.size, unique_n_items.size), dtype=np.object)
@@ -479,18 +488,19 @@ def create_subject_arrays(dataset = {}, double_precision=True   ):
             ids_filtered = ((dataset['subject']==subject) & (dataset['n_items'] == n_items)).flatten()
 
             # Get the errors
-            errors_subject_nitems[subject_i, n_items_i] = dataset['error'][ids_filtered]
-            errors_all_subject_nitems[subject_i, n_items_i] = dataset['errors_all'][ids_filtered]
+            dataset['errors_subject_nitems'][subject_i, n_items_i] = dataset['error'][ids_filtered]
+            dataset['errors_all_subject_nitems'][subject_i, n_items_i] = dataset['errors_all'][ids_filtered]
+            dataset['errors_nontarget_subject_nitems'][subject_i, n_items_i] = dataset['errors_all'][ids_filtered, 1:]
 
             # Get the responses and correct item angles
             dataset['response_subject_nitems'][subject_i, n_items_i] = dataset['response'][ids_filtered]
             dataset['item_angle_subject_nitems'][subject_i, n_items_i] = dataset['item_angle'][ids_filtered]
 
             # Compute the precision
-            precision_subject_nitems[subject_i, n_items_i] = compute_precision(errors_subject_nitems[subject_i, n_items_i], remove_chance_level=True, correct_orientation=False, use_wrong_precision=True)
-            precision_subject_nitems_theo[subject_i, n_items_i] = compute_precision(errors_subject_nitems[subject_i, n_items_i], remove_chance_level=False, correct_orientation=False, use_wrong_precision=False)
-            precision_subject_nitems_nochance[subject_i, n_items_i] = compute_precision(errors_subject_nitems[subject_i, n_items_i], remove_chance_level=True, correct_orientation=False, use_wrong_precision=False)
-            precision_subject_nitems_raw[subject_i, n_items_i] = compute_precision(errors_subject_nitems[subject_i, n_items_i], remove_chance_level=False, correct_orientation=False, use_wrong_precision=True)
+            precision_subject_nitems[subject_i, n_items_i] = compute_precision(dataset['errors_subject_nitems'][subject_i, n_items_i], remove_chance_level=True, correct_orientation=False, use_wrong_precision=True)
+            precision_subject_nitems_theo[subject_i, n_items_i] = compute_precision(dataset['errors_subject_nitems'][subject_i, n_items_i], remove_chance_level=False, correct_orientation=False, use_wrong_precision=False)
+            precision_subject_nitems_nochance[subject_i, n_items_i] = compute_precision(dataset['errors_subject_nitems'][subject_i, n_items_i], remove_chance_level=True, correct_orientation=False, use_wrong_precision=False)
+            precision_subject_nitems_raw[subject_i, n_items_i] = compute_precision(dataset['errors_subject_nitems'][subject_i, n_items_i], remove_chance_level=False, correct_orientation=False, use_wrong_precision=True)
 
     if double_precision:
         precision_subject_nitems *= 2.
@@ -498,8 +508,6 @@ def create_subject_arrays(dataset = {}, double_precision=True   ):
         # precision_subject_nitems_nochance *= 2.
         precision_subject_nitems_raw *= 2.
 
-    dataset['errors_subject_nitems'] = errors_subject_nitems
-    dataset['errors_all_subject_nitems'] = errors_all_subject_nitems
     dataset['precision_subject_nitems_bays'] = precision_subject_nitems
     dataset['precision_subject_nitems_theo'] = precision_subject_nitems_theo
     dataset['precision_subject_nitems_theo_nochance'] = precision_subject_nitems_nochance
@@ -507,6 +515,7 @@ def create_subject_arrays(dataset = {}, double_precision=True   ):
 
     dataset['errors_nitems'] = np.array([utils.flatten_list(dataset['errors_subject_nitems'][:, n_item_i]) for n_item_i in xrange(unique_n_items.size)])
     dataset['errors_all_nitems'] = np.array([utils.flatten_list(dataset['errors_all_subject_nitems'][:, n_item_i]) for n_item_i in xrange(unique_n_items.size)])
+    dataset['errors_nontarget_nitems'] = dataset['errors_all_nitems'][:, :, 1:]
     dataset['precision_nitems_bays'] = np.mean(precision_subject_nitems, axis=0)
     dataset['precision_nitems_theo'] = np.mean(precision_subject_nitems_theo, axis=0)
     dataset['precision_nitems_theo_nochance'] = np.mean(precision_subject_nitems_nochance, axis=0)
@@ -647,6 +656,29 @@ def fit_mixture_model(dataset, caching_save_filename=None):
             print "Error writing out to caching file ", caching_save_filename
 
 
+def compute_average_histograms(dataset):
+    '''
+        Do per subject and nitems, get average histogram
+    '''
+
+    angle_space = np.linspace(-np.pi, np.pi, 51)
+
+    dataset['hist_cnts_target_subject_nitems'] = np.empty((np.unique(dataset['subject']).size, np.unique(dataset['n_items']).size, angle_space.size - 1))*np.nan
+    dataset['hist_cnts_nontarget_subject_nitems'] = np.empty((np.unique(dataset['subject']).size, np.unique(dataset['n_items']).size, angle_space.size - 1))*np.nan
+    dataset['pvalue_nontarget_subject_nitems'] = np.empty((np.unique(dataset['subject']).size, np.unique(dataset['n_items']).size))*np.nan
+
+    for subject_i, subject in enumerate(np.unique(dataset['subject'])):
+        for n_items_i, n_items in enumerate(np.unique(dataset['n_items'])):
+            dataset['hist_cnts_target_subject_nitems'][subject_i, n_items_i], x, bins = utils.histogram_binspace(utils.dropnan(dataset['errors_subject_nitems'][subject_i, n_items_i]), bins=angle_space, norm='density')
+
+            dataset['hist_cnts_nontarget_subject_nitems'][subject_i, n_items_i], x, bins = utils.histogram_binspace(utils.dropnan(dataset['errors_nontarget_subject_nitems'][subject_i, n_items_i]), bins=angle_space, norm='density')
+
+            if n_items > 1:
+                dataset['pvalue_nontarget_subject_nitems'][subject_i, n_items_i] = utils.V_test(utils.dropnan(dataset['errors_nontarget_subject_nitems'][subject_i, n_items_i]).flatten())['pvalue']
+
+    dataset['hist_cnts_target_nitems_stats'] = dict(mean=np.mean(dataset['hist_cnts_target_subject_nitems'], axis=0), std=np.std(dataset['hist_cnts_target_subject_nitems'], axis=0), sem=np.std(dataset['hist_cnts_target_subject_nitems'], axis=0)/np.sqrt(np.unique(dataset['subject']).size))
+
+    dataset['hist_cnts_nontarget_nitems_stats'] = dict(mean=np.mean(dataset['hist_cnts_nontarget_subject_nitems'], axis=0), std=np.std(dataset['hist_cnts_nontarget_subject_nitems'], axis=0), sem=np.std(dataset['hist_cnts_nontarget_subject_nitems'], axis=0)/np.sqrt(np.unique(dataset['subject']).size))
 
 ######
 
@@ -789,14 +821,15 @@ def plots_check_oblique_effect(data, nb_bins=100):
     plt.plot(discrete_x, avg_error, 'ro')
 
 
-def plots_bays2009(dataset, dataio=None):
+def plots_histograms_errors_targets_nontargets_nitems(dataset, dataio=None):
     '''
+        Create subplots showing histograms of errors to targets and nontargets
 
-    Some plots for the Bays2009 data
+        Adds Vtest texts on the nontargets
     '''
 
     angle_space = np.linspace(-np.pi, np.pi, 51)
-    # angle_space = np.linspace(-np.pi, np.pi, 20)
+    bins_center = angle_space[:-1] + np.diff(angle_space)[0]/2
 
     # Histogram, collapsing across subjects
     f1, axes1 = plt.subplots(ncols=np.unique(dataset['n_items']).size, figsize=(np.unique(dataset['n_items']).size*6, 6), sharey=True)
@@ -826,45 +859,23 @@ def plots_bays2009(dataset, dataio=None):
         plt.tight_layout()
         dataio.save_current_figure("hist_error_nontarget_all_{label}_{unique_id}.pdf")
 
-    # Do per subject and nitems, get average histogram
-    hist_cnts_target_subject_nitems = np.empty((np.unique(dataset['subject']).size, np.unique(dataset['n_items']).size, angle_space.size - 1))*np.nan
-    hist_cnts_nontarget_subject_nitems = np.empty((np.unique(dataset['subject']).size, np.unique(dataset['n_items']).size, angle_space.size - 1))*np.nan
-    pvalue_nontarget_subject_nitems = np.empty((np.unique(dataset['subject']).size, np.unique(dataset['n_items']).size))*np.nan
-
-    for subject_i, subject in enumerate(np.unique(dataset['subject'])):
-        for n_items_i, n_items in enumerate(np.unique(dataset['n_items'])):
-            hist_cnts_target_subject_nitems[subject_i, n_items_i], x, bins = utils.histogram_binspace(utils.dropnan(dataset['errors_subject_nitems'][subject_i, n_items_i]), bins=angle_space, norm='density')
-
-            hist_cnts_nontarget_subject_nitems[subject_i, n_items_i], x, bins = utils.histogram_binspace(utils.dropnan(dataset['errors_nontarget_subject_nitems'][subject_i, n_items_i]), bins=angle_space, norm='density')
-
-            if n_items > 1:
-                pvalue_nontarget_subject_nitems[subject_i, n_items_i] = utils.V_test(utils.dropnan(dataset['errors_nontarget_subject_nitems'][subject_i, n_items_i]).flatten())['pvalue']
-
-    hist_cnts_target_nitems_mean = np.mean(hist_cnts_target_subject_nitems, axis=0)
-    hist_cnts_target_nitems_std = np.std(hist_cnts_target_subject_nitems, axis=0)
-    hist_cnts_target_nitems_sem = hist_cnts_target_nitems_std/np.sqrt(np.unique(dataset['subject']).size)
-    hist_cnts_nontarget_nitems_mean = np.mean(hist_cnts_nontarget_subject_nitems, axis=0)
-    hist_cnts_nontarget_nitems_std = np.std(hist_cnts_nontarget_subject_nitems, axis=0)
-    hist_cnts_nontarget_nitems_sem = hist_cnts_nontarget_nitems_std/np.sqrt(np.unique(dataset['subject']).size)
-    pvalue_nontarget_subject_nitems_mean = np.mean(pvalue_nontarget_subject_nitems, axis=0)
-
-    # Now do similar plots
+    # Do per subject and nitems, using average histogram
     f3, axes3 = plt.subplots(ncols=np.unique(dataset['n_items']).size, figsize=(np.unique(dataset['n_items']).size*6, 6), sharey=True)
     f4, axes4 = plt.subplots(ncols=np.unique(dataset['n_items']).size-1, figsize=((np.unique(dataset['n_items']).size-1)*6, 6), sharey=True)
 
     for n_items_i, n_items in enumerate(np.unique(dataset['n_items'])):
 
-        axes3[n_items_i].bar(x, hist_cnts_target_nitems_mean[n_items_i], width=2.*np.pi/(angle_space.size-1), align='center', yerr=hist_cnts_target_nitems_sem[n_items_i])
+        axes3[n_items_i].bar(bins_center, dataset['hist_cnts_target_nitems_stats']['mean'][n_items_i], width=2.*np.pi/(angle_space.size-1), align='center', yerr=dataset['hist_cnts_target_nitems_stats']['sem'][n_items_i])
         # axes3[n_items_i].set_title('N=%d' % n_items)
-        axes3[n_items_i].set_xlim([x[0]-np.pi/(angle_space.size-1), x[-1]+np.pi/(angle_space.size-1)])
+        axes3[n_items_i].set_xlim([bins_center[0]-np.pi/(angle_space.size-1), bins_center[-1]+np.pi/(angle_space.size-1)])
         axes3[n_items_i].set_ylim([0., 2.0])
         axes3[n_items_i].set_xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
         axes3[n_items_i].set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=16)
 
         if n_items > 1:
-            axes4[n_items_i-1].bar(x, hist_cnts_nontarget_nitems_mean[n_items_i], width=2.*np.pi/(angle_space.size-1), align='center', yerr=hist_cnts_nontarget_nitems_sem[n_items_i])
+            axes4[n_items_i-1].bar(bins_center, dataset['hist_cnts_nontarget_nitems_stats']['mean'][n_items_i], width=2.*np.pi/(angle_space.size-1), align='center', yerr=dataset['hist_cnts_nontarget_nitems_stats']['sem'][n_items_i])
             # axes4[n_items_i-1].set_title('N=%d' % n_items)
-            axes4[n_items_i-1].set_xlim([x[0]-np.pi/(angle_space.size-1), x[-1]+np.pi/(angle_space.size-1)])
+            axes4[n_items_i-1].set_xlim([bins_center[0]-np.pi/(angle_space.size-1), bins_center[-1]+np.pi/(angle_space.size-1)])
 
             # axes4[n_items_i-1].text(0.02, 0.96, "Vtest pval: %.4f" % (pvalue_nontarget_subject_nitems_mean[n_items_i]), transform=axes4[n_items_i-1].transAxes, horizontalalignment='left', fontsize=13)
             axes4[n_items_i-1].text(0.02, 0.96, "Vtest pval: %.4f" % (dataset['vtest_nitems'][n_items_i]), transform=axes4[n_items_i-1].transAxes, horizontalalignment='left', fontsize=14)
@@ -886,6 +897,15 @@ def plots_bays2009(dataset, dataio=None):
         plt.tight_layout()
         dataio.save_current_figure("hist_error_nontarget_persubj_{label}_{unique_id}.pdf")
 
+
+
+def plots_bays2009(dataset, dataio=None):
+    '''
+
+    Some plots for the Bays2009 data
+    '''
+
+    plots_histograms_errors_targets_nontargets_nitems(dataset, dataio)
 
 
 
@@ -1068,22 +1088,30 @@ def plots_doublerecall(dataset):
         print fitted_parameters
 
 
-def load_data_simult(data_dir = '/Users/loicmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/experimental_data/', fit_mixture_model=False):
+def load_data_simult(data_dir = None, fit_mixture_model=False):
     '''
         Convenience function, automatically load the Gorgoraptis_2011 dataset.
     '''
 
-    data_simult =  load_multiple_datasets([dict(filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(fit_mixture_model=fit_mixture_model, datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), mixture_model_cache='em_simult.pickle'))])[0]
+    if data_dir is None:
+        experim_datadir = os.environ.get('WORKDIR_DROP', os.path.split(utils.__file__)[0])
+        data_dir=os.path.normpath(os.path.join(experim_datadir, '../../experimental_data/'))
+
+    data_simult =  load_multiple_datasets([dict(name='Gorgo_simult', filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(fit_mixture_model=fit_mixture_model, datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), mixture_model_cache='em_simult.pickle'))])[0]
 
     return data_simult
 
 
-def load_data_bays2009(data_dir = '/Users/loicmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/experimental_data/', fit_mixture_model=False):
+def load_data_bays2009(data_dir = None, fit_mixture_model=False):
     '''
         Convenience function, automatically load the Bays2009 dataset.
     '''
 
-    (data_bays2009, ) = load_multiple_datasets([dict(filename='colour_data.mat', preprocess=preprocess_bays2009, parameters=dict(datadir=os.path.join(data_dir, 'Bays2009'), fit_mixture_model=fit_mixture_model, mixture_model_cache='em_bays_allitems.pickle'))])
+    if data_dir is None:
+        experim_datadir = os.environ.get('WORKDIR_DROP', os.path.split(utils.__file__)[0])
+        data_dir=os.path.normpath(os.path.join(experim_datadir, '../../experimental_data/'))
+
+    (data_bays2009, ) = load_multiple_datasets([dict(name='Bays2009', filename='colour_data.mat', preprocess=preprocess_bays2009, parameters=dict(datadir=os.path.join(data_dir, 'Bays2009'), fit_mixture_model=fit_mixture_model, mixture_model_cache='em_bays_allitems.pickle'))])
 
     return data_bays2009
 
@@ -1099,8 +1127,8 @@ if __name__ == '__main__':
     # keys:
     # 'probe', 'delayed', 'item_colour', 'probe_colour', 'item_angle', 'error', 'probe_angle', 'n_items', 'response', 'subject']
         # (data_sequen, data_simult, data_dualrecall) = load_multiple_datasets([dict(filename='Exp1.mat', preprocess=preprocess_sequential, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'))), dict(filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), fit_mixture_model=True)), dict(filename=os.path.join(data_dir, 'DualRecall_Bays', 'rate_data.mat'), preprocess=preprocess_doublerecall, parameters=dict(fit_mixture_model=True))])
-        # (data_simult,) = load_multiple_datasets([dict(filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), fit_mixture_model=True, mixture_model_cache='em_simult.pickle'))])
-        (data_bays2009, ) = load_multiple_datasets([dict(filename='colour_data.mat', preprocess=preprocess_bays2009, parameters=dict(datadir=os.path.join(data_dir, 'Bays2009'), fit_mixture_model=True, mixture_model_cache='em_bays.pickle'))])
+        (data_simult,) = load_multiple_datasets([dict(name='Gorgo_simult', filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), fit_mixture_model=True, mixture_model_cache='em_simult.pickle'))])
+        # (data_bays2009, ) = load_multiple_datasets([dict(name='Bays2009', filename='colour_data.mat', preprocess=preprocess_bays2009, parameters=dict(datadir=os.path.join(data_dir, 'Bays2009'), fit_mixture_model=True, mixture_model_cache='em_bays.pickle', should_compute_bootstrap=False))])
 
 
     # Check for bias towards 0 for the error between response and all items
