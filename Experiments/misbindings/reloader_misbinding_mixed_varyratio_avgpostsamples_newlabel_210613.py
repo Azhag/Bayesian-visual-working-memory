@@ -9,12 +9,15 @@ import matplotlib.pyplot as plt
 
 import pypr.clustering.gmm as pygmm
 
+import launchers
+
 from experimentlauncher import *
 from dataio import *
 # from smooth import *
 import inspect
 import em_circularmixture
 import em_circularmixture_allitems_uniquekappa
+import em_circularmixture_allitems_kappafi
 
 import cPickle as pickle
 
@@ -34,15 +37,21 @@ def plots_misbinding_logposterior(data_pbs, generator_module=None):
 
     #### SETUP
     #
-    savedata = True
+    savedata = False
     savefigs = True
 
     plot_logpost = False
     plot_error = False
     plot_mixtmodel = True
+    plot_hist_responses_fisherinfo = True
     compute_plot_bootstrap = False
+    compute_fisher_info_perratioconj = True
 
-    use_allitems_mixturesmodel = True
+    # mixturemodel_to_use = 'original'
+    mixturemodel_to_use = 'allitems'
+    # mixturemodel_to_use = 'allitems_kappafi'
+
+    caching_fisherinfo_filename = os.path.join(generator_module.pbs_submission_infos['simul_out_dir'], 'cache_fisherinfo.pickle')
 
 
     #
@@ -63,6 +72,7 @@ def plots_misbinding_logposterior(data_pbs, generator_module=None):
     result_prob_wrong = np.zeros((ratio_space.size, N))
     result_em_fits = np.empty((ratio_space.size, 6))*np.nan
 
+    all_args = data_pbs.loaded_data['args_list']
 
     fixed_means = [-np.pi*0.6, np.pi*0.6]
     all_angles = np.linspace(-np.pi, np.pi, result_all_log_posterior.shape[-1])
@@ -71,6 +81,84 @@ def plots_misbinding_logposterior(data_pbs, generator_module=None):
 
 
     plt.rcParams['font.size'] = 18
+
+
+    if plot_hist_responses_fisherinfo:
+
+        # From cache
+        if caching_fisherinfo_filename is not None:
+            if os.path.exists(caching_fisherinfo_filename):
+                # Got file, open it and try to use its contents
+                try:
+                    with open(caching_fisherinfo_filename, 'r') as file_in:
+                        # Load and assign values
+                        cached_data = pickle.load(file_in)
+                        result_fisherinfo_ratio = cached_data['result_fisherinfo_ratio']
+                        compute_fisher_info_perratioconj = False
+
+                except IOError:
+                    print "Error while loading ", caching_fisherinfo_filename, "falling back to computing the Fisher Info"
+
+        if compute_fisher_info_perratioconj:
+            # We did not save the Fisher info, but need it if we want to fit the mixture model with fixed kappa. So recompute them using the args_dicts
+
+            result_fisherinfo_ratio = np.empty(ratio_space.shape)
+
+            # Invert the all_args_i -> ratio_conj direction
+            parameters_indirections = data_pbs.loaded_data['parameters_dataset_index']
+
+            for ratio_conj_i, ratio_conj in enumerate(ratio_space):
+                # Get index of first dataset with the current ratio_conj (no need for the others, I think)
+                arg_index = parameters_indirections[(ratio_conj,)][0]
+
+                # Now using this dataset, reconstruct a RandomFactorialNetwork and compute the fisher info
+                curr_args = all_args[arg_index]
+
+                curr_args['stimuli_generation'] = lambda T: np.linspace(-np.pi*0.6, np.pi*0.6, T)
+
+                (random_network, data_gen, stat_meas, sampler) = launchers.init_everything(curr_args)
+
+                # Theo Fisher info
+                result_fisherinfo_ratio[ratio_conj_i] = sampler.estimate_fisher_info_theocov()
+
+                del curr_args['stimuli_generation']
+
+            # Save everything to a file, for faster later plotting
+            if caching_fisherinfo_filename is not None:
+                try:
+                    with open(caching_fisherinfo_filename, 'w') as filecache_out:
+                        data_cache = dict(result_fisherinfo_ratio=result_fisherinfo_ratio)
+                        pickle.dump(data_cache, filecache_out, protocol=2)
+                except IOError:
+                    print "Error writing out to caching file ", caching_fisherinfo_filename
+
+        # Now plots. Do histograms of responses (around -pi/6 and pi/6), add Von Mises derived from Theo FI on top, and vertical lines for the correct target/nontarget angles.
+        for ratio_conj_i, ratio_conj in enumerate(ratio_space):
+            # Histogram
+            ax = utils.hist_angular_data(result_all_thetas[ratio_conj_i], bins=100, title='ratio %.2f, fi %.0f' % (ratio_conj, result_fisherinfo_ratio[ratio_conj_i]))
+            bar_heights, _, _ = utils.histogram_binspace(result_all_thetas[ratio_conj_i], bins=100, norm='density')
+
+            # Add Fisher info prediction on top
+            x = np.linspace(-np.pi, np.pi, 1000)
+            if result_fisherinfo_ratio[ratio_conj_i] < 700:
+                # Von Mises PDF
+                utils.plot_vonmises_pdf(x, result_fisherinfo_ratio[ratio_conj_i], mu=fixed_means[-1], ax_handle=ax, linewidth=3, color='r', scale=np.max(bar_heights), fmt='-')
+            else:
+                # Switch to Gaussian instead
+                utils.plot_normal_pdf(x, mu=fixed_means[-1], std=utils.kappa_to_stddev(result_fisherinfo_ratio[ratio_conj_i]), ax_handle=ax, linewidth=3, color='r', scale=np.max(bar_heights), fmt='-')
+
+            # ax.set_xticks([])
+            # ax.set_yticks([])
+
+            # Add vertical line to correct target/nontarget
+            ax.axvline(x=fixed_means[0], color='g', linewidth=2)
+            ax.axvline(x=fixed_means[1], color='r', linewidth=2)
+
+            ax.get_figure().canvas.draw()
+
+            if savefigs:
+                # plt.tight_layout()
+                dataio.save_current_figure('results_misbinding_histresponses_vonmisespdf_ratioconj%.2f{label}_{unique_id}.pdf' % (ratio_conj))
 
 
 
@@ -178,13 +266,14 @@ def plots_misbinding_logposterior(data_pbs, generator_module=None):
 
             responses = result_all_thetas[ratio_conj_i]
 
-            if not use_allitems_mixturesmodel:
-                curr_params_fit = em_circularmixture.fit(responses, target_angle, nontarget_angles)
-                result_em_fits[ratio_conj_i] = [curr_params_fit[key] for key in ('kappa', 'mixt_target', 'mixt_nontargets', 'mixt_random', 'train_LL')]
-            else:
+            if mixturemodel_to_use == 'allitems_kappafi':
+                curr_params_fit = em_circularmixture_allitems_kappafi.fit(responses, target_angle, nontarget_angles, kappa=result_fisherinfo_ratio[ratio_conj_i])
+            elif mixturemodel_to_use == 'allitems':
                 curr_params_fit = em_circularmixture_allitems_uniquekappa.fit(responses, target_angle, nontarget_angles)
-                print curr_params_fit
-                result_em_fits[ratio_conj_i] = [curr_params_fit['kappa'], curr_params_fit['mixt_target']] + curr_params_fit['mixt_nontargets'].tolist() + [curr_params_fit[key] for key in ('mixt_random', 'train_LL', 'bic')]
+            else:
+                curr_params_fit = em_circularmixture.fit(responses, target_angle, nontarget_angles)
+
+            result_em_fits[ratio_conj_i] = [curr_params_fit['kappa'], curr_params_fit['mixt_target']] + utils.arrnum_to_list(curr_params_fit['mixt_nontargets']) + [curr_params_fit[key] for key in ('mixt_random', 'train_LL', 'bic')]
 
             print curr_params_fit
 
@@ -212,7 +301,7 @@ def plots_misbinding_logposterior(data_pbs, generator_module=None):
 
             f.canvas.draw()
 
-        if False:
+        if True:
             # Mixture probabilities
             ax = utils.plot_mean_std_area(ratio_space, result_em_fits[:, 1], 0*result_em_fits[:, 1], xlabel='Proportion of conjunctive units', ylabel="Mixture probabilities", linewidth=3, fmt='-', markersize=8, label='Target')
             utils.plot_mean_std_area(ratio_space, result_em_fits[:, 2], 0*result_em_fits[:, 2], xlabel='Proportion of conjunctive units', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='-', markersize=8, label='Nontarget')
@@ -231,7 +320,10 @@ def plots_misbinding_logposterior(data_pbs, generator_module=None):
         if True:
             # Kappa
             # ax = utils.plot_mean_std_area(ratio_space, result_em_fits[:, 0], 0*result_em_fits[:, 0], xlabel='Proportion of conjunctive units', ylabel="$\kappa [rad^{-2}]$", linewidth=3, fmt='-', markersize=8, label='Kappa')
-            ax = utils.plot_mean_std_area(ratio_space, utils.kappa_to_stddev(result_em_fits[:, 0]), 0*result_em_fits[:, 2], xlabel='Proportion of conjunctive units', ylabel="Standard deviation [rad]", linewidth=3, fmt='-', markersize=8, label='Precision')
+            ax = utils.plot_mean_std_area(ratio_space, utils.kappa_to_stddev(result_em_fits[:, 0]), 0*result_em_fits[:, 2], xlabel='Proportion of conjunctive units', ylabel="Standard deviation [rad]", linewidth=3, fmt='-', markersize=8, label='Mixture model $\kappa$')
+
+            # Add Fisher Info theo
+            ax = utils.plot_mean_std_area(ratio_space, utils.kappa_to_stddev(result_fisherinfo_ratio), 0*result_em_fits[:, 2], xlabel='Proportion of conjunctive units', ylabel="Standard deviation [rad]", linewidth=3, fmt='-', markersize=8, label='Fisher Information', ax_handle=ax)
 
             ax.legend(loc='best')
 
@@ -319,7 +411,6 @@ def plots_misbinding_logposterior(data_pbs, generator_module=None):
     # plt.legend(['%d item' % i + 's'*(i>1) for i in xrange(1, T+1)], loc='center right', bbox_to_anchor=(1.3, 0.5))
     # plt.xticks(np.linspace(0, 1.0, 5))
 
-    all_args = data_pbs.loaded_data['args_list']
     variables_to_save = ['target_angle', 'nontarget_angles']
 
     if savedata:
