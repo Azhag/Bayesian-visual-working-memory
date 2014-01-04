@@ -23,6 +23,11 @@ from socket import error as socket_error
 def flatten_list(ll):
     return [item for sublist in ll for item in sublist]
 
+def arrnum_to_list(arrnum_in):
+    try:
+        return list(arrnum_in)
+    except TypeError:
+        return [arrnum_in]
 
 def list_2_tuple(arg):
     if (isinstance(arg, list) and len(arg) > 0 and isinstance(arg[0], list)):

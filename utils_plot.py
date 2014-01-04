@@ -574,6 +574,7 @@ def pcolor_square_grid(data, nb_to_plot=-1):
 
     return (f, subaxes)
 
+
 def pcolor_line_grid(data, nb_to_plot=-1):
     '''
         Construct a line of pcolor
@@ -832,4 +833,71 @@ def scatter_marginals(xdata, ydata, xlabel='', ylabel='', title='', scatter_mark
     ax.set_xlim((-np.pi*factor_axis, np.pi*factor_axis))
 
     ax.set_xlabel(xlabel)
+
+
+def plot_vonmises_pdf(x, kappa, mu=0.0, scale=1.0, ax_handle=None, fignum=None, linewidth=1, fmt='-', markersize=1, color=None, xlabel=None, ylabel=None, label=''):
+    '''
+        Estimate the PDF of a Von Mises on the provided support.
+
+        Plot it.
+    '''
+
+    ## Get PDF of Von Mises
+    y_pdf = spst.vonmises.pdf(x, kappa, loc=mu, scale=1.0)
+
+    # Correct the scale if needed
+    if scale != 1.0:
+        y_pdf /= np.max(y_pdf)/scale
+
+    ## Plot it
+    if ax_handle is None:
+        f = plt.figure(fignum)
+        ax_handle = f.add_subplot(111)
+
+    if color is not None:
+        ax = ax_handle.plot(x, y_pdf, fmt, linewidth=linewidth, markersize=markersize, color=color, label=label)
+    else:
+        ax = ax_handle.plot(x, y_pdf, fmt, linewidth=linewidth, markersize=markersize, label=label)
+
+    if xlabel is not None:
+        ax_handle.set_xlabel(xlabel)
+
+    if ylabel is not None:
+        ax_handle.set_ylabel(ylabel)
+
+    ax_handle.get_figure().canvas.draw()
+
+
+def plot_normal_pdf(x, mu=0.0, std=1.0, scale=1.0, ax_handle=None, fignum=None, linewidth=1, fmt='-', markersize=1, color=None, xlabel=None, ylabel=None, label=''):
+    '''
+        Estimate the PDF of a Normal on the provided support.
+
+        Plot it.
+    '''
+
+    ## Get PDF of Von Mises
+    y_pdf = spst.norm.pdf(x, loc=mu, scale=std)
+
+    # Correct the scale if needed
+    if scale != 1.0:
+        y_pdf /= np.max(y_pdf)/scale
+
+    ## Plot it
+    if ax_handle is None:
+        f = plt.figure(fignum)
+        ax_handle = f.add_subplot(111)
+
+    if color is not None:
+        ax = ax_handle.plot(x, y_pdf, fmt, linewidth=linewidth, markersize=markersize, color=color, label=label)
+    else:
+        ax = ax_handle.plot(x, y_pdf, fmt, linewidth=linewidth, markersize=markersize, label=label)
+
+    if xlabel is not None:
+        ax_handle.set_xlabel(xlabel)
+
+    if ylabel is not None:
+        ax_handle.set_ylabel(ylabel)
+
+    ax_handle.get_figure().canvas.draw()
+
 
