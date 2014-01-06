@@ -142,10 +142,10 @@ def plots_misbinding_logposterior(data_pbs, generator_module=None):
             x = np.linspace(-np.pi, np.pi, 1000)
             if result_fisherinfo_ratio[ratio_conj_i] < 700:
                 # Von Mises PDF
-                utils.plot_vonmises_pdf(x, result_fisherinfo_ratio[ratio_conj_i], mu=fixed_means[-1], ax_handle=ax, linewidth=3, color='r', scale=np.max(bar_heights), fmt='-')
+                utils.plot_vonmises_pdf(x, utils.stddev_to_kappa(1./result_fisherinfo_ratio[ratio_conj_i]**0.5), mu=fixed_means[-1], ax_handle=ax, linewidth=3, color='r', scale=np.max(bar_heights), fmt='-')
             else:
                 # Switch to Gaussian instead
-                utils.plot_normal_pdf(x, mu=fixed_means[-1], std=utils.kappa_to_stddev(result_fisherinfo_ratio[ratio_conj_i]), ax_handle=ax, linewidth=3, color='r', scale=np.max(bar_heights), fmt='-')
+                utils.plot_normal_pdf(x, mu=fixed_means[-1], std=1./result_fisherinfo_ratio[ratio_conj_i]**0.5, ax_handle=ax, linewidth=3, color='r', scale=np.max(bar_heights), fmt='-')
 
             # ax.set_xticks([])
             # ax.set_yticks([])
