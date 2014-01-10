@@ -31,7 +31,7 @@ def filtering_function(new_parameters, dict_parameters_range, function_parameter
 
 filtering_function_parameters = {'target_M_total': 200., 'comparison_type': 'equal'}
 
-sigmax = 0.5
+sigmax = 0.2
 
 run_label = 'hierarchical_allresponses_constantMMlower_maxlik_sigmax{sigmax}_221213'
 

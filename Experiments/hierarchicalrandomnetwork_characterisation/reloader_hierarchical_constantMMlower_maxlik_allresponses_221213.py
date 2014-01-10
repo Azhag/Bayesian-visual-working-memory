@@ -194,7 +194,7 @@ def plots_3dvolume_hierarchical_M_Mlayerone(data_pbs, generator_module=None):
 
         for i, max_ind in enumerate(np.nanargmax(result_emfits_filtered[..., 0], axis=0)):
             # Plot Target mixture
-            utils.plot_mean_std_area(ratio_MMlower_space, result_emfits_filtered[:, i, 1], 0*result_emfits_filtered[:, i, 0], ax_handle=axes[i], linewidth=2) #, color=all_lines[i].get_color())
+            utils.plot_mean_std_area(ratio_MMlower_space, result_emfits_filtered[:, i, 1:4], 0*result_emfits_filtered[:, i, 1:4], ax_handle=axes[i], linewidth=2) #, color=all_lines[i].get_color())
             # curr_lines = axes[i].plot(ratio_MMlower_space, results_precision_filtered[:, i], linewidth=2, color=all_lines[i].get_color())
             axes[i].grid()
             axes[i].set_xticks(np.linspace(0., 1.0, 5))
