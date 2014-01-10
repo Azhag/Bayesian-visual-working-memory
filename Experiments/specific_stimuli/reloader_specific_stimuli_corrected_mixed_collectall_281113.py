@@ -18,6 +18,9 @@ import utils
 import cPickle as pickle
 
 import em_circularmixture_allitems_uniquekappa
+import em_circularmixture_allitems_kappafi
+
+import launchers
 
 # Commit @2042319 +
 
@@ -31,18 +34,25 @@ def plots_specific_stimuli_mixed(data_pbs, generator_module=None):
     #### SETUP
     #
     savefigs = True
-    savedata = False
+    savedata = True
 
     plot_per_min_dist_all = False
     specific_plots_paper = False
     plots_emfit_allitems = False
-    plot_min_distance_effect = True
+    plot_min_distance_effect = False
 
     compute_bootstraps = False
 
     should_fit_allitems_model = True
     # caching_emfit_filename = None
-    caching_emfit_filename = os.path.join(generator_module.pbs_submission_infos['simul_out_dir'], 'cache_emfitallitems_uniquekappa.pickle')
+    mixturemodel_to_use = 'allitems_uniquekappa'
+    # caching_emfit_filename = os.path.join(generator_module.pbs_submission_infos['simul_out_dir'], 'cache_emfitallitems_uniquekappa.pickle')
+    # mixturemodel_to_use = 'allitems_fikappa'
+
+    caching_emfit_filename = os.path.join(generator_module.pbs_submission_infos['simul_out_dir'], 'cache_emfit%s.pickle' % mixturemodel_to_use)
+
+    compute_fisher_info_perratioconj = True
+    caching_fisherinfo_filename = os.path.join(generator_module.pbs_submission_infos['simul_out_dir'], 'cache_fisherinfo.pickle')
 
     colormap = None  # or 'cubehelix'
     plt.rcParams['font.size'] = 16
@@ -78,19 +88,79 @@ def plots_specific_stimuli_mixed(data_pbs, generator_module=None):
 
     dataio = DataIO(output_folder=generator_module.pbs_submission_infos['simul_out_dir'] + '/outputs/', label='global_' + dataset_infos['save_output_filename'])
 
-    # Relaod cached emfitallitems
+    # Reload cached emfitallitems
     if caching_emfit_filename is not None:
         if os.path.exists(caching_emfit_filename):
             # Got file, open it and try to use its contents
             try:
                 with open(caching_emfit_filename, 'r') as file_in:
                     # Load and assign values
+                    print "Reloader EM fits from cache", caching_emfit_filename
                     cached_data = pickle.load(file_in)
                     result_emfitallitems = cached_data['result_emfitallitems']
+                    mixturemodel_used = cached_data.get('mixturemodel_used', '')
+
+                    if mixturemodel_used != mixturemodel_to_use:
+                        print "warning, reloaded model used a different mixture model class"
                     should_fit_allitems_model = False
 
             except IOError:
                 print "Error while loading ", caching_emfit_filename, "falling back to computing the EM fits"
+
+
+    # Load the Fisher Info from cache if exists. If not, compute it.
+    if caching_fisherinfo_filename is not None:
+        if os.path.exists(caching_fisherinfo_filename):
+            # Got file, open it and try to use its contents
+            try:
+                with open(caching_fisherinfo_filename, 'r') as file_in:
+                    # Load and assign values
+                    cached_data = pickle.load(file_in)
+                    result_fisherinfo_mindist_sigmax_ratio = cached_data['result_fisherinfo_mindist_sigmax_ratio']
+                    compute_fisher_info_perratioconj = False
+
+            except IOError:
+                print "Error while loading ", caching_fisherinfo_filename, "falling back to computing the Fisher Info"
+
+    if compute_fisher_info_perratioconj:
+        # We did not save the Fisher info, but need it if we want to fit the mixture model with fixed kappa. So recompute them using the args_dicts
+
+        result_fisherinfo_mindist_sigmax_ratio = np.empty((enforce_min_distance_space.size, sigmax_space.size, ratio_space.size))
+
+        # Invert the all_args_i -> min_dist, sigmax indexing
+        parameters_indirections = data_pbs.loaded_data['parameters_dataset_index']
+
+        # min_dist_i, sigmax_level_i, ratio_i
+        for min_dist_i, min_dist in enumerate(enforce_min_distance_space):
+            for sigmax_i, sigmax in enumerate(sigmax_space):
+                # Get index of first dataset with the current (min_dist, sigmax) (no need for the others, I think)
+                arg_index = parameters_indirections[(min_dist, sigmax)][0]
+
+                # Now using this dataset, reconstruct a RandomFactorialNetwork and compute the fisher info
+                curr_args = all_args[arg_index]
+
+                for ratio_conj_i, ratio_conj in enumerate(ratio_space):
+                    # Update param
+                    curr_args['ratio_conj'] = ratio_conj
+                    # curr_args['stimuli_generation'] = 'specific_stimuli'
+
+                    (_, _, _, sampler) = launchers.init_everything(curr_args)
+
+                    # Theo Fisher info
+                    result_fisherinfo_mindist_sigmax_ratio[min_dist_i, sigmax_i, ratio_conj_i] = sampler.estimate_fisher_info_theocov()
+
+                    print "Min dist: %.2f, Sigmax: %.2f, Ratio: %.2f: %.3f" % (min_dist, sigmax, ratio_conj, result_fisherinfo_mindist_sigmax_ratio[min_dist_i, sigmax_i, ratio_conj_i])
+
+
+        # Save everything to a file, for faster later plotting
+        if caching_fisherinfo_filename is not None:
+            try:
+                with open(caching_fisherinfo_filename, 'w') as filecache_out:
+                    data_cache = dict(result_fisherinfo_mindist_sigmax_ratio=result_fisherinfo_mindist_sigmax_ratio)
+                    pickle.dump(data_cache, filecache_out, protocol=2)
+            except IOError:
+                print "Error writing out to caching file ", caching_fisherinfo_filename
+
 
     if plot_per_min_dist_all:
         # Do one plot per min distance.
@@ -220,10 +290,19 @@ def plots_specific_stimuli_mixed(data_pbs, generator_module=None):
                 # Fit the mixture model
                 for ratio_i, ratio in enumerate(ratio_space):
                     print "Refitting EM all items. Ratio:", ratio, "Dist:", enforce_min_distance_space[min_dist_i]
-                    em_fit = em_circularmixture_allitems_uniquekappa.fit(
-                        result_responses_all[min_dist_i, sigmax_level_i, ratio_i].flatten(),
-                        result_target_all[min_dist_i, sigmax_level_i, ratio_i].flatten(),
-                        result_nontargets_all[min_dist_i, sigmax_level_i, ratio_i].transpose((0, 2, 1)).reshape((N*nb_repetitions, K)))
+
+                    if mixturemodel_to_use == 'allitems_uniquekappa':
+                        em_fit = em_circularmixture_allitems_uniquekappa.fit(
+                            result_responses_all[min_dist_i, sigmax_level_i, ratio_i].flatten(),
+                            result_target_all[min_dist_i, sigmax_level_i, ratio_i].flatten(),
+                            result_nontargets_all[min_dist_i, sigmax_level_i, ratio_i].transpose((0, 2, 1)).reshape((N*nb_repetitions, K)))
+                    elif mixturemodel_to_use == 'allitems_fikappa':
+                        em_fit = em_circularmixture_allitems_kappafi.fit(result_responses_all[min_dist_i, sigmax_level_i, ratio_i].flatten(),
+                            result_target_all[min_dist_i, sigmax_level_i, ratio_i].flatten(),
+                            result_nontargets_all[min_dist_i, sigmax_level_i, ratio_i].transpose((0, 2, 1)).reshape((N*nb_repetitions, K)),
+                            kappa=result_fisherinfo_mindist_sigmax_ratio[min_dist_i, sigmax_level_i, ratio_i])
+                    else:
+                        raise ValueError("Wrong mixturemodel_to_use, %s" % mixturemodel_to_use)
 
                     result_emfitallitems[min_dist_i, ratio_i] = [em_fit['kappa'], em_fit['mixt_target']] + em_fit['mixt_nontargets'].tolist() + [em_fit[key] for key in ('mixt_random', 'train_LL', 'bic')]
 
@@ -231,7 +310,7 @@ def plots_specific_stimuli_mixed(data_pbs, generator_module=None):
             if caching_emfit_filename is not None:
                 try:
                     with open(caching_emfit_filename, 'w') as filecache_out:
-                        data_em = dict(result_emfitallitems=result_emfitallitems)
+                        data_em = dict(result_emfitallitems=result_emfitallitems, target_sigmax=target_sigmax)
                         pickle.dump(data_em, filecache_out, protocol=2)
                 except IOError:
                     print "Error writing out to caching file ", caching_emfit_filename
