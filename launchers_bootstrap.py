@@ -155,7 +155,7 @@ def launcher_do_nontarget_bootstrap_misbindingruns(args):
     # Load the data
     if all_parameters['subaction'] == 'mixed' or all_parameters['subaction'] == '':
         # Mixed runs
-        model_outputs = utils.load_npy( os.path.join(os.getenv("WORKDIR_DROP", None), 'Experiments', 'bootstrap_nontargets', 'global_plots_misbinding_logposterior-plots_misbinding_logposterior-36eb41e9-6370-453e-995e-3876d5105388.npy'))
+        model_outputs = utils.load_npy( os.path.join(os.getenv("WORKDIR_DROP", None), 'Experiments', 'bootstrap_nontargets', 'SAVE_global_plots_misbinding_logposterior-plots_misbinding_logposterior-36eb41e9-6370-453e-995e-3876d5105388.npy'))
 
     data_responses_all = model_outputs['result_all_thetas']
     data_target = model_outputs['target_angle']

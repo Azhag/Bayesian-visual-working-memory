@@ -8,6 +8,7 @@ Copyright (c) 2013 Gatsby Unit. All rights reserved.
 """
 
 import numpy as np
+import scipy.stats as spst
 
 from utils_fitting import fit_gaussian_mixture
 
@@ -245,3 +246,18 @@ def histogram_binspace(data, bins=20, norm='density', bound_x=np.pi):
         raise ValueError('nom undefined')
 
     return bar_heights, x[:-1] + bound_x/(bins-1), bins
+
+
+def combine_pval_fisher_method(pvalues):
+    '''
+        Combine p-values using the Fisher Method:
+
+        f_score = -2 \\sum_i^K log(pi)
+        f_score ~ X^2_{2*K}
+    '''
+
+    fscore = np.sum(-2.*np.log(pvalues))
+
+    return spst.chi2.sf(fscore, 2*pvalues.size)
+
+

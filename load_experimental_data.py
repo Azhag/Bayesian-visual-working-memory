@@ -737,7 +737,7 @@ def compute_bootstrap(dataset, caching_save_filename=None, nb_bootstrap_samples=
     if save_caching_file:
         try:
             with open(caching_save_filename, 'w') as filecache_out:
-                cached_data = dict((key, dataset[key]) for key in ['bootstrap_subject_nitems', 'bootstrap_nitems', 'bootstrap_nitems_pval'])
+                cached_data = dict((key, dataset[key]) for key in ['bootstrap_subject_nitems', 'bootstrap_nitems', 'bootstrap_nitems_pval', 'bootstrap_subject_nitems_pval'])
 
                 pickle.dump(cached_data, filecache_out, protocol=2)
 
