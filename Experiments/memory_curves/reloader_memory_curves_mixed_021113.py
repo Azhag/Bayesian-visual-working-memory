@@ -66,6 +66,7 @@ def plots_memory_curves(data_pbs, generator_module=None):
     data_simult = load_experimental_data.load_data_simult(data_dir=os.path.normpath(os.path.join(os.path.split(load_experimental_data.__file__)[0], '../../experimental_data/')), fit_mixture_model=True)
     memory_experimental_precision = data_simult['precision_nitems_theo']
     memory_experimental_kappa = np.array([data['kappa'] for _, data in data_simult['em_fits_nitems']['mean'].items()])
+    memory_experimental_kappa_std = np.array([data['kappa'] for _, data in data_simult['em_fits_nitems']['std'].items()])
 
     experim_datadir = os.environ.get('WORKDIR_DROP', os.path.split(load_experimental_data.__file__)[0])
     data_bays2009 = load_experimental_data.load_data_bays2009(data_dir=os.path.normpath(os.path.join(experim_datadir, '../../experimental_data/')), fit_mixture_model=True)
@@ -188,9 +189,9 @@ def plots_memory_curves(data_pbs, generator_module=None):
             dataio.save_current_figure('memorycurves_precision_ratioconj%.2fsigmax%.2f_{label}_{unique_id}.pdf' % (ratioconj_space[ratioconj_i], sigmax_space[sigmax_i]))
 
     def mem_plot_kappa(sigmax_i, ratioconj_i):
-        ax = utils.plot_mean_std_area(T_space, memory_experimental_kappa, np.zeros(T_space.size), linewidth=3, fmt='o-', markersize=8, label='Experimental data')
+        ax = utils.plot_mean_std_area(T_space, memory_experimental_kappa, memory_experimental_kappa_std, linewidth=3, fmt='o-', markersize=8, label='Experimental data')
 
-        ax = utils.plot_mean_std_area(T_space, result_em_fits_mean[..., 0][ratioconj_i, sigmax_i], result_em_fits_std[..., 0][ratioconj_i, sigmax_i], xlabel='Number of items', ylabel="Inverse variance $[rad^{-2}]$", ax_handle=ax, linewidth=3, fmt='o-', markersize=8, label='Fitted kappa')
+        ax = utils.plot_mean_std_area(T_space, result_em_fits_mean[..., 0][ratioconj_i, sigmax_i], result_em_fits_std[..., 0][ratioconj_i, sigmax_i], xlabel='Number of items', ylabel="Memory error $[rad^{-2}]$", ax_handle=ax, linewidth=3, fmt='o-', markersize=8, label='Fitted kappa')
 
         # ax = utils.plot_mean_std_area(T_space, 0.5*result_marginal_fi_mean[..., 0][ratioconj_i, sigmax_i], 0.5*result_marginal_fi_std[..., 0][ratioconj_i, sigmax_i], ax_handle=ax, linewidth=3, fmt='o-', markersize=8, label='Marginal Fisher Information')
 
