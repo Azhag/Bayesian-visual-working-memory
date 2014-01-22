@@ -22,24 +22,26 @@ submit_cmd = 'qsub'
 
 num_repetitions = 1
 # num_repetitions = 10
-M  = 144
+M  = 200
 T  = 6
+ratio_hierarchical = 0.84
+sigmax = 0.68
 
-run_label = 'error_distribution_mixed_M{M}T{T}repetitions{num_repetitions}_121113'
+run_label = 'error_distribution_hier_paperplots_ratiohier{ratio_hierarchical}sigmax{sigmax}T{T}repetitions{num_repetitions}_220114'
 
 pbs_submission_infos = dict(description='Runs and collect responses to generate histograms. Should do it for multiple T, possibly with the parameters optimal for memory curve fits (but not that needed...)',
                             command='python /nfs/home2/lmatthey/Documents/work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py',
                             other_options=dict(action_to_do='launcher_do_error_distributions',
-                                               code_type='mixed',
+                                               code_type='hierarchical',
                                                output_directory='.',
                                                type_layer_one='feature',
                                                output_both_layers=None,
                                                normalise_weights=1,
                                                threshold=1.0,
-                                               ratio_hierarchical=0.5,
+                                               ratio_hierarchical=ratio_hierarchical,
                                                ratio_conj=0.845,
                                                M=M,
-                                               sigmax=0.4,
+                                               sigmax=sigmax,
                                                N=1000,
                                                T=T,
                                                sigmay=0.0001,
@@ -61,12 +63,12 @@ pbs_submission_infos = dict(description='Runs and collect responses to generate 
                             memory='2gb',
                             simul_out_dir=os.path.join(os.getcwd(), run_label.format(**locals())),
                             pbs_submit_cmd=submit_cmd,
-                            submit_label='errordist_mixed')
+                            submit_label='errordist_hier')
 
-sigmax_range =    dict(range=np.linspace(0.05, 0.65, 13.), dtype=float)
+# sigmax_range =    dict(range=np.linspace(0.05, 0.65, 13.), dtype=float)
 T_range      =    dict(range=np.arange(1, T+1), dtype=int)
 
-dict_parameters_range =   dict(T=T_range, sigmax=sigmax_range)
+dict_parameters_range =   dict(T=T_range)
 
 if __name__ == '__main__':
 

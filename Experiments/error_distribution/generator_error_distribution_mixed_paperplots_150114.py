@@ -17,15 +17,16 @@ import inspect
 parameters_entryscript = dict(action_to_do='launcher_do_generate_submit_pbs_from_param_files', output_directory='.')
 submit_jobs = True
 parameter_generation = 'grid'
-submit_cmd = 'qsub'
-# submit_cmd = 'sbatch'
+# submit_cmd = 'qsub'
+submit_cmd = 'sbatch'
 
 num_repetitions = 1
 # num_repetitions = 10
 M  = 144
 T  = 6
+sigmax = 0.11
 
-run_label = 'error_distribution_mixed_M{M}T{T}repetitions{num_repetitions}_121113'
+run_label = 'error_distribution_mixed_paperplots_M{M}T{T}repetitions{num_repetitions}_150114'
 
 pbs_submission_infos = dict(description='Runs and collect responses to generate histograms. Should do it for multiple T, possibly with the parameters optimal for memory curve fits (but not that needed...)',
                             command='python /nfs/home2/lmatthey/Documents/work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py',
@@ -39,7 +40,7 @@ pbs_submission_infos = dict(description='Runs and collect responses to generate 
                                                ratio_hierarchical=0.5,
                                                ratio_conj=0.845,
                                                M=M,
-                                               sigmax=0.4,
+                                               sigmax=sigmax,
                                                N=1000,
                                                T=T,
                                                sigmay=0.0001,
@@ -63,10 +64,10 @@ pbs_submission_infos = dict(description='Runs and collect responses to generate 
                             pbs_submit_cmd=submit_cmd,
                             submit_label='errordist_mixed')
 
-sigmax_range =    dict(range=np.linspace(0.05, 0.65, 13.), dtype=float)
+# sigmax_range =    dict(range=np.linspace(0.05, 0.65, 13.), dtype=float)
 T_range      =    dict(range=np.arange(1, T+1), dtype=int)
 
-dict_parameters_range =   dict(T=T_range, sigmax=sigmax_range)
+dict_parameters_range =   dict(T=T_range)
 
 if __name__ == '__main__':
 
