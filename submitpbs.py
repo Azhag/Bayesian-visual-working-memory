@@ -15,6 +15,7 @@ import subprocess
 import progress
 import functools
 import time
+import getpass
 
 from utils import cross
 
@@ -48,28 +49,29 @@ class SubmitPBS():
         Adapted from J. Gasthaus's run_pbs script.
     """
 
-    def __init__(self, pbs_submission_infos=None, working_directory=None, memory='2gb', walltime='1:00:00', set_env=True, scripts_dir='pbs_scripts', output_dir='pbs_output', wait_submitting=False, submit_label='', pbs_submit_cmd='qsub', debug=False):
+    def __init__(self, pbs_submission_infos=None, working_directory=None, memory='2gb', walltime='1:00:00', set_env=True, scripts_dir='pbs_scripts', output_dir='pbs_output', wait_submitting=False, submit_label='', pbs_submit_cmd='qsub', limit_max_queued_jobs=0, debug=False):
 
         self.debug = debug
 
-        if pbs_submission_infos:
+        if pbs_submission_infos is not None:
             # Extract informations from this dictionary instead
             working_directory   = pbs_submission_infos['simul_out_dir']
             memory              = pbs_submission_infos['memory']
             walltime            = pbs_submission_infos['walltime']
 
-            if 'wait_submitting' in pbs_submission_infos:
-                wait_submitting = pbs_submission_infos['wait_submitting']
+            wait_submitting = pbs_submission_infos.get('wait_submitting', wait_submitting)
 
-            if 'submit_label' in pbs_submission_infos:
-                submit_label = pbs_submission_infos['submit_label']
+            submit_label = pbs_submission_infos.get('submit_label', submit_label)
 
-            if 'pbs_submit_cmd' in pbs_submission_infos:
-                pbs_submit_cmd = pbs_submission_infos['pbs_submit_cmd']
+            pbs_submit_cmd = pbs_submission_infos.get('pbs_submit_cmd', pbs_submit_cmd)
+
+            limit_max_queued_jobs = pbs_submission_infos.get('limit_max_queued_jobs', limit_max_queued_jobs)
 
         self.pbs_options = {'mem': memory, 'pmem': memory, 'walltime': walltime, 'ncpus': '1'}
         self.set_env = set_env
         self.wait_submitting = wait_submitting
+        self.limit_max_queued_jobs = limit_max_queued_jobs
+        self.num_queued_jobs = 0
         self.submit_label = submit_label
         self.pbs_submit_cmd = pbs_submit_cmd
 
@@ -120,6 +122,50 @@ class SubmitPBS():
         self.directories_created = True
 
 
+    def update_running_jobs_number(self):
+        '''
+            Get the current number of jobs on the queue
+
+            Should work for both PBS and SLURM
+        '''
+        username = getpass.getuser()
+
+        if self.pbs_submit_cmd == 'qsub':
+            # Using PBS
+            queue_status = subprocess.Popen(['qstat', '-u', username], stdout=subprocess.PIPE)
+        elif self.pbs_submit_cmd == 'sbatch':
+            # Using SLURM
+            queue_status = subprocess.Popen(['squeue', '-h'], stdout=subprocess.PIPE)
+
+        lines = queue_status.communicate()[0].splitlines()
+        self.num_queued_jobs = len([line for line in lines if username in line])
+
+
+    def wait_queue_not_full(self, sleeping_period=dict(min=30, max=180)):
+        '''
+            Wait for the queue to have empty slots, compared to self.limit_max_queued_jobs
+
+            Sleeps for random amounts between [sleeping_period.min, sleeping_period.max]
+        '''
+
+        # Update running jobs number
+        self.update_running_jobs_number()
+
+        while self.num_queued_jobs >= self.limit_max_queued_jobs:
+            # Decide for how long to sleep
+            sleep_time_rnd = np.random.randint(sleeping_period['min'], sleeping_period['max'])
+
+            if self.debug:
+                print "Queue full (%d queued/%d limit max), waiting %d sec..." % (self.num_queued_jobs, self.limit_max_queued_jobs, sleep_time_rnd)
+
+            # Sleep for a bit
+            time.sleep(sleep_time_rnd)
+
+            # Update running jobs number
+            self.update_running_jobs_number()
+
+
+
     def open_submit_file(self, filename='submit_all.sh'):
         '''
             Open/create a file holding all the scripts created in the current script_directory.
@@ -148,6 +194,56 @@ class SubmitPBS():
         with open(self.submit_fn, 'a') as submit_f:
             submit_f.write(self.pbs_submit_cmd + " " + new_script_filename + " #" + command + '\n')
 
+
+    ########################################
+
+    def create_submit_job_parameters(self, pbs_command_infos, parameters, submit=True):
+        '''
+            Given some pbs_command_infos (command='python script', other_options='--stuff 10') and extra parameters,
+            automatically generate a simulation command, a script to execute it and submits it to PBS (if desired)
+        '''
+
+        # Generate the command
+        sim_cmd = self.create_simulation_command(pbs_command_infos, parameters)
+
+        # Create the script and submits
+        if submit:
+            self.submit_job(sim_cmd)
+        else:
+            self.make_script(sim_cmd)
+
+        # Increment submitted job number
+        self.num_queued_jobs += 1
+
+
+    def create_simulation_command(self, pbs_command_infos, parameters):
+        '''
+            Generates a simulation command to be written in a script (and then possibly submitted to PBS).
+
+            Takes a parameters dictionary, will automatically create an option with its content.
+
+            Puts all other_options at the end, directly.
+        '''
+
+        assert pbs_command_infos is not None, "Provide pbs_command_infos..."
+
+        # The command itself (e.g. python scriptname)
+        simulation_command = pbs_command_infos['command']
+
+        # The additional parameters we just found
+        for param in parameters:
+            simulation_command += " --{param} {param_value}".format(param=param, param_value=parameters[param])
+
+        # Put the other parameters
+        # assumes that if a parameter is already set in 'parameters', will not use the value from other_options (safer)
+        for (param, param_value) in pbs_command_infos['other_options'].items():
+            if param not in parameters:
+                if param_value is not None:
+                    simulation_command += " --{param} {param_value}".format(param=param, param_value=param_value)
+                else:
+                    simulation_command += " --{param}".format(param=param)
+
+        return simulation_command
 
 
     def make_script(self, command):
@@ -202,6 +298,12 @@ class SubmitPBS():
         # Create job
         new_script_filename = self.make_script(command)
 
+        # Wait for queue to have space for our jobs, if desired
+        if self.limit_max_queued_jobs > 0:
+            # Wait for the queue to be nearly full before checking and waiting
+            if self.num_queued_jobs > 3*self.limit_max_queued_jobs/4:
+                self.wait_queue_not_full()
+
         # Submit!
         if self.debug:
             print "\n-> Submitting job " + new_script_filename + "\n"
@@ -210,8 +312,6 @@ class SubmitPBS():
         os.chdir(self.output_dir)
 
         # Submit the job
-        # print "---- new submit"
-        # print [self.pbs_submit_cmd, new_script_filename]
         # subprocess.Popen([self.pbs_submit_cmd, new_script_filename], shell=True, env=os.environ, stderr=subprocess.STDOUT, stdout=subprocess.STDOUT)
         os.popen(self.pbs_submit_cmd + " " + new_script_filename)
 
@@ -228,51 +328,8 @@ class SubmitPBS():
                 pass
 
 
-    def create_simulation_command(self, pbs_command_infos, parameters):
-        '''
-            Generates a simulation command to be written in a script (and then possibly submitted to PBS).
 
-            Takes a parameters dictionary, will automatically create an option with its content.
-
-            Puts all other_options at the end, directly.
-        '''
-
-        assert pbs_command_infos is not None, "Provide pbs_command_infos..."
-
-        # The command itself (e.g. python scriptname)
-        simulation_command = pbs_command_infos['command']
-
-        # The additional parameters we just found
-        for param in parameters:
-            simulation_command += " --{param} {param_value}".format(param=param, param_value=parameters[param])
-
-        # Put the other parameters
-        # assumes that if a parameter is already set in 'parameters', will not use the value from other_options (safer)
-        for (param, param_value) in pbs_command_infos['other_options'].items():
-            if param not in parameters:
-                if param_value is not None:
-                    simulation_command += " --{param} {param_value}".format(param=param, param_value=param_value)
-                else:
-                    simulation_command += " --{param}".format(param=param)
-
-        return simulation_command
-
-
-    def create_submit_job_parameters(self, pbs_command_infos, parameters, submit=True):
-        '''
-            Given some pbs_command_infos (command='python script', other_options='--stuff 10') and extra parameters,
-            automatically generate a simulation command, a script to execute it and submits it to PBS (if desired)
-        '''
-
-        # Generate the command
-        sim_cmd = self.create_simulation_command(pbs_command_infos, parameters)
-
-        # Create the script and submits
-        if submit:
-            self.submit_job(sim_cmd)
-        else:
-            self.make_script(sim_cmd)
-
+    #################################################
 
     def generate_submit_constrained_parameters_from_module_parameters(self, module_parameters):
         '''
@@ -289,37 +346,28 @@ class SubmitPBS():
             module_parameters.__dict__['filtering_function'] = None
         if 'filtering_function_parameters' not in module_parameters.__dict__:
             module_parameters.__dict__['filtering_function_parameters'] = None
-        if 'num_samples' not in module_parameters.__dict__:
-            module_parameters.__dict__['num_samples'] = 100
+        if 'num_random_samples' not in module_parameters.__dict__:
+            module_parameters.__dict__['num_random_samples'] = 100
+        if 'max_queued_jobs' not in module_parameters.__dict__:
+            module_parameters.__dict__['max_queued_jobs'] = 500
 
-        return self.generate_submit_constrained_parameters(module_parameters.dict_parameters_range, parameter_generation=module_parameters.parameter_generation, num_samples=module_parameters.num_samples, filtering_function=module_parameters.filtering_function, filtering_function_parameters=module_parameters.filtering_function_parameters, pbs_submission_infos=module_parameters.pbs_submission_infos, submit_jobs=module_parameters.submit_jobs)
+        # Keep track of submitted jobs numbers and available queue size if desired
+        if self.limit_max_queued_jobs > 0:
+            # Get current queue state. Expensive operation so don't do it too much...
+            self.update_running_jobs_number()
 
-
-
-    def generate_submit_constrained_parameters(self, dict_parameters_range, parameter_generation='grid', num_samples=100, filtering_function=None, filtering_function_parameters=None, pbs_submission_infos=None, submit_jobs=True):
-        '''
-            Easy entry-point for general parameter tuples creation. Optionally submits to PBS directly.
-            Depending on parameter_generation, runs either:
-                - generate_submit_constrained_parameters_grid for 'grid'
-                - generate_submit_constrained_parameters_random for 'random'
-
-            Returns a list of the generated parameters
-        '''
-
-        if parameter_generation == 'grid':
-            return self.generate_submit_constrained_parameters_grid(dict_parameters_range, filtering_function=filtering_function, filtering_function_parameters=filtering_function_parameters, pbs_submission_infos=pbs_submission_infos, submit_jobs=submit_jobs)
-        elif parameter_generation == 'random':
-            return self.generate_submit_constrained_parameters_random(dict_parameters_range, num_samples=num_samples, filtering_function=filtering_function, filtering_function_parameters=filtering_function_parameters, pbs_submission_infos=pbs_submission_infos, submit_jobs=submit_jobs)
+        if module_parameters.parameter_generation == 'grid':
+            return self.generate_submit_constrained_parameters_grid(module_parameters.dict_parameters_range, filtering_function=module_parameters.filtering_function, filtering_function_parameters=module_parameters.filtering_function_parameters, pbs_submission_infos=module_parameters.pbs_submission_infos, submit_jobs=module_parameters.submit_jobs)
+        elif module_parameters.parameter_generation == 'random':
+            return self.generate_submit_constrained_parameters_random(module_parameters.dict_parameters_range, num_random_samples=module_parameters.num_random_samples, max_queued_jobs=module_parameters.max_queued_jobs, filtering_function=module_parameters.filtering_function, filtering_function_parameters=module_parameters.filtering_function_parameters, pbs_submission_infos=module_parameters.pbs_submission_infos, submit_jobs=module_parameters.submit_jobs)
 
 
-
-
-    def generate_submit_constrained_parameters_random(self, dict_parameters_range, num_samples=100, filtering_function=None, filtering_function_parameters=None, pbs_submission_infos=None, submit_jobs=True):
+    def generate_submit_constrained_parameters_random(self, dict_parameters_range, num_random_samples=100, max_queued_jobs=500, filtering_function=None, filtering_function_parameters=None, pbs_submission_infos=None, submit_jobs=True):
         '''
             Takes a dictionary of parameters (which should contain low/high values for each or generator function), and
-            generates num_samples possible parameters randomly.
+            generates num_random_samples possible parameters randomly.
             Checks them with some provided function before accepting them if provided.
-            If pbs_submission_infos is provided, will additionally automatically create scripts and submit them to PBS.
+            If pbs_submission_infos is provided, will additionally automatically create scripts and submit them to PBS. The PBS informations were already read from it in __init__ though, be careful.
         '''
 
         # Convert specific parameter sampling methods into generators
@@ -328,12 +376,12 @@ class SubmitPBS():
         # We will keep all constrained parameters for further use
         constrained_parameters = []
 
-        fill_parameters_progress = progress.Progress(num_samples)
+        fill_parameters_progress = progress.Progress(num_random_samples)
         tested_parameters = 0
 
         # Provide as many experimentally constrained parameters as desired
-        while len(constrained_parameters) < num_samples:
-            print "Parameters tested %d, found %d. %.2f%%, %s left - %s" % (tested_parameters, len(constrained_parameters), fill_parameters_progress.percentage(), fill_parameters_progress.time_remaining_str(), fill_parameters_progress.eta_str())
+        while len(constrained_parameters) < num_random_samples:
+            print "Parameters tested %d, found %d. %d requested. %.2f%%, %s left - %s" % (tested_parameters, len(constrained_parameters), num_random_samples, fill_parameters_progress.percentage(), fill_parameters_progress.time_remaining_str(), fill_parameters_progress.eta_str())
 
             # Sample new parameter values
             new_parameters = {}
@@ -356,6 +404,8 @@ class SubmitPBS():
 
             tested_parameters += 1
 
+        if self.debug:
+            print "\n-- Submitted/created %d jobs --\n" % self.num_queued_jobs
 
         return constrained_parameters
 
@@ -391,6 +441,8 @@ class SubmitPBS():
 
                     self.create_submit_job_parameters(pbs_submission_infos, new_parameters, submit=submit_jobs)
 
+        if self.debug:
+            print "\n-- Submitted/created %d jobs --\n" % self.num_queued_jobs
 
         return constrained_parameters
 

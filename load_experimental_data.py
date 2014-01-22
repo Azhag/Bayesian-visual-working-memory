@@ -584,6 +584,7 @@ def fit_mixture_model(dataset, caching_save_filename=None):
                     cached_data = pickle.load(file_in)
                     dataset.update(cached_data)
                     should_fit_model = False
+                    print "reloaded mixture model from cache", caching_save_filename
 
             except IOError:
                 print "Error while loading ", caching_save_filename, "falling back to computing the EM fits"
@@ -651,10 +652,20 @@ def fit_mixture_model(dataset, caching_save_filename=None):
                 dataset['em_fits_nitems']['std'][n_items][key] = np.std(values_allsubjects)
                 dataset['em_fits_nitems']['values'][n_items][key] = values_allsubjects
 
+
         ## Construct array versions of the em_fits_nitems mixture proportions, for convenience
+    if 'em_fits_nitems_arrays' not in dataset:
         dataset['em_fits_nitems_arrays'] = dict()
+
+        # Check if mixt_nontargets is array or not
+        if 'mixt_nontargets_sum' in dataset['em_fits_nitems']['mean'].values()[0]:
         dataset['em_fits_nitems_arrays']['mean'] = np.array([[dataset['em_fits_nitems']['mean'][item][em_key] for item in np.unique(dataset['n_items'])] for em_key in ['kappa', 'mixt_target', 'mixt_nontargets_sum', 'mixt_random']])
         dataset['em_fits_nitems_arrays']['std'] = np.array([[dataset['em_fits_nitems']['std'][item][em_key] for item in np.unique(dataset['n_items'])] for em_key in ['kappa', 'mixt_target', 'mixt_nontargets_sum', 'mixt_random']])
+        else:
+            dataset['em_fits_nitems_arrays']['mean'] = np.array([[dataset['em_fits_nitems']['mean'][item][em_key] for item in np.unique(dataset['n_items'])] for em_key in ['kappa', 'mixt_target', 'mixt_nontargets', 'mixt_random']])
+            dataset['em_fits_nitems_arrays']['std'] = np.array([[dataset['em_fits_nitems']['std'][item][em_key] for item in np.unique(dataset['n_items'])] for em_key in ['kappa', 'mixt_target', 'mixt_nontargets', 'mixt_random']])
+
+        dataset['em_fits_nitems_arrays']['sem'] = dataset['em_fits_nitems_arrays']['std']/np.sqrt(dataset['subject_size'])
 
     if save_caching_file:
         try:

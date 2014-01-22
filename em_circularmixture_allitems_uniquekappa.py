@@ -138,7 +138,7 @@ def fit(responses, target_angle, nontarget_angles=np.array([[]]), initialisation
 
         initial_i += 1
 
-    result_dict = dict(kappa=best_kappa, mixt_target=best_mixt_target, mixt_nontargets=best_mixt_nontargets, mixt_random=best_mixt_random, train_LL=overall_LL)
+    result_dict = dict(kappa=best_kappa, mixt_target=best_mixt_target, mixt_nontargets=best_mixt_nontargets, mixt_nontargets_sum=np.sum(best_mixt_nontargets), mixt_random=best_mixt_random, train_LL=overall_LL)
 
     # Compute BIC and AIC scores
     result_dict['bic'] = bic(result_dict, N)

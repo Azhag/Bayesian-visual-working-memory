@@ -157,6 +157,8 @@ class ExperimentLauncher(object):
             help='Method used to infer the responses. Either sample (default) or set the maximum likelihood/posterior values directly.')
         parser.add_argument('--subaction', default='',
             help='Some actions have multiple possibilities.')
+        parser.add_argument('--collect_responses', dest='collect_responses', action='store_true', default=False,
+            help='Some actions can store all sampler responses if desired, so that we can fit models later.')
         parser.add_argument('--search_type', choices=['random', 'grid'], default='random',
             help='When performing a parameter search, should we do a grid-search or random search?')
         parser.add_argument('--use_theoretical_cov', action='store_true', default=False,
