@@ -142,6 +142,7 @@ def plot_distribution_errors():
 
 
     arguments_dict = dict(N=1000, sigmax=0.2, sigmay=0.0001, num_samples=500, burn_samples=500, autoset_parameters=True, M=100, code_type='conj', T=3, inference_method='sample', stimuli_generation='random', stimuli_generation_recall='random')
+    # arguments_dict = dict(N=1000, sigmax=0.2, sigmay=0.0001, num_samples=500, burn_samples=500, autoset_parameters=True, M=100, code_type='conj', T=3, inference_method='sample', stimuli_generation='random', stimuli_generation_recall='random')
 
     # Run the Experiment
     experiment_launcher = ExperimentLauncher(run=True, arguments_dict=arguments_dict)
@@ -673,9 +674,9 @@ if __name__ == '__main__':
     # all_vars = plot_marginal_fisher_info_2d()
     # all_vars = plot_specific_stimuli()
 
-    # all_vars = plot_distribution_errors()
+    all_vars = plot_distribution_errors()
 
-    all_vars = plot_bootstrap_randomsamples()
+    # all_vars = plot_bootstrap_randomsamples()
 
     if 'experiment_launcher' in all_vars:
         all_vars.update(all_vars['experiment_launcher'].all_vars)

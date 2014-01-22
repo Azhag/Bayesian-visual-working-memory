@@ -653,14 +653,14 @@ def fit_mixture_model(dataset, caching_save_filename=None):
                 dataset['em_fits_nitems']['values'][n_items][key] = values_allsubjects
 
 
-        ## Construct array versions of the em_fits_nitems mixture proportions, for convenience
+    ## Construct array versions of the em_fits_nitems mixture proportions, for convenience
     if 'em_fits_nitems_arrays' not in dataset:
         dataset['em_fits_nitems_arrays'] = dict()
 
         # Check if mixt_nontargets is array or not
         if 'mixt_nontargets_sum' in dataset['em_fits_nitems']['mean'].values()[0]:
-        dataset['em_fits_nitems_arrays']['mean'] = np.array([[dataset['em_fits_nitems']['mean'][item][em_key] for item in np.unique(dataset['n_items'])] for em_key in ['kappa', 'mixt_target', 'mixt_nontargets_sum', 'mixt_random']])
-        dataset['em_fits_nitems_arrays']['std'] = np.array([[dataset['em_fits_nitems']['std'][item][em_key] for item in np.unique(dataset['n_items'])] for em_key in ['kappa', 'mixt_target', 'mixt_nontargets_sum', 'mixt_random']])
+            dataset['em_fits_nitems_arrays']['mean'] = np.array([[dataset['em_fits_nitems']['mean'][item][em_key] for item in np.unique(dataset['n_items'])] for em_key in ['kappa', 'mixt_target', 'mixt_nontargets_sum', 'mixt_random']])
+            dataset['em_fits_nitems_arrays']['std'] = np.array([[dataset['em_fits_nitems']['std'][item][em_key] for item in np.unique(dataset['n_items'])] for em_key in ['kappa', 'mixt_target', 'mixt_nontargets_sum', 'mixt_random']])
         else:
             dataset['em_fits_nitems_arrays']['mean'] = np.array([[dataset['em_fits_nitems']['mean'][item][em_key] for item in np.unique(dataset['n_items'])] for em_key in ['kappa', 'mixt_target', 'mixt_nontargets', 'mixt_random']])
             dataset['em_fits_nitems_arrays']['std'] = np.array([[dataset['em_fits_nitems']['std'][item][em_key] for item in np.unique(dataset['n_items'])] for em_key in ['kappa', 'mixt_target', 'mixt_nontargets', 'mixt_random']])
@@ -998,6 +998,35 @@ def plots_histograms_errors_targets_nontargets_nitems(dataset, dataio=None):
         dataio.save_current_figure("hist_error_nontarget_persubj_{label}_{unique_id}.pdf")
 
 
+def plots_em_mixtures(dataset, dataio=None, use_sem=True):
+    '''
+        Do plots for the mixture models and kappa
+    '''
+
+    f, ax = plt.subplots()
+
+    if use_sem:
+        errorbars = 'sem'
+    else:
+        errorbars = 'std'
+
+    # Mixture probabilities
+    utils.plot_mean_std_area(np.unique(dataset['n_items']), dataset['em_fits_nitems_arrays']['mean'][1], np.ma.masked_invalid(dataset['em_fits_nitems_arrays'][errorbars][1]).filled(0.0), xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Target')
+    utils.plot_mean_std_area(np.unique(dataset['n_items']), np.ma.masked_invalid(dataset['em_fits_nitems_arrays']['mean'][2]).filled(0.0), np.ma.masked_invalid(dataset['em_fits_nitems_arrays'][errorbars][2]).filled(0.0), xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Nontarget')
+    utils.plot_mean_std_area(np.unique(dataset['n_items']), dataset['em_fits_nitems_arrays']['mean'][3], np.ma.masked_invalid(dataset['em_fits_nitems_arrays'][errorbars][3]).filled(0.0), xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Random')
+
+    ax.legend(prop={'size':15})
+
+    ax.set_title('Mixture model for EM fit')
+    ax.set_xlim([1.0, 5.0])
+    ax.set_ylim([0.0, 1.1])
+    ax.set_xticks(range(1, 6))
+    ax.set_xticklabels(range(1, 6))
+
+    f.canvas.draw()
+
+    if dataio is not None:
+        dataio.save_current_figure('emfits_mixtures_{label}_{unique_id}.pdf')
 
 def plots_bays2009(dataset, dataio=None):
     '''
@@ -1006,6 +1035,8 @@ def plots_bays2009(dataset, dataio=None):
     '''
 
     plots_histograms_errors_targets_nontargets_nitems(dataset, dataio)
+
+    plots_em_mixtures(dataset, dataio)
 
 
 
@@ -1265,7 +1296,7 @@ if __name__ == '__main__':
     # plots_check_bias_bestnontarget(data_simult, dataio=dataio)
     # plots_check_bias_nontarget_randomized(data_simult, dataio=dataio)
 
-    # plots_bays2009(data_bays2009, dataio=dataio)
+    plots_bays2009(data_bays2009, dataio=dataio)
 
     plt.show()
 
