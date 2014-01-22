@@ -14,6 +14,7 @@ import imp
 from dataio import *
 from datapbs import *
 from submitpbs import *
+import jobwrapper
 
 
 def launcher_do_generate_submit_pbs_from_param_files(args):
@@ -79,4 +80,25 @@ def launcher_do_reload_constrained_parameters(args):
 
     return locals()
 
+
+def launcher_do_run_job(args):
+    '''
+        Instantiate and run a JobWrapper for the given parameters.
+    '''
+
+    all_parameters = vars(args)
+
+    # Now the action_to_do for the WrappedJob really is job_action. All other parameters are the same
+    all_parameters['action_to_do'] = all_parameters['job_action']
+
+    # Create a job and run it
+    job = jobwrapper.JobWrapper(all_parameters, session_id=all_parameters['session_id'])
+    print "Completed:", job.check_completed()
+
+    job_outputs = job.compute()
+
+    # Print result
+    print "Result:", job.get_result()
+
+    return job_outputs
 

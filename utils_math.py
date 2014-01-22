@@ -236,10 +236,10 @@ def histogram_binspace(data, bins=20, norm='density', bound_x=np.pi):
 
     if norm == 'max':
         bar_heights, _ = np.histogram(data, bins=x)
-        bar_heights /= np.max(bar_heights).astype('float')
+        bar_heights = bar_heights.astype('float')/np.max(bar_heights.astype('float'))
     elif norm == 'sum':
         bar_heights, _ = np.histogram(data, bins=x)
-        bar_heights /= np.sum(bar_heights.astype('float'))
+        bar_heights = bar_heights.astype('float')/np.sum(bar_heights.astype('float'))
     elif norm == 'density':
         bar_heights, _ = np.histogram(data, bins=x, density=True)
     else:

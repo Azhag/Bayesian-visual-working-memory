@@ -17,6 +17,8 @@ import smtplib
 from email.mime.text import MIMEText
 import errno
 from socket import error as socket_error
+import os
+import subprocess
 
 ########################## TRICKS AND HELPER FUNCTIONS #################################
 
@@ -182,4 +184,27 @@ def load_npy(filename, debug=True):
         pprint.pprint(data.keys())
 
     return data
+
+
+def file_exists_new_shell(filename):
+    """
+    Spawns a new python shell to check file existance in context of NFS
+    chaching which makes os.path.exists lie. This is done via a pipe and the
+    "ls" command
+    """
+
+    # split path and filename
+    splitted = filename.split(os.sep)
+
+    if len(splitted) > 1:
+        folder = os.sep.join(splitted[:-1]) + os.sep
+        fname = splitted[-1]
+    else:
+        folder = "./"
+        fname = filename
+
+    pipeoutput = subprocess.Popen("ls " + folder, shell=True, stdout=subprocess.PIPE)
+    pipelines = pipeoutput.stdout.readlines()
+    files = "".join(pipelines).split(os.linesep)
+    return fname in files
 
