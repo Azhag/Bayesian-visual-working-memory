@@ -149,26 +149,27 @@ def plots_errors_distribution(data_pbs, generator_module=None):
 
             utils.hist_angular_data(utils.dropnan(errors_targets[T-1]), bins=angle_space, norm='density', ax_handle=axes1[T_filt_i], pretty_xticks=True)
             axes1[T_filt_i].set_ylim([0., 2.0])
+            axes1[T_filt_i].set_title('N=%d' % T)
 
 
             if T > 1:
                 # Error to nontarget
                 # ax_handle = utils.hist_samples_density_estimation(errors_nontargets[T_filt_i, :, :T_filt_i].reshape(nb_repetitions*N*T_filt_i), bins=angle_space, title='Errors between response and non targets, N=%d' % (T))
                 utils.hist_angular_data(utils.dropnan(errors_nontargets[T-1, :, :(T-1)]), bins=angle_space, title='N=%d' % (T), norm='density', ax_handle=axes2[T_filt_i-1], pretty_xticks=True)
-                axes2[T_filt_i-1].set_title('')
+                # axes2[T_filt_i-1].set_title('')
 
-                result_pval_vtest_nontargets[T_filt_i] = utils.V_test(utils.dropnan(errors_nontargets[T_filt_i, :, :T_filt_i]))['pvalue']
+                result_pval_vtest_nontargets[T-1] = utils.V_test(utils.dropnan(errors_nontargets[T-1, :, :(T-1)]))['pvalue']
 
-                print result_pval_vtest_nontargets[T_filt_i]
+                print result_pval_vtest_nontargets[T-1]
 
                 # axes2[T_filt_i-1].text(0.03, 0.96, "Vtest pval: %.2f" % (result_pval_vtest_nontargets[T_filt_i]), transform=axes2[T_filt_i - 1].transAxes, horizontalalignment='left', fontsize=12)
-                axes2[T_filt_i-1].text(0.03, 0.94, "$p=%.1f$" % (result_pvalue_bootstrap_sum[T_filt_i]), transform=axes2[T_filt_i - 1].transAxes, horizontalalignment='left', fontsize=18)
+                axes2[T_filt_i-1].text(0.03, 0.94, "$p=%.1f$" % (result_pvalue_bootstrap_sum[T-2]), transform=axes2[T_filt_i - 1].transAxes, horizontalalignment='left', fontsize=18)
 
                 axes2[T_filt_i-1].set_ylim([0., 0.30])
 
                 # Error to best non target
                 if do_best_nontarget:
-                    utils.hist_samples_density_estimation(errors_best_nontarget[T_filt_i].reshape(nb_repetitions*N), bins=angle_space, title='N=%d' % (T))
+                    utils.hist_samples_density_estimation(errors_best_nontarget[T-1].reshape(nb_repetitions*N), bins=angle_space, title='N=%d' % (T))
 
                     if savefigs:
                         dataio.save_current_figure('error_bestnontarget_hist_T%d_{label}_{unique_id}.pdf' % (T))
