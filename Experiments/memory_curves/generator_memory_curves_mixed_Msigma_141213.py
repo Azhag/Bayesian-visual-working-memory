@@ -19,9 +19,17 @@ parameter_generation = 'grid'
 submit_cmd = 'qsub'
 # submit_cmd = 'sbatch'
 
-num_repetitions = 5
 # num_repetitions = 10
-ratio_conj = 0.84
+
+num_repetitions = 1
+ratio_conj = 0.87
+
+# num_repetitions = 5
+# ratio_conj = 0.84
+
+# num_repetitions = 5
+# ratio_conj = 0.9
+
 M_conj = np.arange(5, 25)**2.
 
 # run_label = 'memory_curve_conj_Msigmax_autoset_correctsampling_repetitions{num_repetitions}_211013'
@@ -53,7 +61,7 @@ pbs_submission_infos = dict(description='Fit Memory curves using the new code (o
                                                label=run_label,
                                                experiment_data_dir='/nfs/home2/lmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/experimental_data',
                                                ),
-                            walltime='40:00:00',
+                            walltime='10:00:00',
                             memory='2gb',
                             simul_out_dir=os.path.join(os.getcwd(), run_label.format(**locals())),
                             pbs_submit_cmd=submit_cmd,

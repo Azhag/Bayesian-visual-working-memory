@@ -33,9 +33,12 @@ def plots_memory_curves(data_pbs, generator_module=None):
     savefigs = True
     savedata = True
 
+    do_error_distrib_fits = True
+
     plot_pcolor_fit_precision_to_fisherinfo = True
     plot_selected_memory_curves = False
-    plot_best_memory_curves = True
+    plot_best_memory_curves = False
+    plot_best_error_distrib = True
 
     colormap = None  # or 'cubehelix'
     plt.rcParams['font.size'] = 16
@@ -44,21 +47,22 @@ def plots_memory_curves(data_pbs, generator_module=None):
 
     print "Order parameters: ", generator_module.dict_parameters_range.keys()
 
-    result_all_precisions_mean = utils.nanmean(np.squeeze(data_pbs.dict_arrays['result_all_precisions']['results']), axis=-1)
-    result_all_precisions_std = utils.nanstd(np.squeeze(data_pbs.dict_arrays['result_all_precisions']['results']), axis=-1)
-    result_em_fits_mean = utils.nanmean(np.squeeze(data_pbs.dict_arrays['result_em_fits']['results']), axis=-1)
-    result_em_fits_std = utils.nanstd(np.squeeze(data_pbs.dict_arrays['result_em_fits']['results']), axis=-1)
-    result_marginal_inv_fi_mean = utils.nanmean(np.squeeze(data_pbs.dict_arrays['result_marginal_inv_fi']['results']), axis=-1)
-    result_marginal_inv_fi_std = utils.nanstd(np.squeeze(data_pbs.dict_arrays['result_marginal_inv_fi']['results']), axis=-1)
-    result_marginal_fi_mean = utils.nanmean(np.squeeze(1./data_pbs.dict_arrays['result_marginal_inv_fi']['results']), axis=-1)
-    result_marginal_fi_std = utils.nanstd(np.squeeze(1./data_pbs.dict_arrays['result_marginal_inv_fi']['results']), axis=-1)
-    result_responses_all = np.squeeze(data_pbs.dict_arrays['result_responses']['results'])
-    result_target_all = np.squeeze(data_pbs.dict_arrays['result_target']['results'])
-    result_nontargets_all = np.squeeze(data_pbs.dict_arrays['result_nontargets']['results'])
+    result_all_precisions_mean = (utils.nanmean(data_pbs.dict_arrays['result_all_precisions']['results'], axis=-1))
+    result_all_precisions_std = (utils.nanstd(data_pbs.dict_arrays['result_all_precisions']['results'], axis=-1))
+    result_em_fits_mean = (utils.nanmean(data_pbs.dict_arrays['result_em_fits']['results'], axis=-1))
+    result_em_fits_std = (utils.nanstd(data_pbs.dict_arrays['result_em_fits']['results'], axis=-1))
+    result_marginal_inv_fi_mean = (utils.nanmean(data_pbs.dict_arrays['result_marginal_inv_fi']['results'], axis=-1))
+    result_marginal_inv_fi_std = (utils.nanstd(data_pbs.dict_arrays['result_marginal_inv_fi']['results'], axis=-1))
+    result_marginal_fi_mean = (utils.nanmean(1./data_pbs.dict_arrays['result_marginal_inv_fi']['results'], axis=-1))
+    result_marginal_fi_std = (utils.nanstd(1./data_pbs.dict_arrays['result_marginal_inv_fi']['results'], axis=-1))
+    result_responses_all = (data_pbs.dict_arrays['result_responses']['results'])
+    result_target_all = (data_pbs.dict_arrays['result_target']['results'])
+    result_nontargets_all = (data_pbs.dict_arrays['result_nontargets']['results'])
 
     M_space = data_pbs.loaded_data['parameters_uniques']['M'].astype(int)
     sigmax_space = data_pbs.loaded_data['parameters_uniques']['sigmax']
     T_space = data_pbs.loaded_data['datasets_list'][0]['T_space']
+    nb_repetitions = result_responses_all.shape[-1]
 
     print M_space
     print sigmax_space
@@ -103,17 +107,46 @@ def plots_memory_curves(data_pbs, generator_module=None):
     dist_diff_em_mixtures_bays09 = np.sum(np.sum((result_em_fits_mean[..., 1:4] - bays09_experimental_mixtures_mean_compatible[1:].T)**2., axis=-1), axis=-1)
     dist_diff_modelfits_experfits_bays09 = np.sum(np.sum((result_em_fits_mean[..., :4] - bays09_experimental_mixtures_mean_compatible.T)**2., axis=-1), axis=-1)
 
-    ## Found error in reloader_error_distribution_mixed, checking it first
-    # if do_error_distrib_fits:
-    #     # Now try to fit histograms of errors to target/nontargets
-    #     bays09_hist_target_mean = data_bays2009['hist_cnts_target_nitems_stats']['mean']
-    #     bays09_hist_target_std = data_bays2009['hist_cnts_target_nitems_stats']['std']
-    #     bays09_hist_nontarget_mean = data_bays2009['hist_cnts_nontarget_nitems_stats']['mean']
-    #     bays09_hist_nontarget_std = data_bays2009['hist_cnts_nontarget_nitems_stats']['std']
 
-    #     angle_space = np.linspace(-np.pi, np.pi, bays09_hist_target_mean.shape[-1]+1)
+    if do_error_distrib_fits:
+        print "computing error distribution histograms fits"
+        # Now try to fit histograms of errors to target/nontargets
+        bays09_hist_target_mean = data_bays2009['hist_cnts_target_nitems_stats']['mean']
+        bays09_hist_target_std = data_bays2009['hist_cnts_target_nitems_stats']['std']
+        bays09_hist_nontarget_mean = data_bays2009['hist_cnts_nontarget_nitems_stats']['mean']
+        bays09_hist_nontarget_std = data_bays2009['hist_cnts_nontarget_nitems_stats']['std']
+        T_space_bays09_filt = np.unique(data_bays2009['n_items'])
 
+        angle_space = np.linspace(-np.pi, np.pi, bays09_hist_target_mean.shape[-1]+1)
+        bins_center = angle_space[:-1] + np.diff(angle_space)[0]/2
 
+        errors_targets = utils.wrap_angles(result_responses_all - result_target_all)
+        hist_targets_all = np.empty((M_space.size, sigmax_space.size, T_space_bays09_filt.size, angle_space.size-1, nb_repetitions))
+
+        errors_nontargets = np.nan*np.empty(result_nontargets_all.shape)
+        hist_nontargets_all = np.empty((M_space.size, sigmax_space.size, T_space_bays09_filt.size, angle_space.size-1, nb_repetitions))
+        for M_i, M in enumerate(M_space):
+            for sigmax_i, sigmax in enumerate(sigmax_space):
+                for T_bays_i, T_bays in enumerate(T_space_bays09_filt):
+                    for repet_i in xrange(nb_repetitions):
+                        # Could do a nicer indexing but fuck it
+
+                        # Histogram errors to targets
+                        hist_targets_all[M_i, sigmax_i, T_bays_i, :, repet_i], x, bins = utils.histogram_binspace(utils.dropnan(errors_targets[M_i, sigmax_i, T_bays-1, ..., repet_i]), bins=angle_space, norm='density')
+
+                        # Compute the error between the responses and nontargets.
+                        errors_nontargets[M_i, sigmax_i, T_bays - 1, :, :, repet_i] = utils.wrap_angles((result_responses_all[M_i, sigmax_i, T_bays - 1, :, repet_i, np.newaxis] - result_nontargets_all[M_i, sigmax_i, T_bays - 1, :, :, repet_i]))
+                        # Histogram it
+                        hist_nontargets_all[M_i, sigmax_i, T_bays_i, :, repet_i], x, bins = utils.histogram_binspace(utils.dropnan(errors_nontargets[M_i, sigmax_i, T_bays - 1, ..., repet_i]), bins=angle_space, norm='density')
+
+        hist_targets_mean = utils.nanmean(hist_targets_all, axis=-1)
+        hist_targets_std = utils.nanstd(hist_targets_all, axis=-1)
+        hist_nontargets_mean = utils.nanmean(hist_nontargets_all, axis=-1)
+        hist_nontargets_std = utils.nanstd(hist_nontargets_all, axis=-1)
+
+        # Compute distances to experimental histograms
+        dist_diff_hist_target_bays09 = np.nansum(np.nansum((hist_targets_mean - bays09_hist_target_mean)**2., axis=-1), axis=-1)
+        dist_diff_hist_nontargets_bays09 = np.nansum(np.nansum((hist_nontargets_mean - bays09_hist_nontarget_mean)**2., axis=-1), axis=-1)
 
 
 
@@ -134,6 +167,15 @@ def plots_memory_curves(data_pbs, generator_module=None):
         utils.pcolor_2d_data(dist_diff_modelfits_experfits_bays09, log_scale=True, x=M_space, y=sigmax_space, xlabel='M', ylabel='sigmax', xlabel_format="%d")
         if savefigs:
             dataio.save_current_figure('match_diff_emfits_experbays09_pcolor_{label}_{unique_id}.pdf')
+
+        if do_error_distrib_fits:
+            utils.pcolor_2d_data(dist_diff_hist_target_bays09, x=M_space, y=sigmax_space, xlabel='M', ylabel='sigmax', log_scale=True, xlabel_format="%d")
+            if savefigs:
+                dataio.save_current_figure('match_hist_targets_experbays09_log_pcolor_{label}_{unique_id}.pdf')
+
+            utils.pcolor_2d_data(dist_diff_hist_nontargets_bays09, x=M_space, y=sigmax_space, xlabel='M', ylabel='sigmax', log_scale=True, xlabel_format="%d")
+            if savefigs:
+                dataio.save_current_figure('match_hist_nontargets_experbays09_log_pcolor_{label}_{unique_id}.pdf')
 
     # Macro plot
     def mem_plot_precision(sigmax_i, M_i, mem_exp_prec):
@@ -219,6 +261,29 @@ def plots_memory_curves(data_pbs, generator_module=None):
         if savefigs:
             dataio.save_current_figure('memorycurves_emfits_paper_M%dsigmax%.2f_{label}_{unique_id}.pdf' % (M_space[M_i], sigmax_space[sigmax_i]))
 
+    def hist_errors_targets_nontargets(sigmax_i, M_i, hists_toplot_mean, hists_toplot_std, title=''):
+
+        f1, axes1 = plt.subplots(ncols=hists_toplot_mean.shape[-2], figsize=(hists_toplot_mean.shape[-2]*6, 6), sharey=True)
+
+        for T_bays_i, T_bays in enumerate(T_space_bays09_filt):
+
+            axes1[T_bays_i].bar(bins_center, hists_toplot_mean[M_i, sigmax_i, T_bays_i], width=2.*np.pi/(angle_space.size-1), align='center', yerr=hists_toplot_std[M_i, sigmax_i, T_bays_i])
+            axes1[T_bays_i].set_title('N=%d' % T_bays)
+
+            # axes1[T_{}]
+
+            axes1[T_bays_i].set_xlim([bins_center[0]-np.pi/(angle_space.size-1), bins_center[-1]+np.pi/(angle_space.size-1)])
+            axes1[T_bays_i].set_ylim([0., 2.0])
+            axes1[T_bays_i].set_xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
+            axes1[T_bays_i].set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=16)
+
+        f1.canvas.draw()
+
+        if savefigs:
+            dataio.save_current_figure('memorycurves_hist_%s_paper_M%dsigmax%.2f_{label}_{unique_id}.pdf' % (title, M_space[M_i], sigmax_space[sigmax_i]))
+
+
+    #################################
 
     if plot_selected_memory_curves:
         selected_values = [[0.84, 0.23], [0.84, 0.19]]
@@ -255,6 +320,21 @@ def plots_memory_curves(data_pbs, generator_module=None):
             mem_plot_kappa(best_axis2_i, axis1_i, bays09_experimental_mixtures_mean_compatible[0, :T_space_bays09.size], bays09_experimental_mixtures_std_compatible[0, :T_space_bays09.size])
             # em_plot(best_axis2_i, axis1_i)
             em_plot_paper(best_axis2_i, axis1_i)
+
+    if plot_best_error_distrib and do_error_distrib_fits:
+
+        # Best target histograms
+        best_axis2_i_all = np.argmin(dist_diff_hist_target_bays09, axis=1)
+
+        for axis1_i, best_axis2_i in enumerate(best_axis2_i_all):
+            hist_errors_targets_nontargets(best_axis2_i, axis1_i, hist_targets_mean, hist_targets_std, 'target')
+
+        # Best nontarget histograms
+        best_axis2_i_all = np.argmin(dist_diff_hist_nontargets_bays09, axis=1)
+
+        for axis1_i, best_axis2_i in enumerate(best_axis2_i_all):
+            hist_errors_targets_nontargets(best_axis2_i, axis1_i, hist_nontargets_mean, hist_nontargets_std, 'nontarget')
+
 
 
 

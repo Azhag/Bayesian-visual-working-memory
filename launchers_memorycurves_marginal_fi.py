@@ -70,7 +70,7 @@ def launcher_do_memory_curve_marginal_fi(args):
             ### WORK WORK WORK work? ###
 
             # Fix some parameters
-            all_parameters['stimuli_generation'] = 'separated'
+            # all_parameters['stimuli_generation'] = 'separated'
             # all_parameters['slice_width'] = np.pi/64.
 
             # Instantiate
