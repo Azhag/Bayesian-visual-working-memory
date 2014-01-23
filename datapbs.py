@@ -300,20 +300,25 @@ class DataPBS:
 
         # Assume that we will store the whole desired variable for each parameter setting.
         # Discover the shape
-        results_shape = (1, )
+        curr_results_shape = (1, )
+        results_shape = None
         for dataset in datasets_list:
             if output_variable_desired in dataset:
-                results_shape = dataset[output_variable_desired].shape
+                curr_results_shape = dataset[output_variable_desired].shape
 
-                initial_results_shape = results_shape
+                # Now keep track of the biggest results_shape found (tricky but simplest hack possible)
+                if results_shape is None or np.any(curr_results_shape > results_shape):
+                    results_shape = curr_results_shape
+                    initial_results_shape = results_shape
 
-                if nb_datasets_per_parameters > 1:
-                    # Found the shape, but now need to take into account number of repeats due to multiple datasets per parameter value
-                    results_shape = list(results_shape)
-                    results_shape[-1] *= nb_datasets_per_parameters
-                    results_shape = tuple(results_shape)
+                    if nb_datasets_per_parameters > 1:
+                        # Found the shape, but now need to take into account number of repeats due to multiple datasets per parameter value
+                        results_shape = list(results_shape)
+                        results_shape[-1] *= nb_datasets_per_parameters
+                        results_shape = tuple(results_shape)
 
-                break
+                    print "Found new results_shape:", results_shape
+
 
         # The indices will go in the same order as the descriptive parameters list
         fullarray_shape = [parameters_uniques[param].size for param in list_parameters]
