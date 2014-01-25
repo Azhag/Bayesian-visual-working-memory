@@ -19,6 +19,8 @@ import getpass
 
 from utils import cross
 
+import jobwrapper
+
 
 PBS_SCRIPT = """#!/bin/bash
 {pbs_options}
@@ -197,14 +199,20 @@ class SubmitPBS():
 
     ########################################
 
-    def create_submit_job_parameters(self, pbs_command_infos, parameters, submit=True):
+    def create_submit_job_parameters(self, pbs_command_infos, force_parameters=None, submit=True):
         '''
             Given some pbs_command_infos (command='python script', other_options='--stuff 10') and extra parameters,
             automatically generate a simulation command, a script to execute it and submits it to PBS (if desired)
+
+            If force_parameters is set, will change the dictionary pbs_command_infos['other_options'] accordingly
         '''
 
+        # Enforce specific parameters (they usually are the ones we vary)
+        if force_parameters is not None:
+            pbs_command_infos['other_options'].update(force_parameters)
+
         # Generate the command
-        sim_cmd = self.create_simulation_command(pbs_command_infos, parameters)
+        sim_cmd = self.create_simulation_command(pbs_command_infos)
 
         # Create the script and submits
         if submit:
@@ -216,13 +224,17 @@ class SubmitPBS():
         self.num_queued_jobs += 1
 
 
-    def create_simulation_command(self, pbs_command_infos, parameters):
+    def create_simulation_command(self, pbs_command_infos):
         '''
             Generates a simulation command to be written in a script (and then possibly submitted to PBS).
 
-            Takes a parameters dictionary, will automatically create an option with its content.
+            Takes a dictionary of pbs submission parameters.
+            pbs_command_infos['other_options'] is special and will be automatically added as arguments to the command called.
 
-            Puts all other_options at the end, directly.
+            Supports:
+                - param : param_value  -> --param param_value
+                - param : None         -> --param
+
         '''
 
         assert pbs_command_infos is not None, "Provide pbs_command_infos..."
@@ -230,18 +242,12 @@ class SubmitPBS():
         # The command itself (e.g. python scriptname)
         simulation_command = pbs_command_infos['command']
 
-        # The additional parameters we just found
-        for param in parameters:
-            simulation_command += " --{param} {param_value}".format(param=param, param_value=parameters[param])
-
-        # Put the other parameters
-        # assumes that if a parameter is already set in 'parameters', will not use the value from other_options (safer)
+        # Put the arguments
         for (param, param_value) in pbs_command_infos['other_options'].items():
-            if param not in parameters:
-                if param_value is not None:
-                    simulation_command += " --{param} {param_value}".format(param=param, param_value=param_value)
-                else:
-                    simulation_command += " --{param}".format(param=param)
+            if param_value is None:
+                simulation_command += " --{param}".format(param=param)
+            else:
+                simulation_command += " --{param} {param_value}".format(param=param, param_value=param_value)
 
         return simulation_command
 
@@ -340,29 +346,30 @@ class SubmitPBS():
             Loads generate_submit_constrained_parameters next, which then loads generate_submit_constrained_parameters_grid/generate_submit_constrained_parameters_random accordingly.
         '''
 
+        # Make the loaded_module a dictionary, easier to handle
+        submission_parameters_dict = module_parameters.__dict__
 
+        ## Set some default values
         # If no filtering function given, just set it to None for the rest of the script
-        if 'filtering_function' not in module_parameters.__dict__:
-            module_parameters.__dict__['filtering_function'] = None
-        if 'filtering_function_parameters' not in module_parameters.__dict__:
-            module_parameters.__dict__['filtering_function_parameters'] = None
-        if 'num_random_samples' not in module_parameters.__dict__:
-            module_parameters.__dict__['num_random_samples'] = 100
-        if 'max_queued_jobs' not in module_parameters.__dict__:
-            module_parameters.__dict__['max_queued_jobs'] = 500
+        default_params = (('filtering_function', None), ('filtering_function_parameters', None), ('num_random_samples', 100))
+        for key, val in default_params:
+            submission_parameters_dict.setdefault(key, val)
 
         # Keep track of submitted jobs numbers and available queue size if desired
         if self.limit_max_queued_jobs > 0:
             # Get current queue state. Expensive operation so don't do it too much...
             self.update_running_jobs_number()
 
-        if module_parameters.parameter_generation == 'grid':
-            return self.generate_submit_constrained_parameters_grid(module_parameters.dict_parameters_range, filtering_function=module_parameters.filtering_function, filtering_function_parameters=module_parameters.filtering_function_parameters, pbs_submission_infos=module_parameters.pbs_submission_infos, submit_jobs=module_parameters.submit_jobs)
-        elif module_parameters.parameter_generation == 'random':
-            return self.generate_submit_constrained_parameters_random(module_parameters.dict_parameters_range, num_random_samples=module_parameters.num_random_samples, max_queued_jobs=module_parameters.max_queued_jobs, filtering_function=module_parameters.filtering_function, filtering_function_parameters=module_parameters.filtering_function_parameters, pbs_submission_infos=module_parameters.pbs_submission_infos, submit_jobs=module_parameters.submit_jobs)
+        if submission_parameters_dict['parameter_generation'] == 'grid':
+            return self.generate_submit_constrained_parameters_grid(submission_parameters_dict['dict_parameters_range'], filtering_function=submission_parameters_dict['filtering_function'], filtering_function_parameters=submission_parameters_dict['filtering_function_parameters'], pbs_submission_infos=submission_parameters_dict['pbs_submission_infos'], submit_jobs=submission_parameters_dict['submit_jobs'])
+        elif submission_parameters_dict['parameter_generation'] == 'random':
+            return self.generate_submit_constrained_parameters_random(submission_parameters_dict['dict_parameters_range'], num_random_samples=submission_parameters_dict['num_random_samples'], filtering_function=submission_parameters_dict['filtering_function'], filtering_function_parameters=submission_parameters_dict['filtering_function_parameters'], pbs_submission_infos=submission_parameters_dict['pbs_submission_infos'], submit_jobs=submission_parameters_dict['submit_jobs'])
 
 
-    def generate_submit_constrained_parameters_random(self, dict_parameters_range, num_random_samples=100, max_queued_jobs=500, filtering_function=None, filtering_function_parameters=None, pbs_submission_infos=None, submit_jobs=True):
+    ################################################
+
+
+    def generate_submit_constrained_parameters_random(self, dict_parameters_range, num_random_samples=100, filtering_function=None, filtering_function_parameters=None, pbs_submission_infos=None, submit_jobs=True):
         '''
             Takes a dictionary of parameters (which should contain low/high values for each or generator function), and
             generates num_random_samples possible parameters randomly.
@@ -398,7 +405,7 @@ class SubmitPBS():
 
                 # If desired, generate a script and submits it to PBS
                 if pbs_submission_infos:
-                    self.create_submit_job_parameters(pbs_submission_infos, new_parameters, submit=submit_jobs)
+                    self.create_submit_job_parameters(pbs_submission_infos, force_parameters=new_parameters, submit=submit_jobs)
 
                 fill_parameters_progress.increment()
 
@@ -408,6 +415,30 @@ class SubmitPBS():
             print "\n-- Submitted/created %d jobs --\n" % self.num_queued_jobs
 
         return constrained_parameters
+
+
+    def create_generator_random_parameter(self, dict_parameters_range):
+        '''
+            Support some predefined random parameter sampling:
+                - Uniform[a,b]
+                - randint(a, b)
+
+            After this function, a sampling_fct() will be set for each parameter
+        '''
+
+        for param_name, dict_specific_param_range in dict_parameters_range.items():
+            if 'sampling_fct' not in dict_specific_param_range:
+                # No sampling function, try to automatically define one
+                if dict_specific_param_range['sampling_type'] == 'uniform':
+                    # functool.partial is used to freeze the dict_parameters to the one at execution time. Work-around for immutable + functional programming madness.
+                    dict_specific_param_range['sampling_fct'] = functools.partial(lambda params: params['low'] + np.random.rand()*(params['high'] - params['low']), dict_specific_param_range)
+                elif dict_specific_param_range['sampling_type'] == 'randint':
+                    dict_specific_param_range['sampling_fct'] = functools.partial(lambda params: np.random.randint(params['low'], params['high']), dict_specific_param_range)
+                else:
+                    raise ValueError('Sampling_type unknown and no sampling_fct provided... Cannot sample parameter %s' % param_name)
+
+
+    ################################################
 
 
     def generate_submit_constrained_parameters_grid(self, dict_parameters_range, filtering_function=None, filtering_function_parameters=None, pbs_submission_infos=None, submit_jobs=True):
@@ -439,7 +470,7 @@ class SubmitPBS():
                 # Submit to PBS if required
                 if pbs_submission_infos:
 
-                    self.create_submit_job_parameters(pbs_submission_infos, new_parameters, submit=submit_jobs)
+                    self.create_submit_job_parameters(pbs_submission_infos, force_parameters=new_parameters, submit=submit_jobs)
 
         if self.debug:
             print "\n-- Submitted/created %d jobs --\n" % self.num_queued_jobs
@@ -447,25 +478,210 @@ class SubmitPBS():
         return constrained_parameters
 
 
-    def create_generator_random_parameter(self, dict_parameters_range):
-        '''
-            Support some predefined random parameter sampling:
-                - Uniform[a,b]
-                - randint(a, b)
+    ################################################
 
-            After this function, a sampling_fct() will be set for each parameter
+    def generate_submit_sequential_optimisation(self, submission_parameters_dict):
+        '''
+            Function that will run multiple simulations (submitting them in JobWrappers) and get ResultComputation from them, to get the maximum value possible
+        '''
+        # Extract some variables
+        dict_parameters_range = submission_parameters_dict['dict_parameters_range']
+        max_optimisation_iterations = submission_parameters_dict.get('max_optimisation_iterations', 100)
+        pbs_submission_infos = submission_parameters_dict.get('pbs_submission_infos', None)
+        sleeping_period = submission_parameters_dict.get('sleeping_period', dict(min=10, max=20))
+        filtering_function = submission_parameters_dict.get('filtering_function', None)
+        filtering_function_parameters = submission_parameters_dict.get('filtering_function_parameters', None)
+        submit_jobs = submission_parameters_dict.get('submit_jobs', False)
+        result_callback_function_infos = submission_parameters_dict.get('result_callback_function_infos', None)
+
+        # Convert specific parameter sampling methods into generators
+        self.create_generator_random_parameter(dict_parameters_range)
+
+        # Track status of parameters: parameters -> dict(status=['waiting', 'submitted', 'completed'], result=None, jobwrapper=None, parameters=None)
+        self.parameters_tracking_dict = dict()
+
+        fill_parameters_progress = progress.Progress(max_optimisation_iterations)
+        parameters_tested = 0
+        converged = False
+
+        # Perform the sequential optimisation loop
+        while parameters_tested < max_optimisation_iterations and not converged:
+            print "Parameters tested %d (max %d). %.2f%%, %s left - %s" % (parameters_tested, max_optimisation_iterations, fill_parameters_progress.percentage(), fill_parameters_progress.time_remaining_str(), fill_parameters_progress.eta_str())
+
+            # Get new parameter values. For now, random
+            # TODO Do something better.
+            new_parameters = {}
+            for curr_param, param_dict in dict_parameters_range.items():
+                # Use the provided sampling function (some are predefined)
+                new_parameters[curr_param] = param_dict['sampling_fct']()
+            if self.debug:
+                print "New parameters: ", new_parameters
+
+            # Check if the new parameters are within the constraints
+            if (filtering_function is not None) and not filtering_function(new_parameters, dict_parameters_range, filtering_function_parameters):
+                # Bad param, just ditch it
+                continue
+
+            # Create job dictionary
+            job_submission_parameters = self.prepare_job_parameters(new_parameters, pbs_submission_infos)
+
+            # Create job
+            new_job = jobwrapper.JobWrapper(job_submission_parameters, session_id=job_submission_parameters['session_id'])
+
+            # Add to our Job tracker
+            self.track_new_job(new_job)
+
+            # Submit it. When this call returns, it's been submitted.
+            self.submit_jobwrapper(new_job, pbs_submission_infos, submit=submit_jobs)
+
+            ## Wait for Jobs to be completed (could do another version where you send multiple jobs before waiting)
+            self.wait_all_jobs_collect_results(result_callback_function_infos=result_callback_function_infos, sleeping_period=sleeping_period)
+
+            fill_parameters_progress.increment()
+            parameters_tested += 1
+
+
+    def prepare_job_parameters(self, new_parameters, pbs_submission_infos):
+        '''
+            A JobWrapper requires a dictionary of parameters. Set the ones we are optimising directly.
+
+            Also sets some default required ones.
         '''
 
-        for param_name, dict_specific_param_range in dict_parameters_range.items():
-            if 'sampling_fct' not in dict_specific_param_range:
-                # No sampling function, try to automatically define one
-                if dict_specific_param_range['sampling_type'] == 'uniform':
-                    # functool.partial is used to freeze the dict_parameters to the one at execution time. Work-around for immutable + functional programming madness.
-                    dict_specific_param_range['sampling_fct'] = functools.partial(lambda params: params['low'] + np.random.rand()*(params['high'] - params['low']), dict_specific_param_range)
-                elif dict_specific_param_range['sampling_type'] == 'randint':
-                    dict_specific_param_range['sampling_fct'] = functools.partial(lambda params: np.random.randint(params['low'], params['high']), dict_specific_param_range)
-                else:
-                    raise ValueError('Sampling_type unknown and no sampling_fct provided... Cannot sample parameter %s' % param_name)
+        job_submission_parameters = pbs_submission_infos['other_options'].copy()
+        job_submission_parameters.update(new_parameters)
+        job_submission_parameters['job_action'] = job_submission_parameters['action_to_do']
+        job_submission_parameters['action_to_do'] = 'launcher_do_run_job'
+
+        return job_submission_parameters
+
+
+    def track_new_job(self, job):
+        '''
+            Enter a new job in the Tracking dictionary.
+
+            Sets some default values in the process.
+
+            dict[job_name] -> dict(status=['waiting', 'submitted', 'completed'], result=None, jobwrapper=None, parameters=None)
+        '''
+
+        self.parameters_tracking_dict[job.job_name] = dict(status='waiting', job=job, parameters=job.experiment_parameters, result=None)
+
+
+    def submit_jobwrapper(self, job, pbs_submission_infos, submit=False):
+        '''
+            Take a JobWrapper and submits it.
+        '''
+
+        # Force the job_name, to make all the file synchronization easier...
+        job.experiment_parameters['job_name'] = job.job_name
+
+        pbs_submission_infos_bis = pbs_submission_infos.copy()
+        pbs_submission_infos_bis['other_options'] = job.experiment_parameters
+
+        # This may block, depending on pbs_submission_infos (e.g. if limit on concurrent jobs is set)
+        self.create_submit_job_parameters(pbs_submission_infos_bis, submit=submit)
+
+        job.flag_job_submitted()
+        self.parameters_tracking_dict[job.job_name]['status'] = 'submitted'
+
+
+    def wait_all_jobs_collect_results(self, result_callback_function_infos=None, sleeping_period=dict(min=10, max=60)):
+        '''
+            Wait for all Jobs to be completed, and collect the results when they are
+            Optionally accepts a callback method on finding a result.
+                result_callback_function_infos:
+                'function':    f(job=JobWrapper, parameters=dict())
+                'parameters':  dict()
+        '''
+
+        ## Wait for Jobs to be completed
+        for current_job_name in self.parameters_tracking_dict:
+
+            if self.parameters_tracking_dict[current_job_name]['status'] == 'submitted':
+
+                while not self.parameters_tracking_dict[current_job_name]['job'].check_completed():
+                    # Sleep for some time
+                    # Decide for how long to sleep
+                    sleep_time_rnd = np.random.randint(sleeping_period['min'], sleeping_period['max'])
+
+                    if self.debug:
+                        print "Waiting on Job %s, %d sec..." % (current_job_name, sleep_time_rnd)
+
+                    # Sleep for a bit
+                    time.sleep(sleep_time_rnd)
+
+                # Get the result
+                self.parameters_tracking_dict[current_job_name]['status'] = 'completed'
+                self.parameters_tracking_dict[current_job_name]['result'] = self.parameters_tracking_dict[current_job_name]['job'].get_result()
+
+                # Call the result_callback_function if it exists!
+                if result_callback_function_infos is not None:
+                    result_callback_function_infos['function'](job=self.parameters_tracking_dict[current_job_name]['job'], parameters=result_callback_function_infos['parameters'])
+
+            elif self.parameters_tracking_dict[current_job_name]['status'] == 'waiting':
+                # Job in waiting status, not submitted yet. That should not really happen right now, but let's handle it
+                pass
+            elif self.parameters_tracking_dict[current_job_name]['status'] == 'completed':
+                # If this job is already completed and has been tracked, jump to the next one!
+                pass
+
+
+
+
+
+
+def test_sequential_optimisation():
+    '''
+        Test for generate_submit_sequential_optimisation
+    '''
+
+    run_label='test_seq_pbs'
+    submission_parameters_dict = dict(
+        run_label=run_label,
+        submit_jobs = True,
+        dict_parameters_range = dict(T=dict(sampling_type='randint', low=1, high=6, dtype=int), sigmax=dict(sampling_type='uniform', low=0.01, high=1.0, dtype=float), M=dict(sampling_type='randint', low=6, high=625, dtype=int)),
+        pbs_submission_infos = dict(description='Testing sequential optim',
+                            command='python /nfs/home2/lmatthey/Documents/work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py',
+                            other_options=dict(action_to_do='launcher_do_simple_run',
+                                               inference_method='none',
+                                               M=100,
+                                               output_directory='.',
+                                               autoset_parameters=None,
+                                               label=run_label,
+                                               session_id='pbs1',
+                                               experiment_data_dir='/nfs/home2/lmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/experimental_data',
+                                               result_computation='random'
+                                               ),
+                            walltime='1:00:00',
+                            memory='2gb',
+                            simul_out_dir=os.path.join(os.getcwd(), run_label.format(**locals())),
+                            pbs_submit_cmd='sbatch',
+                            submit_label='test_seq_pbs')
+    )
+    default_params = (('filtering_function', None), ('filtering_function_parameters', None), ('num_random_samples', 100))
+    for key, val in default_params:
+        submission_parameters_dict.setdefault(key, val)
+
+    # result_callback_function to track best parameter
+    best_parameters_seen = dict(result=-np.inf, job_name='', parameters=None)
+    def best_parameters_callback(job, parameters=None):
+        best_parameters_seen = parameters['best_parameters_seen']
+        if job.get_result() >= best_parameters_seen['result']:
+            # New best parameter!
+            best_parameters_seen['result'] = job.get_result()
+            best_parameters_seen['job_name'] = job.job_name
+            best_parameters_seen['parameters'] = job.experiment_parameters
+
+            print "\n\n>>>>>> Found new best parameters: \n%s\n\n" % best_parameters_seen
+    submission_parameters_dict['result_callback_function_infos'] = dict(function=best_parameters_callback, parameters=dict(best_parameters_seen=best_parameters_seen))
+
+
+    # Create a SubmitPBS
+    submit_pbs = SubmitPBS(pbs_submission_infos=submission_parameters_dict['pbs_submission_infos'], debug=True)
+
+    # Run the big useless sequential optimisation
+    submit_pbs.generate_submit_sequential_optimisation(submission_parameters_dict)
 
 
 
@@ -473,19 +689,25 @@ class SubmitPBS():
 if __name__ == '__main__':
 
     # Simple usage
-    cwd = os.getcwd()
-    submit_pbs = SubmitPBS(working_directory=os.path.join(cwd, 'simple_pbs_test'), debug=True)
-    # submit_pbs.make_script('echo "it works"')
-    submit_pbs.submit_job('echo "it works"')
+    if False:
+        cwd = os.getcwd()
+        submit_pbs = SubmitPBS(working_directory=os.path.join(cwd, 'simple_pbs_test'), debug=True)
+        # submit_pbs.make_script('echo "it works"')
+        submit_pbs.submit_job('echo "it works"')
 
     # This is how you should generate random parameters and scripts
-    num_samples = 10
-    pbs_submission_infos = dict(description='Getting the full memory curves for all the parameters compatible with the experimental Fisher information', command='echo "Testing PBS"', other_options=dict(option1='1', option2=2), walltime='10:00:00', memory='2gb', simul_out_dir=os.path.join(cwd, 'testing_pbs'))
-    dict_parameters_range = dict(param1=dict(sampling_type='uniform', low=0.01, high=15.0, dtype=float), param2=dict(sampling_type='uniform', low=0.01, high=0.8, dtype=float))
-    filtering_function = lambda parameters, dict_parameters_range, other_options: parameters['param1'] > 1.0
+    if False:
+        num_samples = 10
+        pbs_submission_infos = dict(description='Getting the full memory curves for all the parameters compatible with the experimental Fisher information', command='echo "Testing PBS"', other_options=dict(option1='1', option2=2), walltime='10:00:00', memory='2gb', simul_out_dir=os.path.join(cwd, 'testing_pbs'))
+        dict_parameters_range = dict(param1=dict(sampling_type='uniform', low=0.01, high=15.0, dtype=float), param2=dict(sampling_type='uniform', low=0.01, high=0.8, dtype=float))
+        filtering_function = lambda parameters, dict_parameters_range, other_options: parameters['param1'] > 1.0
 
-    submit_pbs = SubmitPBS(pbs_submission_infos=pbs_submission_infos, debug=True)
-    submit_pbs.generate_submit_constrained_parameters_random(dict_parameters_range, num_samples=num_samples, filtering_function=filtering_function, filtering_function_parameters=None, pbs_submission_infos=pbs_submission_infos, submit_jobs=False)
+        submit_pbs = SubmitPBS(pbs_submission_infos=pbs_submission_infos, debug=True)
+        submit_pbs.generate_submit_constrained_parameters_random(dict_parameters_range, num_samples=num_samples, filtering_function=filtering_function, filtering_function_parameters=None, pbs_submission_infos=pbs_submission_infos, submit_jobs=False)
+
+    # Better preparation, big gun here.
+    if True:
+        test_sequential_optimisation()
 
 
 

@@ -182,9 +182,12 @@ class ExperimentLauncher(object):
             help='Prints more messages')
         parser.add_argument('--experiment_data_dir', dest='experiment_data_dir', default="../../experimental_data/",
             help="Base directory containing the experimental data")
-        parser.add_argument('--pylab', dest='pylab', action='store_true', help='Ipython was invoked with --pylab. Let it be allowed.')
+        parser.add_argument('--pylab', dest='pylab', default=True, action='store_true', help='Ipython was invoked with --pylab. Let it be allowed.')
         parser.add_argument('--session_id', dest='session_id',
             help='String used by JobWrapper for Result sync files. Used to avoid overwriting result files when running a job with the same parameters again.')
+        parser.add_argument('--job_name', dest='job_name',
+            help='Unique job name, constructed from parameter values. Could be rebuilt on the fly, but easier to pass it if it exists.')
+
 
         self.args = parser.parse_args()
         self.args_dict = self.args.__dict__

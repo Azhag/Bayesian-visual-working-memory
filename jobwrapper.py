@@ -25,7 +25,11 @@ class JobWrapper(object):
         Implements a compute() function that runs the experiment.
         Uses the compute_result() function, which is offloaded to another class (like Aggregators for Heiko, but simpler).
 
-        Could support pickling for easy storage/resubmit.
+        Could support pickling for easy storage/resubmit, useless currently.
+
+        Effectively, they are two sister JobWrapper instances alive usually:
+            - One with the Submitter, containing the experiment_parameters, that is being triggered for check_completed() periodically by the Submitter. This waits on a syncing file from its sister.
+            - Another that will eventually run separately on PBS/Slurm, called from launcher_do_run_job. This will launch the work, and when its done, compute the result and store it to the syncing file.
     """
 
     def __init__(self, experiment_parameters, session_id='', debug=True):
@@ -58,7 +62,14 @@ class JobWrapper(object):
             If the parameters are the same, should be the same job anyway.
         '''
 
-        return session_id + hashlib.md5(json.dumps(self.experiment_parameters, sort_keys=True)).hexdigest()
+        print "=== Creating job name, using this dictionary:"
+        print self.experiment_parameters
+        print "==="
+
+        if 'job_name' in self.experiment_parameters:
+            return self.experiment_parameters['job_name']
+        else:
+            return session_id + "_" + hashlib.md5(json.dumps(self.experiment_parameters, sort_keys=True)).hexdigest()
 
 
     def flag_job_submitted(self):
@@ -79,6 +90,10 @@ class JobWrapper(object):
         # Instantiate ExperimentLauncher and run it.
         #  this will create some output arrays, that will be accessible later on if desired.
         print "--- Running job %s ---" % self.job_name
+
+        # Now the action_to_do for the WrappedJob really is job_action. All other parameters are the same
+        self.experiment_parameters['action_to_do'] = self.experiment_parameters['job_action']
+
         experiment_launcher = experimentlauncher.ExperimentLauncher(run=True, arguments_dict=self.experiment_parameters)
         print "--- job completed ---"
 
@@ -90,11 +105,9 @@ class JobWrapper(object):
             # Compute the result
             self.result = self.result_computation.compute_result(experiment_launcher.all_vars)
 
-            # Store it
-            self.store_result()
-
-        # Set completed flag
+        # Store result, also indicating that this Job has completed
         self.job_state = 'completed'
+        self.store_result()
 
         return experiment_launcher.all_vars
 
@@ -117,9 +130,20 @@ class JobWrapper(object):
             This file should have a specific name format, as it is awaited upon by this Job (but not the instance running on PBS).
         '''
 
-        # dict_output_result = dict(result=self.result)
+        dict_output_result = dict(job_state=self.job_state, result=self.result)
 
-        np.save(self.result_filename, self.result)
+        np.save(self.result_filename, dict_output_result)
+
+
+    def reload_result(self):
+        '''
+            Reloads result of computation from a specifically formatted file.
+        '''
+
+        dict_input_result = np.load(self.result_filename).item()
+
+        self.result = dict_input_result['result']
+
 
 
     def check_completed(self):
@@ -134,14 +158,6 @@ class JobWrapper(object):
             return True
         else:
             return False
-
-
-    def reload_result(self):
-        '''
-            Reloads result of computation from a specifically formatted file.
-        '''
-
-        self.result = np.load(self.result_filename).item()
 
 
     def get_result(self):

@@ -88,9 +88,6 @@ def launcher_do_run_job(args):
 
     all_parameters = vars(args)
 
-    # Now the action_to_do for the WrappedJob really is job_action. All other parameters are the same
-    all_parameters['action_to_do'] = all_parameters['job_action']
-
     # Create a job and run it
     job = jobwrapper.JobWrapper(all_parameters, session_id=all_parameters['session_id'])
     print "Completed:", job.check_completed()
