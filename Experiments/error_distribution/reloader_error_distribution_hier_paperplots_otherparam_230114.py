@@ -193,6 +193,8 @@ def plots_errors_distribution(data_pbs, generator_module=None):
 
         dataio.make_link_output_to_dropbox(dropbox_current_experiment_folder='error_distribution')
 
+        dataio.make_link_in_directory(source_file=os.path.split(this_file)[-1], output_dir=os.path.join(generator_module.pbs_submission_infos['simul_out_dir'], 'outputs/'))
+
     plt.show()
 
     return locals()
