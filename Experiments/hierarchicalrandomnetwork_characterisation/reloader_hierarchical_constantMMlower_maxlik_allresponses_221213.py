@@ -41,7 +41,7 @@ def plots_3dvolume_hierarchical_M_Mlayerone(data_pbs, generator_module=None):
     load_fit_mixture_model = True
 
     # caching_emfit_filename = None
-    caching_emfit_filename = os.path.join(generator_module.pbs_submission_infos['simul_out_dir'], 'outputs', 'cache_emfit.pickle')
+    caching_emfit_filename = os.path.join(generator_module.pbs_submission_infos['simul_out_dir'], 'outputs', 'cache_emfit_newshapes.pickle')
 
     plt.rcParams['font.size'] = 16
     #
@@ -69,33 +69,28 @@ def plots_3dvolume_hierarchical_M_Mlayerone(data_pbs, generator_module=None):
     N = results_nontargets.shape[-2]
     num_repetitions = data_pbs.loaded_data['args_list'][0]['num_repetitions']
 
-    # Num_repetitions sometimes is in wrong position...
-    if results_responses.shape[-2] == num_repetitions:
+    # Fix after @3625585, now the shape are:
+    #   results_responses, results_targets: M_space.size, M_layer_one_space.size, T, wrong num_repet, N
+    #   results_nontargets: M_space.size, M_layer_one_space.size, T, wrong num_repet, N, T-1
+    if data_pbs.loaded_data['nb_datasets_per_parameters'] > 1:
+        num_repetitions = data_pbs.loaded_data['nb_datasets_per_parameters']
+
+        # Filter and reshape
+        results_responses = results_responses[:, :, :, :num_repetitions, :]
         results_responses.shape = (M_space.size, M_layer_one_space.size, T, num_repetitions*N)
+
+        results_targets = results_targets[:, :, :, :num_repetitions, :]
         results_targets.shape = (M_space.size, M_layer_one_space.size, T, num_repetitions*N)
+
+        results_nontargets = results_nontargets[:, :, :, :num_repetitions, :, :]
         results_nontargets.shape = (M_space.size, M_layer_one_space.size, T, num_repetitions*N, T-1)
+
 
     print M_space
     print M_layer_one_space
     print results_precision_constant_M_Mlower.shape
     # print results_precision_constant_M_Mlower
 
-    # Reorder results_nontargets if multiple runs concatenated
-    if data_pbs.loaded_data['nb_datasets_per_parameters'] > 1:
-        print "Reorder results_nontargets"
-
-        nontargets_shape = list(results_nontargets.shape)
-        nontargets_shape[-2] *= data_pbs.loaded_data['nb_datasets_per_parameters']
-        nontargets_shape[-1] /= data_pbs.loaded_data['nb_datasets_per_parameters']
-        results_nontargets_tmp = np.empty(nontargets_shape)
-        for run_i in xrange(data_pbs.loaded_data['nb_datasets_per_parameters']):
-            print "reorder", run_i
-            results_nontargets_tmp[..., N*run_i:N*(run_i+1), :] = results_nontargets[..., (T-1)*run_i:(T-1)*(run_i+1)]
-
-        del results_nontargets
-        results_nontargets = results_nontargets_tmp
-
-    T = results_precision_constant_M_Mlower.shape[-1]
     results_precision_filtered = results_precision_constant_M_Mlower[filtering_indices]
     del results_precision_constant_M_Mlower
     results_precision_filtered_std = results_precision_constant_M_Mlower_std[filtering_indices]
@@ -201,7 +196,7 @@ def plots_3dvolume_hierarchical_M_Mlayerone(data_pbs, generator_module=None):
             axes[i].set_xlim((0.0, 1.0))
             # axes[i].set_yticks([])
             # axes[i].set_ylim((np.min(result_emfits_filtered[:, i, 0]), result_emfits_filtered[max_ind, i, 0]*1.1))
-            axes[i].set_ylim((0.0, 1.0))
+            axes[i].set_ylim((0.0, 1.05))
             axes[i].locator_params(axis='y', tight=True, nbins=4)
             # all_lines_bis.extend(curr_lines)
 
