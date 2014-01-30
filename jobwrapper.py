@@ -37,7 +37,7 @@ class JobWrapper(object):
         self.experiment_parameters = experiment_parameters
         self.job_name = self.create_unique_job_name(session_id)
         self.debug = debug
-        self.result = None
+        self.result = np.nan
         self.job_state = 'idle'
 
         if experiment_parameters.get('result_computation', '') != '':
@@ -66,10 +66,12 @@ class JobWrapper(object):
         print self.experiment_parameters
         print "==="
 
-        if 'job_name' in self.experiment_parameters:
+        if self.experiment_parameters.get('job_name', ''):
             return self.experiment_parameters['job_name']
         else:
-            return session_id + "_" + hashlib.md5(json.dumps(self.experiment_parameters, sort_keys=True)).hexdigest()
+            if session_id:
+                session_id += "_"
+            return session_id + hashlib.md5(json.dumps(self.experiment_parameters, sort_keys=True)).hexdigest()
 
 
     def flag_job_submitted(self):
@@ -166,7 +168,7 @@ class JobWrapper(object):
             If not, return None.
         '''
 
-        if self.result_computation is not None and self.job_state == 'completed' and self.result is None:
+        if self.result_computation is not None and self.job_state == 'completed' and self.result is np.nan:
             # Reload the result from file
             self.reload_result()
 

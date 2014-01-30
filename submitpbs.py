@@ -17,10 +17,11 @@ import functools
 import time
 import getpass
 
-from utils import cross
+import utils
 
 import jobwrapper
 
+import cma
 
 PBS_SCRIPT = """#!/bin/bash
 {pbs_options}
@@ -72,10 +73,12 @@ class SubmitPBS():
         self.pbs_options = {'mem': memory, 'pmem': memory, 'walltime': walltime, 'ncpus': '1'}
         self.set_env = set_env
         self.wait_submitting = wait_submitting
-        self.limit_max_queued_jobs = limit_max_queued_jobs
-        self.num_queued_jobs = 0
         self.submit_label = submit_label
         self.pbs_submit_cmd = pbs_submit_cmd
+
+        # Keep track of submitted jobs numbers and available queue size if desired
+        self.limit_max_queued_jobs = limit_max_queued_jobs
+        self.update_running_jobs_number()
 
         # Initialise the directories
         if working_directory is None:
@@ -86,6 +89,10 @@ class SubmitPBS():
         self.scripts_dir = os.path.join(self.working_directory, scripts_dir)
         self.output_dir = os.path.join(self.working_directory, output_dir)
         self.make_dirs()
+
+        # Tracking dictionaries for the Optimisation routines
+        self.jobs_tracking_dict = dict()
+        self.result_tracking_dict = dict()
 
         # Open the Submit file, containing instructions to submit everything
         self.open_submit_file()
@@ -343,7 +350,7 @@ class SubmitPBS():
 
             Uses the new system that loads .py files as modules, which can contain parameters/functions directly.
 
-            Loads generate_submit_constrained_parameters next, which then loads generate_submit_constrained_parameters_grid/generate_submit_constrained_parameters_random accordingly.
+            Loads generate_submit_constrained_parameters next, which then loads generate_submit_constrained_parameters_grid/generate_submit_constrained_parameters_random/perform_cma_es_optimization accordingly.
         '''
 
         # Make the loaded_module a dictionary, easier to handle
@@ -355,15 +362,12 @@ class SubmitPBS():
         for key, val in default_params:
             submission_parameters_dict.setdefault(key, val)
 
-        # Keep track of submitted jobs numbers and available queue size if desired
-        if self.limit_max_queued_jobs > 0:
-            # Get current queue state. Expensive operation so don't do it too much...
-            self.update_running_jobs_number()
-
         if submission_parameters_dict['parameter_generation'] == 'grid':
             return self.generate_submit_constrained_parameters_grid(submission_parameters_dict['dict_parameters_range'], filtering_function=submission_parameters_dict['filtering_function'], filtering_function_parameters=submission_parameters_dict['filtering_function_parameters'], pbs_submission_infos=submission_parameters_dict['pbs_submission_infos'], submit_jobs=submission_parameters_dict['submit_jobs'])
         elif submission_parameters_dict['parameter_generation'] == 'random':
             return self.generate_submit_constrained_parameters_random(submission_parameters_dict['dict_parameters_range'], num_random_samples=submission_parameters_dict['num_random_samples'], filtering_function=submission_parameters_dict['filtering_function'], filtering_function_parameters=submission_parameters_dict['filtering_function_parameters'], pbs_submission_infos=submission_parameters_dict['pbs_submission_infos'], submit_jobs=submission_parameters_dict['submit_jobs'])
+        elif submission_parameters_dict['parameter_generation'] == 'cma-es':
+            return self.perform_cma_es_optimization(submission_parameters_dict)
 
 
     ################################################
@@ -452,7 +456,7 @@ class SubmitPBS():
 
         # Get all cross combinations of parameters.
         # Also converts the type on the fly to correspond with the specified dtype.
-        cross_comb = cross([[dict_parameters_range[param]['dtype'](param_elem) for param_elem in dict_parameters_range[param]['range'].tolist()] for param in dict_parameters_range])
+        cross_comb = utils.cross([[dict_parameters_range[param]['dtype'](param_elem) for param_elem in dict_parameters_range[param]['range'].tolist()] for param in dict_parameters_range])
         # Convert them back into dictionaries
         candidate_parameters = [dict(zip(dict_parameters_range.keys(), x)) for x in cross_comb]
 
@@ -487,18 +491,14 @@ class SubmitPBS():
         # Extract some variables
         dict_parameters_range = submission_parameters_dict['dict_parameters_range']
         max_optimisation_iterations = submission_parameters_dict.get('max_optimisation_iterations', 100)
-        pbs_submission_infos = submission_parameters_dict.get('pbs_submission_infos', None)
-        sleeping_period = submission_parameters_dict.get('sleeping_period', dict(min=10, max=20))
         filtering_function = submission_parameters_dict.get('filtering_function', None)
         filtering_function_parameters = submission_parameters_dict.get('filtering_function_parameters', None)
-        submit_jobs = submission_parameters_dict.get('submit_jobs', False)
-        result_callback_function_infos = submission_parameters_dict.get('result_callback_function_infos', None)
 
         # Convert specific parameter sampling methods into generators
         self.create_generator_random_parameter(dict_parameters_range)
 
         # Track status of parameters: parameters -> dict(status=['waiting', 'submitted', 'completed'], result=None, jobwrapper=None, parameters=None)
-        self.parameters_tracking_dict = dict()
+        # self.jobs_tracking_dict
 
         fill_parameters_progress = progress.Progress(max_optimisation_iterations)
         parameters_tested = 0
@@ -506,7 +506,7 @@ class SubmitPBS():
 
         # Perform the sequential optimisation loop
         while parameters_tested < max_optimisation_iterations and not converged:
-            print "Parameters tested %d (max %d). %.2f%%, %s left - %s" % (parameters_tested, max_optimisation_iterations, fill_parameters_progress.percentage(), fill_parameters_progress.time_remaining_str(), fill_parameters_progress.eta_str())
+            print " >Parameters tested %d (max %d). %.2f%%, %s left - %s" % (parameters_tested, max_optimisation_iterations, fill_parameters_progress.percentage(), fill_parameters_progress.time_remaining_str(), fill_parameters_progress.eta_str())
 
             # Get new parameter values. For now, random
             # TODO Do something better.
@@ -515,30 +515,249 @@ class SubmitPBS():
                 # Use the provided sampling function (some are predefined)
                 new_parameters[curr_param] = param_dict['sampling_fct']()
             if self.debug:
-                print "New parameters: ", new_parameters
+                print "New parameters: ", new_parameters, '\n'
 
             # Check if the new parameters are within the constraints
             if (filtering_function is not None) and not filtering_function(new_parameters, dict_parameters_range, filtering_function_parameters):
                 # Bad param, just ditch it
                 continue
 
+            # Submit the minibatch of size 1
+            result_minibatch = self.submit_minibatch_jobswrapper([new_parameters], submission_parameters_dict)
+
+            fill_parameters_progress.increment()
+            parameters_tested += 1
+
+
+    def perform_cma_es_optimization(self, submission_parameters_dict):
+        '''
+            Instantiate a CMA_ES object and run the optimization.
+            Parameters:
+                - submission_parameters_dict['cma_population_size']
+                - submission_parameters_dict['cma_sigma0']
+
+            Uses submission_parameters_dict['dict_parameters_range'] to know which parameters to optimize.
+                They should all provide their range, CMA-ES searches in x_0 +- 3*cma_sigma0*scaling.
+                So provide either:
+                    - x0, scaling (make sure they are compatible with cma_sigma0)
+                    - low, high, which will be converted automatically to: x0 = (high-low)/2, scaling = (high-low)/(3*cma_sigma0)
+
+        '''
+
+        # Optization parameters
+        cma_population_size = submission_parameters_dict.get('cma_population_size', None)
+        cma_sigma0 = submission_parameters_dict.get('cma_sigma0', 1.0)
+        cma_use_auto_scaling = submission_parameters_dict.get('cma_use_auto_scaling', True)
+        cma_iter_callback_function_infos = submission_parameters_dict.get('cma_iter_callback_function_infos', None)
+        cma_logger_do_plot = submission_parameters_dict.get('cma_logger_do_plot', False)
+        cma_nan_replacement = submission_parameters_dict.get('cma_nan_replacement', 100000.)
+
+        # Extract the parameters ranges
+        dict_parameters_range = submission_parameters_dict['dict_parameters_range']
+        parameter_names_sorted = dict_parameters_range.keys()
+        for curr_param_name in parameter_names_sorted:
+            curr_param = dict_parameters_range[curr_param_name]
+            # Check that we have x0 and scaling set for each variable
+            if 'x0' not in curr_param or 'scaling' not in curr_param:
+                if 'low' in curr_param and 'high' in curr_param:
+                    if 'x0' not in curr_param:
+                        curr_param['x0'] = (curr_param['high'] - curr_param['low'])/2.
+                    if 'scaling' not in curr_param:
+                        curr_param['scaling'] = (curr_param['high'] - curr_param['low'])/(3.*cma_sigma0)
+                else:
+                    raise ValueError('No x0/scaling and high/low for variable %s, provide either one' % curr_param)
+
+        # Extract the arrays of scalings for the parameters
+        parameters_scalings = np.array([dict_parameters_range[curr_param_name]['scaling'] for curr_param_name in parameter_names_sorted])
+
+        # Construct Options dict
+        cma_options = dict()
+        if cma_population_size is not None:
+            cma_options['popsize'] = cma_population_size
+        if cma_use_auto_scaling and not np.allclose(parameters_scalings, np.ones(len(parameter_names_sorted))):
+            cma_options['scaling_of_variables'] = parameters_scalings
+
+        ### Instantiate CMA ES object.
+        cma_es = cma.CMAEvolutionStrategy(self.cma_init_parameters(dict_parameters_range, parameter_names_sorted), cma_sigma0, inopts = cma_options)
+
+        ## Instantiate a CMADataLogger. Will write to the current directory
+        cma_log = cma.CMADataLogger().register(cma_es)
+
+        ## Iteration loop!
+        while not cma_es.stop():
+
+            ## Request new parameters candidates
+            parameters_candidates_array = cma_es.ask()
+
+            # Convert to dictionaries
+            parameters_candidates_dict = self.cma_list_parameters_array_to_dict(parameters_candidates_array, parameter_names_sorted, dict_parameters_range)
+
+            # Make sure those parameters are acceptable
+            wrong_parameters_indices = self.check_parameters_candidate(parameters_candidates_dict, parameter_names_sorted, dict_parameters_range)
+            while len(wrong_parameters_indices) > 0:
+                # Resample those wrong parameters
+                for wrong_parameters_i in wrong_parameters_indices:
+                    parameters_candidates_array[wrong_parameters_i] = cma_es.ask(1)[0]
+
+                    parameters_candidates_dict[wrong_parameters_i] = self.cma_parameters_array_to_dict(parameters_candidates_array[wrong_parameters_i], parameter_names_sorted, dict_parameters_range)
+
+                wrong_parameters_indices = self.check_parameters_candidate(parameters_candidates_dict, parameter_names_sorted, dict_parameters_range)
+
+            ## Evaluate the parameters fitness, submit them!!
+            fitness_results = self.submit_minibatch_jobswrapper(parameters_candidates_dict, submission_parameters_dict)
+
+            # replace np.nan by large values...
+            fitness_results[np.isnan(fitness_results)] = cma_nan_replacement
+
+            if self.debug:
+                print ">> Minibatch completed (%d jobs)." % len(parameters_candidates_array)
+                for curr_param_dict_i, curr_param_dict in enumerate(parameters_candidates_dict):
+                    print " - {params} \t -> {result}".format(params=utils.pprint_dict(curr_param_dict, key_sorted=parameter_names_sorted), result=fitness_results[curr_param_dict_i])
+
+            ## Update the state of CMA-ES
+            cma_es.tell(parameters_candidates_array, fitness_results)
+            cma_log.add()
+
+            ## Do something after each CMA-ES iteration if desired
+            if cma_iter_callback_function_infos is not None:
+                cma_iter_callback_function_infos['function'](locals(), parameters=result_callback_function_infos['parameters'])
+
+            ## Display and all
+            if self.debug:
+                # CMA status
+                cma_es.disp()
+
+                # Results
+                cma.pprint(cma_es.result())
+
+                # DataLogger plots
+                if cma_logger_do_plot:
+                    try:
+                        cma_log.plot()
+                        cma.savefig('cma_es_state.pdf')
+                        cma_log.closefig()
+                    except KeyError:
+                        # Sometimes, cma_log.plot() fails, I suppose when not enough runs exist... So just ignore it
+                        pass
+
+        # Print overall best!
+        print "Overall best:"
+        print utils.pprint_dict(self.cma_parameters_array_to_dict(cma_es.best.x, parameter_names_sorted, dict_parameters_range), parameter_names_sorted)
+        print " -> result: ", cma_es.best.f
+        print cma_es.best.get()
+
+        print "=== CMA_ES FINISHED ==="
+
+        return dict(cma_log=cma_log, cma_es=cma_es, result_final=cma_es.result(), result_tracking_dict=self.result_tracking_dict)
+
+
+    def check_parameters_candidate(self, list_parameters_candidates_dict, parameter_names_sorted, dict_parameters_range):
+        '''
+            Checks the provided parameters and verify they are all in the provided bounds
+            return list of indices with unacceptable parameters
+        '''
+
+        wrong_parameters_indices = []
+
+        for parameters_candidate_i, parameters_candidate in enumerate(list_parameters_candidates_dict):
+
+            for param_name in parameter_names_sorted:
+                if parameters_candidate[param_name] < dict_parameters_range[param_name]['low'] or parameters_candidate[param_name] > dict_parameters_range[param_name]['high']:
+                    # wrong wrong wrong...
+                    wrong_parameters_indices.append(parameters_candidate_i)
+
+        return wrong_parameters_indices
+
+
+
+    def cma_parameters_dict_to_array(self, parameters_dict, parameter_names_sorted):
+        '''
+            Take a dictionary of parameters and return the array with the parameters ordered like the parameter_names_sorted list
+            (maybe too cautious, but dict have no ordering of their keys...)
+        '''
+
+        return np.array([parameters_dict[curr_param] for curr_param in parameter_names_sorted])
+
+    def cma_list_parameters_dict_to_array(self, list_parameters_dict, parameter_names_sorted):
+        '''
+            Takes a list of dictionaries of parameters and converts it into a list of arrays
+        '''
+
+        return [self.cma_parameters_dict_to_array(parameters_dict, parameter_names_sorted) for parameters_dict in list_parameters_dict]
+
+
+    def cma_parameters_array_to_dict(self, parameters_array, parameter_names_sorted, dict_parameters_range):
+        '''
+            Takes an array of parameters and creates a dictionary.
+        '''
+
+        return dict([(param_name, dict_parameters_range[param_name]['dtype'](parameters_array[param_name_i])) for param_name_i, param_name in enumerate(parameter_names_sorted)])
+
+
+    def cma_list_parameters_array_to_dict(self, list_parameters_array, parameter_names_sorted, dict_parameters_range):
+        '''
+            Takes a list of arrays of parameters and converts it into a list of dictionaries
+
+            Used to convert between CMA-ES parameter candidates and submissions to the queuing system
+        '''
+
+        return [self.cma_parameters_array_to_dict(parameters_array, parameter_names_sorted, dict_parameters_range) for parameters_array in list_parameters_array]
+
+
+    def cma_init_parameters(self, dict_parameters_range, parameter_names_sorted):
+        '''
+            Takes dict_parameters_range and returns x0 for each of the parameters
+        '''
+
+        return np.array([dict_parameters_range[curr_param]['dtype']( dict_parameters_range[curr_param]['x0']) for curr_param in parameter_names_sorted])
+
+
+    ##########################################################################
+
+    def submit_minibatch_jobswrapper(self, parameters_to_submit, submission_parameters_dict):
+        '''
+            Take a list of parameters sets to submit.
+            Submits them all, and then wait on all to finish
+
+            Input: list[dict(param_name: param_value, ...)]
+
+            Returns the ResultComputation for them if provided (should, if you don't it's useless to use this function...)
+        '''
+
+        pbs_submission_infos = submission_parameters_dict.get('pbs_submission_infos', None)
+        sleeping_period = submission_parameters_dict.get('sleeping_period', dict(min=10, max=20))
+        submit_jobs = submission_parameters_dict.get('submit_jobs', False)
+        result_callback_function_infos = submission_parameters_dict.get('result_callback_function_infos', None)
+
+        # Track status of parameters: parameters -> dict(status=['waiting', 'submitted', 'completed'], result=None, jobwrapper=None, parameters=None)
+
+        completed_parameters_progress = progress.Progress(len(parameters_to_submit))
+        parameters_tested = 0
+        job_names_ordered = []
+
+        # Submit all jobs
+        for current_parameters in parameters_to_submit:
             # Create job dictionary
-            job_submission_parameters = self.prepare_job_parameters(new_parameters, pbs_submission_infos)
+            job_submission_parameters = self.prepare_job_parameters(current_parameters, pbs_submission_infos)
 
             # Create job
             new_job = jobwrapper.JobWrapper(job_submission_parameters, session_id=job_submission_parameters['session_id'])
 
             # Add to our Job tracker
-            self.track_new_job(new_job)
+            self.track_new_job(new_job, current_parameters)
+            job_names_ordered.append(new_job.job_name)
 
             # Submit it. When this call returns, it's been submitted.
             self.submit_jobwrapper(new_job, pbs_submission_infos, submit=submit_jobs)
 
-            ## Wait for Jobs to be completed (could do another version where you send multiple jobs before waiting)
-            self.wait_all_jobs_collect_results(result_callback_function_infos=result_callback_function_infos, sleeping_period=sleeping_period)
+        ## Wait for Jobs to be completed (could do another version where you send multiple jobs before waiting)
+        self.wait_all_jobs_collect_results(result_callback_function_infos=result_callback_function_infos, sleeping_period=sleeping_period, completion_progress=completed_parameters_progress)
 
-            fill_parameters_progress.increment()
-            parameters_tested += 1
+        ## Now return the list of results, in the same ordering
+        result_outputs = np.array([self.jobs_tracking_dict[job_name]['result'] for job_name in job_names_ordered])
+
+        return result_outputs
+
 
 
     def prepare_job_parameters(self, new_parameters, pbs_submission_infos):
@@ -556,16 +775,30 @@ class SubmitPBS():
         return job_submission_parameters
 
 
-    def track_new_job(self, job):
+    def track_new_job(self, job, parameters=dict()):
         '''
             Enter a new job in the Tracking dictionary.
 
             Sets some default values in the process.
 
-            dict[job_name] -> dict(status=['waiting', 'submitted', 'completed'], result=None, jobwrapper=None, parameters=None)
+            dict[job_name] -> dict(status=['waiting', 'submitted', 'completed'], result=None, jobwrapper=None, job_submission_parameters=None, parameters=None)
         '''
 
-        self.parameters_tracking_dict[job.job_name] = dict(status='waiting', job=job, parameters=job.experiment_parameters, result=None)
+        self.jobs_tracking_dict[job.job_name] = dict(status='waiting', job=job, job_submission_parameters=job.experiment_parameters, result=None, parameters=parameters)
+        self.result_tracking_dict[tuple(parameters.items())] = dict(jobname=job.job_name, result=None)
+
+
+    def complete_job(self, job_name):
+        '''
+            Complete a job:
+                - Change its status
+                - Update its result
+                - Put the result in the result_tracking_dict
+        '''
+
+        self.jobs_tracking_dict[job_name]['status'] = 'completed'
+        self.jobs_tracking_dict[job_name]['result'] = self.jobs_tracking_dict[job_name]['job'].get_result()
+        self.result_tracking_dict[tuple(self.jobs_tracking_dict[job_name]['parameters'].items())]['result'] = self.jobs_tracking_dict[job_name]['result']
 
 
     def submit_jobwrapper(self, job, pbs_submission_infos, submit=False):
@@ -583,10 +816,10 @@ class SubmitPBS():
         self.create_submit_job_parameters(pbs_submission_infos_bis, submit=submit)
 
         job.flag_job_submitted()
-        self.parameters_tracking_dict[job.job_name]['status'] = 'submitted'
+        self.jobs_tracking_dict[job.job_name]['status'] = 'submitted'
 
 
-    def wait_all_jobs_collect_results(self, result_callback_function_infos=None, sleeping_period=dict(min=10, max=60)):
+    def wait_all_jobs_collect_results(self, result_callback_function_infos=None, sleeping_period=dict(min=10, max=60), completion_progress=None):
         '''
             Wait for all Jobs to be completed, and collect the results when they are
             Optionally accepts a callback method on finding a result.
@@ -596,11 +829,11 @@ class SubmitPBS():
         '''
 
         ## Wait for Jobs to be completed
-        for current_job_name in self.parameters_tracking_dict:
+        for current_job_name in self.jobs_tracking_dict:
 
-            if self.parameters_tracking_dict[current_job_name]['status'] == 'submitted':
+            if self.jobs_tracking_dict[current_job_name]['status'] == 'submitted':
 
-                while not self.parameters_tracking_dict[current_job_name]['job'].check_completed():
+                while not self.jobs_tracking_dict[current_job_name]['job'].check_completed():
                     # Sleep for some time
                     # Decide for how long to sleep
                     sleep_time_rnd = np.random.randint(sleeping_period['min'], sleeping_period['max'])
@@ -608,21 +841,29 @@ class SubmitPBS():
                     if self.debug:
                         print "Waiting on Job %s, %d sec..." % (current_job_name, sleep_time_rnd)
 
+                        if completion_progress is not None:
+                            # Also add how much time to completion
+                            print "%.2f%%, %s left - %s" % (completion_progress.percentage(), completion_progress.time_remaining_str(), completion_progress.eta_str())
+
                     # Sleep for a bit
                     time.sleep(sleep_time_rnd)
 
+                    # TODO: Should add resubmission step
+
                 # Get the result
-                self.parameters_tracking_dict[current_job_name]['status'] = 'completed'
-                self.parameters_tracking_dict[current_job_name]['result'] = self.parameters_tracking_dict[current_job_name]['job'].get_result()
+                self.complete_job(current_job_name)
 
                 # Call the result_callback_function if it exists!
                 if result_callback_function_infos is not None:
-                    result_callback_function_infos['function'](job=self.parameters_tracking_dict[current_job_name]['job'], parameters=result_callback_function_infos['parameters'])
+                    result_callback_function_infos['function'](job=self.jobs_tracking_dict[current_job_name]['job'], parameters=result_callback_function_infos['parameters'])
 
-            elif self.parameters_tracking_dict[current_job_name]['status'] == 'waiting':
+                if completion_progress is not None:
+                    completion_progress.increment()
+
+            elif self.jobs_tracking_dict[current_job_name]['status'] == 'waiting':
                 # Job in waiting status, not submitted yet. That should not really happen right now, but let's handle it
                 pass
-            elif self.parameters_tracking_dict[current_job_name]['status'] == 'completed':
+            elif self.jobs_tracking_dict[current_job_name]['status'] == 'completed':
                 # If this job is already completed and has been tracked, jump to the next one!
                 pass
 
@@ -664,10 +905,10 @@ def test_sequential_optimisation():
         submission_parameters_dict.setdefault(key, val)
 
     # result_callback_function to track best parameter
-    best_parameters_seen = dict(result=-np.inf, job_name='', parameters=None)
+    best_parameters_seen = dict(result=np.inf, job_name='', parameters=None)
     def best_parameters_callback(job, parameters=None):
         best_parameters_seen = parameters['best_parameters_seen']
-        if job.get_result() >= best_parameters_seen['result']:
+        if job.get_result() <= best_parameters_seen['result']:
             # New best parameter!
             best_parameters_seen['result'] = job.get_result()
             best_parameters_seen['job_name'] = job.job_name
@@ -682,6 +923,72 @@ def test_sequential_optimisation():
 
     # Run the big useless sequential optimisation
     submit_pbs.generate_submit_sequential_optimisation(submission_parameters_dict)
+
+
+def test_cmaes_optimisation():
+    '''
+        Test for perform_cma_es_optimization
+    '''
+
+    run_label='test_cmaes'
+    submission_parameters_dict = dict(
+        run_label=run_label,
+        submit_jobs = True,
+        dict_parameters_range =
+            dict(M=dict(low=5, high=800, x0=100, dtype=int),
+                sigmax=dict(low=0.01, high=1.0, dtype=float),
+                ratio_conj=dict(low=0.0, high=1.0, dtype=float)),
+        pbs_submission_infos = dict(description='Testing CMA-ES optim',
+                            command='python /nfs/home2/lmatthey/Documents/work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py',
+                            other_options=dict(action_to_do='launcher_do_memory_curve_marginal_fi',
+                                               inference_method='max_lik',
+                                               T=1,
+                                               M=100,
+                                               N=200,
+                                               sigmay=0.0001,
+                                               code_type='mixed',
+                                               output_directory='.',
+                                               autoset_parameters=None,
+                                               label=run_label,
+                                               session_id='pbs1',
+                                               experiment_data_dir='/nfs/home2/lmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/experimental_data',
+                                               result_computation='distemfits'
+                                               ),
+                            walltime='1:00:00',
+                            memory='2gb',
+                            simul_out_dir=os.path.join(os.getcwd(), run_label.format(**locals())),
+                            pbs_submit_cmd='sbatch',
+                            submit_label='test_cmaes')
+    )
+
+    # CMA/ES Parameters!
+    # submission_parameters_dict['cma_population_size'] = 30
+    submission_parameters_dict['cma_sigma0'] = 1.0
+    submission_parameters_dict['cma_logger_do_plot'] = True
+    submission_parameters_dict['cma_use_auto_scaling'] = True
+
+    # submission_parameters_dict['cma_iter_callback_function_infos'] = dict(function=(), parameters=())
+
+    # result_callback_function to track best parameter
+    best_parameters_seen = dict(result=np.inf, job_name='', parameters=None)
+    def best_parameters_callback(job, parameters=None):
+        best_parameters_seen = parameters['best_parameters_seen']
+        if job.get_result() <= best_parameters_seen['result']:
+            # New best parameter!
+            best_parameters_seen['result'] = job.get_result()
+            best_parameters_seen['job_name'] = job.job_name
+            best_parameters_seen['parameters'] = job.experiment_parameters
+
+            print "\n\n>>>>>> Found new best parameters: \n%s\n\n" % best_parameters_seen
+    submission_parameters_dict['result_callback_function_infos'] = dict(function=best_parameters_callback, parameters=dict(best_parameters_seen=best_parameters_seen))
+
+
+    # Create a SubmitPBS
+    submit_pbs = SubmitPBS(pbs_submission_infos=submission_parameters_dict['pbs_submission_infos'], debug=True)
+
+    # Run the CMA/ES optimization.
+    #  Here we optimize for Bays09 fit, but using Max_lik to speed things up
+    submit_pbs.perform_cma_es_optimization(submission_parameters_dict)
 
 
 
@@ -706,8 +1013,12 @@ if __name__ == '__main__':
         submit_pbs.generate_submit_constrained_parameters_random(dict_parameters_range, num_samples=num_samples, filtering_function=filtering_function, filtering_function_parameters=None, pbs_submission_infos=pbs_submission_infos, submit_jobs=False)
 
     # Better preparation, big gun here.
-    if True:
+    if False:
         test_sequential_optimisation()
+
+    # Now test the funky CMA-ES optimisation
+    if True:
+        test_cmaes_optimisation()
 
 
 

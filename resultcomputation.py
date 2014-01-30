@@ -9,7 +9,7 @@ Copyright (c) 2014 . All rights reserved.
 
 import numpy as np
 import load_experimental_data
-
+import utils
 
 class ResultComputation():
     """
@@ -72,6 +72,8 @@ class ResultComputation():
         return self.computation_fct(all_variables)
 
 
+
+    ##########################################################################
     def compute_result_random(self, all_variables):
         '''
             Dummy result computation, where you just return a random value
@@ -88,7 +90,8 @@ class ResultComputation():
                 - result_em_fits exists. Does an average over repetitions_axis and sums over all others.
         '''
 
-        variables_required = ['result_em_fits', 'all_parameters', 'repetitions_axis']
+        variables_required = ['result_em_fits', 'all_parameters', 'T_space']
+        repetitions_axis = all_variables.get('repetitions_axis', -1)
 
         if not set(variables_required) <= set(all_variables.keys()):
             print "Error, missing variables for compute_result_distemfits: \nRequired: %s\nPresent%s" % (variables_required, all_variables.keys())
@@ -106,7 +109,9 @@ class ResultComputation():
         for repet_i in xrange(all_variables['all_parameters']['num_repetitions']):
             for T_i, T in enumerate(all_variables['T_space']):
                 if T in bays09_T_space:
-                    result_dist_bays09[T_i, :] = np.mean((bays09_experimental_mixtures_mean[:, bays09_T_space == T].flatten() - all_variables['result_em_fits'][T_i, :-2])**2., axis=all_variables['repetitions_axis'])
+                    result_dist_bays09[T_i, :] = utils.nanmean((bays09_experimental_mixtures_mean[:, bays09_T_space == T].flatten() - all_variables['result_em_fits'][T_i, :4])**2., axis=repetitions_axis)
+
+        print result_dist_bays09
 
         # return the overall distance, over all parameters and number of items
         return np.nansum(result_dist_bays09)

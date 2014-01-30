@@ -38,11 +38,11 @@ def launcher_do_generate_submit_pbs_from_param_files(args):
 
     ##### Now generate the parameters combinations and submit everything to PBS
     submit_pbs = SubmitPBS(pbs_submission_infos=parameters_file.pbs_submission_infos, debug=True)
-    constrained_parameters = submit_pbs.generate_submit_constrained_parameters_from_module_parameters(parameters_file)
+    outputs_submission = submit_pbs.generate_submit_constrained_parameters_from_module_parameters(parameters_file)
 
     dataio = DataIO(output_folder=all_parameters['output_directory'], label=os.path.splitext(all_parameters['parameters_filename'])[0])
     dataio.make_link_in_directory(source_file=all_parameters['parameters_filename'], output_dir=parameters_file.pbs_submission_infos['simul_out_dir'])
-    variables_to_save = ['constrained_parameters', 'all_parameters']
+    variables_to_save = ['outputs_submission', 'all_parameters']
     dataio.save_variables(variables_to_save, locals())
 
     return locals()
@@ -92,7 +92,12 @@ def launcher_do_run_job(args):
     job = jobwrapper.JobWrapper(all_parameters, session_id=all_parameters['session_id'])
     print "Completed:", job.check_completed()
 
-    job_outputs = job.compute()
+    try:
+        job_outputs = job.compute()
+    finally:
+        # Even if an exception arises, we need to write the syncing file...
+        if not job.check_completed():
+            job.store_result()
 
     # Print result
     print "Result:", job.get_result()
