@@ -40,7 +40,7 @@ def fit(responses, target_angle, nontarget_angles=np.array([[]]), initialisation
     if nontarget_angles.size > 0:
         nontarget_angles = nontarget_angles[:, ~np.all(np.isnan(nontarget_angles), axis=0)]
 
-        nontarget_angles = nontarget_angles[not_nan_indices]
+    nontarget_angles = nontarget_angles[not_nan_indices]
 
     N = float(np.sum(~np.isnan(responses)))
     K = float(nontarget_angles.shape[1])

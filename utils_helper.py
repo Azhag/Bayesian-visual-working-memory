@@ -146,6 +146,19 @@ def argparse_2_dict(args):
 
     return all_parameters
 
+
+def pprint_dict(input_dict, key_sorted=None):
+    '''
+        Returns a pretty-printed version of the dictionary
+
+        if key_sorted is provided, follow this key ordering
+    '''
+
+    if key_sorted is None:
+        key_sorted = input_dict.keys()
+
+    return ', '.join(["%s %s" % (key, input_dict[key]) for key in key_sorted])
+
 ########################## FILE I/O #################################
 
 def unique_filename(prefix=None, suffix=None, unique_id=None, return_id=False):

@@ -1345,6 +1345,10 @@ class Sampler:
         # Get histograms of bias to nontargets.
         hist_samples_density_estimation(errors_nontargets, bins=angle_space, title='Errors between response and non-targets, N=%d' % (self.T), filename='hist_bias_nontargets_%ditems_{label}_{unique_id}.pdf' % (self.T), dataio=dataio)
 
+        # Compute Vtest score
+        vtest_dict = V_test(errors_nontargets)
+        print vtest_dict
+
         # Gest histogram of bias to best non target
         hist_samples_density_estimation(errors_best_nontarget, bins=angle_space, title='Errors between response and best non-target, N=%d' % (self.T), filename='hist_bias_bestnontarget_%ditems_{label}_{unique_id}.pdf' % (self.T), dataio=dataio)
 

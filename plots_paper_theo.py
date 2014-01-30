@@ -674,7 +674,7 @@ if __name__ == '__main__':
     # all_vars = plot_marginal_fisher_info_2d()
     # all_vars = plot_specific_stimuli()
 
-    all_vars = plot_distribution_errors()
+    # all_vars = plot_distribution_errors()
 
     # all_vars = plot_bootstrap_randomsamples()
 

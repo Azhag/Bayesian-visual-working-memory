@@ -118,7 +118,7 @@ def plot_multiple_mean_std_area(x, y, std, ax_handle=None, fignum=None, linewidt
     return ax_handle
 
 
-def plot_mean_std_area(x, y, std, ax_handle=None, fignum=None, linewidth=1, fmt='-', markersize=1, color=None, xlabel=None, ylabel=None, label=''):
+def plot_mean_std_area(x, y, std, ax_handle=None, fignum=None, linewidth=1, fmt='-', markersize=1, color=None, xlabel=None, ylabel=None, label='', title=None):
     '''
         Plot a given x-y data, with a transparent area for its standard deviation
 
@@ -148,6 +148,9 @@ def plot_mean_std_area(x, y, std, ax_handle=None, fignum=None, linewidth=1, fmt=
 
     if ylabel is not None:
         ax_handle.set_ylabel(ylabel)
+
+    if title is not None:
+        ax_handle.set_title(title)
 
     ax_handle.get_figure().canvas.draw()
 
