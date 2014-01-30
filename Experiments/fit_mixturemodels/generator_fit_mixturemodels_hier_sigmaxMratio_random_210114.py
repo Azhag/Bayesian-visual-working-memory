@@ -17,7 +17,7 @@ submit_jobs = True
 
 parameter_generation = 'random'  ## !!!!!! RANDOM HERE   !!!!!
 num_random_samples = 1000
-limit_max_queued_jobs = 300
+limit_max_queued_jobs = 50
 
 # submit_cmd = 'qsub'
 submit_cmd = 'sbatch'

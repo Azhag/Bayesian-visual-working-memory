@@ -72,7 +72,8 @@ def plots_memory_curves(data_pbs, generator_module=None):
     dataio = DataIO.DataIO(output_folder=generator_module.pbs_submission_infos['simul_out_dir'] + '/outputs/', label='global_' + dataset_infos['save_output_filename'])
 
     ## Load Experimental data
-    data_simult = load_experimental_data.load_data_simult(data_dir=os.path.normpath(os.path.join(os.path.split(load_experimental_data.__file__)[0], '../../experimental_data/')), fit_mixture_model=True)
+    experim_datadir = os.environ.get('WORKDIR_DROP', os.path.split(load_experimental_data.__file__)[0])
+    data_simult = load_experimental_data.load_data_simult(data_dir=os.path.normpath(os.path.join(experim_datadir, '../../experimental_data/')), fit_mixture_model=True)
     gorgo11_experimental_precision = data_simult['precision_nitems_theo']
     gorgo11_experimental_kappa = np.array([data['kappa'] for _, data in data_simult['em_fits_nitems']['mean'].items()])
     gorgo11_experimental_emfits_mean = np.array([[data[key] for _, data in data_simult['em_fits_nitems']['mean'].items()] for key in ['kappa', 'mixt_target', 'mixt_nontargets', 'mixt_random']])
@@ -139,14 +140,15 @@ def plots_memory_curves(data_pbs, generator_module=None):
                         # Histogram it
                         hist_nontargets_all[M_i, sigmax_i, T_bays_i, :, repet_i], x, bins = utils.histogram_binspace(utils.dropnan(errors_nontargets[M_i, sigmax_i, T_bays - 1, ..., repet_i]), bins=angle_space, norm='density')
 
-        hist_targets_mean = utils.nanmean(hist_targets_all, axis=-1)
-        hist_targets_std = utils.nanstd(hist_targets_all, axis=-1)
-        hist_nontargets_mean = utils.nanmean(hist_nontargets_all, axis=-1)
-        hist_nontargets_std = utils.nanstd(hist_nontargets_all, axis=-1)
+        hist_targets_mean = utils.nanmean(hist_targets_all, axis=-1).filled(np.nan)
+        hist_targets_std = utils.nanstd(hist_targets_all, axis=-1).filled(np.nan)
+        hist_nontargets_mean = utils.nanmean(hist_nontargets_all, axis=-1).filled(np.nan)
+        hist_nontargets_std = utils.nanstd(hist_nontargets_all, axis=-1).filled(np.nan)
 
         # Compute distances to experimental histograms
         dist_diff_hist_target_bays09 = np.nansum(np.nansum((hist_targets_mean - bays09_hist_target_mean)**2., axis=-1), axis=-1)
         dist_diff_hist_nontargets_bays09 = np.nansum(np.nansum((hist_nontargets_mean - bays09_hist_nontarget_mean)**2., axis=-1), axis=-1)
+        dist_diff_hist_nontargets_5_6items_bays09 = np.nansum(np.nansum((hist_nontargets_mean[:, :, -2:] - bays09_hist_nontarget_mean[-2:])**2., axis=-1), axis=-1)
 
 
 
@@ -176,6 +178,10 @@ def plots_memory_curves(data_pbs, generator_module=None):
             utils.pcolor_2d_data(dist_diff_hist_nontargets_bays09, x=M_space, y=sigmax_space, xlabel='M', ylabel='sigmax', log_scale=True, xlabel_format="%d")
             if savefigs:
                 dataio.save_current_figure('match_hist_nontargets_experbays09_log_pcolor_{label}_{unique_id}.pdf')
+
+            utils.pcolor_2d_data(dist_diff_hist_nontargets_5_6items_bays09, x=M_space, y=sigmax_space, xlabel='M', ylabel='sigmax', log_scale=True, xlabel_format="%d")
+            if savefigs:
+                dataio.save_current_figure('match_hist_nontargets_6items_experbays09_log_pcolor_{label}_{unique_id}.pdf')
 
     # Macro plot
     def mem_plot_precision(sigmax_i, M_i, mem_exp_prec):
@@ -261,26 +267,31 @@ def plots_memory_curves(data_pbs, generator_module=None):
         if savefigs:
             dataio.save_current_figure('memorycurves_emfits_paper_M%dsigmax%.2f_{label}_{unique_id}.pdf' % (M_space[M_i], sigmax_space[sigmax_i]))
 
-    def hist_errors_targets_nontargets(sigmax_i, M_i, hists_toplot_mean, hists_toplot_std, title=''):
+    def hist_errors_targets_nontargets(hists_toplot_mean, hists_toplot_std, title='', M=0, sigmax=0, yaxis_lim='auto'):
 
         f1, axes1 = plt.subplots(ncols=hists_toplot_mean.shape[-2], figsize=(hists_toplot_mean.shape[-2]*6, 6), sharey=True)
 
         for T_bays_i, T_bays in enumerate(T_space_bays09_filt):
+            if not np.all(np.isnan(hists_toplot_mean[T_bays_i])):
+                axes1[T_bays_i].bar(bins_center, hists_toplot_mean[T_bays_i], width=2.*np.pi/(angle_space.size-1), align='center', yerr=hists_toplot_std[T_bays_i])
+                axes1[T_bays_i].set_title('N=%d' % T_bays)
 
-            axes1[T_bays_i].bar(bins_center, hists_toplot_mean[M_i, sigmax_i, T_bays_i], width=2.*np.pi/(angle_space.size-1), align='center', yerr=hists_toplot_std[M_i, sigmax_i, T_bays_i])
-            axes1[T_bays_i].set_title('N=%d' % T_bays)
+                # axes1[T_{}]
 
-            # axes1[T_{}]
-
-            axes1[T_bays_i].set_xlim([bins_center[0]-np.pi/(angle_space.size-1), bins_center[-1]+np.pi/(angle_space.size-1)])
-            axes1[T_bays_i].set_ylim([0., 2.0])
-            axes1[T_bays_i].set_xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
-            axes1[T_bays_i].set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=16)
+                axes1[T_bays_i].set_xlim([bins_center[0]-np.pi/(angle_space.size-1), bins_center[-1]+np.pi/(angle_space.size-1)])
+                if yaxis_lim == 'target':
+                    axes1[T_bays_i].set_ylim([0., 2.0])
+                elif yaxis_lim == 'nontarget':
+                    axes1[T_bays_i].set_ylim([0., 0.3])
+                else:
+                    axes1[T_bays_i].set_ylim([0., np.nanmax(hists_toplot_mean + hists_toplot_std)*1.1])
+                axes1[T_bays_i].set_xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
+                axes1[T_bays_i].set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=16)
 
         f1.canvas.draw()
 
         if savefigs:
-            dataio.save_current_figure('memorycurves_hist_%s_paper_M%dsigmax%.2f_{label}_{unique_id}.pdf' % (title, M_space[M_i], sigmax_space[sigmax_i]))
+            dataio.save_current_figure('memorycurves_hist_%s_paper_M%dsigmax%.2f_{label}_{unique_id}.pdf' % (title, M, sigmax))
 
 
     #################################
@@ -327,19 +338,18 @@ def plots_memory_curves(data_pbs, generator_module=None):
         best_axis2_i_all = np.argmin(dist_diff_hist_target_bays09, axis=1)
 
         for axis1_i, best_axis2_i in enumerate(best_axis2_i_all):
-            hist_errors_targets_nontargets(best_axis2_i, axis1_i, hist_targets_mean, hist_targets_std, 'target')
+            hist_errors_targets_nontargets(hist_targets_mean[axis1_i, best_axis2_i], hist_targets_std[axis1_i, best_axis2_i], 'target', M=M_space[axis1_i], sigmax=sigmax_space[best_axis2_i] , yaxis_lim='target')
 
         # Best nontarget histograms
         best_axis2_i_all = np.argmin(dist_diff_hist_nontargets_bays09, axis=1)
 
         for axis1_i, best_axis2_i in enumerate(best_axis2_i_all):
-            hist_errors_targets_nontargets(best_axis2_i, axis1_i, hist_nontargets_mean, hist_nontargets_std, 'nontarget')
-
+            hist_errors_targets_nontargets(hist_nontargets_mean[axis1_i, best_axis2_i], hist_nontargets_std[axis1_i, best_axis2_i], 'nontarget', M=M_space[axis1_i], sigmax=sigmax_space[best_axis2_i], yaxis_lim='nontarget')
 
 
 
     all_args = data_pbs.loaded_data['args_list']
-    variables_to_save = ['gorgo11_experimental_precision', 'gorgo11_experimental_kappa', 'bays09_experimental_mixtures_mean_compatible']
+    variables_to_save = ['gorgo11_experimental_precision', 'gorgo11_experimental_kappa', 'bays09_experimental_mixtures_mean_compatible', 'T_space']
 
     if savedata:
         dataio.save_variables_default(locals(), variables_to_save)

@@ -33,7 +33,8 @@ def plots_memory_curves(data_pbs, generator_module=None):
 
     plot_pcolor_fit_precision_to_fisherinfo = False
     plot_selected_memory_curves = False
-    plot_best_memory_curves = True
+    plot_best_memory_curves = False
+    plot_subplots_persigmax = True
 
     colormap = None  # or 'cubehelix'
     plt.rcParams['font.size'] = 16
@@ -44,6 +45,7 @@ def plots_memory_curves(data_pbs, generator_module=None):
 
     result_all_precisions_mean = utils.nanmean(np.squeeze(data_pbs.dict_arrays['result_all_precisions']['results']), axis=-1)
     result_all_precisions_std = utils.nanstd(np.squeeze(data_pbs.dict_arrays['result_all_precisions']['results']), axis=-1)
+    # ratio_space, sigmax_space, T, 5
     result_em_fits_mean = utils.nanmean(np.squeeze(data_pbs.dict_arrays['result_em_fits']['results']), axis=-1)
     result_em_fits_std = utils.nanstd(np.squeeze(data_pbs.dict_arrays['result_em_fits']['results']), axis=-1)
     result_marginal_inv_fi_mean = utils.nanmean(np.squeeze(data_pbs.dict_arrays['result_marginal_inv_fi']['results']), axis=-1)
@@ -287,14 +289,74 @@ def plots_memory_curves(data_pbs, generator_module=None):
             # em_plot(best_axis2_i, axis1_i)
             em_plot_paper(best_axis2_i, axis1_i)
 
+    if plot_subplots_persigmax:
+        # Do subplots with ratio_conj on x, one plot per T and different figures per sigmax. Looks a bit like reloader_hierarchical_constantMMlower_maxlik_allresponses_221213.py
+
+        sigmax_selected_indices = np.array([np.argmin((sigmax_space - sigmax_select)**2.) for sigmax_select in [0.1, 0.2, 0.3, 0.4, 0.5]])
+
+        for sigmax_select_i in sigmax_selected_indices:
+            # two plots per sigmax.
+
+            f, axes = plt.subplots(nrows=T_space[-1], ncols=1, sharex=True, figsize=(10, 12))
+            # all_lines_bis = []
+
+            for T_i, T in enumerate(T_space):
+                # Plot EM mixtures
+                utils.plot_mean_std_area(ratioconj_space, result_em_fits_mean[:, sigmax_select_i, T_i, 1], result_em_fits_std[:, sigmax_select_i, T_i, 1], ax_handle=axes[T_i], linewidth=3, fmt='o-', markersize=5)
+                utils.plot_mean_std_area(ratioconj_space, result_em_fits_mean[:, sigmax_select_i, T_i, 2], result_em_fits_std[:, sigmax_select_i, T_i, 2], ax_handle=axes[T_i], linewidth=3, fmt='o-', markersize=5)
+                utils.plot_mean_std_area(ratioconj_space, result_em_fits_mean[:, sigmax_select_i, T_i, 3], result_em_fits_std[:, sigmax_select_i, T_i, 3], ax_handle=axes[T_i], linewidth=3, fmt='o-', markersize=5)
+
+                # ratio_MMlower_space, result_emfits_filtered[:, i, 1:4], 0*result_emfits_filtered[:, i, 1:4], ax_handle=axes[T_i], linewidth=2) #, color=all_lines[T_i].get_color())
+                # curr_lines = axes[T_i].plot(ratio_MMlower_space, results_precision_filtered[:, i], linewidth=2, color=all_lines[T_i].get_color())
+                axes[T_i].grid()
+                axes[T_i].set_xticks(np.linspace(0., 1.0, 5))
+                axes[T_i].set_xlim((0.0, 1.0))
+                # axes[T_i].set_yticks([])
+                # axes[T_i].set_ylim((np.min(result_emfits_filtered[:, i, 0]), result_emfits_filtered[max_ind, i, 0]*1.1))
+                axes[T_i].set_ylim((0.0, 1.05))
+                axes[T_i].locator_params(axis='y', tight=True, nbins=4)
+                # all_lines_bis.extend(curr_lines)
+
+            axes[0].set_title('Sigmax: %.3f' % sigmax_space[sigmax_select_i])
+            axes[-1].set_xlabel('Proportion of conjunctive units')
+
+            if savefigs:
+                dataio.save_current_figure('results_subplots_emmixtures_sigmax%.2f_{label}_global_{unique_id}.pdf' % sigmax_space[sigmax_select_i])
+
+            f, axes = plt.subplots(nrows=T_space[-1], ncols=1, sharex=True, figsize=(10, 12))
+
+            # Kappa kappa
+            for T_i, T in enumerate(T_space):
+
+                # Plot kappa mixture
+                utils.plot_mean_std_area(ratioconj_space, result_em_fits_mean[:, sigmax_select_i, T_i, 0], result_em_fits_std[:, sigmax_select_i, T_i, 0], ax_handle=axes[T_i], linewidth=3, fmt='o-', markersize=5)
+                # utils.plot_mean_std_area(ratio_MMlower_space, result_emfits_filtered[:, i, 0], 0*result_emfits_filtered[:, i, 0], ax_handle=axes[T_i], linewidth=2) #, color=all_lines[T_i].get_color())
+                # curr_lines = axes[T_i].plot(ratio_MMlower_space, results_precision_filtered[:, i], linewidth=2, color=all_lines[T_i].get_color())
+                axes[T_i].grid()
+                axes[T_i].set_xticks(np.linspace(0., 1.0, 5))
+                axes[T_i].set_xlim((0.0, 1.0))
+                # axes[T_i].set_yticks([])
+                # axes[T_i].set_ylim((np.min(result_emfits_filtered[:, i, 0]), result_emfits_filtered[max_ind, i, 0]*1.1))
+                # axes[T_i].set_ylim((0.0, 1.0))
+                axes[T_i].locator_params(axis='y', tight=True, nbins=4)
+                # all_lines_bis.extend(curr_lines)
+
+            axes[0].set_title('Sigmax: %.3f' % sigmax_space[sigmax_select_i])
+            axes[-1].set_xlabel('Proportion of conjunctive units')
+
+            # f.subplots_adjust(right=0.75)
+            # plt.figlegend(all_lines_bis, ['%d item' % i + 's'*(i>1) for i in xrange(1, T+1)], loc='right', bbox_to_anchor=(1.0, 0.5))
+
+            if savefigs:
+                dataio.save_current_figure('results_subplots_emkappa_sigmax%.2f_{label}_global_{unique_id}.pdf' % sigmax_space[sigmax_select_i])
 
 
 
     all_args = data_pbs.loaded_data['args_list']
-    variables_to_save = ['result_all_precisions_mean', 'result_em_fits_mean', 'result_marginal_inv_fi_mean', 'result_all_precisions_std', 'result_em_fits_std', 'result_marginal_inv_fi_std', 'result_marginal_fi_mean', 'result_marginal_fi_std', 'ratioconj_space', 'memory_experimental_precision', 'memory_experimental_kappa', 'sigmax_space', 'T_space', 'all_args']
+    variables_to_save = ['memory_experimental_precision', 'memory_experimental_kappa', 'bays09_experimental_mixtures_mean_compatible']
 
     if savedata:
-        dataio.save_variables(variables_to_save, locals())
+        dataio.save_variables_default(locals(), variables_to_save)
 
         dataio.make_link_output_to_dropbox(dropbox_current_experiment_folder='memory_curves')
 

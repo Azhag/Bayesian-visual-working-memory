@@ -16,8 +16,8 @@ import inspect
 parameters_entryscript = dict(action_to_do='launcher_do_generate_submit_pbs_from_param_files', output_directory='.')
 submit_jobs = True
 parameter_generation = 'grid'
-#submit_cmd = 'qsub'
-submit_cmd = 'sbatch'
+submit_cmd = 'qsub'
+# submit_cmd = 'sbatch'
 
 num_repetitions = 5
 # num_repetitions = 10
@@ -32,6 +32,7 @@ pbs_submission_infos = dict(description='Fit Memory curves using the new code (o
                                                code_type='mixed',
                                                output_directory='.',
                                                ratio_conj=0.5,
+                                               subaction='collect_responses',
                                                M=M,
                                                sigmax=0.1,
                                                N=300,
@@ -59,7 +60,8 @@ pbs_submission_infos = dict(description='Fit Memory curves using the new code (o
 
 
 sigmax_range      =   dict(range=np.linspace(0.01, 0.6, 105.), dtype=float)
-ratioconj_range   =   dict(range=np.arange(10, 15)**2./float(M), dtype=float)
+# ratioconj_range   =   dict(range=np.arange(10, 15)**2./float(M), dtype=float)
+ratioconj_range   =   dict(range=np.arange(0, 10)**2./float(M), dtype=float)
 
 dict_parameters_range =   dict(ratio_conj=ratioconj_range, sigmax=sigmax_range)
 
