@@ -505,7 +505,7 @@ def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorba
 
 
 
-def contourf_interpolate_data(all_points, data, xlabel='', ylabel='', title='', interpolation_numpoints=200, interpolation_method='linear', mask_when_nearest=True, contour_numlevels=20, show_scatter=True, show_colorbar=True, fignum=None, mask_x_condition=None, mask_y_condition=None):
+def contourf_interpolate_data(all_points, data, xlabel='', ylabel='', title='', interpolation_numpoints=200, interpolation_method='linear', mask_when_nearest=True, contour_numlevels=20, show_scatter=True, show_colorbar=True, fignum=None, ax_handle=None, mask_x_condition=None, mask_y_condition=None, log_scale=False):
     '''
         Take (x,y) and z tuples, construct an interpolation with them and plot them nicely.
 
@@ -514,6 +514,8 @@ def contourf_interpolate_data(all_points, data, xlabel='', ylabel='', title='', 
 
         mask_when_nearest: trick to hide points outside the convex hull of points even when using 'nearest' method
     '''
+
+    assert all_points.shape[1] == 2, "Give a Nx2 matrix for all_points"
 
     # Construct the interpolation
     param1_space_int = np.linspace(all_points[:, 0].min(), all_points[:, 0].max(), interpolation_numpoints)
@@ -537,21 +539,98 @@ def contourf_interpolate_data(all_points, data, xlabel='', ylabel='', title='', 
         data_interpol[:, mask_y_condition(param2_space_int)] = 0.0
 
     # Plot it
-    f1 = plt.figure(fignum)
-    ax1 = f1.add_subplot(111)
-    cs = ax1.contourf(param1_space_int, param2_space_int, data_interpol, contour_numlevels)   # cmap=plt.cm.jet
-    ax1.set_xlabel(xlabel)
-    ax1.set_ylabel(ylabel)
-    ax1.set_title(title)
+    if ax_handle is None:
+        f = plt.figure(fignum)
+        ax_handle = f.add_subplot(111)
+    else:
+        f = ax_handle.get_figure()
+        f.clf()
+        ax_handle = f.add_subplot(111)
+
+    if log_scale:
+        cs = ax_handle.contourf(param1_space_int, param2_space_int, data_interpol, contour_numlevels, locator=plttic.LogLocator())   # cmap=plt.cm.jet
+    else:
+        cs = ax_handle.contourf(param1_space_int, param2_space_int, data_interpol, contour_numlevels)   # cmap=plt.cm.jet
+    ax_handle.set_xlabel(xlabel)
+    ax_handle.set_ylabel(ylabel)
+    ax_handle.set_title(title)
 
     if show_scatter:
-        ax1.scatter(all_points[:, 0], all_points[:, 1], marker='o', c='b', s=5)
+        ax_handle.scatter(all_points[:, 0], all_points[:, 1], marker='o', c='b', s=5)
 
-    ax1.set_xlim(param1_space_int.min(), param1_space_int.max())
-    ax1.set_ylim(param2_space_int.min(), param2_space_int.max())
+    ax_handle.set_xlim(param1_space_int.min(), param1_space_int.max())
+    ax_handle.set_ylim(param2_space_int.min(), param2_space_int.max())
 
     if show_colorbar:
-        f1.colorbar(cs)
+        f.colorbar(cs)
+
+    return ax_handle
+
+
+def contour3d_interpolate_data(all_points, data, xlabel='', ylabel='', title='', interpolation_numpoints=200j, interpolation_method='linear', mask_when_nearest=True, contour_numlevels=20, show_scatter=True, show_colorbar=True, fignum=None, ax_handle=None, mask_x_condition=None, mask_y_condition=None, mask_z_condition=None, log_scale=False, use_mayavi=True):
+    '''
+        Take (x,y,z) and f tuples, construct an interpolation with them and plot them nicely.
+
+        all_points: Nx3
+        data:       Nx1
+
+        mask_when_nearest: trick to hide points outside the convex hull of points even when using 'nearest' method
+    '''
+
+    # Construct the interpolation
+    X, Y, Z = np.mgrid[all_points[:, 0].min():all_points[:, 0].max():interpolation_numpoints, all_points[:, 1].min():all_points[:, 1].max():interpolation_numpoints, all_points[:, 2].min():all_points[:, 2].max():interpolation_numpoints]
+    data_interpol = spint.griddata(all_points, data, (X, Y, Z), method=interpolation_method)
+
+    # if interpolation_method == 'nearest' and mask_when_nearest:
+    #     # Let's mask the points outside of the convex hull
+
+    #     # The linear interpolation will have nan's on points outside of the convex hull of the all_points
+    #     data_interpol_lin = spint.griddata(all_points, data, (param1_space_int[None, :], param2_space_int[:, None]), method='linear')
+
+    #     # Mask
+    #     data_interpol[np.isnan(data_interpol_lin)] = np.nan
+
+    # # Mask it based on some conditions
+    # if not mask_x_condition is None:
+    #     data_interpol[mask_x_condition(param1_space_int), :] = 0.0
+    # if not mask_y_condition is None:
+    #     data_interpol[:, mask_y_condition(param2_space_int)] = 0.0
+
+    # Plot it
+    if use_mayavi:
+        try:
+            import mayavi.mlab as mlab3d
+        except:
+            # Faaailed
+            use_mayavi = False
+
+    if use_mayavi:
+
+        # Normalise stuff
+        X_norm = X/X.max()
+        Y_norm = Y/Y.max()
+        Z_norm = Z/Z.max()
+        all_points_norm = all_points/np.max(all_points, axis=0)
+
+        mlab3d.figure(bgcolor=(1.0, 1.0, 1.0))
+        # mlab3d.figure()
+
+        # TODO Try to do a dynamic contour2D on a plan!
+
+        # mlab3d.contour3d(X_norm, Y_norm, Z_norm, np.log(data_interpol), contours=contour_numlevels, opacity=0.5)
+        # mlab3d.axes(color=(0.0, 0.0, 0.0))
+
+        # if show_scatter:
+        mlab3d.points3d(all_points_norm[:, 0], all_points_norm[:, 1], all_points_norm[:, 2], np.log(fitness), scale_mode='none', scale_factor=0.03)
+
+        if show_colorbar:
+            mlab3d.colorbar(title='', orientation='vertical', label_fmt='%.2f', nb_labels=5)
+
+        # mlab3d.outline(color=(0., 0., 0.))
+
+        mlab3d.show()
+    else:
+        raise NotImplementedError('matplotlib 3d has no contour3d function...')
 
 
 def pcolor_square_grid(data, nb_to_plot=-1):
@@ -695,6 +774,31 @@ def plot_torus(theta, gamma, Z, weight_deform=0., torus_radius=5., tube_radius=3
         # plt.show()
 
 
+def scatter3d(x, y, z, s=20, c='b', title='', xlabel='', ylabel='', zlabel=''):
+    '''
+        Plot a scatter of points in 3d
+
+        Input:
+            X, Y, Z
+            S: either scalar size of points or array of sizes.
+            C: either string color, or mappable array
+    '''
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    ax.scatter(x, y, z, s=s, c=c)
+
+    ax.set_title(title)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.set_zlabel(zlabel)
+
+    fig.canvas.draw()
+
+    return ax
+
+
 def scatter3d_torus(theta, gamma, torus_radius=5., tube_radius=3.0, try_mayavi=True):
     '''
         Plot points on a torus.
@@ -730,6 +834,8 @@ def scatter3d_torus(theta, gamma, torus_radius=5., tube_radius=3.0, try_mayavi=T
         ax.scatter(x, y, z)
 
         fig.canvas.draw()
+
+        return ax
 
 
 def plot_powerlaw_fit(xdata, ydata, amp, index, yerr=None, fignum=None):

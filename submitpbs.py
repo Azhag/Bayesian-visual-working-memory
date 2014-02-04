@@ -967,30 +967,35 @@ def test_cmaes_optimisation():
     '''
 
     run_label='test_cmaes'
+    # dict_parameters_range =dict(M=dict(low=5, high=800, x0=100, dtype=int), sigmax=dict(low=0.01, high=1.0, dtype=float), ratio_conj=dict(low=0.0, high=1.0, dtype=float))
+    # dict_par_range =dict(sigmax=dict(low=0.01, high=1.0, dtype=float), ratio_conj=dict(low=0.0, high=1.0, dtype=float))
+    dict_par_range =dict(M=dict(low=5, high=800, dtype=int), ratio_conj=dict(low=0.0, high=1.0, dtype=float))
+
     submission_parameters_dict = dict(
         run_label=run_label,
         submit_jobs = True,
-        dict_parameters_range =
-            dict(M=dict(low=5, high=800, x0=100, dtype=int),
-                sigmax=dict(low=0.01, high=1.0, dtype=float),
-                ratio_conj=dict(low=0.0, high=1.0, dtype=float)),
+        dict_parameters_range = dict_par_range,
         pbs_submission_infos = dict(description='Testing CMA-ES optim',
                             command='python /nfs/home2/lmatthey/Documents/work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py',
                             other_options=dict(action_to_do='launcher_do_memory_curve_marginal_fi',
                                                inference_method='max_lik',
                                                T=1,
-                                               M=100,
-                                               N=200,
+                                               M=200,
+                                               N=300,
+                                               num_samples=500,
+                                               selection_method='last',
+                                               num_repetitions=5,
+                                               sigmax=0.2,
                                                sigmay=0.0001,
                                                code_type='mixed',
                                                output_directory='.',
                                                autoset_parameters=None,
                                                label=run_label,
-                                               session_id='pbs1',
+                                               session_id='emkappa',
                                                experiment_data_dir='/nfs/home2/lmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/experimental_data',
-                                               result_computation='distemfits'
+                                               result_computation='distemkappa'
                                                ),
-                            walltime='1:00:00',
+                            walltime='00:08:00',
                             memory='2gb',
                             simul_out_dir=os.path.join(os.getcwd(), run_label.format(**locals())),
                             pbs_submit_cmd='sbatch',
@@ -998,18 +1003,18 @@ def test_cmaes_optimisation():
     )
 
     # CMA/ES Parameters!
-    # submission_parameters_dict['cma_population_size'] = 30
+    submission_parameters_dict['cma_population_size'] = 30
     submission_parameters_dict['cma_sigma0'] = 1.0
     submission_parameters_dict['cma_logger_do_plot'] = True
     submission_parameters_dict['cma_use_auto_scaling'] = True
+    submission_parameters_dict['cma_use_bounds'] = True
 
-    # submission_parameters_dict['cma_iter_callback_function_infos'] = dict(function=(), parameters=())
 
     # result_callback_function to track best parameter
-    best_parameters_seen = dict(result=np.inf, job_name='', parameters=None)
+    best_parameters_seen = dict(result=None, job_name='', parameters=None)
     def best_parameters_callback(job, parameters=None):
         best_parameters_seen = parameters['best_parameters_seen']
-        if job.get_result() <= best_parameters_seen['result']:
+        if best_parameters_seen['result'] is None or job.get_result() <= best_parameters_seen['result'] and not np.isnan(job.get_result()):
             # New best parameter!
             best_parameters_seen['result'] = job.get_result()
             best_parameters_seen['job_name'] = job.job_name
@@ -1018,12 +1023,123 @@ def test_cmaes_optimisation():
             print "\n\n>>>>>> Found new best parameters: \n%s\n\n" % best_parameters_seen
     submission_parameters_dict['result_callback_function_infos'] = dict(function=best_parameters_callback, parameters=dict(best_parameters_seen=best_parameters_seen))
 
+    # Callback after each iteration, let's save all candidates/fitness, and do a contour plot
+    data_io = dataio.DataIO(label='test_cmaes', output_folder='.')
+    cma_iter_parameters = dict(ax=None, candidates=[], fitness=[], dataio=data_io)
+    def cma_iter_plot_contourf_candidates(all_variables, parameters=None):
+        candidates = parameters['candidates']
+        fitness = parameters['fitness']
+        # Take candidates and fitness and append them
+        candidates.extend(all_variables['parameters_candidates_array'])
+        fitness.extend(all_variables['fitness_results'].tolist())
+
+        # Do a plot
+        parameters['ax'] = utils.contourf_interpolate_data(np.array(candidates), np.array(fitness), xlabel='Ratio_conj', ylabel='sigma x', title='Optimisation landscape', interpolation_numpoints=200, interpolation_method='linear', ax_handle=parameters['ax'], log_scale=True)
+
+        if parameters['dataio'] is not None:
+            parameters['dataio'].save_variables_default(locals(), ['candidates', 'fitness'])
+            parameters['dataio'].save_current_figure('cmaes_optim_landscape_{label}_{unique_id}.pdf')
+
+    submission_parameters_dict['cma_iter_callback_function_infos'] = dict(function=cma_iter_plot_contourf_candidates, parameters=cma_iter_parameters)
+
 
     # Create a SubmitPBS
     submit_pbs = SubmitPBS(pbs_submission_infos=submission_parameters_dict['pbs_submission_infos'], debug=True)
 
     # Run the CMA/ES optimization.
-    #  Here we optimize for Bays09 fit, but using Max_lik to speed things up
+    #  Here we optimize for Bays09 kappa fit for T=1, using Max_lik to speed things up
+    submit_pbs.perform_cma_es_optimization(submission_parameters_dict)
+
+
+def test_cmaes_optimisation_3d():
+    '''
+        Test for perform_cma_es_optimization
+    '''
+
+    run_label='test_cmaes3d'
+    dict_par_range =dict(M=dict(low=10, high=500, dtype=int), ratio_conj=dict(low=0.0, high=1.0, dtype=float), sigmax=dict(low=0.0001, high=2.0, dtype=float))
+
+    submission_parameters_dict = dict(
+        run_label=run_label,
+        submit_jobs = True,
+        dict_parameters_range = dict_par_range,
+        pbs_submission_infos = dict(description='Testing CMA-ES optim',
+                            command='python /nfs/home2/lmatthey/Documents/work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py',
+                            other_options=dict(action_to_do='launcher_do_memory_curve_marginal_fi',
+                                               inference_method='max_lik',
+                                               T=1,
+                                               M=200,
+                                               N=300,
+                                               num_samples=500,
+                                               selection_method='last',
+                                               num_repetitions=5,
+                                               sigmax=0.2,
+                                               sigmay=0.0001,
+                                               code_type='mixed',
+                                               output_directory='.',
+                                               autoset_parameters=None,
+                                               label=run_label,
+                                               session_id='emkappa',
+                                               experiment_data_dir='/nfs/home2/lmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/experimental_data',
+                                               result_computation='distemkappa'
+                                               ),
+                            walltime='00:15:00',
+                            memory='2gb',
+                            simul_out_dir=os.path.join(os.getcwd(), run_label.format(**locals())),
+                            pbs_submit_cmd='sbatch',
+                            submit_label=run_label)
+    )
+
+    # CMA/ES Parameters!
+    submission_parameters_dict['cma_population_size'] = 30
+    submission_parameters_dict['cma_sigma0'] = 1.0
+    submission_parameters_dict['cma_logger_do_plot'] = True
+    submission_parameters_dict['cma_use_auto_scaling'] = True
+    submission_parameters_dict['cma_use_bounds'] = True
+
+
+    # result_callback_function to track best parameter
+    best_parameters_seen = dict(result=None, job_name='', parameters=None)
+    def best_parameters_callback(job, parameters=None):
+        best_parameters_seen = parameters['best_parameters_seen']
+        if best_parameters_seen['result'] is None or job.get_result() <= best_parameters_seen['result'] and not np.isnan(job.get_result()):
+            # New best parameter!
+            best_parameters_seen['result'] = job.get_result()
+            best_parameters_seen['job_name'] = job.job_name
+            best_parameters_seen['parameters'] = job.experiment_parameters
+
+            print "\n\n>>>>>> Found new best parameters: \n%s\n\n" % best_parameters_seen
+    submission_parameters_dict['result_callback_function_infos'] = dict(function=best_parameters_callback, parameters=dict(best_parameters_seen=best_parameters_seen))
+
+    # Callback after each iteration, let's save all candidates/fitness, and do a contour plot
+    data_io = dataio.DataIO(label=run_label, output_folder='.')
+    cma_iter_parameters = dict(ax=None, candidates=[], fitness=[], dataio=data_io)
+    def cma_iter_plot_contourf_candidates(all_variables, parameters=None):
+        candidates = parameters['candidates']
+        fitness = parameters['fitness']
+
+        # Take candidates and fitness and append them
+        candidates.extend(all_variables['parameters_candidates_array'])
+        fitness.extend(all_variables['fitness_results'].tolist())
+
+        candidates_arr = np.array(candidates)
+        fitness_arr = np.array(fitness)
+
+        # Do a plot
+        utils.scatter3d(candidates_arr[:, 0], candidates_arr[:, 1], candidates_arr[:, 2], c=np.log(fitness_arr), xlabel=all_variables['parameter_names_sorted'][0], ylabel=all_variables['parameter_names_sorted'][1], zlabel=all_variables['parameter_names_sorted'][2])
+
+        if parameters['dataio'] is not None:
+            parameters['dataio'].save_variables_default(locals(), ['candidates', 'fitness'])
+            parameters['dataio'].save_current_figure('cmaes_optim_landscape_scatter3d_{label}_{unique_id}.pdf')
+
+    submission_parameters_dict['cma_iter_callback_function_infos'] = dict(function=cma_iter_plot_contourf_candidates, parameters=cma_iter_parameters)
+
+
+    # Create a SubmitPBS
+    submit_pbs = SubmitPBS(pbs_submission_infos=submission_parameters_dict['pbs_submission_infos'], debug=True)
+
+    # Run the CMA/ES optimization.
+    #  Here we optimize for Bays09 kappa fit for T=1, using Max_lik to speed things up
     submit_pbs.perform_cma_es_optimization(submission_parameters_dict)
 
 
@@ -1054,7 +1170,7 @@ if __name__ == '__main__':
 
     # Now test the funky CMA-ES optimisation
     if True:
-        test_cmaes_optimisation()
+        test_cmaes_optimisation_3d()
 
 
 
