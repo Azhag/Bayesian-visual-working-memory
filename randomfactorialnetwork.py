@@ -1454,7 +1454,7 @@ class RandomFactorialNetwork():
         else:
 
             feat_scale = feature_parameters['scale']
-            feat_ratio = feature_parameters['ratio']
+            feat_ratio = -feature_parameters['ratio']
 
             if 'nb_feature_centers' in feature_parameters:
                 nb_feature_centers = feature_parameters['nb_feature_centers']

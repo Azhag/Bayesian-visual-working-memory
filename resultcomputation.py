@@ -117,6 +117,44 @@ class ResultComputation():
         return np.nansum(result_dist_bays09)
 
 
+    def compute_result_distemkappa(self, all_variables):
+        '''
+            Result is the distance (sum squared) to experimental data kappa
+
+            Assume that:
+                - result_em_fits exists. Does an average over repetitions_axis and sums over all others.
+        '''
+
+        variables_required = ['result_em_fits', 'all_parameters', 'T_space']
+        repetitions_axis = all_variables.get('repetitions_axis', -1)
+
+        if not set(variables_required) <= set(all_variables.keys()):
+            print "Error, missing variables for compute_result_distemfits: \nRequired: %s\nPresent%s" % (variables_required, all_variables.keys())
+            return np.nan
+
+
+        # Create output variables
+        result_dist_bays09 = np.nan*np.empty((all_variables['T_space'].size, 4))
+
+        ### Result computation
+        data_bays2009 = load_experimental_data.load_data_bays2009(fit_mixture_model=True)
+        bays09_experimental_mixtures_mean = data_bays2009['em_fits_nitems_arrays']['mean']
+        bays09_T_space = np.unique(data_bays2009['n_items'])
+
+        for repet_i in xrange(all_variables['all_parameters']['num_repetitions']):
+            for T_i, T in enumerate(all_variables['T_space']):
+                if T in bays09_T_space:
+                    result_dist_bays09[T_i, :] = utils.nanmean((bays09_experimental_mixtures_mean[0, bays09_T_space == T].flatten() - all_variables['result_em_fits'][T_i, 0])**2., axis=repetitions_axis)
+
+                    print bays09_experimental_mixtures_mean[0, bays09_T_space == T].flatten()
+                    print all_variables['result_em_fits'][T_i, 0]
+
+
+        print result_dist_bays09
+
+        # return the overall distance, over all parameters and number of items
+        return np.nansum(result_dist_bays09)
+
 
 ######################################################
 ## Unit tests

@@ -41,7 +41,7 @@ class JobWrapper(object):
         self.job_state = 'idle'
 
         if experiment_parameters.get('result_computation', '') != '':
-            self.result_computation = resultcomputation.ResultComputation(experiment_parameters['result_computation'])
+            self.result_computation = resultcomputation.ResultComputation(experiment_parameters['result_computation'], debug=debug)
 
             self.result_filename = self.create_result_filename()
         else:
@@ -62,9 +62,9 @@ class JobWrapper(object):
             If the parameters are the same, should be the same job anyway.
         '''
 
-        print "=== Creating job name, using this dictionary:"
-        print self.experiment_parameters
-        print "==="
+        # print "=== Creating job name, using this dictionary:"
+        # print self.experiment_parameters
+        # print "==="
 
         if self.experiment_parameters.get('job_name', ''):
             return self.experiment_parameters['job_name']

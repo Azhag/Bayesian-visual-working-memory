@@ -159,6 +159,26 @@ def pprint_dict(input_dict, key_sorted=None):
 
     return ', '.join(["%s %s" % (key, input_dict[key]) for key in key_sorted])
 
+
+def convert_deltatime_str_to_seconds(deltatime_str):
+    '''
+        Take a string representing a time interval and convert it in seconds.
+
+        Used for PBS, format like:
+        Hours:Minutes:Seconds
+    '''
+
+    time_splitted_rev = np.array([float(x) for x in deltatime_str.split(":")[::-1]])
+
+    assert time_splitted_rev.size <= 3, "not supported for strings different than Hours:Minutes:Seconds"
+
+    time_mult = 60**np.arange(time_splitted_rev.size)
+
+    return np.sum(time_mult*time_splitted_rev)
+
+
+
+
 ########################## FILE I/O #################################
 
 def unique_filename(prefix=None, suffix=None, unique_id=None, return_id=False):

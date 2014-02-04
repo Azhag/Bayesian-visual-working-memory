@@ -15,9 +15,12 @@ import subprocess
 import progress
 import functools
 import time
+import sys
 import getpass
+import compileall
 
 import utils
+import dataio
 
 import jobwrapper
 
@@ -99,6 +102,9 @@ class SubmitPBS():
 
         if self.debug:
             print "SubmitPBS initialised:\n %s, %s, %s, %s" % (self.working_directory, self.scripts_dir, self.output_dir, self.pbs_options)
+
+        # Force pre-compilation of everything
+        compileall.compile_dir(os.environ['WORKDIR'], quiet=True)
 
 
     def getEnvCommandString(self, command="export", env_keys_to_capture=frozenset(["PATH", "PYTHONPATH", "LD_LIBRARY_PATH"])):
@@ -319,7 +325,7 @@ class SubmitPBS():
 
         # Submit!
         if self.debug:
-            print "\n-> Submitting job " + new_script_filename + "\n"
+            print "-> Submitting job " + new_script_filename + "\n"
 
         # Change to the PBS output directory first
         os.chdir(self.output_dir)
@@ -550,7 +556,8 @@ class SubmitPBS():
         cma_use_auto_scaling = submission_parameters_dict.get('cma_use_auto_scaling', True)
         cma_iter_callback_function_infos = submission_parameters_dict.get('cma_iter_callback_function_infos', None)
         cma_logger_do_plot = submission_parameters_dict.get('cma_logger_do_plot', False)
-        cma_nan_replacement = submission_parameters_dict.get('cma_nan_replacement', 100000.)
+        cma_nan_replacement = submission_parameters_dict.get('cma_nan_replacement', 10000000.)
+        cma_use_bounds = submission_parameters_dict.get('cma_use_bounds', False)
 
         # Extract the parameters ranges
         dict_parameters_range = submission_parameters_dict['dict_parameters_range']
@@ -563,7 +570,7 @@ class SubmitPBS():
                     if 'x0' not in curr_param:
                         curr_param['x0'] = (curr_param['high'] - curr_param['low'])/2.
                     if 'scaling' not in curr_param:
-                        curr_param['scaling'] = (curr_param['high'] - curr_param['low'])/(3.*cma_sigma0)
+                        curr_param['scaling'] = (curr_param['high'] - curr_param['low'])/(2.*cma_sigma0)
                 else:
                     raise ValueError('No x0/scaling and high/low for variable %s, provide either one' % curr_param)
 
@@ -574,8 +581,12 @@ class SubmitPBS():
         cma_options = dict()
         if cma_population_size is not None:
             cma_options['popsize'] = cma_population_size
+            print "forcing popsize: ", cma_population_size
         if cma_use_auto_scaling and not np.allclose(parameters_scalings, np.ones(len(parameter_names_sorted))):
             cma_options['scaling_of_variables'] = parameters_scalings
+            print "forcing scaling: ", parameters_scalings
+        if cma_use_bounds:
+            cma_options['bounds'] = [[dict_parameters_range[param_key][bound_] for param_key in parameter_names_sorted] for bound_ in ('low', 'high')]
 
         ### Instantiate CMA ES object.
         cma_es = cma.CMAEvolutionStrategy(self.cma_init_parameters(dict_parameters_range, parameter_names_sorted), cma_sigma0, inopts = cma_options)
@@ -603,6 +614,12 @@ class SubmitPBS():
 
                 wrong_parameters_indices = self.check_parameters_candidate(parameters_candidates_dict, parameter_names_sorted, dict_parameters_range)
 
+            if self.debug:
+                print "> Submitting minibatch (%d jobs)." % len(parameters_candidates_array)
+                for curr_param_dict_i, curr_param_dict in enumerate(parameters_candidates_dict):
+                    print " - {params}".format(params=utils.pprint_dict(curr_param_dict, key_sorted=parameter_names_sorted))
+
+
             ## Evaluate the parameters fitness, submit them!!
             fitness_results = self.submit_minibatch_jobswrapper(parameters_candidates_dict, submission_parameters_dict)
 
@@ -620,7 +637,7 @@ class SubmitPBS():
 
             ## Do something after each CMA-ES iteration if desired
             if cma_iter_callback_function_infos is not None:
-                cma_iter_callback_function_infos['function'](locals(), parameters=result_callback_function_infos['parameters'])
+                cma_iter_callback_function_infos['function'](locals(), parameters=cma_iter_callback_function_infos['parameters'])
 
             ## Display and all
             if self.debug:
@@ -725,7 +742,7 @@ class SubmitPBS():
         '''
 
         pbs_submission_infos = submission_parameters_dict.get('pbs_submission_infos', None)
-        sleeping_period = submission_parameters_dict.get('sleeping_period', dict(min=10, max=20))
+        sleeping_period = submission_parameters_dict.get('sleeping_period', dict(min=60, max=180))
         submit_jobs = submission_parameters_dict.get('submit_jobs', False)
         result_callback_function_infos = submission_parameters_dict.get('result_callback_function_infos', None)
 
@@ -741,7 +758,7 @@ class SubmitPBS():
             job_submission_parameters = self.prepare_job_parameters(current_parameters, pbs_submission_infos)
 
             # Create job
-            new_job = jobwrapper.JobWrapper(job_submission_parameters, session_id=job_submission_parameters['session_id'])
+            new_job = jobwrapper.JobWrapper(job_submission_parameters, session_id=job_submission_parameters['session_id'], debug=False)
 
             # Add to our Job tracker
             self.track_new_job(new_job, current_parameters)
@@ -750,8 +767,11 @@ class SubmitPBS():
             # Submit it. When this call returns, it's been submitted.
             self.submit_jobwrapper(new_job, pbs_submission_infos, submit=submit_jobs)
 
+        if self.debug:
+            print "-> submitted minibatch, %d jobs. %s computation" % (len(parameters_to_submit), job_submission_parameters.get('result_computation', 'no'))
+
         ## Wait for Jobs to be completed (could do another version where you send multiple jobs before waiting)
-        self.wait_all_jobs_collect_results(result_callback_function_infos=result_callback_function_infos, sleeping_period=sleeping_period, completion_progress=completed_parameters_progress)
+        self.wait_all_jobs_collect_results(result_callback_function_infos=result_callback_function_infos, sleeping_period=sleeping_period, completion_progress=completed_parameters_progress, pbs_submission_infos=pbs_submission_infos)
 
         ## Now return the list of results, in the same ordering
         result_outputs = np.array([self.jobs_tracking_dict[job_name]['result'] for job_name in job_names_ordered])
@@ -784,7 +804,7 @@ class SubmitPBS():
             dict[job_name] -> dict(status=['waiting', 'submitted', 'completed'], result=None, jobwrapper=None, job_submission_parameters=None, parameters=None)
         '''
 
-        self.jobs_tracking_dict[job.job_name] = dict(status='waiting', job=job, job_submission_parameters=job.experiment_parameters, result=None, parameters=parameters)
+        self.jobs_tracking_dict[job.job_name] = dict(status='waiting', job=job, job_submission_parameters=job.experiment_parameters, result=None, parameters=parameters, time_started=None)
         self.result_tracking_dict[tuple(parameters.items())] = dict(jobname=job.job_name, result=None)
 
 
@@ -801,7 +821,7 @@ class SubmitPBS():
         self.result_tracking_dict[tuple(self.jobs_tracking_dict[job_name]['parameters'].items())]['result'] = self.jobs_tracking_dict[job_name]['result']
 
 
-    def submit_jobwrapper(self, job, pbs_submission_infos, submit=False):
+    def submit_jobwrapper(self, job, pbs_submission_infos, submit=False, debug_overwrite=False):
         '''
             Take a JobWrapper and submits it.
         '''
@@ -812,14 +832,18 @@ class SubmitPBS():
         pbs_submission_infos_bis = pbs_submission_infos.copy()
         pbs_submission_infos_bis['other_options'] = job.experiment_parameters
 
+        debug_pre = self.debug
+        self.debug = debug_overwrite
         # This may block, depending on pbs_submission_infos (e.g. if limit on concurrent jobs is set)
         self.create_submit_job_parameters(pbs_submission_infos_bis, submit=submit)
+        self.debug = debug_pre
 
         job.flag_job_submitted()
         self.jobs_tracking_dict[job.job_name]['status'] = 'submitted'
+        self.jobs_tracking_dict[job.job_name]['time_started'] = time.time()
 
 
-    def wait_all_jobs_collect_results(self, result_callback_function_infos=None, sleeping_period=dict(min=10, max=60), completion_progress=None):
+    def wait_all_jobs_collect_results(self, result_callback_function_infos=None, sleeping_period=dict(min=60, max=180), completion_progress=None, pbs_submission_infos=None):
         '''
             Wait for all Jobs to be completed, and collect the results when they are
             Optionally accepts a callback method on finding a result.
@@ -834,21 +858,33 @@ class SubmitPBS():
             if self.jobs_tracking_dict[current_job_name]['status'] == 'submitted':
 
                 while not self.jobs_tracking_dict[current_job_name]['job'].check_completed():
+                    # Check how long we've waited
+                    waited_time = time.time() - self.jobs_tracking_dict[current_job_name]['time_started']
+                    if (waited_time > utils.convert_deltatime_str_to_seconds(self.pbs_options['walltime'])*1.2):
+                        # Waited too long...
+                        # resubmit it!
+                        if self.debug:
+                            print "Waited more than walltime for job %s, resubmitting it" % current_job_name
+                        self.submit_jobwrapper(self.jobs_tracking_dict[current_job_name]['job'], pbs_submission_infos, submit=True)
+
                     # Sleep for some time
                     # Decide for how long to sleep
                     sleep_time_rnd = np.random.randint(sleeping_period['min'], sleeping_period['max'])
 
                     if self.debug:
-                        print "Waiting on Job %s, %d sec..." % (current_job_name, sleep_time_rnd)
+                        status_str = "Waiting on Job %s, waited %d/%d. Sleeping for %d sec now." % (current_job_name, waited_time, utils.convert_deltatime_str_to_seconds(self.pbs_options['walltime'])*1.2, sleep_time_rnd)
 
                         if completion_progress is not None:
                             # Also add how much time to completion
-                            print "%.2f%%, %s left - %s" % (completion_progress.percentage(), completion_progress.time_remaining_str(), completion_progress.eta_str())
+                            status_str += " %.2f%%, %s left - %s" % (completion_progress.percentage(), completion_progress.time_remaining_str(), completion_progress.eta_str())
+
+                        status_str += '\r'
+                        sys.stdout.write(status_str)
+                        sys.stdout.flush()
 
                     # Sleep for a bit
                     time.sleep(sleep_time_rnd)
 
-                    # TODO: Should add resubmission step
 
                 # Get the result
                 self.complete_job(current_job_name)
