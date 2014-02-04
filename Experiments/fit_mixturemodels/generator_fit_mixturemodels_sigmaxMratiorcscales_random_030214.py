@@ -16,15 +16,15 @@ parameters_entryscript = dict(action_to_do='launcher_do_generate_submit_pbs_from
 submit_jobs = True
 
 parameter_generation = 'random'  ## !!!!!! RANDOM HERE   !!!!!
-num_random_samples = 1000
+num_random_samples = 2000
 limit_max_queued_jobs = 200
 
-# submit_cmd = 'qsub'
-submit_cmd = 'sbatch'
+submit_cmd = 'qsub'
+# submit_cmd = 'sbatch'
 
 num_repetitions = 3
 
-run_label = 'fit_mixturemodels_sigmaxMratiorcscales_random_repetitions{num_repetitions}_140114'
+run_label = 'fit_mixturemodels_sigmaxMratiorcscales_random_repetitions{num_repetitions}_030214'
 
 pbs_submission_infos = dict(description='Runs the model for 1..T items. Computes precision, Fisher information, fits the mixture model, and compare the mixture model fits to the experimental data (Bays09 and Gorgo11 here). Also stores all responses. Meant to run random sampling for a long while!',
                             command='python /nfs/home2/lmatthey/Documents/work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py',
@@ -48,7 +48,6 @@ pbs_submission_infos = dict(description='Runs the model for 1..T items. Computes
                                                specific_stimuli_random_centers=None,
                                                stimuli_generation='random',
                                                stimuli_generation_recall='random',
-                                               autoset_parameters=None,
                                                collect_responses=None,
                                                label=run_label,
                                                experiment_data_dir='/nfs/home2/lmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/experimental_data',
@@ -64,8 +63,10 @@ pbs_submission_infos = dict(description='Runs the model for 1..T items. Computes
 sigmax_range      =   dict(sampling_type='uniform', low=0.01, high=1.0, dtype=float)
 ratioconj_range   =   dict(sampling_type='uniform', low=0.01, high=1.0, dtype=float)
 M_range           =   dict(sampling_type='randint', low=6, high=625, dtype=int)
+rcscale1_range    =   dict(sampling_type='uniform', low=0.01, high=50, dtype=float)
+rcscale2_range    =   dict(sampling_type='uniform', low=0.01, high=50, dtype=float)
 
-dict_parameters_range =   dict(M=M_range, ratio_conj=ratioconj_range, sigmax=sigmax_range)
+dict_parameters_range =   dict(M=M_range, ratio_conj=ratioconj_range, sigmax=sigmax_range, rc_scale=rcscale1_range, rc_scale2=rcscale2_range)
 
 if __name__ == '__main__':
 
