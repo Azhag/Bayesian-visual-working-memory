@@ -18,6 +18,7 @@ import time
 import sys
 import getpass
 import compileall
+import collections
 
 import utils
 import dataio
@@ -556,7 +557,7 @@ class SubmitPBS():
         cma_use_auto_scaling = submission_parameters_dict.get('cma_use_auto_scaling', True)
         cma_iter_callback_function_infos = submission_parameters_dict.get('cma_iter_callback_function_infos', None)
         cma_logger_do_plot = submission_parameters_dict.get('cma_logger_do_plot', False)
-        cma_nan_replacement = submission_parameters_dict.get('cma_nan_replacement', 10000000.)
+        cma_nan_replacement = submission_parameters_dict.get('cma_nan_replacement', 1000000000.)
         cma_use_bounds = submission_parameters_dict.get('cma_use_bounds', False)
 
         # Extract the parameters ranges
@@ -570,7 +571,7 @@ class SubmitPBS():
                     if 'x0' not in curr_param:
                         curr_param['x0'] = (curr_param['high'] - curr_param['low'])/2.
                     if 'scaling' not in curr_param:
-                        curr_param['scaling'] = (curr_param['high'] - curr_param['low'])/(2.*cma_sigma0)
+                        curr_param['scaling'] = (curr_param['high'] - curr_param['low'])/(3.*cma_sigma0)
                 else:
                     raise ValueError('No x0/scaling and high/low for variable %s, provide either one' % curr_param)
 
@@ -852,12 +853,44 @@ class SubmitPBS():
                 'parameters':  dict()
         '''
 
-        ## Wait for Jobs to be completed
-        for current_job_name in self.jobs_tracking_dict:
+        # Construct the list of submitted jobs.
+        # Will use a deque (queue) because it's more efficient and nice
+        submitted_job_names = collections.deque([job_name for job_name, job_dict in self.jobs_tracking_dict.iteritems() if job_dict['status'] == 'submitted'])
 
-            if self.jobs_tracking_dict[current_job_name]['status'] == 'submitted':
+        last_str_len = 0
+        while len(submitted_job_names) > 0:
 
-                while not self.jobs_tracking_dict[current_job_name]['job'].check_completed():
+            # Pop a job name (don't forget to put it in back later if needed)
+            current_job_name = submitted_job_names.popleft()
+
+            # Now do the work
+            if self.jobs_tracking_dict[current_job_name]['status'] == 'completed':
+                # If this job is already completed and has been tracked, jump to the next one!
+                pass
+
+            elif self.jobs_tracking_dict[current_job_name]['status'] == 'submitted':
+
+                if self.jobs_tracking_dict[current_job_name]['job'].check_completed():
+                    # This job just finished! Fantastic news
+
+                    # Get the result
+                    self.complete_job(current_job_name)
+
+                    # Call the result_callback_function if it exists!
+                    if result_callback_function_infos is not None:
+                        result_callback_function_infos['function'](job=self.jobs_tracking_dict[current_job_name]['job'], parameters=result_callback_function_infos['parameters'])
+
+                    if self.debug:
+                        str_completion = "Job {0} done. Result: {1:.3f}. {2} left.".format(current_job_name, self.jobs_tracking_dict[current_job_name]['result'], len(submitted_job_names))
+
+                        # (this ridiculous len(str) business is to have some pretty output, as we write \r)
+                        print str_completion, " "*(last_str_len - len(str_completion))
+
+                    if completion_progress is not None:
+                        completion_progress.increment()
+
+                else:
+                    ## Not done. Wait a bit and check the next job's state.
                     # Check how long we've waited
                     waited_time = time.time() - self.jobs_tracking_dict[current_job_name]['time_started']
                     if (waited_time > utils.convert_deltatime_str_to_seconds(self.pbs_options['walltime'])*1.2):
@@ -876,32 +909,19 @@ class SubmitPBS():
 
                         if completion_progress is not None:
                             # Also add how much time to completion
-                            status_str += " %.2f%%, %s left - %s" % (completion_progress.percentage(), completion_progress.time_remaining_str(), completion_progress.eta_str())
+                            status_str += " %.2f%%, %s left - %s. %d jobs left         " % (completion_progress.percentage(), completion_progress.time_remaining_str(), completion_progress.eta_str(), len(submitted_job_names))
 
                         status_str += '\r'
                         sys.stdout.write(status_str)
                         sys.stdout.flush()
 
+                        last_str_len = len(status_str)
+
                     # Sleep for a bit
                     time.sleep(sleep_time_rnd)
 
-
-                # Get the result
-                self.complete_job(current_job_name)
-
-                # Call the result_callback_function if it exists!
-                if result_callback_function_infos is not None:
-                    result_callback_function_infos['function'](job=self.jobs_tracking_dict[current_job_name]['job'], parameters=result_callback_function_infos['parameters'])
-
-                if completion_progress is not None:
-                    completion_progress.increment()
-
-            elif self.jobs_tracking_dict[current_job_name]['status'] == 'waiting':
-                # Job in waiting status, not submitted yet. That should not really happen right now, but let's handle it
-                pass
-            elif self.jobs_tracking_dict[current_job_name]['status'] == 'completed':
-                # If this job is already completed and has been tracked, jump to the next one!
-                pass
+                    # Reput the job in the queue, it's not finished
+                    submitted_job_names.append(current_job_name)
 
 
 
@@ -999,7 +1019,8 @@ def test_cmaes_optimisation():
                             memory='2gb',
                             simul_out_dir=os.path.join(os.getcwd(), run_label.format(**locals())),
                             pbs_submit_cmd='sbatch',
-                            submit_label='test_cmaes')
+                            submit_label='test_cmaes'),
+        sleeping_period=dict(min=5, max=10)
     )
 
     # CMA/ES Parameters!
@@ -1170,7 +1191,8 @@ if __name__ == '__main__':
 
     # Now test the funky CMA-ES optimisation
     if True:
-        test_cmaes_optimisation_3d()
+        test_cmaes_optimisation()
+        # test_cmaes_optimisation_3d()
 
 
 
