@@ -109,7 +109,7 @@ class ResultComputation():
         for repet_i in xrange(all_variables['all_parameters']['num_repetitions']):
             for T_i, T in enumerate(all_variables['T_space']):
                 if T in bays09_T_space:
-                    result_dist_bays09[T_i, :] = utils.nanmean((bays09_experimental_mixtures_mean[:, bays09_T_space == T].flatten() - all_variables['result_em_fits'][T_i, :4])**2., axis=repetitions_axis)
+                    result_dist_bays09[T_i, :] = utils.nanmean((bays09_experimental_mixtures_mean[:, bays09_T_space == T] - all_variables['result_em_fits'][T_i, :4])**2., axis=repetitions_axis)
 
         print result_dist_bays09
 
@@ -134,7 +134,7 @@ class ResultComputation():
 
 
         # Create output variables
-        result_dist_bays09 = np.nan*np.empty((all_variables['T_space'].size, 4))
+        result_dist_bays09 = np.nan*np.empty(all_variables['T_space'].size)
 
         ### Result computation
         data_bays2009 = load_experimental_data.load_data_bays2009(fit_mixture_model=True)
@@ -144,10 +144,10 @@ class ResultComputation():
         for repet_i in xrange(all_variables['all_parameters']['num_repetitions']):
             for T_i, T in enumerate(all_variables['T_space']):
                 if T in bays09_T_space:
-                    result_dist_bays09[T_i, :] = utils.nanmean((bays09_experimental_mixtures_mean[0, bays09_T_space == T].flatten() - all_variables['result_em_fits'][T_i, 0])**2., axis=repetitions_axis)
+                    result_dist_bays09[T_i] = utils.nanmean((bays09_experimental_mixtures_mean[0, bays09_T_space == T].flatten() - all_variables['result_em_fits'][T_i, 0])**2., axis=repetitions_axis)
 
-                    print bays09_experimental_mixtures_mean[0, bays09_T_space == T].flatten()
-                    print all_variables['result_em_fits'][T_i, 0]
+                    # print bays09_experimental_mixtures_mean[0, bays09_T_space == T].flatten()
+                    # print all_variables['result_em_fits'][T_i, 0]
 
 
         print result_dist_bays09

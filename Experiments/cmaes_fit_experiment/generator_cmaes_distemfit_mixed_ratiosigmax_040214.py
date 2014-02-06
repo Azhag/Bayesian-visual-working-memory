@@ -26,12 +26,13 @@ run_label = 'cmaes_distemfit_mixed_ratiosigmax_repetitions{num_repetitions}_0402
 simul_out_dir = os.path.join(os.getcwd(), run_label.format(**locals()))
 
 parameter_generation = 'cma-es'
-cma_population_size = 30
+cma_population_size = 20
 cma_sigma0 = 1.0
 cma_logger_do_plot = True
 cma_use_auto_scaling = True
 cma_use_bounds = True
 
+sleeping_period = dict(min=10, max=30)
 
 # result_callback_function to track best parameter
 best_parameters_seen = dict(result=None, job_name='', parameters=None)
@@ -66,7 +67,7 @@ def cma_iter_plot_contourf_candidates(all_variables, parameters=None):
 
     if parameters['dataio'] is not None:
         parameters['dataio'].save_variables_default(locals(), ['candidates', 'fitness'])
-        parameters['dataio'].save_current_figure('cmaes_optim_landscape_scatter3d_{label}_{unique_id}.pdf')
+        parameters['dataio'].save_current_figure('cmaes_optim_landscape_contourf_{label}_{unique_id}.pdf')
 
 cma_iter_callback_function_infos = dict(function=cma_iter_plot_contourf_candidates, parameters=cma_iter_parameters)
 
@@ -81,15 +82,15 @@ pbs_submission_infos = dict(description='Fit experiments (here bays09, using dis
                                                result_computation='distemfits',
                                                M=M,
                                                sigmax=0.1,
-                                               N=300,
+                                               N=200,
                                                T=6,
                                                sigmay=0.0001,
                                                inference_method='sample',
-                                               num_samples=500,
+                                               num_samples=300,
                                                selection_num_samples=1,
                                                selection_method='last',
                                                slice_width=0.07,
-                                               burn_samples=500,
+                                               burn_samples=300,
                                                num_repetitions=num_repetitions,
                                                enforce_min_distance=0.17,
                                                specific_stimuli_random_centers=None,
