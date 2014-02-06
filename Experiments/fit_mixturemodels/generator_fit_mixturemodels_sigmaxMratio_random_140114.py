@@ -18,7 +18,7 @@ submit_jobs = True
 
 parameter_generation = 'random'  ## !!!!!! RANDOM HERE   !!!!!
 num_random_samples = 1000
-limit_max_queued_jobs = 10
+limit_max_queued_jobs = 200
 
 resource = ''
 
@@ -72,6 +72,7 @@ pbs_submission_infos = dict(description='Runs the model for 1..T items. Computes
 
 if getpass.getuser() == 'dc-matt1':
   pbs_submission_infos['pbs_unfilled_script'] = pbs_unfilled_script
+  pbs_submission_infos['walltime'] = '12:00:00'
 
 
 sigmax_range      =   dict(sampling_type='uniform', low=0.01, high=1.0, dtype=float)
