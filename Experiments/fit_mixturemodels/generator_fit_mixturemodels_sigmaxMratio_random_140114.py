@@ -70,6 +70,9 @@ pbs_submission_infos = dict(description='Runs the model for 1..T items. Computes
                             submit_label='fitmixturemodel_rnd',
                             resource=resource)
 
+if getpass.getuser() == 'dc-matt1':
+  pbs_submission_infos['pbs_unfilled_script'] = pbs_unfilled_script
+
 
 sigmax_range      =   dict(sampling_type='uniform', low=0.01, high=1.0, dtype=float)
 ratioconj_range   =   dict(sampling_type='uniform', low=0.01, high=1.0, dtype=float)
