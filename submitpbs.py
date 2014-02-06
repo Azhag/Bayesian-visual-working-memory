@@ -33,8 +33,11 @@ hostn=`hostname`
 echo "Job execution host: $hostn"
 echo "Filename: {filename}"
 cd {working_dir}
+T="$(date +%s)"
 nice -n 15 {cmd}
 echo "+++ Job completed +++"
+T="$(($(date +%s)-T))"
+printf "Elapsed time: %02d:%02d:%02d\n" "$((T/3600))" "$((T/60%60))" "$((T%60))"
 """
 
 

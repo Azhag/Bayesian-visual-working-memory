@@ -101,6 +101,7 @@ echo "Time: `date`"
 echo "Running on master node: `hostname`"
 echo "Current directory: `pwd`"
 echo "Filename: {filename}"
+T="$(date +%s)"
 
 if [ "$SLURM_JOB_NODELIST" ]; then
 #! Create a machine file:
@@ -116,3 +117,6 @@ echo -e "\nExecuting command:\n==================\n$CMD\n"
 
 eval $CMD
 
+echo "+++ Job completed +++"
+T="$(($(date +%s)-T))"
+printf "Elapsed time: %02d:%02d:%02d\n" "$((T/3600))" "$((T/60%60))" "$((T%60))"
