@@ -74,6 +74,14 @@ class SubmitPBS():
 
             limit_max_queued_jobs = pbs_submission_infos.get('limit_max_queued_jobs', limit_max_queued_jobs)
 
+            # Use either the pre-created Unfilled script at the top, or a provided one (which could be loaded as a string from elsewhere)
+            self.pbs_unfilled_script = pbs_submission_infos.get('pbs_unfilled_script', PBS_SCRIPT)
+
+            self.partition = pbs_submission_infos.get('partition', '')
+
+            self.resource = pbs_submission_infos.get('resource', '')
+
+
         self.pbs_options = {'mem': memory, 'pmem': memory, 'walltime': walltime, 'ncpus': '1'}
         self.set_env = set_env
         self.wait_submitting = wait_submitting
@@ -288,12 +296,20 @@ class SubmitPBS():
                 pbs_options += "\n#PBS -N " + self.submit_label
                 pbs_options += "\n#SBATCH -J " + self.submit_label
 
+            # Add the partition if needed
+            if self.partition:
+                pbs_options += "\n#SBATCH -p " + self.partition
+
+            # Add the resource if provided
+            if self.resource:
+                pbs_options += "\n#SBATCH -A " + self.resource
+
             # Add the environment
             if self.set_env:
                 pbs_options = pbs_options + "\n" + self.getEnvCommandString()
 
             # Fill in the template script
-            filled_script = PBS_SCRIPT.format(pbs_options=pbs_options, working_dir=self.working_directory, cmd=command, filename=fn)
+            filled_script = self.pbs_unfilled_script.format(pbs_options=pbs_options, working_dir=self.working_directory, cmd=command, filename=fn)
 
             f.write(filled_script)
 

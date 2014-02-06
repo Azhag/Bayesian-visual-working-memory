@@ -8,6 +8,7 @@ import os
 import numpy as np
 import experimentlauncher
 import inspect
+import getpass
 
 # Commit @8c49507 +
 
@@ -17,17 +18,25 @@ submit_jobs = True
 
 parameter_generation = 'random'  ## !!!!!! RANDOM HERE   !!!!!
 num_random_samples = 1000
-limit_max_queued_jobs = 200
+limit_max_queued_jobs = 10
+
+resource = ''
 
 # submit_cmd = 'qsub'
 submit_cmd = 'sbatch'
+
+# FOR DIRAC
+if getpass.getuser() == 'dc-matt1':
+  resource = 'DIRAC-DX001'
+  submit_cmd = 'sbatch'
+  pbs_unfilled_script = open(os.path.join(os.environ['WORKDIR_DROP'], 'dirac_submission_slurm_unfilled.sh'), 'r').read()
 
 num_repetitions = 3
 
 run_label = 'fit_mixturemodels_sigmaxMratiorcscales_random_repetitions{num_repetitions}_140114'
 
 pbs_submission_infos = dict(description='Runs the model for 1..T items. Computes precision, Fisher information, fits the mixture model, and compare the mixture model fits to the experimental data (Bays09 and Gorgo11 here). Also stores all responses. Meant to run random sampling for a long while!',
-                            command='python /nfs/home2/lmatthey/Documents/work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py',
+                            command='python $WORKDIR/experimentlauncher.py',
                             other_options=dict(action_to_do='launcher_do_fit_mixturemodels',
                                                code_type='mixed',
                                                output_directory='.',
@@ -51,14 +60,15 @@ pbs_submission_infos = dict(description='Runs the model for 1..T items. Computes
                                                autoset_parameters=None,
                                                collect_responses=None,
                                                label=run_label,
-                                               experiment_data_dir='/nfs/home2/lmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/experimental_data',
+                                               experiment_data_dir=os.path.normpath(os.path.join(os.environ['WORKDIR_DROP'], '../../experimental_data')),
                                                ),
                             walltime='40:00:00',
                             memory='2gb',
                             simul_out_dir=os.path.join(os.getcwd(), run_label.format(**locals())),
                             pbs_submit_cmd=submit_cmd,
                             limit_max_queued_jobs=limit_max_queued_jobs,
-                            submit_label='fitmixturemodel_rnd')
+                            submit_label='fitmixturemodel_rnd',
+                            resource=resource)
 
 
 sigmax_range      =   dict(sampling_type='uniform', low=0.01, high=1.0, dtype=float)
