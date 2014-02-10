@@ -11,6 +11,7 @@ import re
 import inspect
 
 import utils
+import submitpbs
 
 # Commit @2042319 +
 
@@ -24,8 +25,10 @@ def plots_logposterior_mixed_autoset(data_pbs, generator_module=None):
     #### SETUP
     #
     savefigs = True
-    plot_per_ratio = True
-    plot_2d_pcolor = True
+    plot_per_ratio = False
+    plot_2d_pcolor = False
+
+    do_relaunch_bestparams_pbs = True
 
     colormap = None  # or 'cubehelix'
     plt.rcParams['font.size'] = 16
@@ -66,6 +69,57 @@ def plots_logposterior_mixed_autoset(data_pbs, generator_module=None):
 
         if savefigs:
             dataio.save_current_figure('results_fitexp_%s_loglike_2d_ratiosigmax_{label}_global_{unique_id}.pdf' % exp_dataset)
+
+    if do_relaunch_bestparams_pbs:
+        # Will check the best fitting parameters, and relaunch simulations for them, in order to get new cool plots.
+
+        # We can actually use the original dictionary for submission informations, and just change the launcher to one produces the appropriate results
+        generator_parameters_dict = generator_module.__dict__
+        generator_parameters_dict['pbs_submission_infos']['other_options'].update(dict(
+            action_to_do='launcher_do_memory_curve_marginal_fi',
+            subaction='collect_responses',
+            inference_method='sample',
+            N=300,
+            T=6,
+            num_samples=500,
+            selection_method='last',
+            num_repetitions=3,
+            burn_samples=500,
+            stimuli_generation='random',
+            stimuli_generation_recall='random',
+            session_id='fitting_experiments_relaunchs',
+            result_computation='filenameoutput'))
+        generator_parameters_dict['pbs_submission_infos']['other_options']['label'] = 'fitting_experiment_rerun_nitems{T}M{M}_090414'.format(T = generator_parameters_dict['n_items_to_fit'], M = generator_parameters_dict['M'])
+        generator_parameters_dict['sleeping_period'] = dict(min=5, max=10)
+
+        submit_pbs = submitpbs.SubmitPBS(pbs_submission_infos=generator_parameters_dict['pbs_submission_infos'], debug=True)
+
+        # Now run a series of Jobs to obtain the required data
+        # the "Result" of them are the filename of their output. Should then save those in a dictionary.
+        # For later processing, if the exact same parameters are used, then everything will be reloaded automatically, MAAAGIC.
+
+        # Extract the parameters to try
+        best_params_to_try = []
+        best_axis2_i_all = np.argmax(result_log_posterior_mean, axis=1)
+        for axis1_i, best_axis2_i in enumerate(best_axis2_i_all):
+            parameter_dict = dict(ratio_conj=ratio_space[axis1_i], sigmax=sigmax_space[best_axis2_i])
+
+            best_params_to_try.append(parameter_dict)
+
+        # Submit them, waiting on them in the process. Should obtain a list of filenames back
+        os.chdir(generator_parameters_dict['pbs_submission_infos']['simul_out_dir'])
+        result_minibatch_filenames = submit_pbs.submit_minibatch_jobswrapper(best_params_to_try, generator_parameters_dict)
+
+        result_reloaded_datasets = []
+        for filename_i, result_filename in enumerate(result_minibatch_filenames):
+            curr_reloaded_dataset = utils.load_npy(result_filename + '.npy')
+            result_reloaded_datasets.append(curr_reloaded_dataset)
+
+        os.chdir('../')
+
+
+
+
 
 
     all_args = data_pbs.loaded_data['args_list']
