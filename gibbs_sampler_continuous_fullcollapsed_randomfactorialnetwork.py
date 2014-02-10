@@ -73,39 +73,66 @@ class Sampler:
         y_t | x_t, y_{t-1} ~ Normal
 
     '''
-    def __init__(self, data_gen, tc=None, theta_kappa=0.01, n_parameters = dict()):
+    def __init__(self, data_gen, tc=None, theta_prior_dict=dict(kappa=0.01, gamma=0.0), n_parameters = dict()):
         '''
             Initialise the sampler
 
             n_parameters:         {means: T x M, covariances: T x M x M}
         '''
 
+        self.theta_prior_dict = theta_prior_dict
+
+        # Initialise noise parameters
+        self.set_noise_parameters(n_parameters)
+
         # Get the data
+        self.init_from_data_gen(data_gen, tc=tc)
+
+
+    def set_noise_parameters(self, n_parameters):
+        '''
+            Store the noise parameters, computed from a StatisticsMeasurer
+
+            n_parameters:         {means: T x M, covariances: T x M x M}
+        '''
+
+        self.n_means_start = n_parameters['means'][0]
+        self.n_means_end = n_parameters['means'][1]
+        self.n_covariances_start = n_parameters['covariances'][0]
+        self.n_covariances_end = n_parameters['covariances'][1]
+        self.n_means_measured = n_parameters['means'][2]
+        self.n_covariances_measured = n_parameters['covariances'][2]
+
+        self.noise_covariance = self.n_covariances_measured[-1]
+
+
+
+    def init_from_data_gen(self, data_gen, tc=None):
+        '''
+
+        '''
+
         self.data_gen = data_gen
-        self.random_network = data_gen.random_network
-        self.YT = data_gen.Y
+        self.random_network = self.data_gen.random_network
+        self.NT = self.data_gen.Y
 
         # Get sizes
-        (self.N, self.M) = self.YT.shape
-        self.T = data_gen.T
-        self.R = data_gen.random_network.R
+        (self.N, self.M) = self.NT.shape
+        self.T = self.data_gen.T
+        self.R = self.data_gen.random_network.R
 
         # Time weights
-        self.time_weights = data_gen.time_weights
+        self.time_weights = self.data_gen.time_weights
+        self.sampled_feature_index = 0
 
         # Initialise t_c
         self.init_tc(tc=tc)
 
         # Initialise latent angles
-        self.init_theta(theta_kappa=theta_kappa)
-
-        # Initialise n_T
-        self.init_n(n_parameters)
-
+        self.init_theta()
 
         # Precompute the parameters and cache them
         self.init_cache_parameters()
-
 
 
     def init_tc(self, tc=None):
@@ -117,25 +144,22 @@ class Sampler:
             Could be sampled later, for now just fix it.
         '''
 
-        if tc is None:
-            # Start with first one.
-            self.tc = np.zeros(self.N, dtype='int')
-            # self.tc = np.random.randint(self.T)
-        elif np.isscalar(tc):
+        if np.isscalar(tc):
             self.tc = tc*np.ones(self.N, dtype='int')
+        else:
+            self.tc = np.zeros(self.N, dtype='int')
 
 
-
-    def init_theta(self, theta_gamma=0.0, theta_kappa = 2.0):
+    def init_theta(self):
         '''
             Sample initial angles. Use a Von Mises prior, low concentration (~flat)
 
             Theta:          N x R
         '''
 
-        self.theta_gamma = theta_gamma
-        self.theta_kappa = theta_kappa
-        self.theta = np.random.vonmises(theta_gamma, theta_kappa, size=(self.N, self.R))
+        self.theta_gamma = self.theta_prior_dict['gamma']
+        self.theta_kappa = self.theta_prior_dict['kappa']
+        self.theta = np.random.vonmises(self.theta_gamma, self.theta_kappa, size=(self.N, self.R))
 
         # Assign the cued ones now
         #   stimuli_correct: N x T x R
@@ -148,30 +172,6 @@ class Sampler:
         if self.R == 2:
             # Just for convenience (in compute_angle_error), flatten the theta_to_sample
             self.theta_to_sample = self.theta_to_sample.flatten()
-
-
-    def init_n(self, n_parameters):
-        '''
-            Initialise the background noise n_T. It actually is observed, so nothing really interesting there.
-
-            N:                    N x M
-
-            n_parameters:         {means: T x M, covariances: T x M x M}
-        '''
-
-        # Store the parameters and precompute the Cholesky decompositions
-        self.n_means_start = n_parameters['means'][0]
-        self.n_means_end = n_parameters['means'][1]
-        self.n_covariances_start = n_parameters['covariances'][0]
-        self.n_covariances_end = n_parameters['covariances'][1]
-        self.n_covariances_start_chol = np.zeros_like(self.n_covariances_start)
-        self.n_covariances_end_chol = np.zeros_like(self.n_covariances_end)
-        self.n_means_measured = n_parameters['means'][2]
-        self.n_covariances_measured = n_parameters['covariances'][2]
-
-        # Initialise N
-        self.NT = np.zeros((self.N, self.M))
-        self.NT = self.YT
 
 
     def init_cache_parameters(self, amplify_diag=1.0):
@@ -188,11 +188,6 @@ class Sampler:
         self.ATtcB = np.zeros(self.T)
         self.mean_fixed_contrib = np.zeros((self.T, self.M))
         self.inv_covariance_fixed_contrib = np.zeros((self.M, self.M))
-        self.noise_covariance = self.n_covariances_measured[-1]
-        self.sampled_feature_index = 0
-
-        # Set the noise_covariance in the RandomFactorialNetwork as well.
-        self.random_network.noise_covariance = self.noise_covariance
 
         # Precompute parameters
         for t in xrange(self.T):
@@ -227,8 +222,6 @@ class Sampler:
         '''
             Compute normalization factor for loglikelihood
         '''
-
-        print "compute normalization..."
 
         self.normalization = np.empty(self.N)
 
@@ -465,6 +458,7 @@ class Sampler:
         else:
             return self.compute_loglikelihood_current_tc() - self.normalization
 
+
     def compute_loglikelihood_current_tc(self):
         '''
             Compute the loglikelihood for the current setting of thetas and tc and using the likelihood defined in loglike_theta_fct_single
@@ -572,6 +566,8 @@ class Sampler:
         ax_handle.plot(x, ll_x)
         ax_handle.axvline(x=self.data_gen.stimuli_correct[n, self.data_gen.cued_features[n, 1], 0], color='r')
         ax_handle.axvline(x=self.theta[n, self.theta_to_sample[n]], color='k', linestyle='--')
+
+        ax_handle.set_xlim((-np.pi, np.pi))
 
         if should_sample:
             samples, _ = slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=500, widths=np.pi/4., loglike_fct_params=params, debug=False, step_out=True)

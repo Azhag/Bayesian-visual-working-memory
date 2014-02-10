@@ -62,9 +62,6 @@ class RandomFactorialNetwork():
         # Used to stored cached network response statistics. Mean_theta(mu(theta)) and Cov_theta(mu(theta))
         self.network_response_statistics = None
 
-        # (hacky) Store the noise covariance matrix, for ease of use. Will be set by the Sampler.
-        self.noise_covariance = None
-
         self.network_initialised = True
 
 

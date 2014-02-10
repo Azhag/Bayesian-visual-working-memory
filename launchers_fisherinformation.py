@@ -87,7 +87,7 @@ def launcher_do_fisher_information_estimation(args):
             data_gen_noise = DataGeneratorRFN(5000, T, random_network, sigma_y=sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time)
             stat_meas = StatisticsMeasurer(data_gen_noise)
 
-            sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters=stat_meas.model_parameters, tc=cued_feature_time)
+            sampler = Sampler(data_gen, n_parameters=stat_meas.model_parameters, tc=cued_feature_time)
 
             ### Estimate the Fisher Information
             print "theoretical FI, M %d" % M
@@ -155,7 +155,7 @@ def launcher_do_fisher_information_estimation(args):
             data_gen_noise = DataGeneratorRFN(5000, T, random_network, sigma_y=sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation=stimuli_generation)
             stat_meas = StatisticsMeasurer(data_gen_noise)
 
-            sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters=stat_meas.model_parameters, tc=cued_feature_time)
+            sampler = Sampler(data_gen, n_parameters=stat_meas.model_parameters, tc=cued_feature_time)
 
             ### Estimate the Fisher Information
             print "Estimating the Fisher Information, samples %.3f" % num_samples
@@ -315,7 +315,7 @@ def launcher_do_fisher_information_estimation(args):
             data_gen_noise = DataGeneratorRFN(5000, T, random_network, sigma_y=sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation=stimuli_generation)
             stat_meas = StatisticsMeasurer(data_gen_noise)
 
-            sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters=stat_meas.model_parameters, tc=cued_feature_time)
+            sampler = Sampler(data_gen, n_parameters=stat_meas.model_parameters, tc=cued_feature_time)
 
             ### Estimate the Fisher Information
             print "Estimating the Fisher Information, rcscale %.3f" % rc_scale
@@ -482,7 +482,7 @@ def init_everything(parameters):
     data_gen_noise = DataGeneratorRFN(5000, parameters['T'], random_network, sigma_y=parameters['sigmay'], sigma_x=parameters['sigmax'], time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation=parameters['stimuli_generation'])
     stat_meas = StatisticsMeasurer(data_gen_noise)
 
-    sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters=stat_meas.model_parameters, tc=cued_feature_time)
+    sampler = Sampler(data_gen, n_parameters=stat_meas.model_parameters, tc=cued_feature_time)
 
     return (random_network, data_gen, stat_meas, sampler)
 

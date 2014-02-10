@@ -170,7 +170,7 @@ def launcher_do_save_responses_simultaneous(args):
             stat_meas = StatisticsMeasurer(data_gen_noise)
             # stat_meas = StatisticsMeasurer(data_gen)
 
-            sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters=stat_meas.model_parameters)
+            sampler = Sampler(data_gen, n_parameters=stat_meas.model_parameters)
 
             for tc in np.arange(t+1):
                 print "Doing T=%d, Tc=%d,  %d/%d" % (t+1, tc, repet_i+1, args.num_repetitions)

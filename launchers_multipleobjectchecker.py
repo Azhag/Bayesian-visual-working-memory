@@ -139,7 +139,7 @@ def init_everything(parameters):
     data_gen_noise = DataGeneratorRFN(5000, parameters['T'], random_network, sigma_y=parameters['sigmay'], sigma_x=parameters['sigmax'], time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation=noise_stimuli_generation, enforce_min_distance=parameters['enforce_min_distance'])
     stat_meas = StatisticsMeasurer(data_gen_noise)
 
-    sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters=stat_meas.model_parameters, tc=cued_feature_time)
+    sampler = Sampler(data_gen, n_parameters=stat_meas.model_parameters, tc=cued_feature_time)
 
     return (random_network, data_gen, stat_meas, sampler)
 

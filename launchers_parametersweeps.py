@@ -81,7 +81,7 @@ def launcher_do_neuron_number_precision(args):
             stat_meas = StatisticsMeasurer(data_gen_noise)
             # stat_meas = StatisticsMeasurer(data_gen)
 
-            sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters=stat_meas.model_parameters, tc=cued_feature_time)
+            sampler = Sampler(data_gen, n_parameters=stat_meas.model_parameters, tc=cued_feature_time)
 
             # Cheat here, just use the ML value for the theta
             sampler.set_theta_max_likelihood(num_points=200, post_optimise=True)
@@ -218,7 +218,7 @@ def launcher_do_size_receptive_field(args):
             stat_meas = StatisticsMeasurer(data_gen_noise)
             # stat_meas = StatisticsMeasurer(data_gen)
 
-            sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters=stat_meas.model_parameters, tc=cued_feature_time)
+            sampler = Sampler(data_gen, n_parameters=stat_meas.model_parameters, tc=cued_feature_time)
 
             # Cheat here, just use the ML value for the theta
             sampler.set_theta_max_likelihood(num_points=200, post_optimise=True)
@@ -337,7 +337,7 @@ def launcher_do_size_receptive_field_number_neurons(args):
                 stat_meas = StatisticsMeasurer(data_gen_noise)
                 # stat_meas = StatisticsMeasurer(data_gen)
 
-                sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters=stat_meas.model_parameters, tc=cued_feature_time)
+                sampler = Sampler(data_gen, n_parameters=stat_meas.model_parameters, tc=cued_feature_time)
 
                 # Cheat here, just use the ML value for the theta
                 sampler.set_theta_max_likelihood(num_points=200, post_optimise=True)
@@ -504,7 +504,7 @@ def launcher_do_mixed_ratioconj(args):
             stat_meas = StatisticsMeasurer(data_gen_noise)
             # stat_meas = StatisticsMeasurer(data_gen)
 
-            sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters=stat_meas.model_parameters, tc=cued_feature_time)
+            sampler = Sampler(data_gen, n_parameters=stat_meas.model_parameters, tc=cued_feature_time)
 
             # Cheat here, just use the ML value for the theta
             sampler.set_theta_max_likelihood(num_points=200, post_optimise=True)
@@ -591,7 +591,7 @@ def launcher_do_mixed_two_scales(args):
                 stat_meas = StatisticsMeasurer(data_gen_noise)
                 # stat_meas = StatisticsMeasurer(data_gen)
 
-                sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters=stat_meas.model_parameters, tc=cued_feature_time)
+                sampler = Sampler(data_gen, n_parameters=stat_meas.model_parameters, tc=cued_feature_time)
 
                 # Cheat here, just use the ML value for the theta
                 sampler.set_theta_max_likelihood(num_points=200, post_optimise=True)
