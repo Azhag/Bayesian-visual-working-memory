@@ -147,7 +147,7 @@ def preprocess_sequential(dataset, parameters):
 
 
 
-def preprocess_doublerecall(dataset, parameters):
+def preprocess_dualrecall(dataset, parameters):
     '''
         This is the dataset where both colour and orientation can be recalled.
         - There are two groups of subjects, either with 6 or 3 items shown (no intermediates...). Stored in 'n_items'
@@ -1041,7 +1041,7 @@ def plots_bays2009(dataset, dataio=None):
 
 
 
-def plots_doublerecall(dataset):
+def plots_dualrecall(dataset):
     '''
         Create plots for the double recall dataset
     '''
@@ -1219,7 +1219,7 @@ def plots_doublerecall(dataset):
         print fitted_parameters
 
 
-def load_data_simult(data_dir = None, fit_mixture_model=False):
+def load_data_simult(data_dir=None, fit_mixture_model=False):
     '''
         Convenience function, automatically load the Gorgoraptis_2011 dataset.
     '''
@@ -1233,7 +1233,7 @@ def load_data_simult(data_dir = None, fit_mixture_model=False):
     return data_simult
 
 
-def load_data_bays2009(data_dir = None, fit_mixture_model=False):
+def load_data_bays2009(data_dir=None, fit_mixture_model=False):
     '''
         Convenience function, automatically load the Bays2009 dataset.
     '''
@@ -1245,6 +1245,29 @@ def load_data_bays2009(data_dir = None, fit_mixture_model=False):
     (data_bays2009, ) = load_multiple_datasets([dict(name='Bays2009', filename='colour_data.mat', preprocess=preprocess_bays2009, parameters=dict(datadir=os.path.join(data_dir, 'Bays2009'), fit_mixture_model=fit_mixture_model, mixture_model_cache='em_bays_allitems.pickle'))])
 
     return data_bays2009
+
+
+def load_data_gorgo11(data_dir=None, fit_mixture_model=False):
+    '''
+        Convenience function, automatically load the Gorgo11 simultaneous dataset.
+    '''
+
+    return load_data_simult(data_dir, fit_mixture_model)
+
+
+def load_data_dualrecall(data_dir=None, fit_mixture_model=False):
+    '''
+        Convenience function, automatically load the Double recall dataset (unpublished).
+    '''
+
+    if data_dir is None:
+        experim_datadir = os.environ.get('WORKDIR_DROP', os.path.split(utils.__file__)[0])
+        data_dir=os.path.normpath(os.path.join(experim_datadir, '../../experimental_data/'))
+
+    (data_dualrecall, ) = load_multiple_datasets([dict(name='DualRecall', filename=os.path.join(data_dir, 'DualRecall_Bays', 'rate_data.mat'), preprocess=preprocess_dualrecall, parameters=dict(fit_mixture_model=fit_mixture_model, mixture_model_cache='em_dualrecall_allitems.pickle'))])
+
+
+    return data_dualrecall
 
 
 
@@ -1259,7 +1282,7 @@ if __name__ == '__main__':
     if True or (len(sys.argv) > 1 and sys.argv[1]):
     # keys:
     # 'probe', 'delayed', 'item_colour', 'probe_colour', 'item_angle', 'error', 'probe_angle', 'n_items', 'response', 'subject']
-        # (data_sequen, data_simult, data_dualrecall) = load_multiple_datasets([dict(filename='Exp1.mat', preprocess=preprocess_sequential, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'))), dict(filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), fit_mixture_model=True)), dict(filename=os.path.join(data_dir, 'DualRecall_Bays', 'rate_data.mat'), preprocess=preprocess_doublerecall, parameters=dict(fit_mixture_model=True))])
+        # (data_sequen, data_simult, data_dualrecall) = load_multiple_datasets([dict(filename='Exp1.mat', preprocess=preprocess_sequential, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'))), dict(filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), fit_mixture_model=True)), dict(filename=os.path.join(data_dir, 'DualRecall_Bays', 'rate_data.mat'), preprocess=preprocess_dualrecall, parameters=dict(fit_mixture_model=True))])
         # (data_simult,) = load_multiple_datasets([dict(name='Gorgo_simult', filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), fit_mixture_model=True, mixture_model_cache='em_simult.pickle'))])
         (data_bays2009, ) = load_multiple_datasets([dict(name='Bays2009', filename='colour_data.mat', preprocess=preprocess_bays2009, parameters=dict(datadir=os.path.join(data_dir, 'Bays2009'), fit_mixture_model=True, mixture_model_cache='em_bays.pickle', should_compute_bootstrap=True, bootstrap_cache='bootstrap_1000samples.pickle'))])
 
@@ -1289,7 +1312,7 @@ if __name__ == '__main__':
 
     # np.save('processed_experimental_230613.npy', dict(data_simult=data_simult, data_sequen=data_sequen))
 
-    # plots_doublerecall(data_dualrecall)
+    # plots_dualrecall(data_dualrecall)
 
     dataio = DataIO.DataIO(label='experiments_bays2009')
     # plots_check_bias_nontarget(data_simult, dataio=dataio)
