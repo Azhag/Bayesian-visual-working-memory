@@ -852,11 +852,13 @@ class SubmitPBS():
         pbs_submission_infos_bis = pbs_submission_infos.copy()
         pbs_submission_infos_bis['other_options'] = job.experiment_parameters
 
-        debug_pre = self.debug
-        self.debug = debug_overwrite
-        # This may block, depending on pbs_submission_infos (e.g. if limit on concurrent jobs is set)
-        self.create_submit_job_parameters(pbs_submission_infos_bis, submit=submit)
-        self.debug = debug_pre
+        # Handle cases were the exact same job already ran (and thus the result_sync_* file already exists), in that case do not submit it, it will be reloaded automatically.
+        if not job.check_completed():
+            debug_pre = self.debug
+            self.debug = debug_overwrite
+            # This may block, depending on pbs_submission_infos (e.g. if limit on concurrent jobs is set)
+            self.create_submit_job_parameters(pbs_submission_infos_bis, submit=submit)
+            self.debug = debug_pre
 
         job.flag_job_submitted()
         self.jobs_tracking_dict[job.job_name]['status'] = 'submitted'
@@ -900,7 +902,7 @@ class SubmitPBS():
                         result_callback_function_infos['function'](job=self.jobs_tracking_dict[current_job_name]['job'], parameters=result_callback_function_infos['parameters'])
 
                     if self.debug:
-                        str_completion = "Job {0} done. Result: {1:.3f}. {2} left.".format(current_job_name, self.jobs_tracking_dict[current_job_name]['result'], len(submitted_job_names))
+                        str_completion = "Job {0} done. Result: {1}. {2} left.".format(current_job_name, self.jobs_tracking_dict[current_job_name]['result'], len(submitted_job_names))
 
                         # (this ridiculous len(str) business is to have some pretty output, as we write \r)
                         print str_completion, " "*(last_str_len - len(str_completion))
@@ -952,10 +954,11 @@ def test_sequential_optimisation():
         Test for generate_submit_sequential_optimisation
     '''
 
-    run_label='test_seq_pbs'
+    run_label='test_seq_pbs_simple'
     submission_parameters_dict = dict(
         run_label=run_label,
         submit_jobs = True,
+        sleeping_period = dict(min=10, max=30),
         dict_parameters_range = dict(T=dict(sampling_type='randint', low=1, high=6, dtype=int), sigmax=dict(sampling_type='uniform', low=0.01, high=1.0, dtype=float), M=dict(sampling_type='randint', low=6, high=625, dtype=int)),
         pbs_submission_infos = dict(description='Testing sequential optim',
                             command='python /nfs/home2/lmatthey/Documents/work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py',
@@ -992,7 +995,6 @@ def test_sequential_optimisation():
             print "\n\n>>>>>> Found new best parameters: \n%s\n\n" % best_parameters_seen
     submission_parameters_dict['result_callback_function_infos'] = dict(function=best_parameters_callback, parameters=dict(best_parameters_seen=best_parameters_seen))
 
-
     # Create a SubmitPBS
     submit_pbs = SubmitPBS(pbs_submission_infos=submission_parameters_dict['pbs_submission_infos'], debug=True)
 
@@ -1013,6 +1015,7 @@ def test_cmaes_optimisation():
     submission_parameters_dict = dict(
         run_label=run_label,
         submit_jobs = True,
+        sleeping_period = dict(min=5, max=10),
         dict_parameters_range = dict_par_range,
         pbs_submission_infos = dict(description='Testing CMA-ES optim',
                             command='python /nfs/home2/lmatthey/Documents/work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py',
@@ -1038,8 +1041,7 @@ def test_cmaes_optimisation():
                             memory='2gb',
                             simul_out_dir=os.path.join(os.getcwd(), run_label.format(**locals())),
                             pbs_submit_cmd='sbatch',
-                            submit_label='test_cmaes'),
-        sleeping_period=dict(min=5, max=10)
+                            submit_label='test_cmaes')
     )
 
     # CMA/ES Parameters!
@@ -1102,6 +1104,7 @@ def test_cmaes_optimisation_3d():
     submission_parameters_dict = dict(
         run_label=run_label,
         submit_jobs = True,
+        sleeping_period = dict(min=10, max=30),
         dict_parameters_range = dict_par_range,
         pbs_submission_infos = dict(description='Testing CMA-ES optim',
                             command='python /nfs/home2/lmatthey/Documents/work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py',
@@ -1209,7 +1212,7 @@ if __name__ == '__main__':
         test_sequential_optimisation()
 
     # Now test the funky CMA-ES optimisation
-    if True:
+    if False:
         test_cmaes_optimisation()
         # test_cmaes_optimisation_3d()
 

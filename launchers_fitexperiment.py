@@ -36,7 +36,7 @@ def launcher_do_fitexperiment(args):
     print all_parameters
 
     # Force some parameters
-    # all_parameters['experiment_id'] = "doublerecall"
+    # all_parameters['experiment_id'] = "dualrecall"
     all_parameters['experiment_id'] = "gorgo_simult"
     all_parameters['experiment_params'] = dict(n_items_to_fit=all_parameters['T'])
 

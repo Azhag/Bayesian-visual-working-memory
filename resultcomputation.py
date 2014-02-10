@@ -155,6 +155,26 @@ class ResultComputation():
         # return the overall distance, over all parameters and number of items
         return np.nansum(result_dist_bays09)
 
+    def compute_result_filenameoutput(self, all_variables):
+        '''
+            Result is filename of the outputted data.
+
+            Looks weird, but is actually useful :)
+
+            Assume that:
+                - dataio exists.
+        '''
+
+        variables_required = ['dataio']
+
+        if not set(variables_required) <= set(all_variables.keys()):
+            print "Error, missing variables for compute_result_distemfits: \nRequired: %s\nPresent%s" % (variables_required, all_variables.keys())
+            return np.nan
+
+        # Extract the filename
+        return all_variables['dataio'].filename
+
+
 
 ######################################################
 ## Unit tests
