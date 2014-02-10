@@ -323,15 +323,18 @@ class DataGeneratorRFN(DataGenerator):
         self.enforce_min_distance = enforce_min_distance
 
         # Build the correct stimuli
-        if stimuli_generation == 'specific_stimuli':
-            # Use our specifically built function, to get the special stimuli combination allowing to verify some biases
-            self.generate_specific_stimuli(asymmetric=specific_stimuli_asymmetric, centre=np.array([0., 0.]), specific_stimuli_random_centers=specific_stimuli_random_centers)
-        elif stimuli_generation is not None:
-            # Generate it randomly
-            self.generate_stimuli(stimuli_generation=stimuli_generation, enforce_first_stimulus=enforce_first_stimulus)
-        elif stimuli_to_use is not None:
+        if stimuli_to_use is not None:
             # Use the provided stimuli
             self.set_stimuli(stimuli_to_use)
+        else:
+            if stimuli_generation == 'specific_stimuli':
+                # Use our specifically built function, to get the special stimuli combination allowing to verify some biases
+                self.generate_specific_stimuli(asymmetric=specific_stimuli_asymmetric, centre=np.array([0., 0.]), specific_stimuli_random_centers=specific_stimuli_random_centers)
+            elif stimuli_generation is not None:
+                # Generate it randomly
+                self.generate_stimuli(stimuli_generation=stimuli_generation, enforce_first_stimulus=enforce_first_stimulus)
+            else:
+                raise ValueError("No data generation possible.")
 
 
         # Build the dataset

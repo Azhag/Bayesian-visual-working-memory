@@ -304,7 +304,10 @@ class DataPBS:
         results_shape = None
         for dataset in datasets_list:
             if output_variable_desired in dataset:
-                curr_results_shape = dataset[output_variable_desired].shape
+                if np.isscalar(dataset[output_variable_desired]):
+                    curr_results_shape = (1, )
+                else:
+                    curr_results_shape = dataset[output_variable_desired].shape
 
                 # Now keep track of the biggest results_shape found (tricky but simplest hack possible)
                 if results_shape is None or np.any(curr_results_shape > results_shape):
@@ -355,30 +358,31 @@ class DataPBS:
                 dataset_seens_repeat_i = datasets_seen_array[curr_dataposition]
 
                 if dataset_seens_repeat_i == 0 or concatenate_multiple_datasets:
-                    if dataset[output_variable_desired].shape == initial_results_shape:
+                    if dataset[output_variable_desired].shape == initial_results_shape or np.isscalar(dataset[output_variable_desired]):
 
                         # Save the dataset at the proper position
                         results_array[curr_dataposition][..., dataset_seens_repeat_i*initial_results_shape[-1]:(dataset_seens_repeat_i+1)*initial_results_shape[-1]] = dataset[output_variable_desired]
 
-                        indices_array.append(curr_dataposition)
-
-                        datasets_seen_array[curr_dataposition] += 1
-
-                        # For random sampling, it is good to have the results in a flat list.
-                        results_flat.append(dataset[output_variable_desired])
-                        # keep the current parameters as well
-                        parameters_flat.append(np.array([parameters_complete[param][i] for param in list_parameters]))
-
-                        if 'repet_i' in dataset:
-                            # For newer simulations, we keep the current repetition index. This allows to remove unfinished runs.
-                            completed_repeats_array.append(dataset['repet_i'])
-                        else:
-                            # If nothing, assumed all are complete, and put the last index of the results (should be repetitions in last dimension anyway)
-                            completed_repeats_array.append(fullarray_shape[-1])
                     else:
                         # Something is wrong with the result shapes... Just put as much as possible.
                         smallest_sizes = tuple([slice(None, min(results_shape[i], dataset[output_variable_desired].shape[i])) for i in xrange(len(results_shape))])
                         results_array[curr_dataposition+smallest_sizes] = dataset[output_variable_desired][smallest_sizes]
+
+                    indices_array.append(curr_dataposition)
+
+                    datasets_seen_array[curr_dataposition] += 1
+
+                    # For random sampling, it is good to have the results in a flat list.
+                    results_flat.append(dataset[output_variable_desired])
+                    # keep the current parameters as well
+                    parameters_flat.append(np.array([parameters_complete[param][i] for param in list_parameters]))
+
+                    if 'repet_i' in dataset:
+                        # For newer simulations, we keep the current repetition index. This allows to remove unfinished runs.
+                        completed_repeats_array.append(dataset['repet_i'])
+                    else:
+                        # If nothing, assumed all are complete, and put the last index of the results (should be repetitions in last dimension anyway)
+                        completed_repeats_array.append(fullarray_shape[-1])
 
                 else:
                     print "Duplicate parameters not allowed, discarded ", curr_dataposition
