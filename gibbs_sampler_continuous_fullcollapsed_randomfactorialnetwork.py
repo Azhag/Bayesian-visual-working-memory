@@ -20,16 +20,12 @@ import matplotlib.pyplot as plt
 
 import sys
 
-# from datagenerator import *
-# from randomnetwork import *
-# from randomfactorialnetwork import *
-# from statisticsmeasurer import *
 from utils import *
 
 import em_circularmixture
 import em_circularmixture_allitems_uniquekappa
 
-from slicesampler import *
+import slicesampler
 
 # from dataio import *
 import progress
@@ -106,8 +102,6 @@ class Sampler:
         # Initialise n_T
         self.init_n(n_parameters)
 
-        # Initialise a Slice Sampler for theta
-        self.slicesampler = SliceSampler()
 
         # Precompute the parameters and cache them
         self.init_cache_parameters()
@@ -364,11 +358,11 @@ class Sampler:
         params = (self.theta[n], self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[self.tc[n]], sampled_feature_index, self.mean_fixed_contrib[self.tc[n]], self.inv_covariance_fixed_contrib)
 
         # Sample the new theta
-        # samples, llh = self.slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=np.pi/8., loglike_fct_params=params, debug=False, step_out=True)
-        samples, llh = self.slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=slice_width, loglike_fct_params=params, debug=False, step_out=True, jump_probability=slice_jump_prob)
-        # samples, llh = self.slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=0.01, loglike_fct_params=params, debug=False, step_out=True)
+        # samples, llh = slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=np.pi/8., loglike_fct_params=params, debug=False, step_out=True)
+        samples, llh = slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=slice_width, loglike_fct_params=params, debug=False, step_out=True, jump_probability=slice_jump_prob)
+        # samples, llh = slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=0.01, loglike_fct_params=params, debug=False, step_out=True)
 
-        # samples, llh = self.slicesampler.sample_1D_circular(1, self.theta[n, sampled_feature_index], loglike_theta_fct, burn=100, widths=np.pi/3., thinning=2, loglike_fct_params=params, debug=False, step_out=True)
+        # samples, llh = slicesampler.sample_1D_circular(1, self.theta[n, sampled_feature_index], loglike_theta_fct, burn=100, widths=np.pi/3., thinning=2, loglike_fct_params=params, debug=False, step_out=True)
 
         return (samples, llh)
 
@@ -386,8 +380,8 @@ class Sampler:
             params = (self.theta[n], self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[tc], sampled_feature_index, self.mean_fixed_contrib[tc], self.inv_covariance_fixed_contrib)
 
             # TODO> Should be starting from the previous sample here.
-            # samples, _ = self.slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=np.pi/8., loglike_fct_params=params, debug=False, step_out=True)
-            samples, _ = self.slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=np.pi/3., loglike_fct_params=params, debug=False, step_out=True)
+            # samples, _ = slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=np.pi/8., loglike_fct_params=params, debug=False, step_out=True)
+            samples, _ = slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=np.pi/3., loglike_fct_params=params, debug=False, step_out=True)
 
             # Now keep only some of them, following p(tc)
             #   for now, p(tc) = 1/T
@@ -580,7 +574,7 @@ class Sampler:
         ax_handle.axvline(x=self.theta[n, self.theta_to_sample[n]], color='k', linestyle='--')
 
         if should_sample:
-            samples, _ = self.slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=500, widths=np.pi/4., loglike_fct_params=params, debug=False, step_out=True)
+            samples, _ = slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=500, widths=np.pi/4., loglike_fct_params=params, debug=False, step_out=True)
             x_edges = x - np.pi/num_points  # np.histogram wants the left-right boundaries...
             x_edges = np.r_[x_edges, -x_edges[0]]  # the rightmost boundary is the mirror of the leftmost one
             sample_h, left_x = np.histogram(samples, bins=x_edges)
