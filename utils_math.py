@@ -217,7 +217,7 @@ def bic(K, LL, N):
         LL: loglikelihood of model
     '''
 
-    return -LL + K/2.*np.log(N)
+    return -LL + float(K)/2.*np.log(N)
 
 def histogram_binspace(data, bins=20, norm='density', bound_x=np.pi):
     '''

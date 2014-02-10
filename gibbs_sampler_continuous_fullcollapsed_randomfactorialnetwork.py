@@ -288,7 +288,10 @@ class Sampler:
         # errors = np.zeros(permuted_datapoints.shape, dtype=float)
 
         if debug:
-            print "Sampling theta: %d samples, %d selection, %d burnin" % (num_samples, selection_num_samples, burn_samples)
+            if selection_method == 'last':
+                print "Sampling theta: %d samples, %d burnin, select last" % (num_samples, burn_samples)
+            else:
+                print "Sampling theta: %d samples, %d selection, %d burnin" % (num_samples, selection_num_samples, burn_samples)
 
         if return_samples:
             all_samples = np.zeros((permuted_datapoints.size, num_samples))
@@ -434,6 +437,31 @@ class Sampler:
 
         # Reset the cued theta
         self.theta[np.arange(self.N), self.data_gen.cued_features[:, 0]] = self.data_gen.stimuli_correct[np.arange(self.N), self.data_gen.cued_features[:, 1], self.data_gen.cued_features[:, 0]]
+
+
+    def compute_bic(self, K=None, integrate_tc_out=False):
+        '''
+            Compute the BIC score for the current model.
+
+            Default K parameters:
+                - Sigmax
+                - M neurons
+                - ratio_conj if code_type is mixed
+
+            Usually, sigma_y is set to a super small value, and rc_scales are set automatically.
+            Not sure if num_samples/burn_samples should count, I don't think so.
+        '''
+
+        if K is None:
+            # Assume we set Sigmax and M.
+            K = 2.
+
+            if self.random_network.population_code_type == 'mixed':
+                K += 1.
+
+        LL = self.compute_loglikelihood(integrate_tc_out=integrate_tc_out)
+
+        return bic(K, LL, self.N)
 
 
     def compute_loglikelihood(self, integrate_tc_out=False):
