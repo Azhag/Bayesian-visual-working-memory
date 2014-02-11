@@ -180,10 +180,11 @@ def preprocess_dualrecall(dataset, parameters):
     dataset['6_items_trials'] = (dataset['n_items'] == 6).flatten()
 
     # Wrap everything around
-    dataset['item_angle'] = utils.wrap_angles(dataset['item_angle'], np.pi)
-    dataset['probe_angle'] = utils.wrap_angles(dataset['probe_angle'], np.pi)
-    dataset['item_colour'] = utils.wrap_angles(dataset['item_colour'], np.pi)
-    dataset['probe_colour'] = utils.wrap_angles(dataset['probe_colour'], np.pi)
+    multiply_factor = 2.
+    dataset['item_angle'] = utils.wrap_angles(multiply_factor*dataset['item_angle'], np.pi)
+    dataset['probe_angle'] = utils.wrap_angles(multiply_factor*dataset['probe_angle'], np.pi)
+    dataset['item_colour'] = utils.wrap_angles(multiply_factor*dataset['item_colour'], np.pi)
+    dataset['probe_colour'] = utils.wrap_angles(multiply_factor*dataset['probe_colour'], np.pi)
 
     # Remove wrong trials
     reject_ids = (dataset['reject'] == 1.0).flatten()
@@ -291,7 +292,7 @@ def preprocess_dualrecall(dataset, parameters):
     dataset['panda'] = pd.DataFrame(dataset_filtered)
 
 
-def preprocess_bays2009(dataset, parameters):
+def preprocess_bays09(dataset, parameters):
     '''
         The Bays2009 dataset is completely different...
         Some preprocessing is already done, so just do the plots we care about
@@ -316,6 +317,7 @@ def preprocess_bays2009(dataset, parameters):
     dataset['error'] = dataset['E']
     dataset['response'] = dataset['Y']
     dataset['item_angle'] = dataset['X']
+    dataset['item_colour'] = dataset['A'] - np.pi
     dataset['probe'] = np.zeros(dataset['error'].shape, dtype= int)
     dataset['errors_nitems'] = np.empty(dataset['n_items_size'], dtype=np.object)
     dataset['errors_nontarget_nitems'] = np.empty(dataset['n_items_size'], dtype=np.object)
@@ -350,6 +352,24 @@ def preprocess_bays2009(dataset, parameters):
 
         if n_items > 1:
             dataset['vtest_nitems'][n_items_i] = utils.V_test(utils.dropnan(dataset['errors_nontarget_nitems'][n_items_i]).flatten())['pvalue']
+
+    # Save item in a nice format for the model fit
+    dataset['data_to_fit'] = {}
+    dataset['data_to_fit']['n_items'] = np.unique(dataset['n_items'])
+    for n_items in dataset['data_to_fit']['n_items']:
+        ids_n_items = (dataset['n_items'] == n_items).flatten()
+
+        if n_items not in dataset['data_to_fit']:
+            dataset['data_to_fit'][n_items] = {}
+            dataset['data_to_fit'][n_items]['N'] = np.sum(ids_n_items)
+            dataset['data_to_fit'][n_items]['probe'] = np.unique(dataset['probe'][ids_n_items])
+            dataset['data_to_fit'][n_items]['item_features'] = np.empty((dataset['data_to_fit'][n_items]['N'], n_items, 2))
+            dataset['data_to_fit'][n_items]['response'] = np.empty((dataset['data_to_fit'][n_items]['N'], 1))
+
+        dataset['data_to_fit'][n_items]['item_features'][..., 0] = dataset['item_angle'][ids_n_items, :n_items]
+        dataset['data_to_fit'][n_items]['item_features'][..., 1] = dataset['item_colour'][ids_n_items, :n_items]
+        dataset['data_to_fit'][n_items]['response'] = dataset['response'][ids_n_items].flatten()
+
 
     # Perform Bootstrap analysis if required
     if parameters.get('should_compute_bootstrap', False):
@@ -1233,7 +1253,7 @@ def load_data_simult(data_dir=None, fit_mixture_model=False):
     return data_simult
 
 
-def load_data_bays2009(data_dir=None, fit_mixture_model=False):
+def load_data_bays09(data_dir=None, fit_mixture_model=False):
     '''
         Convenience function, automatically load the Bays2009 dataset.
     '''
@@ -1242,7 +1262,7 @@ def load_data_bays2009(data_dir=None, fit_mixture_model=False):
         experim_datadir = os.environ.get('WORKDIR_DROP', os.path.split(utils.__file__)[0])
         data_dir=os.path.normpath(os.path.join(experim_datadir, '../../experimental_data/'))
 
-    (data_bays2009, ) = load_multiple_datasets([dict(name='Bays2009', filename='colour_data.mat', preprocess=preprocess_bays2009, parameters=dict(datadir=os.path.join(data_dir, 'Bays2009'), fit_mixture_model=fit_mixture_model, mixture_model_cache='em_bays_allitems.pickle'))])
+    (data_bays2009, ) = load_multiple_datasets([dict(name='Bays2009', filename='colour_data.mat', preprocess=preprocess_bays09, parameters=dict(datadir=os.path.join(data_dir, 'Bays2009'), fit_mixture_model=fit_mixture_model, mixture_model_cache='em_bays_allitems.pickle'))])
 
     return data_bays2009
 
@@ -1284,7 +1304,8 @@ if __name__ == '__main__':
     # 'probe', 'delayed', 'item_colour', 'probe_colour', 'item_angle', 'error', 'probe_angle', 'n_items', 'response', 'subject']
         # (data_sequen, data_simult, data_dualrecall) = load_multiple_datasets([dict(filename='Exp1.mat', preprocess=preprocess_sequential, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'))), dict(filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), fit_mixture_model=True)), dict(filename=os.path.join(data_dir, 'DualRecall_Bays', 'rate_data.mat'), preprocess=preprocess_dualrecall, parameters=dict(fit_mixture_model=True))])
         # (data_simult,) = load_multiple_datasets([dict(name='Gorgo_simult', filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), fit_mixture_model=True, mixture_model_cache='em_simult.pickle'))])
-        (data_bays2009, ) = load_multiple_datasets([dict(name='Bays2009', filename='colour_data.mat', preprocess=preprocess_bays2009, parameters=dict(datadir=os.path.join(data_dir, 'Bays2009'), fit_mixture_model=True, mixture_model_cache='em_bays.pickle', should_compute_bootstrap=True, bootstrap_cache='bootstrap_1000samples.pickle'))])
+        (data_bays2009, ) = load_multiple_datasets([dict(name='Bays2009', filename='colour_data.mat', preprocess=preprocess_bays09, parameters=dict(datadir=os.path.join(data_dir, 'Bays2009'), fit_mixture_model=True, mixture_model_cache='em_bays.pickle', should_compute_bootstrap=True, bootstrap_cache='bootstrap_1000samples.pickle'))])
+        # data_dualrecall = load_data_dualrecall(fit_mixture_model=True)
 
 
     # Check for bias towards 0 for the error between response and all items
@@ -1308,18 +1329,18 @@ if __name__ == '__main__':
     # print "Precision no chance level removed", prec_theo
     # print "FI no chance", fi_fromtheo
 
-    # check_oblique_effect(data_simult, nb_bins=50)
+    # plots_check_oblique_effect(data_simult, nb_bins=50)
 
     # np.save('processed_experimental_230613.npy', dict(data_simult=data_simult, data_sequen=data_sequen))
 
     # plots_dualrecall(data_dualrecall)
 
-    dataio = DataIO.DataIO(label='experiments_bays2009')
+    # dataio = DataIO.DataIO(label='experiments_bays2009')
     # plots_check_bias_nontarget(data_simult, dataio=dataio)
     # plots_check_bias_bestnontarget(data_simult, dataio=dataio)
     # plots_check_bias_nontarget_randomized(data_simult, dataio=dataio)
 
-    plots_bays2009(data_bays2009, dataio=dataio)
+    # plots_bays2009(data_bays2009, dataio=dataio)
 
     plt.show()
 

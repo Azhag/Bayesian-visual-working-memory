@@ -790,6 +790,8 @@ class Sampler:
         if compute_responsibilities:
             params_fit['resp'] = em_circular_mixture_to_use.compute_responsibilities(*(self.collect_responses() + (params_fit,) ))
 
+        params_fit.setdefault('mixt_nontargets_sum', np.sum(params_fit['mixt_nontargets']))
+
         return params_fit
 
 
