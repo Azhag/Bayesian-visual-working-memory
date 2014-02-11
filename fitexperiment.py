@@ -63,10 +63,11 @@ class FitExperiment:
         # Load each experimental dataset
         for experiment_id in self.experiment_ids:
             if experiment_id == 'bays09':
-                self.experimental_datasets[experiment_id] = load_experimental_data.load_data_bays2009(data_dir=self.data_dir, fit_mixture_model=fit_mixture_model)
+                self.experimental_datasets[experiment_id] = load_experimental_data.load_data_bays09(data_dir=self.data_dir, fit_mixture_model=fit_mixture_model)
 
                 if self.debug:
-                    print "Loading Gorgo11 simult dataset"
+                    print "Loading Bays09 dataset"
+
             elif experiment_id == 'dualrecall':
                 self.experimental_datasets[experiment_id] = load_experimental_data.load_data_dualrecall(data_dir=self.data_dir)
 
@@ -107,34 +108,13 @@ class FitExperiment:
 
     #####
 
-    def compute_loglik_dataset(self, experiment_id):
+    def apply_fct_dataset(self, experiment_id, fct_infos):
         '''
-            Set the responses of the experimental data in the Sampler to the provided dataset id, and compute the loglikelihood under the current model.
+            Apply a function after having forced a specific dataset
 
-            Use self.sampler.T as the number of items
-        '''
+            the function will be called as follows:
 
-        if self.sampler.T not in self.experimental_datasets[experiment_id]['data_to_fit']['n_items']:
-            # This dataset does not have sampler.T items
-            return np.nan
-
-        # Set dataset
-        self.force_experimental_stimuli(experiment_id)
-
-        # Compute loglikelihood
-        loglikelihood = self.sampler.compute_loglikelihood()
-
-        if self.debug:
-            print "{0}> Loglikelihood: {1}".format(experiment_id, loglikelihood)
-
-        return loglikelihood
-
-
-    def compute_bic_dataset(self, experiment_id, K=None):
-        '''
-            Compute the BIC score of a model given a specific dataset
-
-            If K is not set, assume K= (M, sigmax, ratio_conj if mixed)
+            result = fct_infos['fct'](sampler, fct_infos['parameters'])
         '''
 
         if self.sampler.T not in self.experimental_datasets[experiment_id]['data_to_fit']['n_items']:
@@ -144,25 +124,68 @@ class FitExperiment:
         # Set dataset
         self.force_experimental_stimuli(experiment_id)
 
-        # Compute bic
-        bic = self.sampler.compute_bic(K=K)
+        # Apply function
+        result = fct_infos['fct'](self.sampler, fct_infos['parameters'])
 
-        if self.debug:
-            print "{0}> BIC: {1}".format(experiment_id, bic)
+        return result
 
-        return bic
+
+    def apply_fct_all_datasets(self, fct_infos):
+        '''
+            Apply a function on all datasets
+
+            result = fct_infos['fct'](sampler, fct_infos['parameters'])
+        '''
+
+        result_all = dict()
+        for experiment_id in self.experimental_datasets:
+            result_all[experiment_id] = self.apply_fct_dataset(experiment_id, fct_infos)
+
+        return result_all
+
+
+    def compute_bic_all_datasets(self, K=None):
+        '''
+            Compute the BIC scores for all datasets
+        '''
+        def compute_bic(sampler, parameters):
+            bic = sampler.compute_bic(K=parameters['K'])
+            return bic
+
+        fct_infos = dict(fct=compute_bic, parameters=dict(K=K))
+
+        return self.apply_fct_all_datasets(fct_infos)
 
 
     def compute_loglik_all_datasets(self):
         '''
             Compute the loglikelihood of the current sampler for all datasets currently loaded
         '''
+        def compute_loglik(sampler, parameters):
+            loglikelihood = sampler.compute_loglikelihood()
+            return loglikelihood
+        fct_infos = dict(fct=compute_loglik, parameters=None)
 
-        loglikelihood_all = dict()
-        for experiment_id in self.experimental_datasets:
-            loglikelihood_all[experiment_id] = self.compute_loglik_dataset(experiment_id)
+        return self.apply_fct_all_datasets(fct_infos)
 
-        return loglikelihood_all
+
+    def compute_bic_loglik_all_datasets(self, K=None):
+        '''
+            Compute both the BIC and loglikelihood on all datasets
+        '''
+        def compute_bic(sampler, parameters):
+            bic = sampler.compute_bic(K=parameters['K'])
+            return bic
+        def compute_loglik(sampler, parameters):
+            loglikelihood = sampler.compute_loglikelihood()
+            return loglikelihood
+        def compute_both(sampler, parameters):
+            result = dict(bic=compute_bic(sampler, parameters), LL=compute_loglik(sampler, parameters))
+            return result
+
+        fct_infos = dict(fct=compute_both, parameters=dict(K=K))
+
+        return self.apply_fct_all_datasets(fct_infos)
 
 
     def compute_sum_loglik_all_datasets(self):
@@ -175,39 +198,6 @@ class FitExperiment:
         return np.nansum([val for key, val in loglike_all.iteritems()])
 
 
-    def compute_bic_all_datasets(self):
-        '''
-            Compute the BIC scores for all datasets
-        '''
-        bic_all = dict()
-        for experiment_id in self.experimental_datasets:
-            bic_all[experiment_id] = self.compute_bic_dataset(experiment_id)
-
-        return bic_all
-
-
-    def compute_bic_loglik_datasets(self, experiment_id):
-        '''
-            Compute both BIC and Loglikelihood
-        '''
-        result = dict()
-
-        result['bic'] = self.compute_bic_dataset(experiment_id)
-        result['LL'] = self.compute_loglik_dataset(experiment_id)
-
-        return result
-
-
-    def compute_bic_loglik_all_datasets(self):
-        '''
-            Compute both BIC and Loglikelihood for all datasets
-        '''
-
-        result_all = dict()
-        for experiment_id in self.experimental_datasets:
-            result_all[experiment_id] = self.compute_bic_loglik_datasets(experiment_id)
-
-        return result_all
 
     #####
 
@@ -285,7 +275,7 @@ def test_fit_experiment():
     # Load a sampler
     experiment_parameters = dict(action_to_do='launcher_do_simple_run',
                                   inference_method='none',
-                                  T=3,
+                                  T=1,
                                   M=200,
                                   N=200,
                                   num_samples=500,
@@ -301,7 +291,7 @@ def test_fit_experiment():
     sampler = experiment_launcher.all_vars['sampler']
 
     # Now let's build a FitExperiment
-    parameters = dict(experiment_ids=['gorgo11', 'dualrecall'], fit_mixture_model=True)
+    parameters = dict(experiment_ids=['gorgo11', 'bays09','dualrecall'], fit_mixture_model=True)
     fit_exp = FitExperiment(sampler, parameters)
 
     # Now compute some loglikelihoods
