@@ -22,7 +22,7 @@ num_repetitions = 5
 run_label = 'specific_stimuli_corrected_mixed_sigmaxmindistance_autoset_repetitions{num_repetitions}mult_collectall_281113'
 
 pbs_submission_infos = dict(description='See patterns of errors on Specific Stimuli, with Mixed population code. Internally vary ratio_conj. Vary sigmax and enforce_min_distance here. Collect everything there. Randomise target now, stupid stupid.',
-                            command='python /nfs/home2/lmatthey/Documents/work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py',
+                            command='python $WORKDIR/experimentlauncher.py',
                             other_options=dict(action_to_do='launcher_do_mixed_special_stimuli',
                                                subaction='collect_responses',
                                                code_type='mixed',
@@ -45,7 +45,7 @@ pbs_submission_infos = dict(description='See patterns of errors on Specific Stim
                                                stimuli_generation_recall='random',
                                                autoset_parameters=None,
                                                label=run_label,
-                                               experiment_data_dir='/nfs/home2/lmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/experimental_data',
+                                               experiment_data_dir=os.path.normpath(os.path.join(os.environ['WORKDIR_DROP'], '../../experimental_data')),
                                                ),
                             walltime='10:00:00',
                             memory='2gb',

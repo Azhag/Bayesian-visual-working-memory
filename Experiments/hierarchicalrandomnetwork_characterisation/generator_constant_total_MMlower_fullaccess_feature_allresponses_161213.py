@@ -38,7 +38,7 @@ run_label = 'hierarchical_all_responses_constant_total_MMlower_fullaccess_volume
 
 
 pbs_submission_infos = dict(description='Hierarchical network. Assume we want to allocate a fixed number of neurons between the two layers. Do that by constraining the sum of M and M_layer_one to be some constant. Corrected logic so that whole population is accessible now. Outputs all responses for later fits. Sampling.',
-                            command='python /nfs/home2/lmatthey/Documents/work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py',
+                            command='python $WORKDIR/experimentlauncher.py',
                             other_options=dict(action_to_do='launcher_do_hierarchical_precision_M_Mlower_pbs',
                                                code_type='hierarchical',
                                                output_directory='.',

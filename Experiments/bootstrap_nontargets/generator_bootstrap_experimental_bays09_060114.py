@@ -27,7 +27,7 @@ submit_cmd = 'sbatch'
 run_label = 'bootstrap_experimental_bays09_bootstrapsamples{num_repetitions}mult_060114'
 
 pbs_submission_infos = dict(description='Collect bootstrap samples, using experimental data responses. Uses mixture model with single kappa. Bays09 dataset here.',
-                            command='python /nfs/home2/lmatthey/Documents/work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py',
+                            command='python $WORKDIR/experimentlauncher.py',
                             other_options=dict(action_to_do='launcher_do_bootstrap_experimental',
                                                subaction='bays09',
                                                output_directory='.',
@@ -53,7 +53,7 @@ pbs_submission_infos = dict(description='Collect bootstrap samples, using experi
                                                stimuli_generation_recall='random',
                                                autoset_parameters=None,
                                                label=run_label,
-                                               experiment_data_dir='/nfs/home2/lmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/experimental_data',
+                                               experiment_data_dir=os.path.normpath(os.path.join(os.environ['WORKDIR_DROP'], '../../experimental_data')),
                                                ),
                             walltime='10:00:00',
                             memory='2gb',

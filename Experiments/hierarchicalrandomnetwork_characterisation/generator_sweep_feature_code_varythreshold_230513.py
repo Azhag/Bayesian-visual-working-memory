@@ -19,24 +19,24 @@ if normalise_weights == 1:
 elif normalise_weights == 2:
     run_label = 'hierarchical_M_sparsity_sigmaweight_volume_featurelayer_varythreshold_othernorm_300513'
 
-pbs_submission_infos = dict(description='Hierarchical network, feature layer one, testing effect of M, sparsity, sigma weights and now threshold as well. No filtering.', 
-                            command='python /nfs/home2/lmatthey/Documents/work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py', 
-                            other_options=dict(action_to_do='launcher_do_hierarchical_precision_M_sparsity_sigmaweight_feature_pbs', 
-                                               code_type='hierarchical', 
-                                               output_directory='.', 
-                                               M=100, 
-                                               M_layer_one=100, 
-                                               type_layer_one='feature', 
-                                               sigmax=0.1, 
+pbs_submission_infos = dict(description='Hierarchical network, feature layer one, testing effect of M, sparsity, sigma weights and now threshold as well. No filtering.',
+                            command='python $WORKDIR/experimentlauncher.py',
+                            other_options=dict(action_to_do='launcher_do_hierarchical_precision_M_sparsity_sigmaweight_feature_pbs',
+                                               code_type='hierarchical',
+                                               output_directory='.',
+                                               M=100,
+                                               M_layer_one=100,
+                                               type_layer_one='feature',
+                                               sigmax=0.1,
                                                N=500,
-                                               T=6, 
-                                               sigmay=0.0001, 
-                                               inference_method='max_lik', 
+                                               T=6,
+                                               sigmay=0.0001,
+                                               inference_method='max_lik',
                                                num_repetitions=3,
                                                normalise_weights=normalise_weights,
-                                               label=run_label), 
-                            walltime='10:00:00', 
-                            memory='2gb', 
+                                               label=run_label),
+                            walltime='10:00:00',
+                            memory='2gb',
                             simul_out_dir=os.path.join(os.getcwd(), run_label),
                             submit_label='hier_feat_thr')
 
@@ -58,7 +58,7 @@ dict_parameters_range = dict(M=M_range, sparsity=sparsity_range, sigma_weights=s
 #     filtering_all_parameters[key] = val
 
 if __name__ == '__main__':
-    
+
     this_file = inspect.getfile(inspect.currentframe())
     print "Running ", this_file
 

@@ -29,7 +29,7 @@ sigmax = 0.11
 run_label = 'error_distribution_mixed_paperplots_M{M}T{T}repetitions{num_repetitions}_150114'
 
 pbs_submission_infos = dict(description='Runs and collect responses to generate histograms. Should do it for multiple T, possibly with the parameters optimal for memory curve fits (but not that needed...)',
-                            command='python /nfs/home2/lmatthey/Documents/work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py',
+                            command='python $WORKDIR/experimentlauncher.py',
                             other_options=dict(action_to_do='launcher_do_error_distributions',
                                                code_type='mixed',
                                                output_directory='.',
@@ -56,7 +56,7 @@ pbs_submission_infos = dict(description='Runs and collect responses to generate 
                                                stimuli_generation_recall='random',
                                                autoset_parameters=None,
                                                label=run_label,
-                                               experiment_data_dir='/nfs/home2/lmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/experimental_data',
+                                               experiment_data_dir=os.path.normpath(os.path.join(os.environ['WORKDIR_DROP'], '../../experimental_data')),
                                                ),
                             walltime='40:00:00',
                             memory='2gb',

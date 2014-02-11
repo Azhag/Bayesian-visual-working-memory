@@ -142,7 +142,7 @@ def plots_boostrap(data_pbs, generator_module=None):
                         dataio.save_current_figure('ecdf_bootstrap_sigmax%.2f_T%d_{label}_{unique_id}.pdf' % (sigmax, T))
 
     if estimate_bootstrap:
-        model_outputs = utils.load_npy( '/nfs/home2/lmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/code/git-bayesian-visual-working-memory/Experiments/error_distribution/error_distribution_conj_M100T6repetitions5_121113_outputs/global_plots_errors_distribution-plots_errors_distribution-cc1a49b0-f5f0-4e82-9f0f-5a16a2bfd4e8.npy')
+        model_outputs = utils.load_npy(os.path.join(os.environ['WORKDIR_DROP'], 'Experiments/error_distribution/error_distribution_conj_M100T6repetitions5_121113_outputs/global_plots_errors_distribution-plots_errors_distribution-cc1a49b0-f5f0-4e82-9f0f-5a16a2bfd4e8.npy'))
         data_responses_all = model_outputs['result_responses_all'][..., 0]
         data_target_all = model_outputs['result_target_all'][..., 0]
         data_nontargets_all = model_outputs['result_nontargets_all'][..., 0]

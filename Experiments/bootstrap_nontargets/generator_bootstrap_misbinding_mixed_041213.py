@@ -27,7 +27,7 @@ submit_cmd = 'qsub'
 run_label = 'bootstrap_misbinding_mixed_bootstrapsamples{num_repetitions}mult_041213'
 
 pbs_submission_infos = dict(description='Collect bootstrap samples, using past responses. Uses Misbinding experiments samples here. Fit mixture model with single kappa. Mixed misbinding experiment.',
-                            command='python /nfs/home2/lmatthey/Documents/work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py',
+                            command='python $WORKDIR/experimentlauncher.py',
                             other_options=dict(action_to_do='launcher_do_nontarget_bootstrap_misbindingruns',
                                                subaction='mixed',
                                                code_type='mixed',
@@ -55,7 +55,7 @@ pbs_submission_infos = dict(description='Collect bootstrap samples, using past r
                                                stimuli_generation_recall='random',
                                                autoset_parameters=None,
                                                label=run_label,
-                                               experiment_data_dir='/nfs/home2/lmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/experimental_data',
+                                               experiment_data_dir=os.path.normpath(os.path.join(os.environ['WORKDIR_DROP'], '../../experimental_data')),
                                                ),
                             walltime='10:00:00',
                             memory='2gb',

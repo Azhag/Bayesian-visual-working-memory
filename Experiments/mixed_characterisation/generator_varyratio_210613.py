@@ -16,7 +16,7 @@ parameter_generation = 'grid'
 
 M = 200
 
-## Define our filtering function 
+## Define our filtering function
 def filtering_function(new_parameters, dict_parameters_range, function_parameters=None):
     '''
         Receive M and ratio_conj, make sure that M_conj = M*ratio_conj is a squared number (or close to it)
@@ -28,25 +28,25 @@ filtering_function_parameters = {'M': M}
 
 run_label = 'mixed_varyratio_sigmax{sigmax}_200613'
 
-pbs_submission_infos = dict(description='Mixed population. Check how the precision changes for varying ratio_conj and T.', 
-                            command='python /nfs/home2/lmatthey/Documents/work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py', 
-                            other_options=dict(action_to_do='launcher_do_mixed_varyratio_precision_pbs', 
-                                               code_type='mixed', 
-                                               output_directory='.', 
-                                               M=M, 
-                                               sigmax=0.2, 
-                                               N=500, 
-                                               T=6, 
+pbs_submission_infos = dict(description='Mixed population. Check how the precision changes for varying ratio_conj and T.',
+                            command='python $WORKDIR/experimentlauncher.py',
+                            other_options=dict(action_to_do='launcher_do_mixed_varyratio_precision_pbs',
+                                               code_type='mixed',
+                                               output_directory='.',
+                                               M=M,
+                                               sigmax=0.2,
+                                               N=500,
+                                               T=6,
                                                ratio_conj=0.5,
-                                               sigmay=0.0001, 
-                                               inference_method='max_lik', 
+                                               sigmay=0.0001,
+                                               inference_method='max_lik',
                                                num_repetitions=5,
                                                num_samples=500,
                                                selection_method='last',
                                                autoset_parameters=1,
-                                               label=run_label), 
-                            walltime='10:00:00', 
-                            memory='2gb', 
+                                               label=run_label),
+                            walltime='10:00:00',
+                            memory='2gb',
                             simul_out_dir=os.path.join(os.getcwd(), run_label),
                             pbs_submit_cmd='qsub',
                             submit_label='mixed_ratio')
@@ -57,7 +57,7 @@ dict_parameters_range = dict(ratio_conj=ratio_range)
 
 
 if __name__ == '__main__':
-    
+
     this_file = inspect.getfile(inspect.currentframe())
     print "Running ", this_file
 

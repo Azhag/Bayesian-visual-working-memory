@@ -27,7 +27,7 @@ num_repetitions = 3
 run_label = 'fit_mixturemodels_hier_sigmaxMratio_random_repetitions{num_repetitions}_210114'
 
 pbs_submission_infos = dict(description='Runs the model for 1..T items. Computes precision, Fisher information, fits the mixture model, and compare the mixture model fits to the experimental data (Bays09 and Gorgo11 here). Also stores all responses. Meant to run random sampling for a long while! Hierarchical population code.',
-                            command='python /nfs/home2/lmatthey/Documents/work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py',
+                            command='python $WORKDIR/experimentlauncher.py',
                             other_options=dict(action_to_do='launcher_do_fit_mixturemodels',
                                                code_type='hierarchical',
                                                output_directory='.',
@@ -51,7 +51,7 @@ pbs_submission_infos = dict(description='Runs the model for 1..T items. Computes
                                                autoset_parameters=None,
                                                collect_responses=None,
                                                label=run_label,
-                                               experiment_data_dir='/nfs/home2/lmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/experimental_data',
+                                               experiment_data_dir=os.path.normpath(os.path.join(os.environ['WORKDIR_DROP'], '../../experimental_data')),
                                                ),
                             walltime='40:00:00',
                             memory='2gb',

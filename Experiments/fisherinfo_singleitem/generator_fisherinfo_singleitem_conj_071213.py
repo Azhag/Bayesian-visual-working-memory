@@ -23,7 +23,7 @@ submit_cmd = 'qsub'
 run_label = 'fisherinfo_singleitem_conj_correctlargen_repetitions{num_repetitions}mult_121213'
 
 pbs_submission_infos = dict(description='Runs multiple metric to get estimate of fisher information for a single item, using a conjunctive code here. Should then put everything back nicely. Corrected larg N FI now.',
-                            command='python /nfs/home2/lmatthey/Documents/work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py',
+                            command='python $WORKDIR/experimentlauncher.py',
                             other_options=dict(action_to_do='launcher_do_fisher_information_param_search_pbs',
                                                code_type='conj',
                                                output_directory='.',
@@ -45,7 +45,7 @@ pbs_submission_infos = dict(description='Runs multiple metric to get estimate of
                                                stimuli_generation_recall='random',
                                                autoset_parameters=None,
                                                label=run_label,
-                                               experiment_data_dir='/nfs/home2/lmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/experimental_data',
+                                               experiment_data_dir=os.path.normpath(os.path.join(os.environ['WORKDIR_DROP'], '../../experimental_data')),
                                                ),
                             walltime='10:00:00',
                             memory='2gb',

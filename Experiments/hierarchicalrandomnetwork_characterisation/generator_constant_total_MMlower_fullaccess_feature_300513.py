@@ -18,7 +18,7 @@ parameter_generation = 'grid'
 
 run_label = 'hierarchical_constant_total_MMlower_fullaccess_volume_featurelayer_300513'
 
-## Define our filtering function 
+## Define our filtering function
 def filtering_function(new_parameters, dict_parameters_range, function_parameters=None):
     '''
         Receive M and M_layer_one, should make sure their sum is equal to some constant value (set in function_parameters)
@@ -44,32 +44,32 @@ if other_threshold:
 else:
     threshold = 0.0
 
-pbs_submission_infos = dict(description='Hierarchical network. Assume we want to allocate a fixed number of neurons between the two layers. Do that by constraining the sum of M and M_layer_one to be some constant. Corrected logic so that whole population is accessible now', 
-                            command='python /nfs/home2/lmatthey/Documents/work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py', 
-                            other_options=dict(action_to_do='launcher_do_hierarchical_precision_M_Mlower_pbs', 
-                                               code_type='hierarchical', 
-                                               output_directory='.', 
-                                               M=100, 
-                                               M_layer_one=100, 
-                                               type_layer_one='feature', 
-                                               sigmax=0.2, 
-                                               N=500, 
-                                               T=6, 
-                                               sigmay=0.0001, 
+pbs_submission_infos = dict(description='Hierarchical network. Assume we want to allocate a fixed number of neurons between the two layers. Do that by constraining the sum of M and M_layer_one to be some constant. Corrected logic so that whole population is accessible now',
+                            command='python $WORKDIR/experimentlauncher.py',
+                            other_options=dict(action_to_do='launcher_do_hierarchical_precision_M_Mlower_pbs',
+                                               code_type='hierarchical',
+                                               output_directory='.',
+                                               M=100,
+                                               M_layer_one=100,
+                                               type_layer_one='feature',
+                                               sigmax=0.2,
+                                               N=500,
+                                               T=6,
+                                               sigmay=0.0001,
                                                output_both_layers=1,
-                                               inference_method='max_lik', 
+                                               inference_method='max_lik',
                                                num_repetitions=10,
                                                normalise_weights=1,
                                                threshold=threshold,
-                                               label=run_label), 
-                            walltime='1:00:00', 
-                            memory='2gb', 
+                                               label=run_label),
+                            walltime='1:00:00',
+                            memory='2gb',
                             simul_out_dir=os.path.join(os.getcwd(), run_label),
                             pbs_submit_cmd='qsub',
                             submit_label='hier_MMl_feat_cst')
 
 M_range           =   dict(range=np.arange(1, 201), dtype=int)
-M_lower_range     =   dict(range=np.arange(2, 200, 2), dtype=int)        
+M_lower_range     =   dict(range=np.arange(2, 200, 2), dtype=int)
 # M_range           =   dict(range=np.linspace(5, 505, 1), dtype=int)
 # M_lower_range     =   dict(range=np.arange(5, 6, 2)**2., dtype=int)
 
@@ -77,7 +77,7 @@ dict_parameters_range = dict(M=M_range, M_layer_one=M_lower_range)
 
 
 if __name__ == '__main__':
-    
+
     this_file = inspect.getfile(inspect.currentframe())
     print "Running ", this_file
 

@@ -27,7 +27,7 @@ submit_cmd = 'qsub'
 run_label = 'bootstrap_conjresp_allnontargets_bootstrapsamples{num_repetitions}mult_021213'
 
 pbs_submission_infos = dict(description='Collect bootstrap samples, using past responses from the model as target/responses (make sure its correct in the launcher itself). Hack a bit to run multiple jobs of the same parameter using the array functionality of PBS/SLURM. Uses mixture model with single kappa.',
-                            command='python /nfs/home2/lmatthey/Documents/work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py',
+                            command='python $WORKDIR/experimentlauncher.py',
                             other_options=dict(action_to_do='launcher_do_nontarget_bootstrap',
                                                code_type='mixed',
                                                output_directory='.',
@@ -54,7 +54,7 @@ pbs_submission_infos = dict(description='Collect bootstrap samples, using past r
                                                stimuli_generation_recall='random',
                                                autoset_parameters=None,
                                                label=run_label,
-                                               experiment_data_dir='/nfs/home2/lmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/experimental_data',
+                                               experiment_data_dir=os.path.normpath(os.path.join(os.environ['WORKDIR_DROP'], '../../experimental_data')),
                                                ),
                             walltime='10:00:00',
                             memory='2gb',

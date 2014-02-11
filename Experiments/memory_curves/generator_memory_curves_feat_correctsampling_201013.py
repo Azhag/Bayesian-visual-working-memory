@@ -24,7 +24,7 @@ num_repetitions = 5
 run_label = 'memory_curve_feat_Msigmax_autoset_correctsampling_repetitions{num_repetitions}_pbs_211013'
 
 pbs_submission_infos = dict(description='Fit Memory curves using the new code (october 2013). Compute marginal inverse fisher information, which is slightly better at capturing items interactions effects. Also fit Mixture models directly. Seems that a small slice width is necessary for Feature codes, precision is too small if not.',
-                            command='python /nfs/home2/lmatthey/Documents/work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py',
+                            command='python $WORKDIR/experimentlauncher.py',
                             other_options=dict(action_to_do='launcher_do_memory_curve_marginal_fi',
                                                code_type='feat',
                                                output_directory='.',
@@ -46,7 +46,7 @@ pbs_submission_infos = dict(description='Fit Memory curves using the new code (o
                                                stimuli_generation_recall='random',
                                                autoset_parameters=None,
                                                label=run_label,
-                                               experiment_data_dir='/nfs/home2/lmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/experimental_data',
+                                               experiment_data_dir=os.path.normpath(os.path.join(os.environ['WORKDIR_DROP'], '../../experimental_data')),
                                                ),
                             walltime='10:00:00',
                             memory='2gb',

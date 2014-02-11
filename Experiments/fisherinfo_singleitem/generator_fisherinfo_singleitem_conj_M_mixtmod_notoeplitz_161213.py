@@ -25,7 +25,7 @@ submit_cmd = 'qsub'
 run_label = 'fisherinfo_singleitem_conj_correctlargen_notoeplitz_mixtmod_M{M}repetitions{num_repetitions}mult_131213'
 
 pbs_submission_infos = dict(description='Runs multiple metric to get estimate of fisher information for a single item, using a conjunctive code here. Should then put everything back nicely. Corrected larg N FI now. This version relies on the noise_covariance_corrected branch and stimuli_generation_recall=constant, uses a modified FI for single items (more correct actually, do not take Cov(mu(theta)) into account for a single object, as we do not average over theta while sampling a single item). Derivating the expression for N=1 requires solving the FI large N for toeplitz covariance. Not too bad, but not ready yet (and also a bit wrong when accounting for multiple items).',
-                            command='python /nfs/home2/lmatthey/Documents/work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py',
+                            command='python $WORKDIR/experimentlauncher.py',
                             other_options=dict(action_to_do='launcher_do_fisher_information_param_search_pbs',
                                                subaction='collect_responses',
                                                code_type='conj',
@@ -48,7 +48,7 @@ pbs_submission_infos = dict(description='Runs multiple metric to get estimate of
                                                stimuli_generation_recall='constant',
                                                rc_scale=4.0,
                                                label=run_label,
-                                               experiment_data_dir='/nfs/home2/lmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/experimental_data',
+                                               experiment_data_dir=os.path.normpath(os.path.join(os.environ['WORKDIR_DROP'], '../../experimental_data')),
                                                ),
                             walltime='1:00:00',
                             memory='2gb',
