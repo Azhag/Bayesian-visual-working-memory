@@ -155,6 +155,23 @@ class ResultComputation():
         # return the overall distance, over all parameters and number of items
         return np.nansum(result_dist_bays09)
 
+
+    def compute_result_distfitexpbic(self, all_variables):
+        '''
+            Result is the summed BIC score of the FitExperiment result on all datasets
+        '''
+
+        if 'result_fitexperiments' in all_variables:
+            # We have result_fitexperiments, that's good.
+            # Average over axis -1, then sum
+            bic_summed = utils.nanmean(all_variables['result_fitexperiments'][0])
+        else:
+            # We do not have it, could instantiate a FitExperiment with "normal" parameters and work from there instead
+            raise NotImplementedError('version without result_fitexperiments not implemented yet')
+
+        return bic_summed
+
+
     def compute_result_filenameoutput(self, all_variables):
         '''
             Result is filename of the outputted data.
@@ -173,6 +190,9 @@ class ResultComputation():
 
         # Extract the filename
         return all_variables['dataio'].filename
+
+
+
 
 
 

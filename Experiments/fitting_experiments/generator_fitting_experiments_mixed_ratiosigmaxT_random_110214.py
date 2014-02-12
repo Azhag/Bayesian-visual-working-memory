@@ -18,11 +18,11 @@ submit_jobs = False
 
 parameter_generation = 'random'  ## !!!!!! RANDOM HERE   !!!!!
 num_random_samples = 1000
-limit_max_queued_jobs = 200
+limit_max_queued_jobs = 100
 resource = ''
 
-# submit_cmd = 'qsub'
-submit_cmd = 'sbatch'
+submit_cmd = 'qsub'
+# submit_cmd = 'sbatch'
 
 # FOR DIRAC
 if getpass.getuser() == 'dc-matt1':
@@ -46,7 +46,7 @@ pbs_submission_infos = dict(description='Fitting of experimental data. Use autom
                                                T=1,
                                                sigmax=0.1,
                                                sigmay=0.0001,
-                                               inference_method='none',
+                                               inference_method='sample',
                                                num_samples=300,
                                                burn_samples=300,
                                                selection_num_samples=1,
@@ -73,7 +73,7 @@ if getpass.getuser() == 'dc-matt1':
   pbs_submission_infos['walltime'] = '12:00:00'
 
 sigmax_range      =   dict(sampling_type='uniform', low=0.01, high=1.0, dtype=float)
-ratioconj_range   =   dict(sampling_type='uniform', low=0.01, high=1.0, dtype=float)
+ratio_range   =   dict(sampling_type='uniform', low=0.01, high=1.0, dtype=float)
 T_range           =   dict(sampling_type='randint', low=1, high=6, dtype=int)
 
 dict_parameters_range = dict(ratio_conj=ratio_range, sigmax=sigmax_range, T=T_range)

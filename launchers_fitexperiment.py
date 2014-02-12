@@ -27,17 +27,19 @@ def launcher_do_fitexperiment(args):
 
     print "Doing a piece of work for launcher_do_fitexperiment"
 
+
     all_parameters = utils.argparse_2_dict(args)
     print all_parameters
 
     if all_parameters['burn_samples'] + all_parameters['num_samples'] < 200:
         print "WARNING> you do not have enough samples I think!", all_parameters['burn_samples'] + all_parameters['num_samples']
 
-
     # Force some parameters
     all_parameters.setdefault('experiment_ids', ['gorgo11', 'bays09', 'dualrecall'])
     if 'fitexperiment_parameters' not in all_parameters:
         fitexperiment_parameters = dict(experiment_ids=all_parameters['experiment_ids'], fit_mixture_model=True)
+
+    print "\n T={:d}, experiment_ids {}\n".format(all_parameters['T'], all_parameters['experiment_ids'])
 
     # Create DataIO
     #  (complete label with current variable state)
@@ -55,15 +57,18 @@ def launcher_do_fitexperiment(args):
         result_fi_theocov = np.nan*np.empty((all_parameters['num_repetitions']))
 
         # If desired, will automatically save all Model responses.
-        if all_parameters['collect_responses']:
-            print "--- Collecting all responses..."
-            result_responses = np.nan*np.ones((all_parameters['N'], all_parameters['num_repetitions']))
-            result_target = np.nan*np.ones((all_parameters['N'], all_parameters['num_repetitions']))
-            result_nontargets = np.nan*np.ones((all_parameters['N'], all_parameters['N']-1, all_parameters['num_repetitions']))
+        # TODO Does not work, dimensionality problem, responses have the dataset sizes, not know a-priori...
+        # if all_parameters['collect_responses']:
+        #     raise NotImplementedError
+        #     print "--- Collecting all responses..."
+        #     result_responses = np.nan*np.ones((all_parameters['N'], all_parameters['num_repetitions']))
+        #     result_target = np.nan*np.ones((all_parameters['N'], all_parameters['num_repetitions']))
+        #     result_nontargets = np.nan*np.ones((all_parameters['N'], all_parameters['N']-1, all_parameters['num_repetitions']))
 
     search_progress = progress.Progress(all_parameters['num_repetitions'])
     for repet_i in xrange(all_parameters['num_repetitions']):
-        print "%.2f%%, %s left - %s" % (search_progress.percentage(), search_progress.time_remaining_str(), search_progress.eta_str())
+
+        print "%d/%d | %.2f%%, %s left - %s" % (repet_i+1, all_parameters['num_repetitions'], search_progress.percentage(), search_progress.time_remaining_str(), search_progress.eta_str())
 
         ### WORK WORK WORK work? ###
         # Instantiate
@@ -86,15 +91,16 @@ def launcher_do_fitexperiment(args):
 
         # If sampling_method is not none, try to get em_fits and others
         if not all_parameters['inference_method'] == 'none':
-            parameters = dict((key, eval(key)) for key in ['all_parameters', 'repet_i', 'result_all_precisions', 'result_em_fits', 'result_fi_theo', 'result_fi_theocov'])
-            if all_parameters['collect_responses']:
-                parameters.update(dict(result_responses=result_responses, result_target=result_target, result_nontargets=result_nontargets))
+            parameters = dict([[key, eval(key)] for key in ['all_parameters', 'repet_i', 'result_all_precisions', 'result_em_fits', 'result_fi_theo', 'result_fi_theocov']])
+            # if all_parameters['collect_responses']:
+            #     parameters.update(dict(result_responses=result_responses, result_target=result_target, result_nontargets=result_nontargets))
 
             def additional_computations(sampler, parameters):
-                for key, val in parameters:
+                for key, val in parameters.iteritems():
                     locals()[key] = val
 
                 # Sample
+                print "sampling..."
                 sampler.run_inference(all_parameters)
 
                 # Compute precision
@@ -106,14 +112,14 @@ def launcher_do_fitexperiment(args):
                 curr_params_fit = sampler.fit_mixture_model(use_all_targets=True)
                 result_em_fits[:, repet_i] = [curr_params_fit[key] for key in ['kappa', 'mixt_target', 'mixt_nontargets_sum', 'mixt_random', 'train_LL', 'bic']]
 
-                # If needed, store responses
-                if all_parameters['collect_responses']:
-                    (responses, target, nontarget) = sampler.collect_responses()
-                    result_responses[:, repet_i] = responses
-                    result_target[:, repet_i] = target
-                    result_nontargets[..., repet_i] = nontarget
+                # # If needed, store responses
+                # if all_parameters['collect_responses']:
+                #     (responses, target, nontarget) = sampler.collect_responses()
+                #     result_responses[:, repet_i] = responses
+                #     result_target[:, repet_i] = target
+                #     result_nontargets[..., repet_i] = nontarget
 
-                    print "collected responses"
+                #     print "collected responses"
 
                 # Compute fisher info
                 print "compute fisher info"
