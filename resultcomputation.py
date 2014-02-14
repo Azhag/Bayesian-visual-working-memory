@@ -163,8 +163,17 @@ class ResultComputation():
 
         if 'result_fitexperiments' in all_variables:
             # We have result_fitexperiments, that's good.
-            # Average over axis -1, then sum
-            bic_summed = utils.nanmean(all_variables['result_fitexperiments'][0])
+
+            # Make it work for either fixed T or multiple T.
+
+            if len(all_variables['result_fitexperiments'].shape) == 2:
+                # Single T. Average over axis -1
+                bic_summed = utils.nanmean(all_variables['result_fitexperiments'][0])
+            elif len(all_variables['result_fitexperiments'].shape) == 3:
+                # Multiple T. Average over axis -1, then sum
+                bic_summed = np.nansum(utils.nanmean(all_variables['result_fitexperiments'][:, 0], axis=-1))
+            else:
+                raise ValueError("wrong shape for result_fitexperiments: {}".format(all_variables['result_fitexperiments'].shape))
         else:
             # We do not have it, could instantiate a FitExperiment with "normal" parameters and work from there instead
             raise NotImplementedError('version without result_fitexperiments not implemented yet')

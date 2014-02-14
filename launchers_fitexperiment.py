@@ -155,6 +155,153 @@ def launcher_do_fitexperiment(args):
     return locals()
 
 
+def launcher_do_fitexperiment_allT(args):
+    '''
+        Perform a simple estimation of the loglikelihood of the data, under a model with provided parameters.
+
+        Will run for all T = 1..all_parameters['T']
+
+        If inference_method is not none, also fits a EM mixture model, get the precision and the fisher information
+    '''
+
+    print "Doing a piece of work for launcher_do_fitexperiment_allT"
+
+
+    all_parameters = utils.argparse_2_dict(args)
+    print all_parameters
+
+    if all_parameters['burn_samples'] + all_parameters['num_samples'] < 200:
+        print "WARNING> you do not have enough samples I think!", all_parameters['burn_samples'] + all_parameters['num_samples']
+
+    # Force some parameters
+    all_parameters.setdefault('experiment_ids', ['gorgo11', 'bays09', 'dualrecall'])
+    if 'fitexperiment_parameters' not in all_parameters:
+        fitexperiment_parameters = dict(experiment_ids=all_parameters['experiment_ids'], fit_mixture_model=True)
+
+    print "\n T_max={:d}, experiment_ids {}\n".format(all_parameters['T'], all_parameters['experiment_ids'])
+
+    # Create DataIO
+    #  (complete label with current variable state)
+    dataio = DataIO(output_folder=all_parameters['output_directory'], label=all_parameters['label'].format(**all_parameters))
+    save_every = 1
+    run_counter = 0
+
+    # Parameter arrays
+    T_max = all_parameters['T']
+    T_space = np.arange(1, T_max+1)
+
+    # Result arrays
+    result_fitexperiments = np.nan*np.empty((T_space.size, 2, all_parameters['num_repetitions']))  # LL, BIC total
+    result_fitexperiments_all = np.nan*np.empty((T_space.size, 2, len(all_parameters['experiment_ids']), all_parameters['num_repetitions']))  # LL, BIC per experiments
+    if all_parameters['inference_method'] != 'none':
+        result_all_precisions = np.nan*np.empty((T_space.size, all_parameters['num_repetitions']))
+        result_em_fits = np.nan*np.empty((T_space.size, 6, all_parameters['num_repetitions']))   # kappa, mixt_target, mixt_nontarget, mixt_random, ll, bic
+        result_fi_theo = np.nan*np.empty((T_space.size, all_parameters['num_repetitions']))
+        result_fi_theocov = np.nan*np.empty((T_space.size, all_parameters['num_repetitions']))
+
+        # If desired, will automatically save all Model responses.
+        # TODO Does not work, dimensionality problem, responses have the dataset sizes, not know a-priori...
+        # if all_parameters['collect_responses']:
+        #     raise NotImplementedError
+        #     print "--- Collecting all responses..."
+        #     result_responses = np.nan*np.ones((all_parameters['N'], all_parameters['num_repetitions']))
+        #     result_target = np.nan*np.ones((all_parameters['N'], all_parameters['num_repetitions']))
+        #     result_nontargets = np.nan*np.ones((all_parameters['N'], all_parameters['N']-1, all_parameters['num_repetitions']))
+
+    search_progress = progress.Progress(T_space.size*all_parameters['num_repetitions'])
+    for repet_i in xrange(all_parameters['num_repetitions']):
+        for T_i, T in enumerate(T_space):
+            print "\nT=%d, %d/%d | %.2f%%, %s left - %s" % (T, repet_i+1, all_parameters['num_repetitions'], search_progress.percentage(), search_progress.time_remaining_str(), search_progress.eta_str())
+
+            # Update parameter
+            all_parameters['T'] = T
+
+            ### WORK WORK WORK work? ###
+            # Instantiate
+            (_, _, _, sampler) = launchers.init_everything(all_parameters)
+
+            ### Do the actual FitExperiment computations
+            fit_exp = FitExperiment(sampler, fitexperiment_parameters)
+
+            ## Compute and store the BIC and LL
+            print ">> Computing BIC and LL..."
+            bic_loglik_dict = fit_exp.compute_bic_loglik_all_datasets(K=None)
+
+            for exper_i, exper in enumerate(all_parameters['experiment_ids']):
+                try:
+                    result_fitexperiments_all[T_i, 0, exper_i, repet_i] = bic_loglik_dict[exper]['bic']
+                    result_fitexperiments_all[T_i, 1, exper_i, repet_i] = bic_loglik_dict[exper]['LL']
+                except TypeError:
+                    pass
+
+            result_fitexperiments[T_i, :, repet_i] = np.nansum(result_fitexperiments_all[T_i, ..., repet_i], axis=1)
+
+            # If sampling_method is not none, try to get em_fits and others
+            if not all_parameters['inference_method'] == 'none':
+                parameters = dict([[key, eval(key)] for key in ['all_parameters', 'repet_i', 'result_all_precisions', 'result_em_fits', 'result_fi_theo', 'result_fi_theocov', 'T_i']])
+                # if all_parameters['collect_responses']:
+                #     parameters.update(dict(result_responses=result_responses, result_target=result_target, result_nontargets=result_nontargets))
+
+                print ">> Sampling and fitting mixt model / precision / FI ..."
+                def additional_computations(sampler, parameters):
+                    for key, val in parameters.iteritems():
+                        locals()[key] = val
+
+                    # Sample
+                    print "sampling..."
+                    sampler.run_inference(all_parameters)
+
+                    # Compute precision
+                    print "get precision..."
+                    result_all_precisions[T_i, repet_i] = sampler.get_precision()
+
+                    # Fit mixture model
+                    print "fit mixture model..."
+                    curr_params_fit = sampler.fit_mixture_model(use_all_targets=True)
+                    result_em_fits[T_i, :, repet_i] = [curr_params_fit[key] for key in ['kappa', 'mixt_target', 'mixt_nontargets_sum', 'mixt_random', 'train_LL', 'bic']]
+
+                    # # If needed, store responses
+                    # if all_parameters['collect_responses']:
+                    #     (responses, target, nontarget) = sampler.collect_responses()
+                    #     result_responses[:, repet_i] = responses
+                    #     result_target[:, repet_i] = target
+                    #     result_nontargets[..., repet_i] = nontarget
+
+                    #     print "collected responses"
+
+                    # Compute fisher info
+                    print "compute fisher info"
+                    result_fi_theo[T_i, repet_i] = sampler.estimate_fisher_info_theocov(use_theoretical_cov=False)
+                    result_fi_theocov[T_i, repet_i] = sampler.estimate_fisher_info_theocov(use_theoretical_cov=True)
+
+                # Apply that on each dataset!
+                fct_infos = dict(fct=additional_computations, parameters=parameters)
+                fit_exp.apply_fct_all_datasets(fct_infos)
+
+
+            print "CURRENT RESULTS:"
+            if all_parameters['inference_method'] != 'none':
+                print result_all_precisions[T_i, repet_i], result_em_fits[T_i, :, repet_i], result_fi_theo[T_i, repet_i], result_fi_theocov[T_i, repet_i]
+            print "Fits ML:", bic_loglik_dict
+
+            ### /Work ###
+
+            search_progress.increment()
+            if run_counter % save_every == 0 or search_progress.done():
+                dataio.save_variables_default(locals())
+            run_counter += 1
+
+    ### /Work ###
+
+    additional_variables = ['fitexperiment_parameters']
+    dataio.save_variables_default(locals(), additional_variables)
+
+    #### Plots ###
+
+    print "All finished"
+
+    return locals()
+
 
 def launcher_do_fitexperiment_mixed_tworcscale(args):
     '''
