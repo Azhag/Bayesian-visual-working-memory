@@ -34,7 +34,7 @@ M = 200
 num_repetitions = 3
 T = 6
 
-run_label = 'fitting_experiments_mixed_ratiosigmaxrcscales_allT_random_biconly_M{M}repetitions{num_repetitions}_140214'
+run_label = 'fitting_experiments_mixed_ratiosigmaxrcscales_allT_random_sample_M{M}repetitions{num_repetitions}_140214'
 
 pbs_submission_infos = dict(description='Random sampling. Fitting of experimental data. Use automatic parameter setting for rcscale and rcscale2, and vary ratio_conj, sigmax and both rcscales. Should fit following datasets: Bays09, Dualrecall, Gorgo11',
                             command='python $WORKDIR/experimentlauncher.py',
@@ -47,7 +47,7 @@ pbs_submission_infos = dict(description='Random sampling. Fitting of experimenta
                                                T=T,
                                                sigmax=0.1,
                                                sigmay=0.0001,
-                                               inference_method='none',
+                                               inference_method='sample',
                                                num_samples=300,
                                                burn_samples=300,
                                                selection_num_samples=1,
@@ -60,12 +60,12 @@ pbs_submission_infos = dict(description='Random sampling. Fitting of experimenta
                                                label=run_label,
                                                experiment_data_dir=os.path.normpath(os.path.join(os.environ['WORKDIR_DROP'], '../../experimental_data')),
                                                ),
-                            walltime='10:00:00',
+                            walltime='40:00:00',
                             memory='2gb',
                             simul_out_dir=os.path.join(os.getcwd(), run_label.format(**locals())),
                             pbs_submit_cmd=submit_cmd,
                             limit_max_queued_jobs=limit_max_queued_jobs,
-                            submit_label='fitexp_T_rcscales_1',
+                            submit_label='fite_T_rcsc_long',
                             resource=resource)
 
 if getpass.getuser() == 'dc-matt1':

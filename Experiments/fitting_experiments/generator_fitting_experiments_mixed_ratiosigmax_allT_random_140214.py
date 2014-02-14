@@ -17,7 +17,7 @@ parameters_entryscript=dict(action_to_do='launcher_do_generate_submit_pbs_from_p
 submit_jobs = True
 
 parameter_generation = 'random'  ## !!!!!! RANDOM HERE   !!!!!
-num_random_samples = 1000
+num_random_samples = 2000
 limit_max_queued_jobs = 70
 resource = ''
 
