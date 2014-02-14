@@ -34,9 +34,9 @@ M = 200
 num_repetitions = 3
 T = 6
 
-run_label = 'fitting_experiments_mixed_ratiosigmax_allT_random_M{M}repetitions{num_repetitions}_140214'
+run_label = 'fitting_experiments_mixed_ratiosigmaxrcscales_allT_random_biconly_M{M}repetitions{num_repetitions}_140214'
 
-pbs_submission_infos = dict(description='Random sampling. Fitting of experimental data. Use automatic parameter setting for rcscale and rcscale2, and vary ratio_conj, sigmax and T. Should fit following datasets: Bays09, Dualrecall, Gorgo11',
+pbs_submission_infos = dict(description='Random sampling. Fitting of experimental data. Use automatic parameter setting for rcscale and rcscale2, and vary ratio_conj, sigmax and both rcscales. Should fit following datasets: Bays09, Dualrecall, Gorgo11',
                             command='python $WORKDIR/experimentlauncher.py',
                             other_options=dict(action_to_do='launcher_do_fitexperiment_allT',
                                                code_type='mixed',
@@ -47,7 +47,7 @@ pbs_submission_infos = dict(description='Random sampling. Fitting of experimenta
                                                T=T,
                                                sigmax=0.1,
                                                sigmay=0.0001,
-                                               inference_method='sample',
+                                               inference_method='none',
                                                num_samples=300,
                                                burn_samples=300,
                                                selection_num_samples=1,
@@ -56,7 +56,6 @@ pbs_submission_infos = dict(description='Random sampling. Fitting of experimenta
                                                num_repetitions=num_repetitions,
                                                stimuli_generation='random',
                                                stimuli_generation_recall='random',
-                                               autoset_parameters=None,
                                                collect_responses=None,
                                                label=run_label,
                                                experiment_data_dir=os.path.normpath(os.path.join(os.environ['WORKDIR_DROP'], '../../experimental_data')),
@@ -66,7 +65,7 @@ pbs_submission_infos = dict(description='Random sampling. Fitting of experimenta
                             simul_out_dir=os.path.join(os.getcwd(), run_label.format(**locals())),
                             pbs_submit_cmd=submit_cmd,
                             limit_max_queued_jobs=limit_max_queued_jobs,
-                            submit_label='fitexp_allT_rnd_1',
+                            submit_label='fitexp_T_rcscales_1',
                             resource=resource)
 
 if getpass.getuser() == 'dc-matt1':
@@ -75,8 +74,11 @@ if getpass.getuser() == 'dc-matt1':
 
 sigmax_range      =   dict(sampling_type='uniform', low=0.01, high=1.0, dtype=float)
 ratio_range       =   dict(sampling_type='uniform', low=0.01, high=1.0, dtype=float)
+rcscale1_range    =   dict(sampling_type='uniform', low=0.01, high=50, dtype=float)
+rcscale2_range    =   dict(sampling_type='uniform', low=0.01, high=50, dtype=float)
 
-dict_parameters_range = dict(ratio_conj=ratio_range, sigmax=sigmax_range)
+
+dict_parameters_range = dict(ratio_conj=ratio_range, sigmax=sigmax_range, rc_scale=rcscale1_range, rc_scale2=rcscale2_range)
 
 
 if __name__ == '__main__':
