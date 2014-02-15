@@ -21,8 +21,8 @@ num_random_samples = 2000
 limit_max_queued_jobs = 70
 resource = ''
 
-submit_cmd = 'qsub'
-# submit_cmd = 'sbatch'
+# submit_cmd = 'qsub'
+submit_cmd = 'sbatch'
 
 # FOR DIRAC
 if getpass.getuser() == 'dc-matt1':
