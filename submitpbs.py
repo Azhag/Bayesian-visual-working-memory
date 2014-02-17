@@ -103,6 +103,7 @@ class SubmitPBS():
 
         self.scripts_dir = os.path.join(self.working_directory, scripts_dir)
         self.output_dir = os.path.join(self.working_directory, output_dir)
+        self.plot_output_dir = os.path.join(self.working_directory, 'outputs')
         self.make_dirs()
 
         # Tracking dictionaries for the Optimisation routines
@@ -143,6 +144,10 @@ class SubmitPBS():
             pass
         try:
             os.makedirs(self.output_dir)
+        except:
+            pass
+        try:
+            os.makedirs(self.plot_output_dir)
         except:
             pass
 
@@ -578,6 +583,7 @@ class SubmitPBS():
         cma_use_auto_scaling = submission_parameters_dict.get('cma_use_auto_scaling', True)
         cma_iter_callback_function_infos = submission_parameters_dict.get('cma_iter_callback_function_infos', None)
         cma_logger_do_plot = submission_parameters_dict.get('cma_logger_do_plot', False)
+        cma_logger_filename = submission_parameters_dict.get('cma_logger_filename', 'logging_cmaes')
         cma_nan_replacement = submission_parameters_dict.get('cma_nan_replacement', 1000000000.)
         cma_use_bounds = submission_parameters_dict.get('cma_use_bounds', False)
 
@@ -614,7 +620,7 @@ class SubmitPBS():
         cma_es = cma.CMAEvolutionStrategy(self.cma_init_parameters(dict_parameters_range, parameter_names_sorted), cma_sigma0, inopts = cma_options)
 
         ## Instantiate a CMADataLogger. Will write to the current directory
-        cma_log = cma.CMADataLogger().register(cma_es)
+        cma_log = cma.CMADataLogger(name_prefix=os.path.join(self.plot_output_dir, cma_logger_filename)).register(cma_es)
 
         ## Iteration loop!
         while not cma_es.stop():
