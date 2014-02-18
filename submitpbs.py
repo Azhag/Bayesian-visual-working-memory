@@ -1177,7 +1177,7 @@ def test_cmaes_optimisation_3d():
         fitness_arr = np.array(fitness)
 
         # Do a plot
-        utils.scatter3d(candidates_arr[:, 0], candidates_arr[:, 1], candidates_arr[:, 2], c=np.log(fitness_arr), xlabel=all_variables['parameter_names_sorted'][0], ylabel=all_variables['parameter_names_sorted'][1], zlabel=all_variables['parameter_names_sorted'][2])
+        parameters['ax'] = utils.scatter3d(candidates_arr[:, 0], candidates_arr[:, 1], candidates_arr[:, 2], c=np.log(fitness_arr), xlabel=all_variables['parameter_names_sorted'][0], ylabel=all_variables['parameter_names_sorted'][1], zlabel=all_variables['parameter_names_sorted'][2], ax_handle=parameters['ax'])
 
         if parameters['dataio'] is not None:
             parameters['dataio'].save_variables_default(locals(), ['candidates', 'fitness'])

@@ -774,7 +774,7 @@ def plot_torus(theta, gamma, Z, weight_deform=0., torus_radius=5., tube_radius=3
         # plt.show()
 
 
-def scatter3d(x, y, z, s=20, c='b', title='', xlabel='', ylabel='', zlabel=''):
+def scatter3d(x, y, z, s=20, c='b', title='', xlabel='', ylabel='', zlabel='', ax_handle=None):
     '''
         Plot a scatter of points in 3d
 
@@ -784,19 +784,24 @@ def scatter3d(x, y, z, s=20, c='b', title='', xlabel='', ylabel='', zlabel=''):
             C: either string color, or mappable array
     '''
 
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
+    if ax_handle is None:
+        fig = plt.figure()
+        ax_handle = fig.add_subplot(111, projection='3d')
+    else:
+        plt.close(ax_handle.get_figure().number)
+        fig = plt.figure()
+        ax_handle = fig.add_subplot(111, projection='3d')
 
-    ax.scatter(x, y, z, s=s, c=c)
+    ax_handle.scatter(x, y, z, s=s, c=c)
 
-    ax.set_title(title)
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel(ylabel)
-    ax.set_zlabel(zlabel)
+    ax_handle.set_title(title)
+    ax_handle.set_xlabel(xlabel)
+    ax_handle.set_ylabel(ylabel)
+    ax_handle.set_zlabel(zlabel)
 
-    fig.canvas.draw()
+    ax_handle.get_figure().canvas.draw()
 
-    return ax
+    return ax_handle
 
 
 def scatter3d_torus(theta, gamma, torus_radius=5., tube_radius=3.0, try_mayavi=True):
