@@ -30,6 +30,7 @@ class ExperimentLauncher(object):
         self.actions = None
         self.args = None
         self.all_vars = None
+        self.has_run = False
 
         # Init the launchers (should be imported already)
         self.init_possible_launchers()
@@ -44,6 +45,8 @@ class ExperimentLauncher(object):
         if run:
             self.run_launcher()
 
+    def __str__(self):
+        return 'ExperimentLauncher, action: %s, finished: %d' % (self.args.action_to_do, self.has_run)
 
     def init_possible_launchers(self):
 
@@ -78,7 +81,12 @@ class ExperimentLauncher(object):
         parser.add_argument('--label',
             help='label added to output files', default='')
         parser.add_argument('--output_directory', nargs='?', default='Data/')
-        parser.add_argument('--action_to_do', choices=self.possible_launchers.keys(), default='launcher_do_simple_run')
+        parser.add_argument('--action_to_do', choices=self.possible_launchers.keys(), default='launcher_do_simple_run',
+            help='Launcher to run, actual code executed')
+        parser.add_argument('--job_action', choices=self.possible_launchers.keys(), default='launcher_do_simple_run',
+            help='When using a JobWrapper, this action will be executed')
+        parser.add_argument('--result_computation', default='',
+            help='When using a JobWrapper, ResultComputation.compute_result_{} will be used.')
         parser.add_argument('--input_filename', default='',
             help='Some input file, depending on context')
         parser.add_argument('--parameters_filename', default='',
@@ -105,11 +113,12 @@ class ExperimentLauncher(object):
             help='Number of samples to use for burn in')
         parser.add_argument('--selection_num_samples', type=int, default=1,
             help='While selecting the new sample from a set of samples, consider the P last samples only. (if =1, return last sample)')
-        parser.add_argument('--selection_method', choices=['median', 'last'], default='median',
+        parser.add_argument('--selection_method', choices=['median', 'last'], default='last',
             help='How the new sample is chosen from a set of samples. Median is closer to the ML value but could have weird effects.')
-        parser.add_argument('--slice_width', type=float, default=np.pi/8.,
+        parser.add_argument('--slice_width', type=float, default=np.pi/40.,
             help='Size of bin width for Slice Sampler. Smaller usually better but slower.')
-        parser.add_argument('--stimuli_generation', choices=['constant', 'random', 'random_smallrange', 'constant_separated', 'separated', 'specific_stimuli'], default='random',
+        parser.add_argument('--stimuli_generation', choices=['constant', 'random', 'random_smallrange', 'constant_separated', 'separated', 'specific_stimuli'],
+            default='random',
             help='How to generate the dataset.')
         parser.add_argument('--stimuli_generation_recall', choices=['constant', 'random', 'random_smallrange', 'constant_separated', 'separated'], default='random',
             help='Dataset generation used for the recall model.')
@@ -117,6 +126,8 @@ class ExperimentLauncher(object):
             help='Minimal distance between items of the same array')
         parser.add_argument('--specific_stimuli_random_centers', dest='specific_stimuli_random_centers', action='store_true', default=False,
             help='Should the centers in the specific stimuli be moved randomly?')
+        parser.add_argument('--specific_stimuli_asymmetric', dest='specific_stimuli_asymmetric', action='store_true', default=False,
+            help='Should the specific stimuli be asymmetric?')
         parser.add_argument('--alpha', default=1.0, type=float,
             help='Weighting of the decay through time')
         parser.add_argument('--code_type', choices=['conj', 'feat', 'mixed', 'wavelet', 'hierarchical'], default='conj',
@@ -127,7 +138,7 @@ class ExperimentLauncher(object):
             help='Scale of receptive fields, second population (e.g. feature for mixed population)')
         parser.add_argument('--autoset_parameters', dest='autoset_parameters', action='store_true', default=False,
             help='Automatically attempt to set the rc_scale/ratio to cover the space evenly, depending on the number of neurons')
-        parser.add_argument('--type_layer_one', choices=['conjunctive', 'feature'], default='conjunctive',
+        parser.add_argument('--type_layer_one', choices=['conjunctive', 'feature'], default='feature',
             help='Select the type of population code for an hierarchical network')
         parser.add_argument('--sparsity', type=float, default=1.0,
             help='Sets the sparsity of the hierarchical network sampling')
@@ -155,6 +166,8 @@ class ExperimentLauncher(object):
             help='Method used to infer the responses. Either sample (default) or set the maximum likelihood/posterior values directly.')
         parser.add_argument('--subaction', default='',
             help='Some actions have multiple possibilities.')
+        parser.add_argument('--collect_responses', dest='collect_responses', action='store_true', default=False,
+            help='Some actions can store all sampler responses if desired, so that we can fit models later.')
         parser.add_argument('--search_type', choices=['random', 'grid'], default='random',
             help='When performing a parameter search, should we do a grid-search or random search?')
         parser.add_argument('--use_theoretical_cov', action='store_true', default=False,
@@ -169,6 +182,12 @@ class ExperimentLauncher(object):
             help='Prints more messages')
         parser.add_argument('--experiment_data_dir', dest='experiment_data_dir', default="../../experimental_data/",
             help="Base directory containing the experimental data")
+        parser.add_argument('--pylab', dest='pylab', default=True, action='store_true', help='Ipython was invoked with --pylab. Let it be allowed.')
+        parser.add_argument('--session_id', dest='session_id', default='',
+            help='String used by JobWrapper for Result sync files. Used to avoid overwriting result files when running a job with the same parameters again.')
+        parser.add_argument('--job_name', dest='job_name', default='',
+            help='Unique job name, constructed from parameter values. Could be rebuilt on the fly, but easier to pass it if it exists.')
+
 
         self.args = parser.parse_args()
         self.args_dict = self.args.__dict__
@@ -180,6 +199,11 @@ class ExperimentLauncher(object):
 
             Assume that those parameters should overwrite the command-line ones.
         '''
+
+        # Handle cases with param_value=None, which really mean they should be set to true
+        for key, value in other_arguments_dict.iteritems():
+            if value is None:
+                other_arguments_dict[key] = True
 
         self.args_dict.update(other_arguments_dict)
 
@@ -195,6 +219,8 @@ class ExperimentLauncher(object):
         # Talk when completed if desired
         if self.args.say_completed:
             say_finished()
+
+        self.has_run = True
 
 
 

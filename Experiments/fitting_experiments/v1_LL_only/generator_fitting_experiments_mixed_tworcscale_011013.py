@@ -20,7 +20,7 @@ num_repetitions = 5
 run_label = 'fitting_experiments_mixed_ratiosigmax_tworcscale_M{M}_repetitions{num_repetitions}_011013'
 
 pbs_submission_infos = dict(description='Fitting of experimental data. Dualrecall dataset, fitting for 3 items. We submit varying ratio_conj and sigmax, and vary rcscale and rcscale2 on each node.',
-                            command='python /nfs/home2/lmatthey/Documents/work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py',
+                            command='python $WORKDIR/experimentlauncher.py',
                             other_options=dict(action_to_do='launcher_do_fitexperiment_mixed_tworcscale',
                                                code_type='mixed',
                                                output_directory='.',
@@ -35,7 +35,7 @@ pbs_submission_infos = dict(description='Fitting of experimental data. Dualrecal
                                                stimuli_generation='separated',
                                                stimuli_generation_recall='random',
                                                label=run_label,
-                                               experiment_data_dir='/nfs/home2/lmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/experimental_data',
+                                               experiment_data_dir=os.path.normpath(os.path.join(os.environ['WORKDIR_DROP'], '../../experimental_data')),
                                                ),
                             walltime='10:00:00',
                             memory='2gb',

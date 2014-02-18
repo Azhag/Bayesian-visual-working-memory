@@ -20,15 +20,12 @@ import matplotlib.pyplot as plt
 
 import sys
 
-# from datagenerator import *
-# from randomnetwork import *
-# from randomfactorialnetwork import *
-# from statisticsmeasurer import *
 from utils import *
 
 import em_circularmixture
+import em_circularmixture_allitems_uniquekappa
 
-from slicesampler import *
+import slicesampler
 
 # from dataio import *
 import progress
@@ -76,41 +73,66 @@ class Sampler:
         y_t | x_t, y_{t-1} ~ Normal
 
     '''
-    def __init__(self, data_gen, tc=None, theta_kappa=0.01, n_parameters = dict()):
+    def __init__(self, data_gen, tc=None, theta_prior_dict=dict(kappa=0.01, gamma=0.0), n_parameters = dict()):
         '''
             Initialise the sampler
 
             n_parameters:         {means: T x M, covariances: T x M x M}
         '''
 
+        self.theta_prior_dict = theta_prior_dict
+
+        # Initialise noise parameters
+        self.set_noise_parameters(n_parameters)
+
         # Get the data
+        self.init_from_data_gen(data_gen, tc=tc)
+
+
+    def set_noise_parameters(self, n_parameters):
+        '''
+            Store the noise parameters, computed from a StatisticsMeasurer
+
+            n_parameters:         {means: T x M, covariances: T x M x M}
+        '''
+
+        self.n_means_start = n_parameters['means'][0]
+        self.n_means_end = n_parameters['means'][1]
+        self.n_covariances_start = n_parameters['covariances'][0]
+        self.n_covariances_end = n_parameters['covariances'][1]
+        self.n_means_measured = n_parameters['means'][2]
+        self.n_covariances_measured = n_parameters['covariances'][2]
+
+        self.noise_covariance = self.n_covariances_measured[-1]
+
+
+
+    def init_from_data_gen(self, data_gen, tc=None):
+        '''
+
+        '''
+
         self.data_gen = data_gen
-        self.random_network = data_gen.random_network
-        self.YT = data_gen.Y
+        self.random_network = self.data_gen.random_network
+        self.NT = self.data_gen.Y
 
         # Get sizes
-        (self.N, self.M) = self.YT.shape
-        self.T = data_gen.T
-        self.R = data_gen.random_network.R
+        (self.N, self.M) = self.NT.shape
+        self.T = self.data_gen.T
+        self.R = self.data_gen.random_network.R
 
         # Time weights
-        self.time_weights = data_gen.time_weights
+        self.time_weights = self.data_gen.time_weights
+        self.sampled_feature_index = 0
 
         # Initialise t_c
         self.init_tc(tc=tc)
 
         # Initialise latent angles
-        self.init_theta(theta_kappa=theta_kappa)
-
-        # Initialise n_T
-        self.init_n(n_parameters)
-
-        # Initialise a Slice Sampler for theta
-        self.slicesampler = SliceSampler()
+        self.init_theta()
 
         # Precompute the parameters and cache them
         self.init_cache_parameters()
-
 
 
     def init_tc(self, tc=None):
@@ -122,25 +144,22 @@ class Sampler:
             Could be sampled later, for now just fix it.
         '''
 
-        if tc is None:
-            # Start with first one.
-            self.tc = np.zeros(self.N, dtype='int')
-            # self.tc = np.random.randint(self.T)
-        elif np.isscalar(tc):
+        if np.isscalar(tc):
             self.tc = tc*np.ones(self.N, dtype='int')
+        else:
+            self.tc = np.zeros(self.N, dtype='int')
 
 
-
-    def init_theta(self, theta_gamma=0.0, theta_kappa = 2.0):
+    def init_theta(self):
         '''
             Sample initial angles. Use a Von Mises prior, low concentration (~flat)
 
             Theta:          N x R
         '''
 
-        self.theta_gamma = theta_gamma
-        self.theta_kappa = theta_kappa
-        self.theta = np.random.vonmises(theta_gamma, theta_kappa, size=(self.N, self.R))
+        self.theta_gamma = self.theta_prior_dict['gamma']
+        self.theta_kappa = self.theta_prior_dict['kappa']
+        self.theta = np.random.vonmises(self.theta_gamma, self.theta_kappa, size=(self.N, self.R))
 
         # Assign the cued ones now
         #   stimuli_correct: N x T x R
@@ -153,30 +172,6 @@ class Sampler:
         if self.R == 2:
             # Just for convenience (in compute_angle_error), flatten the theta_to_sample
             self.theta_to_sample = self.theta_to_sample.flatten()
-
-
-    def init_n(self, n_parameters):
-        '''
-            Initialise the background noise n_T. It actually is observed, so nothing really interesting there.
-
-            N:                    N x M
-
-            n_parameters:         {means: T x M, covariances: T x M x M}
-        '''
-
-        # Store the parameters and precompute the Cholesky decompositions
-        self.n_means_start = n_parameters['means'][0]
-        self.n_means_end = n_parameters['means'][1]
-        self.n_covariances_start = n_parameters['covariances'][0]
-        self.n_covariances_end = n_parameters['covariances'][1]
-        self.n_covariances_start_chol = np.zeros_like(self.n_covariances_start)
-        self.n_covariances_end_chol = np.zeros_like(self.n_covariances_end)
-        self.n_means_measured = n_parameters['means'][2]
-        self.n_covariances_measured = n_parameters['covariances'][2]
-
-        # Initialise N
-        self.NT = np.zeros((self.N, self.M))
-        self.NT = self.YT
 
 
     def init_cache_parameters(self, amplify_diag=1.0):
@@ -193,11 +188,6 @@ class Sampler:
         self.ATtcB = np.zeros(self.T)
         self.mean_fixed_contrib = np.zeros((self.T, self.M))
         self.inv_covariance_fixed_contrib = np.zeros((self.M, self.M))
-        self.noise_covariance = self.n_covariances_measured[-1]
-        self.sampled_feature_index = 0
-
-        # Set the noise_covariance in the RandomFactorialNetwork as well.
-        self.random_network.noise_covariance = self.noise_covariance
 
         # Precompute parameters
         for t in xrange(self.T):
@@ -232,8 +222,6 @@ class Sampler:
         '''
             Compute normalization factor for loglikelihood
         '''
-
-        print "compute normalization..."
 
         self.normalization = np.empty(self.N)
 
@@ -277,7 +265,7 @@ class Sampler:
         print "Likelihood: %.2f" % self.compute_likelihood()
 
 
-    def sample_theta(self, num_samples=500, return_samples=False, burn_samples=100, integrate_tc_out=False, selection_method='median',         selection_num_samples=250, subset_theta=None, slice_width=np.pi/8.0, slice_jump_prob=0.3, debug=True):
+    def sample_theta(self, num_samples=500, return_samples=False, burn_samples=100, integrate_tc_out=False, selection_method='last',selection_num_samples=250, subset_theta=None, slice_width=np.pi/16.0, slice_jump_prob=0.3, debug=True):
         '''
             Sample the thetas
             Need to use a slice sampler, as we do not know the normalization constant.
@@ -300,7 +288,10 @@ class Sampler:
         # errors = np.zeros(permuted_datapoints.shape, dtype=float)
 
         if debug:
-            print "Sampling theta: %d samples, %d selection, %d burnin" % (num_samples, selection_num_samples, burn_samples)
+            if selection_method == 'last':
+                print "Sampling theta: %d samples, %d burnin, select last" % (num_samples, burn_samples)
+            else:
+                print "Sampling theta: %d samples, %d selection, %d burnin" % (num_samples, selection_num_samples, burn_samples)
 
         if return_samples:
             all_samples = np.zeros((permuted_datapoints.size, num_samples))
@@ -363,11 +354,11 @@ class Sampler:
         params = (self.theta[n], self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[self.tc[n]], sampled_feature_index, self.mean_fixed_contrib[self.tc[n]], self.inv_covariance_fixed_contrib)
 
         # Sample the new theta
-        # samples, llh = self.slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=np.pi/8., loglike_fct_params=params, debug=False, step_out=True)
-        samples, llh = self.slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=slice_width, loglike_fct_params=params, debug=False, step_out=True, jump_probability=slice_jump_prob)
-        # samples, llh = self.slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=0.01, loglike_fct_params=params, debug=False, step_out=True)
+        # samples, llh = slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=np.pi/8., loglike_fct_params=params, debug=False, step_out=True)
+        samples, llh = slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=slice_width, loglike_fct_params=params, debug=False, step_out=True, jump_probability=slice_jump_prob)
+        # samples, llh = slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=0.01, loglike_fct_params=params, debug=False, step_out=True)
 
-        # samples, llh = self.slicesampler.sample_1D_circular(1, self.theta[n, sampled_feature_index], loglike_theta_fct, burn=100, widths=np.pi/3., thinning=2, loglike_fct_params=params, debug=False, step_out=True)
+        # samples, llh = slicesampler.sample_1D_circular(1, self.theta[n, sampled_feature_index], loglike_theta_fct, burn=100, widths=np.pi/3., thinning=2, loglike_fct_params=params, debug=False, step_out=True)
 
         return (samples, llh)
 
@@ -385,8 +376,8 @@ class Sampler:
             params = (self.theta[n], self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[tc], sampled_feature_index, self.mean_fixed_contrib[tc], self.inv_covariance_fixed_contrib)
 
             # TODO> Should be starting from the previous sample here.
-            # samples, _ = self.slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=np.pi/8., loglike_fct_params=params, debug=False, step_out=True)
-            samples, _ = self.slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=np.pi/3., loglike_fct_params=params, debug=False, step_out=True)
+            # samples, _ = slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=np.pi/8., loglike_fct_params=params, debug=False, step_out=True)
+            samples, _ = slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=np.pi/3., loglike_fct_params=params, debug=False, step_out=True)
 
             # Now keep only some of them, following p(tc)
             #   for now, p(tc) = 1/T
@@ -448,6 +439,31 @@ class Sampler:
         self.theta[np.arange(self.N), self.data_gen.cued_features[:, 0]] = self.data_gen.stimuli_correct[np.arange(self.N), self.data_gen.cued_features[:, 1], self.data_gen.cued_features[:, 0]]
 
 
+    def compute_bic(self, K=None, integrate_tc_out=False):
+        '''
+            Compute the BIC score for the current model.
+
+            Default K parameters:
+                - Sigmax
+                - M neurons
+                - ratio_conj if code_type is mixed
+
+            Usually, sigma_y is set to a super small value, and rc_scales are set automatically.
+            Not sure if num_samples/burn_samples should count, I don't think so.
+        '''
+
+        if K is None:
+            # Assume we set Sigmax and M.
+            K = 2.
+
+            if self.random_network.population_code_type == 'mixed':
+                K += 1.
+
+        LL = self.compute_loglikelihood(integrate_tc_out=integrate_tc_out)
+
+        return bic(K, LL, self.N)
+
+
     def compute_loglikelihood(self, integrate_tc_out=False):
         '''
             Compute the summed loglikelihood for the current setting of thetas and using the likelihood defined in loglike_theta_fct_single
@@ -469,6 +485,7 @@ class Sampler:
             return self.compute_loglikelihood_tc_integratedout() - self.normalization
         else:
             return self.compute_loglikelihood_current_tc() - self.normalization
+
 
     def compute_loglikelihood_current_tc(self):
         '''
@@ -578,8 +595,10 @@ class Sampler:
         ax_handle.axvline(x=self.data_gen.stimuli_correct[n, self.data_gen.cued_features[n, 1], 0], color='r')
         ax_handle.axvline(x=self.theta[n, self.theta_to_sample[n]], color='k', linestyle='--')
 
+        ax_handle.set_xlim((-np.pi, np.pi))
+
         if should_sample:
-            samples, _ = self.slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=500, widths=np.pi/4., loglike_fct_params=params, debug=False, step_out=True)
+            samples, _ = slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=500, widths=np.pi/4., loglike_fct_params=params, debug=False, step_out=True)
             x_edges = x - np.pi/num_points  # np.histogram wants the left-right boundaries...
             x_edges = np.r_[x_edges, -x_edges[0]]  # the rightmost boundary is the mirror of the leftmost one
             sample_h, left_x = np.histogram(samples, bins=x_edges)
@@ -594,7 +613,7 @@ class Sampler:
                 return (ll_x, x)
 
 
-    def plot_likelihood_variation_twoangles(self, num_points=100, amplify_diag=1.0, should_plot=True, should_return=False, should_exponentiate = False, remove_mean=False, n=0, t=0, interpolation='nearest'):
+    def plot_likelihood_variation_twoangles(self, num_points=100, amplify_diag=1.0, should_plot=True, should_return=False, should_exponentiate = False, remove_mean=False, n=0, t=0, interpolation='nearest', normalize=False, colormap=None):
         '''
             Compute the likelihood, varying two angles around.
             Plot the result
@@ -618,6 +637,10 @@ class Sampler:
         if remove_mean:
             llh_2angles -= np.mean(llh_2angles)
 
+        # Normalise if required.
+        if normalize:
+            llh_2angles -= self.normalization[n]
+
         if should_exponentiate:
             llh_2angles = np.exp(llh_2angles)
 
@@ -625,7 +648,7 @@ class Sampler:
             # Plot the obtained landscape
             f = plt.figure()
             ax = f.add_subplot(111)
-            im= ax.imshow(llh_2angles.T, origin='lower')
+            im= ax.imshow(llh_2angles.T, origin='lower', cmap=colormap)
             im.set_extent((-np.pi, np.pi, -np.pi, np.pi))
             im.set_interpolation(interpolation)
             f.colorbar(im)
@@ -651,7 +674,7 @@ class Sampler:
             color_gen = [colmap(1.*(i)/self.T) for i in xrange(self.T)][::-1]  # use 22 colors
 
             for t in xrange(self.T):
-                w = plt_patches.Wedge((correct_angles[t, 0], correct_angles[t, 1]), 0.25, 0, 360, 0.03, color=color_gen[t], alpha=0.7)
+                w = plt_patches.Wedge((correct_angles[t, 0], correct_angles[t, 1]), 0.25, 0, 360, 0.10, color=color_gen[t], alpha=0.9)
                 ax.add_patch(w)
 
             # plt.annotate('O', (correct_angles[1, 0], correct_angles[1, 1]), color='blue', fontweight='bold', fontsize=30, horizontalalignment='center', verticalalignment='center')
@@ -661,7 +684,7 @@ class Sampler:
             return llh_2angles
 
 
-    def plot_likelihood_correctlycuedtimes(self, n=0, amplify_diag=1.0, all_angles=None, num_points=500, should_plot=True, should_return=False, should_exponentiate = False, show_legend=True, debug=True, ax_handle=None):
+    def plot_likelihood_correctlycuedtimes(self, n=0, amplify_diag=1.0, all_angles=None, num_points=500, should_plot=True, should_return=False, should_exponentiate = False, show_legend=True, show_current_theta=True, debug=True, ax_handle=None):
         '''
             Plot the log-likelihood function, over the space of the sampled theta, keeping the other thetas fixed to their correct cued value.
         '''
@@ -701,14 +724,15 @@ class Sampler:
             for t in xrange(self.T):
                 # Put the legends
                 if show_legend:
-                    ax_handle.legend(lines, legends, loc='upper center', bbox_to_anchor=(0.5, 1.1), ncol=self.T, fancybox=True, shadow=True)
+                    ax_handle.legend(lines, legends, loc='upper center', bbox_to_anchor=(0.5, 1.11), ncol=self.T, fancybox=True, shadow=True)
 
                 # Put a vertical line at the true answer
                 ax_handle.axvline(x=self.data_gen.stimuli_correct[n, t, 0], color=lines[t].get_c())  # ax_handle[t] returns the plotted line
 
 
-            # Put a dot at the current theta sample, for tc
-            ax_handle.axvline(x=self.theta[n, self.theta_to_sample[n]], color='k', linestyle="--")
+            # Put a dotted line at the current theta sample, for tc
+            if show_current_theta:
+                ax_handle.axvline(x=self.theta[n, self.theta_to_sample[n]], color='k', linestyle="--")
 
             ax_handle.get_figure().canvas.draw()
 
@@ -730,6 +754,8 @@ class Sampler:
         if should_return:
             return llh_2angles_out
 
+        return ax_handle
+
 
     def plot_likelihood_comparison(self, n=0):
         '''
@@ -746,18 +772,25 @@ class Sampler:
 
     ########
 
-    def fit_mixture_model(self, compute_responsibilities=False):
+    def fit_mixture_model(self, compute_responsibilities=False, use_all_targets=False):
         '''
             Fit Paul Bays' Mixture model.
 
             Can provide responsibilities as well if required
         '''
 
+        if use_all_targets:
+            em_circular_mixture_to_use = em_circularmixture_allitems_uniquekappa
+        else:
+            em_circular_mixture_to_use = em_circularmixture
+
         results = {}
-        params_fit = em_circularmixture.fit(*self.collect_responses())
+        params_fit = em_circular_mixture_to_use.fit(*self.collect_responses())
 
         if compute_responsibilities:
-            params_fit['resp'] = em_circularmixture.compute_responsibilities(*(self.collect_responses() + (params_fit,) ))
+            params_fit['resp'] = em_circular_mixture_to_use.compute_responsibilities(*(self.collect_responses() + (params_fit,) ))
+
+        params_fit.setdefault('mixt_nontargets_sum', np.sum(params_fit['mixt_nontargets']))
 
         return params_fit
 
@@ -850,7 +883,7 @@ class Sampler:
         return self.random_network.compute_covariance_KL(sigma_2=(self.data_gen.sigma_x**2. + self.data_gen.sigma_y**2.), T=self.T, beta=1.0, precision=precision, ignore_cache=ignore_cache)
 
 
-    def estimate_fisher_info_theocov(self, use_theoretical_cov=True, kappa_different=False):
+    def estimate_fisher_info_theocov(self, use_theoretical_cov=True, kappa_different=True):
         '''
             Compute the theoretical Fisher Information, using the KL-derived covariance matrix if desired
         '''
@@ -875,6 +908,24 @@ class Sampler:
 
         # Compute the theoretical FI
         return self.random_network.compute_fisher_information(stimulus_input=(0.0, 0.0), cov_stim=computed_cov, kappa_different=kappa_different)
+
+
+    def estimate_fisher_info_theocov_largen(self, use_theoretical_cov=True):
+        '''
+            Compute the theoretical Fisher Information, using the KL-derived covariance matrix if desired
+        '''
+
+        if use_theoretical_cov:
+            # Get the computed covariance
+            computed_cov = self.compute_covariance_theoretical(precision=50, ignore_cache=False)
+            sigma = np.mean(np.diag(computed_cov))**0.5
+        else:
+            # Use the measured one...
+            computed_cov = self.noise_covariance
+            sigma = np.mean(np.diag(computed_cov))**0.5
+
+        # Compute the theoretical FI
+        return self.random_network.compute_fisher_information_theoretical(sigma=sigma)
 
 
     def estimate_marginal_inverse_fisher_info_montecarlo(self):
@@ -1313,6 +1364,10 @@ class Sampler:
 
         # Get histograms of bias to nontargets.
         hist_samples_density_estimation(errors_nontargets, bins=angle_space, title='Errors between response and non-targets, N=%d' % (self.T), filename='hist_bias_nontargets_%ditems_{label}_{unique_id}.pdf' % (self.T), dataio=dataio)
+
+        # Compute Vtest score
+        vtest_dict = V_test(errors_nontargets)
+        print vtest_dict
 
         # Gest histogram of bias to best non target
         hist_samples_density_estimation(errors_best_nontarget, bins=angle_space, title='Errors between response and best non-target, N=%d' % (self.T), filename='hist_bias_bestnontarget_%ditems_{label}_{unique_id}.pdf' % (self.T), dataio=dataio)

@@ -57,16 +57,16 @@ def launcher_do_memory_curve_simult(args):
     print "max_T: %s" % args.T
     print "File: %s" % output_string
 
-    all_precisions = np.zeros((args.T, args.num_repetitions))
-    results_fi = np.zeros((args.T, args.num_repetitions))
-    results_fi_largen = np.zeros((args.T, args.num_repetitions))
+    all_precisions = np.nan*np.empty((args.T, args.num_repetitions))
+    results_fi = np.nan*np.empty((args.T, args.num_repetitions))
+    results_fi_largen = np.nan*np.empty((args.T, args.num_repetitions))
 
-    power_law_params = np.zeros(2)
+    power_law_params = np.nan*np.empty(2)
 
     if collect_responses:
-        all_responses = np.zeros((args.T, args.num_repetitions, args.N))
-        all_targets = np.zeros((args.T, args.num_repetitions, args.N))
-        all_nontargets = np.zeros((args.T, args.num_repetitions, args.N, args.T-1))
+        all_responses = np.nan*np.empty((args.T, args.num_repetitions, args.N))
+        all_targets = np.nan*np.empty((args.T, args.num_repetitions, args.N))
+        all_nontargets = np.nan*np.empty((args.T, args.num_repetitions, args.N, args.T-1))
 
     # Construct different datasets, with t objects
     for repet_i in xrange(args.num_repetitions):
@@ -155,8 +155,8 @@ def launcher_plot_multiple_memory_curve_simult(args):
     T = loaded_data['args'].T
 
     # Average over repetitions, and then get mean across T
-    # mean_precision = np.zeros(T)
-    # std_precision = np.zeros(T)
+    # mean_precision = np.nan*np.empty(T)
+    # std_precision = np.nan*np.empty(T)
     # for t in xrange(T):
         # mean_precision[t] = np.mean(all_precisions[t][:t+1])
         # std_precision[t] = np.std(all_precisions[t][:t+1])
@@ -223,10 +223,10 @@ def launcher_do_memorycurve_theoretical(args):
 
     T_space = np.arange(1, all_parameters['T']+1)
 
-    FI_rc_curv_mult = np.zeros((rcscale_space.size, sigma_space.size, T_space.size, 2, num_repetitions), dtype=float)
-    FI_rc_var_mult = np.zeros((rcscale_space.size, sigma_space.size, T_space.size, 2, num_repetitions), dtype=float)
-    FI_rc_precision_mult = np.zeros((rcscale_space.size, sigma_space.size, T_space.size, num_repetitions), dtype=float)
-    FI_rc_theo_mult = np.zeros((rcscale_space.size, sigma_space.size, T_space.size, num_repetitions), dtype=float)
+    FI_rc_curv_mult = np.nan*np.empty((rcscale_space.size, sigma_space.size, T_space.size, 2, num_repetitions), dtype=float)
+    FI_rc_var_mult = np.nan*np.empty((rcscale_space.size, sigma_space.size, T_space.size, 2, num_repetitions), dtype=float)
+    FI_rc_precision_mult = np.nan*np.empty((rcscale_space.size, sigma_space.size, T_space.size, num_repetitions), dtype=float)
+    FI_rc_theo_mult = np.nan*np.empty((rcscale_space.size, sigma_space.size, T_space.size, num_repetitions), dtype=float)
 
     # Show the progress in a nice way
     search_progress = progress.Progress(rcscale_space.size*sigma_space.size*T_space.size*num_repetitions)
@@ -367,17 +367,17 @@ def launcher_do_memorycurve_theoretical_pbs(args):
     M_space = np.array([all_parameters['M']])
     T_space = np.arange(1, all_parameters['T']+1)
 
-    FI_rc_theo_mult = np.zeros((rcscale_space.size, sigma_space.size, M_space.size, T_space.size, num_repetitions), dtype=float)
+    FI_rc_theo_mult = np.nan*np.empty((rcscale_space.size, sigma_space.size, M_space.size, T_space.size, num_repetitions), dtype=float)
 
     if do_curvature:
         variables_to_save.append('FI_rc_curv_mult')
-        FI_rc_curv_mult = np.zeros((rcscale_space.size, sigma_space.size, M_space.size, T_space.size, 2, num_repetitions), dtype=float)
+        FI_rc_curv_mult = np.nan*np.empty((rcscale_space.size, sigma_space.size, M_space.size, T_space.size, 2, num_repetitions), dtype=float)
     if do_precision:
         variables_to_save.append('FI_rc_precision_mult')
-        FI_rc_precision_mult = np.zeros((rcscale_space.size, sigma_space.size, M_space.size, T_space.size, num_repetitions), dtype=float)
+        FI_rc_precision_mult = np.nan*np.empty((rcscale_space.size, sigma_space.size, M_space.size, T_space.size, num_repetitions), dtype=float)
     if do_var:
         variables_to_save.append('FI_rc_var_mult')
-        FI_rc_var_mult = np.zeros((rcscale_space.size, sigma_space.size, M_space.size, T_space.size, 2, num_repetitions), dtype=float)
+        FI_rc_var_mult = np.nan*np.empty((rcscale_space.size, sigma_space.size, M_space.size, T_space.size, 2, num_repetitions), dtype=float)
 
     # Show the progress in a nice way
     search_progress = progress.Progress(rcscale_space.size*sigma_space.size*T_space.size*M_space.size*num_repetitions)
@@ -510,17 +510,17 @@ def launcher_do_memorycurve_theoretical_pbs_theoonly(args):
     # M_space = np.floor(np.linspace(25, 900, 49)).astype(int)
     M_space = np.arange(5, 22, dtype=int)**2.
 
-    FI_rc_theo_mult = np.zeros((rcscale_space.size, sigma_space.size, M_space.size, T_space.size, num_repetitions), dtype=float)
+    FI_rc_theo_mult = np.nan*np.empty((rcscale_space.size, sigma_space.size, M_space.size, T_space.size, num_repetitions), dtype=float)
 
     if do_curvature:
         variables_to_save.append('FI_rc_curv_mult')
-        FI_rc_curv_mult = np.zeros((rcscale_space.size, sigma_space.size, M_space.size, T_space.size, 2, num_repetitions), dtype=float)
+        FI_rc_curv_mult = np.nan*np.empty((rcscale_space.size, sigma_space.size, M_space.size, T_space.size, 2, num_repetitions), dtype=float)
     if do_precision:
         variables_to_save.append('FI_rc_precision_mult')
-        FI_rc_precision_mult = np.zeros((rcscale_space.size, sigma_space.size, M_space.size, T_space.size, num_repetitions), dtype=float)
+        FI_rc_precision_mult = np.nan*np.empty((rcscale_space.size, sigma_space.size, M_space.size, T_space.size, num_repetitions), dtype=float)
     if do_var:
         variables_to_save.append('FI_rc_var_mult')
-        FI_rc_var_mult = np.zeros((rcscale_space.size, sigma_space.size, M_space.size, T_space.size, 2, num_repetitions), dtype=float)
+        FI_rc_var_mult = np.nan*np.empty((rcscale_space.size, sigma_space.size, M_space.size, T_space.size, 2, num_repetitions), dtype=float)
 
     # Show the progress in a nice way
     search_progress = progress.Progress(rcscale_space.size*sigma_space.size*T_space.size*M_space.size*num_repetitions)
@@ -637,7 +637,7 @@ def launcher_do_memorycurve_theoretical_pbs_theoonly(args):
 #     data_gen_noise = DataGeneratorRFN(5000, parameters['T'], random_network, sigma_y=parameters['sigmay'], sigma_x=parameters['sigmax'], time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation=parameters['stimuli_generation'])
 #     stat_meas = StatisticsMeasurer(data_gen_noise)
 
-#     sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters=stat_meas.model_parameters, tc=cued_feature_time)
+#     sampler = Sampler(data_gen, n_parameters=stat_meas.model_parameters, tc=cued_feature_time)
 
 #     return (random_network, data_gen, stat_meas, sampler)
 
@@ -757,10 +757,10 @@ def launcher_do_memorycurve_theoretical_3d_volume(args):
 
     T_space = np.arange(1, all_parameters['T']+1)
 
-    FI_rc_curv_mult = np.zeros((rcscale_space.size, sigma_space.size, M_space.size, T_space.size, 2, num_repetitions), dtype=float)
-    FI_rc_var_mult = np.zeros((rcscale_space.size, sigma_space.size, M_space.size, T_space.size, 2, num_repetitions), dtype=float)
-    FI_rc_precision_mult = np.zeros((rcscale_space.size, sigma_space.size, M_space.size, T_space.size, num_repetitions), dtype=float)
-    FI_rc_theo_mult = np.zeros((rcscale_space.size, sigma_space.size, M_space.size, T_space.size, num_repetitions), dtype=float)
+    FI_rc_curv_mult = np.nan*np.empty((rcscale_space.size, sigma_space.size, M_space.size, T_space.size, 2, num_repetitions), dtype=float)
+    FI_rc_var_mult = np.nan*np.empty((rcscale_space.size, sigma_space.size, M_space.size, T_space.size, 2, num_repetitions), dtype=float)
+    FI_rc_precision_mult = np.nan*np.empty((rcscale_space.size, sigma_space.size, M_space.size, T_space.size, num_repetitions), dtype=float)
+    FI_rc_theo_mult = np.nan*np.empty((rcscale_space.size, sigma_space.size, M_space.size, T_space.size, num_repetitions), dtype=float)
 
     # Show the progress in a nice way
     search_progress = progress.Progress(rcscale_space.size*sigma_space.size*M_space.size*T_space.size*num_repetitions)

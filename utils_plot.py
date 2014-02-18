@@ -98,7 +98,7 @@ def lab2rgb(lab):
 
     return C
 
-def plot_multiple_mean_std_area(x, y, std, ax_handle=None, fignum=None):
+def plot_multiple_mean_std_area(x, y, std, ax_handle=None, fignum=None, linewidth=1, fmt='-', markersize=1, color=None, xlabel=None, ylabel=None, label=''):
     '''
         Plots multiple x-y data with standard error, on the same graph
 
@@ -113,12 +113,12 @@ def plot_multiple_mean_std_area(x, y, std, ax_handle=None, fignum=None):
         x = np.tile(x, (y.shape[0], 1))
 
     for curr_plt in xrange(x.shape[0]):
-        ax_handle = plot_mean_std_area(x[curr_plt], y[curr_plt], std[curr_plt], ax_handle=ax_handle)
+        ax_handle = plot_mean_std_area(x[curr_plt], y[curr_plt], std[curr_plt], ax_handle=ax_handle, linewidth=linewidth, fmt=fmt, markersize=markersize, color=color, xlabel=xlabel, ylabel=ylabel, label=label)
 
     return ax_handle
 
 
-def plot_mean_std_area(x, y, std, ax_handle=None, fignum=None, linewidth=1, fmt='-', markersize=1, color=None, xlabel=None, ylabel=None, label=''):
+def plot_mean_std_area(x, y, std, ax_handle=None, fignum=None, linewidth=1, fmt='-', markersize=1, color=None, xlabel=None, ylabel=None, label='', title=None):
     '''
         Plot a given x-y data, with a transparent area for its standard deviation
 
@@ -140,7 +140,7 @@ def plot_mean_std_area(x, y, std, ax_handle=None, fignum=None, linewidth=1, fmt=
 
     plt.hold(True)
 
-    if np.any(std > 1e-6):
+    if std is not None and np.any(std > 1e-6):
         ax_handle.fill_between(x, y-std, y+std, facecolor=current_color, alpha=0.4, label='1 sigma range')
 
     if xlabel is not None:
@@ -148,6 +148,9 @@ def plot_mean_std_area(x, y, std, ax_handle=None, fignum=None, linewidth=1, fmt=
 
     if ylabel is not None:
         ax_handle.set_ylabel(ylabel)
+
+    if title is not None:
+        ax_handle.set_title(title)
 
     ax_handle.get_figure().canvas.draw()
 
@@ -258,7 +261,7 @@ def plot_square_grid(x, y, nb_to_plot=-1):
     return (f, subaxes)
 
 
-def hist_angular_data(data, bins=20, in_degrees=False, title=None, norm=None, fignum=None, ax_handle=None):
+def hist_angular_data(data, bins=20, alpha=1.0, in_degrees=False, title=None, norm='density', fignum=None, ax_handle=None, pretty_xticks=False):
     '''
         Histogram for angular data.
         Can set additional properties automatically.
@@ -273,31 +276,26 @@ def hist_angular_data(data, bins=20, in_degrees=False, title=None, norm=None, fi
     else:
         bound_x = np.pi
 
-    x = np.linspace(-bound_x, bound_x, bins)
-    # x_centers = (x + bound_x/(bins-1.))[:-1]
-
-    x_edges = x - bound_x/bins  # np.histogram wants the left-right boundaries...
-    x_edges = np.r_[x_edges, -x_edges[0]]  # the rightmost boundary is the mirror of the leftmost one
-
-    bar_heights, _ = np.histogram(data, bins=x_edges)
-
-    if norm == 'max':
-        bar_heights = bar_heights/np.max(bar_heights).astype('float')
-    elif norm == 'sum':
-        bar_heights = bar_heights/np.sum(bar_heights.astype('float'))
-    elif norm == 'density':
-        bar_heights, _ = np.histogram(data, bins=x_edges, density=True)
+    bar_heights, x, bins = utils_math.histogram_binspace(data, bins=bins, norm=norm, bound_x=bound_x)
 
     if ax_handle is None:
         f = plt.figure(fignum)
         ax_handle = f.add_subplot(1, 1, 1)
 
-    ax_handle.bar(x, bar_heights, alpha=0.75, width=2.*bound_x/(bins-1), align='center')
+    ax_handle.bar(x, bar_heights, alpha=alpha, width=2.*bound_x/(bins-1), align='center')
+
     if title:
         ax_handle.set_title(title)
-    ax_handle.set_xlim([x[0]*1.1, 1.1*x[-1]])
+    ax_handle.set_xlim([x[0]-bound_x/(bins-1), x[-1]+bound_x/(bins-1)])
+
+    if pretty_xticks:
+        ax_handle.set_xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
+        ax_handle.set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=16)
+
 
     ax_handle.get_figure().canvas.draw()
+
+    return ax_handle
 
 
 def hist_samples_density_estimation(samples, bins=50, ax_handle=None, title=None, show_parameters=True, dataio=None, filename=''):
@@ -368,7 +366,7 @@ def plot_hists_bias_nontargets(errors_nitems_nontargets, bins=20, label_nontarge
     hist_samples_density_estimation(errors_to_nontargets_all, bins=angle_space, title='Error to nontarget, all %s' % label_nontargets_all, dataio=dataio, filename='hist_bias_nontargets_allitems_%s_{label}_{unique_id}.pdf' % (label_nontargets_all))
 
 
-def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorbar=True, ax_handle=None, label_format="%.2f", fignum=None, interpolation='nearest', log_scale=False, ticks_interpolate=None, cmap=None):
+def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorbar=True, ax_handle=None, label_format="%.2f", xlabel_format=None, ylabel_format=None, fignum=None, interpolation='nearest', log_scale=False, ticks_interpolate=None, cmap=None):
     '''
         Plots a Pcolor-like 2d grid plot. Can give x and y arrays, which will provide ticks.
 
@@ -380,6 +378,11 @@ def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorba
          ticks_interpolate  If set, number of ticks to use instead of the x/y
                             values directly
     '''
+
+    if xlabel_format is None:
+        xlabel_format = label_format
+    if ylabel_format is None:
+        ylabel_format = label_format
 
     if ax_handle is None:
         f = plt.figure(fignum)
@@ -434,10 +437,10 @@ def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorba
             if not ticks_interpolate is None:
                 selected_ticks = np.array(np.linspace(0, x.size-1, ticks_interpolate), dtype=int)
                 ax_handle.set_xticks(selected_ticks)
-                ax_handle.set_xticklabels([label_format % x[tick_i] for tick_i in selected_ticks], rotation=90)
+                ax_handle.set_xticklabels([xlabel_format % x[tick_i] for tick_i in selected_ticks], rotation=90)
             else:
                 ax_handle.set_xticks(np.arange(x.size))
-                ax_handle.set_xticklabels([label_format % curr for curr in x], rotation=90)
+                ax_handle.set_xticklabels([xlabel_format % curr for curr in x], rotation=90)
 
         if not y is None:
             assert data.shape[1] == y.size, 'Wrong y dimension'
@@ -445,10 +448,10 @@ def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorba
             if not ticks_interpolate is None:
                 selected_ticks = np.array(np.linspace(0, y.size-1, ticks_interpolate), dtype=int)
                 ax_handle.set_yticks(selected_ticks)
-                ax_handle.set_yticklabels([label_format % y[tick_i] for tick_i in selected_ticks])
+                ax_handle.set_yticklabels([ylabel_format % y[tick_i] for tick_i in selected_ticks])
             else:
                 ax_handle.set_yticks(np.arange(y.size))
-                ax_handle.set_yticklabels([label_format % curr for curr in y])
+                ax_handle.set_yticklabels([ylabel_format % curr for curr in y])
 
         if xlabel:
             ax_handle.set_xlabel(xlabel)
@@ -502,7 +505,7 @@ def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorba
 
 
 
-def contourf_interpolate_data(all_points, data, xlabel='', ylabel='', title='', interpolation_numpoints=200, interpolation_method='linear', mask_when_nearest=True, contour_numlevels=20, show_scatter=True, show_colorbar=True, fignum=None, mask_x_condition=None, mask_y_condition=None):
+def contourf_interpolate_data(all_points, data, xlabel='', ylabel='', title='', interpolation_numpoints=200, interpolation_method='linear', mask_when_nearest=True, contour_numlevels=20, show_scatter=True, show_colorbar=True, fignum=None, ax_handle=None, mask_x_condition=None, mask_y_condition=None, log_scale=False):
     '''
         Take (x,y) and z tuples, construct an interpolation with them and plot them nicely.
 
@@ -511,6 +514,8 @@ def contourf_interpolate_data(all_points, data, xlabel='', ylabel='', title='', 
 
         mask_when_nearest: trick to hide points outside the convex hull of points even when using 'nearest' method
     '''
+
+    assert all_points.shape[1] == 2, "Give a Nx2 matrix for all_points"
 
     # Construct the interpolation
     param1_space_int = np.linspace(all_points[:, 0].min(), all_points[:, 0].max(), interpolation_numpoints)
@@ -534,21 +539,98 @@ def contourf_interpolate_data(all_points, data, xlabel='', ylabel='', title='', 
         data_interpol[:, mask_y_condition(param2_space_int)] = 0.0
 
     # Plot it
-    f1 = plt.figure(fignum)
-    ax1 = f1.add_subplot(111)
-    cs = ax1.contourf(param1_space_int, param2_space_int, data_interpol, contour_numlevels)   # cmap=plt.cm.jet
-    ax1.set_xlabel(xlabel)
-    ax1.set_ylabel(ylabel)
-    ax1.set_title(title)
+    if ax_handle is None:
+        f = plt.figure(fignum)
+        ax_handle = f.add_subplot(111)
+    else:
+        f = ax_handle.get_figure()
+        f.clf()
+        ax_handle = f.add_subplot(111)
+
+    if log_scale:
+        cs = ax_handle.contourf(param1_space_int, param2_space_int, data_interpol, contour_numlevels, locator=plttic.LogLocator())   # cmap=plt.cm.jet
+    else:
+        cs = ax_handle.contourf(param1_space_int, param2_space_int, data_interpol, contour_numlevels)   # cmap=plt.cm.jet
+    ax_handle.set_xlabel(xlabel)
+    ax_handle.set_ylabel(ylabel)
+    ax_handle.set_title(title)
 
     if show_scatter:
-        ax1.scatter(all_points[:, 0], all_points[:, 1], marker='o', c='b', s=5)
+        ax_handle.scatter(all_points[:, 0], all_points[:, 1], marker='o', c='b', s=5)
 
-    ax1.set_xlim(param1_space_int.min(), param1_space_int.max())
-    ax1.set_ylim(param2_space_int.min(), param2_space_int.max())
+    ax_handle.set_xlim(param1_space_int.min(), param1_space_int.max())
+    ax_handle.set_ylim(param2_space_int.min(), param2_space_int.max())
 
     if show_colorbar:
-        f1.colorbar(cs)
+        f.colorbar(cs)
+
+    return ax_handle
+
+
+def contour3d_interpolate_data(all_points, data, xlabel='', ylabel='', title='', interpolation_numpoints=200j, interpolation_method='linear', mask_when_nearest=True, contour_numlevels=20, show_scatter=True, show_colorbar=True, fignum=None, ax_handle=None, mask_x_condition=None, mask_y_condition=None, mask_z_condition=None, log_scale=False, use_mayavi=True):
+    '''
+        Take (x,y,z) and f tuples, construct an interpolation with them and plot them nicely.
+
+        all_points: Nx3
+        data:       Nx1
+
+        mask_when_nearest: trick to hide points outside the convex hull of points even when using 'nearest' method
+    '''
+
+    # Construct the interpolation
+    X, Y, Z = np.mgrid[all_points[:, 0].min():all_points[:, 0].max():interpolation_numpoints, all_points[:, 1].min():all_points[:, 1].max():interpolation_numpoints, all_points[:, 2].min():all_points[:, 2].max():interpolation_numpoints]
+    data_interpol = spint.griddata(all_points, data, (X, Y, Z), method=interpolation_method)
+
+    # if interpolation_method == 'nearest' and mask_when_nearest:
+    #     # Let's mask the points outside of the convex hull
+
+    #     # The linear interpolation will have nan's on points outside of the convex hull of the all_points
+    #     data_interpol_lin = spint.griddata(all_points, data, (param1_space_int[None, :], param2_space_int[:, None]), method='linear')
+
+    #     # Mask
+    #     data_interpol[np.isnan(data_interpol_lin)] = np.nan
+
+    # # Mask it based on some conditions
+    # if not mask_x_condition is None:
+    #     data_interpol[mask_x_condition(param1_space_int), :] = 0.0
+    # if not mask_y_condition is None:
+    #     data_interpol[:, mask_y_condition(param2_space_int)] = 0.0
+
+    # Plot it
+    if use_mayavi:
+        try:
+            import mayavi.mlab as mlab3d
+        except:
+            # Faaailed
+            use_mayavi = False
+
+    if use_mayavi:
+
+        # Normalise stuff
+        X_norm = X/X.max()
+        Y_norm = Y/Y.max()
+        Z_norm = Z/Z.max()
+        all_points_norm = all_points/np.max(all_points, axis=0)
+
+        mlab3d.figure(bgcolor=(1.0, 1.0, 1.0))
+        # mlab3d.figure()
+
+        # TODO Try to do a dynamic contour2D on a plan!
+
+        # mlab3d.contour3d(X_norm, Y_norm, Z_norm, np.log(data_interpol), contours=contour_numlevels, opacity=0.5)
+        # mlab3d.axes(color=(0.0, 0.0, 0.0))
+
+        # if show_scatter:
+        mlab3d.points3d(all_points_norm[:, 0], all_points_norm[:, 1], all_points_norm[:, 2], np.log(fitness), scale_mode='none', scale_factor=0.03)
+
+        if show_colorbar:
+            mlab3d.colorbar(title='', orientation='vertical', label_fmt='%.2f', nb_labels=5)
+
+        # mlab3d.outline(color=(0., 0., 0.))
+
+        mlab3d.show()
+    else:
+        raise NotImplementedError('matplotlib 3d has no contour3d function...')
 
 
 def pcolor_square_grid(data, nb_to_plot=-1):
@@ -574,7 +656,8 @@ def pcolor_square_grid(data, nb_to_plot=-1):
 
     return (f, subaxes)
 
-def pcolor_line_grid(data, nb_to_plot=-1, orientation=0):
+
+def pcolor_line_grid(data, nb_to_plot=-1):
     '''
         Construct a line of pcolor
 
@@ -583,18 +666,15 @@ def pcolor_line_grid(data, nb_to_plot=-1, orientation=0):
     if nb_to_plot < 0:
         nb_to_plot = data.shape[0]
 
-    if orientation == 0:
-        f, subaxes = plt.subplots(nb_to_plot, 1)
-    else:
-        f, subaxes = plt.subplots(1, nb_to_plot)
+    f, subaxes = plt.subplots(nb_to_plot, 1, squeeze=False)
 
     for i in xrange(nb_to_plot):
         try:
-            subaxes[i].imshow(data[i], interpolation='nearest')
-            subaxes[i].xaxis.set_major_locator(plttic.NullLocator())
-            subaxes[i].yaxis.set_major_locator(plttic.NullLocator())
+            subaxes[i, 0].imshow(data[i], interpolation='nearest')
+            subaxes[i, 0].xaxis.set_major_locator(plttic.NullLocator())
+            subaxes[i, 0].yaxis.set_major_locator(plttic.NullLocator())
         except IndexError:
-            subaxes[i].set_visible(False)
+            subaxes[i, 0].set_visible(False)
 
     return (f, subaxes)
 
@@ -647,7 +727,7 @@ def plot_torus(theta, gamma, Z, weight_deform=0., torus_radius=5., tube_radius=3
         Plot a torus, with the color set by Z.
             Also possible to deform the sphere according to Z, by putting a nonzero weight_deform.
 
-        Need theta \in [0, 2pi] and gamma \in [0, pi]
+        Need theta in [0, 2pi] and gamma in [0, pi]
     '''
 
 
@@ -692,6 +772,75 @@ def plot_torus(theta, gamma, Z, weight_deform=0., torus_radius=5., tube_radius=3
             plt.colorbar(m)
 
         # plt.show()
+
+
+def scatter3d(x, y, z, s=20, c='b', title='', xlabel='', ylabel='', zlabel='', ax_handle=None):
+    '''
+        Plot a scatter of points in 3d
+
+        Input:
+            X, Y, Z
+            S: either scalar size of points or array of sizes.
+            C: either string color, or mappable array
+    '''
+
+    if ax_handle is None:
+        fig = plt.figure()
+        ax_handle = fig.add_subplot(111, projection='3d')
+    else:
+        plt.close(ax_handle.get_figure().number)
+        fig = plt.figure()
+        ax_handle = fig.add_subplot(111, projection='3d')
+
+    ax_handle.scatter(x, y, z, s=s, c=c)
+
+    ax_handle.set_title(title)
+    ax_handle.set_xlabel(xlabel)
+    ax_handle.set_ylabel(ylabel)
+    ax_handle.set_zlabel(zlabel)
+
+    ax_handle.get_figure().canvas.draw()
+
+    return ax_handle
+
+
+def scatter3d_torus(theta, gamma, torus_radius=5., tube_radius=3.0, try_mayavi=True):
+    '''
+        Plot points on a torus.
+
+        Need theta \in [0, 2pi] and gamma \in [0, pi]
+    '''
+
+    x = (torus_radius+ tube_radius*np.cos(theta))*np.cos(gamma)
+    y = (torus_radius+ tube_radius*np.cos(theta))*np.sin(gamma)
+    z = tube_radius*np.sin(theta)
+
+    use_mayavi = False
+    if try_mayavi:
+        try:
+            import mayavi.mlab as mplt
+
+            use_mayavi = True
+        except:
+            pass
+
+    if use_mayavi:
+        # mplt.figure(bgcolor=(0.7,0.7,0.7))
+        mplt.figure(bgcolor=(1.0, 1.0, 1.0))
+        mplt.points3d(x, y, z, scale_factor=1, color=(0.0, 0.2, 0.9))
+
+        mplt.outline(color=(0., 0., 0.))
+        mplt.draw()
+
+    else:
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+
+        ax.scatter(x, y, z)
+
+        fig.canvas.draw()
+
+        return ax
 
 
 def plot_powerlaw_fit(xdata, ydata, amp, index, yerr=None, fignum=None):
@@ -798,4 +947,71 @@ def scatter_marginals(xdata, ydata, xlabel='', ylabel='', title='', scatter_mark
     ax.set_xlim((-np.pi*factor_axis, np.pi*factor_axis))
 
     ax.set_xlabel(xlabel)
+
+
+def plot_vonmises_pdf(x, kappa, mu=0.0, scale=1.0, ax_handle=None, fignum=None, linewidth=1, fmt='-', markersize=1, color=None, xlabel=None, ylabel=None, label=''):
+    '''
+        Estimate the PDF of a Von Mises on the provided support.
+
+        Plot it.
+    '''
+
+    ## Get PDF of Von Mises
+    y_pdf = spst.vonmises.pdf(x, kappa, loc=mu, scale=1.0)
+
+    # Correct the scale if needed
+    if scale != 1.0:
+        y_pdf /= np.max(y_pdf)/scale
+
+    ## Plot it
+    if ax_handle is None:
+        f = plt.figure(fignum)
+        ax_handle = f.add_subplot(111)
+
+    if color is not None:
+        ax = ax_handle.plot(x, y_pdf, fmt, linewidth=linewidth, markersize=markersize, color=color, label=label)
+    else:
+        ax = ax_handle.plot(x, y_pdf, fmt, linewidth=linewidth, markersize=markersize, label=label)
+
+    if xlabel is not None:
+        ax_handle.set_xlabel(xlabel)
+
+    if ylabel is not None:
+        ax_handle.set_ylabel(ylabel)
+
+    ax_handle.get_figure().canvas.draw()
+
+
+def plot_normal_pdf(x, mu=0.0, std=1.0, scale=1.0, ax_handle=None, fignum=None, linewidth=1, fmt='-', markersize=1, color=None, xlabel=None, ylabel=None, label=''):
+    '''
+        Estimate the PDF of a Normal on the provided support.
+
+        Plot it.
+    '''
+
+    ## Get PDF of Von Mises
+    y_pdf = spst.norm.pdf(x, loc=mu, scale=std)
+
+    # Correct the scale if needed
+    if scale != 1.0:
+        y_pdf /= np.max(y_pdf)/scale
+
+    ## Plot it
+    if ax_handle is None:
+        f = plt.figure(fignum)
+        ax_handle = f.add_subplot(111)
+
+    if color is not None:
+        ax = ax_handle.plot(x, y_pdf, fmt, linewidth=linewidth, markersize=markersize, color=color, label=label)
+    else:
+        ax = ax_handle.plot(x, y_pdf, fmt, linewidth=linewidth, markersize=markersize, label=label)
+
+    if xlabel is not None:
+        ax_handle.set_xlabel(xlabel)
+
+    if ylabel is not None:
+        ax_handle.set_ylabel(ylabel)
+
+    ax_handle.get_figure().canvas.draw()
+
 

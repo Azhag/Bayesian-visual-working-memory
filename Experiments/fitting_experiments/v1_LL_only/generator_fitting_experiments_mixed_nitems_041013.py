@@ -16,11 +16,12 @@ parameter_generation = 'grid'
 
 M = 200
 num_repetitions = 10
+n_items_to_fit = 1
 
-run_label = 'fitting_experiments_mixed_ratiosigmax_autoset_M{M}_repetitions{num_repetitions}_300913'
+run_label = 'fitting_experiments_mixed_ratiosigmax_autoset_nitems{T}M{M}_repetitions{num_repetitions}_300913'
 
 pbs_submission_infos = dict(description='Fitting of experimental data. First start with dualrecall dataset, fitting for 3 items. We use automatic parameter setting for rcscale and rcscale2, and vary ratio_conj and sigmax.',
-                            command='python /nfs/home2/lmatthey/Documents/work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py',
+                            command='python $WORKDIR/experimentlauncher.py',
                             other_options=dict(action_to_do='launcher_do_fitexperiment',
                                                code_type='mixed',
                                                output_directory='.',
@@ -28,7 +29,7 @@ pbs_submission_infos = dict(description='Fitting of experimental data. First sta
                                                M=M,
                                                sigmax=0.1,
                                                N=100,
-                                               T=1,
+                                               T=n_items_to_fit,
                                                sigmay=0.0001,
                                                inference_method='none',
                                                num_repetitions=num_repetitions,
@@ -36,12 +37,13 @@ pbs_submission_infos = dict(description='Fitting of experimental data. First sta
                                                stimuli_generation_recall='random',
                                                autoset_parameters=None,
                                                label=run_label,
-                                               experiment_data_dir='/nfs/home2/lmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/experimental_data'),
+                                               experiment_data_dir=os.path.normpath(os.path.join(os.environ['WORKDIR_DROP'], '../../experimental_data')),
+                                               ),
                             walltime='10:00:00',
                             memory='2gb',
-                            simul_out_dir=os.path.join(os.getcwd(), run_label.format(M=M, num_repetitions=num_repetitions)),
-                            pbs_submit_cmd='qsub',
-                            submit_label='fitexp_firsttry_mixed')
+                            simul_out_dir=os.path.join(os.getcwd(), run_label.format(M=M, num_repetitions=num_repetitions, T=n_items_to_fit)),
+                            pbs_submit_cmd='sbatch',
+                            submit_label='fitexp_mixed_nitems')
 
 
 ratio_range           =   dict(range=np.linspace(0.01, 1.0, 20.), dtype=float)

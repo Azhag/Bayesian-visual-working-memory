@@ -8,6 +8,7 @@ Copyright (c) 2013 Gatsby Unit. All rights reserved.
 """
 
 import numpy as np
+import scipy.stats as spst
 
 from utils_fitting import fit_gaussian_mixture
 
@@ -216,5 +217,47 @@ def bic(K, LL, N):
         LL: loglikelihood of model
     '''
 
-    return -LL + K/2.*np.log(N)
+    return -LL + float(K)/2.*np.log(N)
+
+def histogram_binspace(data, bins=20, norm='density', bound_x=np.pi):
+    '''
+        Compute the histogram given a number of bins or a set of bins.
+    '''
+
+    if np.isscalar(bins):
+        x = np.linspace(-bound_x, bound_x, bins)
+    else:
+        x = bins
+        bins = bins.size
+
+    # np.histogram wants the left-right boundaries
+    # x_edges = x - bound_x/bins
+    # x_edges = np.r_[x_edges, -x_edges[0]]
+
+    if norm == 'max':
+        bar_heights, _ = np.histogram(data, bins=x)
+        bar_heights = bar_heights.astype('float')/np.max(bar_heights.astype('float'))
+    elif norm == 'sum':
+        bar_heights, _ = np.histogram(data, bins=x)
+        bar_heights = bar_heights.astype('float')/np.sum(bar_heights.astype('float'))
+    elif norm == 'density':
+        bar_heights, _ = np.histogram(data, bins=x, density=True)
+    else:
+        raise ValueError('nom undefined')
+
+    return bar_heights, x[:-1] + bound_x/(bins-1), bins
+
+
+def combine_pval_fisher_method(pvalues):
+    '''
+        Combine p-values using the Fisher Method:
+
+        f_score = -2 \\sum_i^K log(pi)
+        f_score ~ X^2_{2*K}
+    '''
+
+    fscore = np.sum(-2.*np.log(pvalues))
+
+    return spst.chi2.sf(fscore, 2*pvalues.size)
+
 

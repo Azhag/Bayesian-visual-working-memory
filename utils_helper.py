@@ -17,12 +17,19 @@ import smtplib
 from email.mime.text import MIMEText
 import errno
 from socket import error as socket_error
+import os
+import subprocess
 
 ########################## TRICKS AND HELPER FUNCTIONS #################################
 
 def flatten_list(ll):
     return [item for sublist in ll for item in sublist]
 
+def arrnum_to_list(arrnum_in):
+    try:
+        return list(arrnum_in)
+    except TypeError:
+        return [arrnum_in]
 
 def list_2_tuple(arg):
     if (isinstance(arg, list) and len(arg) > 0 and isinstance(arg[0], list)):
@@ -139,6 +146,39 @@ def argparse_2_dict(args):
 
     return all_parameters
 
+
+def pprint_dict(input_dict, key_sorted=None):
+    '''
+        Returns a pretty-printed version of the dictionary
+
+        if key_sorted is provided, follow this key ordering
+    '''
+
+    if key_sorted is None:
+        key_sorted = input_dict.keys()
+
+    return ', '.join(["%s %s" % (key, input_dict[key]) for key in key_sorted])
+
+
+def convert_deltatime_str_to_seconds(deltatime_str):
+    '''
+        Take a string representing a time interval and convert it in seconds.
+
+        Used for PBS, format like:
+        Hours:Minutes:Seconds
+    '''
+
+    time_splitted_rev = np.array([float(x) for x in deltatime_str.split(":")[::-1]])
+
+    assert time_splitted_rev.size <= 3, "not supported for strings different than Hours:Minutes:Seconds"
+
+    time_mult = 60**np.arange(time_splitted_rev.size)
+
+    return np.sum(time_mult*time_splitted_rev)
+
+
+
+
 ########################## FILE I/O #################################
 
 def unique_filename(prefix=None, suffix=None, unique_id=None, return_id=False):
@@ -177,4 +217,27 @@ def load_npy(filename, debug=True):
         pprint.pprint(data.keys())
 
     return data
+
+
+def file_exists_new_shell(filename):
+    """
+    Spawns a new python shell to check file existance in context of NFS
+    chaching which makes os.path.exists lie. This is done via a pipe and the
+    "ls" command
+    """
+
+    # split path and filename
+    splitted = filename.split(os.sep)
+
+    if len(splitted) > 1:
+        folder = os.sep.join(splitted[:-1]) + os.sep
+        fname = splitted[-1]
+    else:
+        folder = "./"
+        fname = filename
+
+    pipeoutput = subprocess.Popen("ls " + folder, shell=True, stdout=subprocess.PIPE)
+    pipelines = pipeoutput.stdout.readlines()
+    files = "".join(pipelines).split(os.linesep)
+    return fname in files
 

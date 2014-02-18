@@ -262,28 +262,28 @@ def fit_gamma_samples(samples, num_points=500, bound=np.pi, fix_location=False, 
         return np.array([fit_alpha, fit_loc, fit_beta])
 
 
-def fit_beta_samples(samples, num_points=500, bound=np.pi, fix_location=False, return_fitted_data=True, should_plot=True, normalise=True, debug=True):
+def fit_beta_samples(samples, num_points=500, fix_location=False, return_fitted_data=True, should_plot=True, normalise=True, debug=True):
     '''
         Fit a Beta distribution on the samples, optionaly plotting the fit
     '''
 
-    fit_a, fit_b, fit_loc, fit_shape = spst.beta.fit(samples)
+    fit_a, fit_b, fit_loc, fit_scale = spst.beta.fit(samples, fscale=1.0)
 
     # x = np.linspace(samples.min()*1.5, samples.max()*1.5, 1000)
-    x = np.linspace(-bound, bound, num_points)
+    x = np.linspace(0.0, 1.0, num_points)
     # dx = 2.*bound/(num_points-1.)
 
-    fitted_data = spst.beta.pdf(x, fit_a, fit_b, fit_loc, fit_shape)
+    fitted_data = spst.beta.pdf(x, fit_a, fit_b, fit_loc, fit_scale)
 
     if debug:
         print "A: %.3f, B: %.3f" % (fit_a, fit_b)
 
     if should_plot:
         if normalise:
-            hist_angular_data(samples, norm='max', bins=num_points)
-            plt.plot(x, fitted_data/np.max(fitted_data), 'r')
+            plt.hist(samples, bins=num_points, normed='density')
+            plt.plot(x, fitted_data, 'r')
         else:
-            hist_angular_data(samples, bins=num_points)
+            plt.hist(samples, bins=num_points, normed='density')
             plt.plot(x, fitted_data, 'r')
 
         plt.show()

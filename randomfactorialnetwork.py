@@ -62,9 +62,6 @@ class RandomFactorialNetwork():
         # Used to stored cached network response statistics. Mean_theta(mu(theta)) and Cov_theta(mu(theta))
         self.network_response_statistics = None
 
-        # (hacky) Store the noise covariance matrix, for ease of use. Will be set by the Sampler.
-        self.noise_covariance = None
-
         self.network_initialised = True
 
 
@@ -780,7 +777,7 @@ class RandomFactorialNetwork():
 
 
 
-    def compute_fisher_information_theoretical(self, sigma=0.01, kappa1=None, kappa2=None):
+    def compute_fisher_information_theoretical(self, sigma=None, sigmax=None, kappa1=None, kappa2=None):
         '''
             Compute the theoretical, large N limit estimate of the Fisher Information
             This one assumes a diagonal covariance matrix, wrong for the complete model.
@@ -794,6 +791,11 @@ class RandomFactorialNetwork():
             rho = 1./(np.pi**2./self.M**2.)
         else:
             raise NotImplementedError('Fisher information not defined for population type ' + self.population_code_type)
+
+        if sigmax is not None and sigma is None:
+            # Compute sigma as sigma_x + cov(mu(\theta))
+            computed_cov = self.compute_covariance_KL(precision=50, sigma_2=sigmax**2.)
+            sigma = np.mean(np.diag(computed_cov))**0.5
 
         if kappa1 is None:
             kappa1 = self.rc_scale[0]
@@ -1300,10 +1302,14 @@ class RandomFactorialNetwork():
         '''
             Show the preferred stimuli coverage on a sphere/torus.
         '''
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-        ax.scatter(self.neurons_preferred_stimulus_vect[~self.mask_neurons_unset, 0], self.neurons_preferred_stimulus_vect[~self.mask_neurons_unset, 1], self.neurons_preferred_stimulus_vect[~self.mask_neurons_unset, 2])
-        plt.show()
+
+        if self.coordinates == 'full_angles_sym':
+            scatter3d_torus(self.neurons_preferred_stimulus[:, 0], self.neurons_preferred_stimulus[:, 1])
+        elif self.coordinates == 'spherical':
+            fig = plt.figure()
+            ax = fig.add_subplot(111, projection='3d')
+            ax.scatter(self.neurons_preferred_stimulus_vect[~self.mask_neurons_unset, 0], self.neurons_preferred_stimulus_vect[~self.mask_neurons_unset, 1], self.neurons_preferred_stimulus_vect[~self.mask_neurons_unset, 2])
+            plt.show()
 
 
     def plot_neuron_activity_3d(self, neuron_index=0, precision=20, weight_deform=0.5, params={}, draw_colorbar=True):
@@ -1445,7 +1451,7 @@ class RandomFactorialNetwork():
         else:
 
             feat_scale = feature_parameters['scale']
-            feat_ratio = feature_parameters['ratio']
+            feat_ratio = -feature_parameters['ratio']
 
             if 'nb_feature_centers' in feature_parameters:
                 nb_feature_centers = feature_parameters['nb_feature_centers']
@@ -2169,6 +2175,14 @@ if __name__ == '__main__':
         plt.xlabel('kappa')
         plt.ylabel('Number of neurons responding at %.f %%' % (percent_max*100.))
         plt.show()
+
+    if True:
+        ## Check if covariance approximation with Toeplitz structure works.
+
+        # Run %run experimentlauncher before.
+        kappa = 4.0
+        def cov_toeplitz(theta_n, theta_m, kappa):
+            return (scsp.i0(2*kappa*np.cos((theta_n - theta_m)/2.)) - scsp.i0(kappa)**2.)/(4.*np.pi**2.*scsp.i0(kappa)**2.)
 
 
 

@@ -15,6 +15,8 @@ import matplotlib.pyplot as plt
 
 import inspect
 
+import cPickle as pickle
+import em_circularmixture_allitems_uniquekappa
 
 # Commit @4ffae5c +
 
@@ -32,6 +34,9 @@ def plots_errors_distribution(data_pbs, generator_module=None):
     savedata = True
 
     plot_persigmax = True
+
+    load_test_bootstrap = True
+    caching_bootstrap_filename = os.path.join(generator_module.pbs_submission_infos['simul_out_dir'], 'outputs', 'cache_bootstrap_errordistrib_conj.pickle')
 
     colormap = None  # or 'cubehelix'
     plt.rcParams['font.size'] = 16
@@ -53,6 +58,8 @@ def plots_errors_distribution(data_pbs, generator_module=None):
     N = result_responses_all.shape[-2]
 
     result_pval_vtest_nontargets = np.empty((sigmax_space.size, T_space.size))*np.nan
+    result_pvalue_bootstrap_sum = np.empty((sigmax_space.size, T_space.size-1))*np.nan
+    result_pvalue_bootstrap_all = np.empty((sigmax_space.size, T_space.size-1, T_space.size-1))*np.nan
 
 
     print sigmax_space
@@ -60,6 +67,43 @@ def plots_errors_distribution(data_pbs, generator_module=None):
     print result_responses_all.shape, result_target_all.shape, result_nontargets_all.shape, result_em_fits_all.shape
 
     dataio = DataIO.DataIO(output_folder=generator_module.pbs_submission_infos['simul_out_dir'] + '/outputs/', label='global_' + dataset_infos['save_output_filename'])
+
+    if load_test_bootstrap:
+
+        if caching_bootstrap_filename is not None:
+            if os.path.exists(caching_bootstrap_filename):
+                # Got file, open it and try to use its contents
+                try:
+                    with open(caching_bootstrap_filename, 'r') as file_in:
+                        # Load and assign values
+                        cached_data = pickle.load(file_in)
+                        bootstrap_ecdf_bays_sigmax_T = cached_data['bootstrap_ecdf_bays_sigmax_T']
+                        bootstrap_ecdf_allitems_sum_sigmax_T = cached_data['bootstrap_ecdf_allitems_sum_sigmax_T']
+                        bootstrap_ecdf_allitems_all_sigmax_T = cached_data['bootstrap_ecdf_allitems_all_sigmax_T']
+
+
+                except IOError:
+                    print "Error while loading ", caching_bootstrap_filename, "falling back to computing the EM fits"
+                    load_test_bootstrap = False
+
+
+        if load_test_bootstrap:
+            # Now compute the pvalue for each sigmax/T
+            # only use 1000 samples
+            data_responses_all = result_responses_all[..., 0]
+            data_target_all = result_target_all[..., 0]
+            data_nontargets_all = result_nontargets_all[..., 0]
+
+            # Compute bootstrap p-value
+            for sigmax_i, sigmax in enumerate(sigmax_space):
+                for T in T_space[1:]:
+                    bootstrap_allitems_nontargets_allitems_uniquekappa = em_circularmixture_allitems_uniquekappa.bootstrap_nontarget_stat(data_responses_all[sigmax_i, (T-1)], data_target_all[sigmax_i, (T-1)], data_nontargets_all[sigmax_i, (T-1), :, :(T-1)], sumnontargets_bootstrap_ecdf=bootstrap_ecdf_allitems_sum_sigmax_T[sigmax_i][T-1]['ecdf'], allnontargets_bootstrap_ecdf=bootstrap_ecdf_allitems_all_sigmax_T[sigmax_i][T-1]['ecdf'])
+
+                    result_pvalue_bootstrap_sum[sigmax_i, T-2] = bootstrap_allitems_nontargets_allitems_uniquekappa['p_value']
+                    result_pvalue_bootstrap_all[sigmax_i, T-2, :(T-1)] = bootstrap_allitems_nontargets_allitems_uniquekappa['allnontarget_p_value']
+
+                    print sigmax, T, result_pvalue_bootstrap_sum[sigmax_i, T-2], result_pvalue_bootstrap_all[sigmax_i, T-2, :(T-1)], np.sum(result_pvalue_bootstrap_all[sigmax_i, T-2, :(T-1)] < 0.05)
+
 
     if plot_persigmax:
         for sigmax_i, sigmax in enumerate(sigmax_space):
@@ -86,29 +130,42 @@ def plots_errors_distribution(data_pbs, generator_module=None):
                 # Now, per T items, show the distribution of errors and of errors to non target
 
                 # Error to target
-                utils.hist_samples_density_estimation(errors_targets[T_i].reshape(nb_repetitions*N), bins=angle_space, title='Errors between response and target, N=%d' % (T))
+                # hist_errors_targets = np.zeros((angle_space.size, nb_repetitions))
+                # for repet_i in xrange(nb_repetitions):
+                #     hist_errors_targets[:, repet_i], _, _ = utils_math.histogram_binspace(errors_targets[T_i, :, repet_i], bins=angle_space)
+
+                # f, ax = plt.subplots()
+                # ax.bar(angle_space, np.mean(hist_errors_targets, axis=-1), width=2.*np.pi/(angle_space.size-1), align='center')
+                # ax.set_xlim([angle_space[0] - np.pi/(angle_space.size-1), angle_space[-1] + np.pi/(angle_space.size-1)])
+
+                # utils.plot_mean_std_area(angle_space, np.mean(hist_errors_targets, axis=-1), np.std(hist_errors_targets, axis=-1))
+
+                ax_handle = utils.hist_angular_data(errors_targets[T_i].reshape(nb_repetitions*N), bins=angle_space, title='Errors between response and target, N=%d' % (T), norm='density')
+
 
                 if savefigs:
                     dataio.save_current_figure('error_target_hist_sigmax%.2f_T%d_{label}_{unique_id}.pdf' % (sigmax, T))
 
                 if T > 1:
                     # Error to nontarget
-                    ax_handle = utils.hist_samples_density_estimation(errors_nontargets[T_i, :, :T_i].reshape(nb_repetitions*N*T_i), bins=angle_space, title='Errors between response and non targets, N=%d' % (T))
+                    # ax_handle = utils.hist_samples_density_estimation(errors_nontargets[T_i, :, :T_i].reshape(nb_repetitions*N*T_i), bins=angle_space, title='Errors between response and non targets, N=%d' % (T))
+                    ax_handle = utils.hist_angular_data(errors_nontargets[T_i, :, :T_i].reshape(nb_repetitions*N*T_i), bins=angle_space, title='Errors between response and non-targets, N=%d' % (T), norm='density')
+                    # ax_handle.set_xlim([-np.pi, np.pi])
 
-                    result_pval_vtest_nontargets[sigmax, T_i] = utils.V_test(errors_nontargets[T_i, :, :T_i].reshape(nb_repetitions*N*T_i))['pvalue']
+                    result_pval_vtest_nontargets[sigmax_i, T_i] = utils.V_test(errors_nontargets[T_i, :, :T_i].reshape(nb_repetitions*N*T_i))['pvalue']
 
-                    print result_pval_vtest_nontargets[sigmax, T_i]
+                    print result_pval_vtest_nontargets[sigmax_i, T_i]
 
-                    ax_handle.text(0.02, 0.97, "Vtest pval: %.2f" % (result_pval_vtest_nontargets[sigmax, T_i]), transform=ax_handle.transAxes, horizontalalignment='left', fontsize=12)
+                    ax_handle.text(0.03, 0.96, "Vtest pval: %.2f" % (result_pval_vtest_nontargets[sigmax_i, T_i]), transform=ax_handle.transAxes, horizontalalignment='left', fontsize=12)
 
                     if savefigs:
                         dataio.save_current_figure('error_nontargets_hist_sigmax%.2f_T%d_{label}_{unique_id}.pdf' % (sigmax, T))
 
                     # Error to best non target
-                    utils.hist_samples_density_estimation(errors_best_nontarget[T_i].reshape(nb_repetitions*N), bins=angle_space, title='Errors between response and best non target, N=%d' % (T))
+                    # utils.hist_samples_density_estimation(errors_best_nontarget[T_i].reshape(nb_repetitions*N), bins=angle_space, title='Errors between response and best non target, N=%d' % (T))
 
-                    if savefigs:
-                        dataio.save_current_figure('error_bestnontarget_hist_sigmax%.2f_T%d_{label}_{unique_id}.pdf' % (sigmax, T))
+                    # if savefigs:
+                    #     dataio.save_current_figure('error_bestnontarget_hist_sigmax%.2f_T%d_{label}_{unique_id}.pdf' % (sigmax, T))
 
 
 

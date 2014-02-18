@@ -17,20 +17,13 @@ import scipy.stats as spst
 
 import matplotlib.pyplot as plt
 
-from datagenerator import *
-from randomfactorialnetwork import *
-from statisticsmeasurer import *
-from slicesampler import *
-from utils import *
-from dataio import *
-from datapbs import *
-from gibbs_sampler_continuous_fullcollapsed_randomfactorialnetwork import *
-
 import progress
 
+import experimentlauncher
+import datagenerator
 import launchers
-
-import load_experimental_data as loader_exp_data
+import load_experimental_data
+import utils
 
 
 class FitExperiment:
@@ -38,153 +31,177 @@ class FitExperiment:
         Loads experimental data, set up DataGenerator and associated RFN, Sampler to optimize parameters
     '''
 
-    def __init__(self, parameters={}):
+    def __init__(self, sampler, parameters={}, debug=True):
         '''
-            FitExperiment takes a parameters dict as input
+            FitExperiment takes a sampler and a parameters dict as input
             Specific fields:
-            - experiment_id:  identifier for a specific experiment to fit. Automatically assigns a few variables that way
+            - experiment_ids:  list of identifiers for experiments to fit.
             - experiment_params:  extra parameters dict
         '''
-        self.dataset_experiment = None
-
-        # Experiment to fit
-        self.experiment_id = parameters.get("experiment_id", "doublerecall")
-
-        # Extra parameters
-        self.experiment_params = parameters.get("experiment_params", dict(n_items_to_fit=3))
-
+        self.sampler = sampler
         self.parameters = parameters
+        self.debug = debug
 
-        if self.parameters == {}:
-            # Create default arguments dict
-            self.parameters = {
-                     'N': 100,
-                     'K': 2,
-                     'R': 2,
-                     'M': 200,
-                     'M_layer_one': 400,
-                     'T': 3,
-                     'alpha': 1.0,
-                     'autoset_parameters': True,
-                     'code_type': 'mixed',
-                     'distribution_weights': 'exponential',
-                     'enforce_first_stimulus': False,
-                     'enforce_min_distance': 0.17,
-                     'feat_ratio': 40.0,
-                     'inference_method': 'none',
-                     'input_filename': '',
-                     'label': 'fitexperiment_mixed_ratiosigmax',
-                     'normalise_weights': 1,
-                     'num_repetitions': 1,
-                     'num_samples': 100,
-                     'output_both_layers': False,
-                     'output_directory': 'Data/',
-                     'parameters_filename': '',
-                     'ratio_conj': 0.84,
-                     'rc_scale': 4.0,
-                     'rc_scale2': 0.4,
-                     'selection_method': 'median',
-                     'selection_num_samples': 1,
-                     'sigma_weights': 1.0,
-                     'sigmax': 0.1,
-                     'sigmay': 0.0001,
-                     'sparsity': 1.0,
-                     'stimuli_generation_recall': 'random',
-                     'use_theoretical_cov': False}
+        self.experiment_ids = parameters.get('experiment_ids', [])
+        self.data_dir = parameters.get('experiment_data_dir', os.path.normpath(os.path.join(os.environ['WORKDIR_DROP'], '../../experimental_data/')))
 
-        # Load experimental data. Force some parameters to be used later while doing so
-        experiment_data_dir = self.parameters.get('experiment_data_dir', '../../experimental_data/')
-        self.load_experiment(data_dir=experiment_data_dir)
+        self.experimental_datasets = dict()
+        self.experiment_enforced = ''
+        self.data_responses = None
+
+        # Load experimental data
+        self.load_experiments()
 
 
-    def load_experiment(self, data_dir = '../../experimental_data/'):
+    def load_experiments(self):
         '''
             Load a specific human experiment.
         '''
 
-        fit_mixturemodel = self.experiment_params.get('fit_mixturemodel', False)
-        n_items_to_fit = self.experiment_params.get("n_items_to_fit", 3)
+        fit_mixture_model = self.parameters.get('fit_mixturemodel', False)
 
-        if self.experiment_id == 'doublerecall':
-            experiment_descriptor = dict(filename=os.path.join(data_dir, 'DualRecall_Bays', 'rate_data.mat'), preprocess=loader_exp_data.preprocess_doublerecall, parameters=dict(fit_mixturemodel=fit_mixturemodel))
-        elif self.experiment_id == 'gorgo_simult':
-            experiment_descriptor = dict(filename='Exp2_withcolours.mat', preprocess=loader_exp_data.preprocess_simultaneous, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), fit_mixturemodel=fit_mixturemodel))
+        # Load each experimental dataset
+        for experiment_id in self.experiment_ids:
+            if experiment_id == 'bays09':
+                self.experimental_datasets[experiment_id] = load_experimental_data.load_data_bays09(data_dir=self.data_dir, fit_mixture_model=fit_mixture_model)
 
-        # Load the data
-        self.dataset_experiment = loader_exp_data.load_dataset(**experiment_descriptor)
+                if self.debug:
+                    print "Loading Bays09 dataset"
 
-        # Get shortcuts to the stimuli and responses, only actual things we use from the dataset
-        self.data_stimuli = self.dataset_experiment['data_to_fit'][n_items_to_fit]['item_features']
-        self.data_responses = self.dataset_experiment['data_to_fit'][n_items_to_fit]['response']
+            elif experiment_id == 'dualrecall':
+                self.experimental_datasets[experiment_id] = load_experimental_data.load_data_dualrecall(data_dir=self.data_dir)
 
-        # Force some parameters
-        self.parameters['N'] = self.dataset_experiment['data_to_fit'][n_items_to_fit]['N']
-        self.parameters['T'] = n_items_to_fit
-        self.parameters['cued_feature_time'] = self.dataset_experiment['data_to_fit'][n_items_to_fit]['probe'][0]
+                if self.debug:
+                    print "Loading double Recall dataset"
+
+            elif experiment_id == 'gorgo11':
+                self.experimental_datasets[experiment_id] = load_experimental_data.load_data_simult(data_dir=self.data_dir, fit_mixture_model=fit_mixture_model)
+
+                if self.debug:
+                    print "Loading Gorgo11 simult dataset"
 
 
-    def instantiate_everything(self):
+    def force_experimental_stimuli(self, experiment_id):
         '''
-            Instantiate the objects with the appropriate parameters
-
-            Don't forget to set the DataGenerator with the experimental data
-        '''
-
-        # Build the random network
-        random_network = launchers.init_random_network(self.parameters)
-
-        # Construct the real dataset
-        time_weights_parameters = dict(weighting_alpha=self.parameters['alpha'], weighting_beta=1.0, specific_weighting=0.1, weight_prior='uniform')
-
-        # Specifically force the stimuli to be the human experimental ones
-        data_gen = DataGeneratorRFN(self.parameters['N'], self.parameters['T'], random_network, sigma_y=self.parameters['sigmay'], sigma_x=self.parameters['sigmax'], time_weights_parameters=time_weights_parameters, cued_feature_time=self.parameters['cued_feature_time'], stimuli_generation=None, stimuli_to_use=self.data_stimuli)
-
-        # Measure the noise structure, random stimuli here
-        data_gen_noise = DataGeneratorRFN(5000, self.parameters['T'], random_network, sigma_y=self.parameters['sigmay'], sigma_x=self.parameters['sigmax'], time_weights_parameters=time_weights_parameters, cued_feature_time=self.parameters['cued_feature_time'], stimuli_generation=self.parameters['stimuli_generation_recall'])
-        stat_meas = StatisticsMeasurer(data_gen_noise)
-
-        self.sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters=stat_meas.model_parameters, tc=self.parameters['cued_feature_time'])
-
-
-    def compute_likelihood_data_responses(self):
-        '''
-            Set the responses of the experimental data in the Sampler, and compute the loglikelihood under the current model
+            Will create a DataGenerator that uses the experimental data, in order to evaluate the model.
         '''
 
-        # Set responses
-        self.sampler.set_theta(self.data_responses)
+        print "Using {} dataset".format(experiment_id)
 
-        # Compute loglikelihood
-        loglikelihood = self.sampler.compute_loglikelihood()
+        if self.experiment_enforced != experiment_id:
 
-        # if self.parameters['verbose']:
-        print("Loglikelihood: %s" % loglikelihood)
+            # Use this cued feature time (should be scalar)
+            cued_feature_time = self.experimental_datasets[experiment_id]['data_to_fit'][self.sampler.T]['probe'][0]
 
-        return loglikelihood
+            # Specifically force the stimuli to be the human experimental ones
+            data_gen = datagenerator.DataGeneratorRFN(self.experimental_datasets[experiment_id]['data_to_fit'][self.sampler.T]['N'], self.sampler.T, self.sampler.random_network, sigma_y=self.sampler.data_gen.sigma_y, sigma_x=self.sampler.data_gen.sigma_x, time_weights=self.sampler.time_weights, cued_feature_time=cued_feature_time, stimuli_to_use=self.experimental_datasets[experiment_id]['data_to_fit'][self.sampler.T]['item_features'])
 
+            # Use this new Data_gen, reinit a few things, hopefully it works..
+            self.sampler.init_from_data_gen(data_gen, tc=cued_feature_time)
 
-    def estimate_likelihood_multiple_models(self, num_models=5):
-        '''
-            Reinstantiate the model {num_models} times, estimating the loglikelihood each time.
+            # Set responses
+            self.data_responses = self.experimental_datasets[experiment_id]['data_to_fit'][self.sampler.T]['response']
+            self.sampler.set_theta(self.data_responses)
 
-            This integrates out the noise in the model population code representation
-        '''
-
-        self.all_loglikelihood = np.empty(num_models)
-
-        for curr_model_i in xrange(num_models):
-            # Instantiate objects properly
-            self.instantiate_everything()
-
-            # Compute likelihood for the experimentally derived responses
-            self.all_loglikelihood[curr_model_i] = self.compute_likelihood_data_responses()
-
-        return np.mean(self.all_loglikelihood), np.std(self.all_loglikelihood)
+            self.experiment_enforced = experiment_id
 
 
     #####
 
-    def plot_likelihood_misfit_datapoints(self, max_plots = 10):
+    def apply_fct_dataset(self, experiment_id, fct_infos):
+        '''
+            Apply a function after having forced a specific dataset
+
+            the function will be called as follows:
+
+            result = fct_infos['fct'](sampler, fct_infos['parameters'])
+        '''
+
+        if self.sampler.T not in self.experimental_datasets[experiment_id]['data_to_fit']['n_items']:
+            # This dataset does not have sampler.T items
+            return np.nan
+
+        # Set dataset
+        self.force_experimental_stimuli(experiment_id)
+
+        # Apply function
+        result = fct_infos['fct'](self.sampler, fct_infos['parameters'])
+
+        return result
+
+
+    def apply_fct_all_datasets(self, fct_infos):
+        '''
+            Apply a function on all datasets
+
+            result = fct_infos['fct'](sampler, fct_infos['parameters'])
+        '''
+
+        result_all = dict()
+        for experiment_id in self.experimental_datasets:
+            result_all[experiment_id] = self.apply_fct_dataset(experiment_id, fct_infos)
+
+        return result_all
+
+
+    def compute_bic_all_datasets(self, K=None):
+        '''
+            Compute the BIC scores for all datasets
+        '''
+        def compute_bic(sampler, parameters):
+            bic = sampler.compute_bic(K=parameters['K'])
+            return bic
+
+        fct_infos = dict(fct=compute_bic, parameters=dict(K=K))
+
+        return self.apply_fct_all_datasets(fct_infos)
+
+
+    def compute_loglik_all_datasets(self):
+        '''
+            Compute the loglikelihood of the current sampler for all datasets currently loaded
+        '''
+        def compute_loglik(sampler, parameters):
+            loglikelihood = sampler.compute_loglikelihood()
+            return loglikelihood
+        fct_infos = dict(fct=compute_loglik, parameters=None)
+
+        return self.apply_fct_all_datasets(fct_infos)
+
+
+    def compute_bic_loglik_all_datasets(self, K=None):
+        '''
+            Compute both the BIC and loglikelihood on all datasets
+        '''
+        def compute_bic(sampler, parameters):
+            bic = sampler.compute_bic(K=parameters['K'])
+            return bic
+        def compute_loglik(sampler, parameters):
+            loglikelihood = sampler.compute_loglikelihood()
+            return loglikelihood
+        def compute_both(sampler, parameters):
+            result = dict(bic=compute_bic(sampler, parameters), LL=compute_loglik(sampler, parameters))
+            return result
+
+        fct_infos = dict(fct=compute_both, parameters=dict(K=K))
+
+        return self.apply_fct_all_datasets(fct_infos)
+
+
+    def compute_sum_loglik_all_datasets(self):
+        '''
+            Compute the sum of the loglikelihood obtained on all datasets.
+        '''
+
+        loglike_all = self.compute_loglik_all_datasets()
+
+        return np.nansum([val for key, val in loglike_all.iteritems()])
+
+
+
+    #####
+
+    def plot_loglik_misfit_datapoints(self, max_plots = 10):
         '''
             Plot the posterior distributions of the datapoints that are badly classified.
         '''
@@ -201,10 +218,11 @@ class FitExperiment:
 
         # Check where they are and their relation to the posterior distribution
         for outlier_i in data_llh_outliers:
+            print outlier_i
             self.sampler.plot_likelihood_comparison(n=outlier_i)
 
 
-    def plot_distribution_loglikelihoods(self, bins=50):
+    def plot_distribution_loglik(self, bins=50):
         '''
             Plot the distribution of data loglikelihoods obtained
 
@@ -236,7 +254,8 @@ class FitExperiment:
         self.sampler.sample_theta(num_samples=100, burn_samples=100)
 
         # Plot distribution of samples first (so that we keep human data in theta)
-        print 'Sampling...'
+        if self.debug:
+            print 'Sampling...'
         self.sampler.plot_histogram_errors(bins=bins, ax_handle=axes[1])
 
         # Reput the data
@@ -250,161 +269,49 @@ class FitExperiment:
 
         # plt.hist(self.dataset_experiment['errors_angle_all'][self.dataset_experiment['3_items_trials'] & self.dataset_experiment['angle_trials'], 0], bins=50)
 
-    ####
 
-    def fit_parameter_pbs(self):
-        '''
-            Get the loglikelihood for a specific set of parameters
+def test_fit_experiment():
 
-            Most likely inherited from a big PBS run
-        '''
-        # Compute likelihood for the experimentally derived responses
-        return self.estimate_likelihood_multiple_models(num_models=self.parameters['num_repetitions'])
+    # Load a sampler
+    experiment_parameters = dict(action_to_do='launcher_do_simple_run',
+                                  inference_method='none',
+                                  T=1,
+                                  M=200,
+                                  N=200,
+                                  num_samples=500,
+                                  selection_method='last',
+                                  sigmax=0.15,
+                                  sigmay=0.0001,
+                                  code_type='mixed',
+                                  ratio_conj=0.8,
+                                  output_directory='.',
+                                  autoset_parameters=None)
+    experiment_launcher = experimentlauncher.ExperimentLauncher(run=True, arguments_dict=experiment_parameters)
 
+    sampler = experiment_launcher.all_vars['sampler']
 
+    # Now let's build a FitExperiment
+    parameters = dict(experiment_ids=['gorgo11', 'bays09','dualrecall'], fit_mixture_model=True)
+    fit_exp = FitExperiment(sampler, parameters)
 
-    def fit_parameter(self):
-        '''
-            Vary some parameters around and see how this affects the experimental responses loglikelihoods
-        '''
+    # Now compute some loglikelihoods
+    # print fit_exp.compute_loglik_all_datasets()
+    # print fit_exp.compute_sum_loglik_all_datasets()
 
-        # param_space = (np.arange(1, 21, 1)**2.).astype(int)  # M
-        # param_space = np.linspace(0.5, 10., 10)  # kappa
-        param_space = np.linspace(0.01, 0.2, 20)
+    # Compute BIC
+    # print fit_exp.compute_bic_all_datasets()
 
-        # self.llh_fullspace_mean = np.empty(M_space.size)
-        # self.llh_fullspace_std = np.empty(M_space.size)
+    print fit_exp.compute_bic_loglik_all_datasets()
 
-        self.llh_fullspace_mean = np.empty(param_space.size)
-        self.llh_fullspace_std = np.empty(param_space.size)
-
-        # self.llh_fullspace_mean = np.empty((M_space.size, param_space.size))
-        # self.llh_fullspace_std = np.empty((M_space.size, param_space.size))
-
-        # search_progress = progress.Progress(M_space.size*param_space.size)
-        search_progress = progress.Progress(param_space.size)
-
-        # for i, M in enumerate(param_space):
-        # for i, kappa in enumerate(param_space):
-        for i, sigmax in enumerate(param_space):
-            # if search_progress.percentage() % 5.0 < 0.0001:
-            print "%.2f%%, %s left - %s" % (search_progress.percentage(), search_progress.time_remaining_str(), search_progress.eta_str())
-
-            # print "Fit for M=%d" % M
-            # print "Fit for kappa=%f" % kappa
-            print "Fit for sigmax=%.2f" % sigmax
-
-            # Update parameter
-            # self.parameters['M'] = M
-            # self.parameters['rc_scale'] = kappa
-            self.parameters['sigmax'] = sigmax
-
-            # Compute the loglikelihood
-            self.llh_fullspace_mean[i], self.llh_fullspace_std[i] = self.estimate_likelihood_multiple_models(num_models=3)
-
-            search_progress.increment()
-
-        # Plot the result
-        plot_mean_std_area(param_space, self.llh_fullspace_mean, self.llh_fullspace_std)
-        # pcolor_2d_data(self.llh_fullspace_mean, M_space, param_space, "M", "kappa")
-
-
-    def fit_parameters_2d(self):
-        '''
-            Vary some parameters around and see how this affects the experimental responses loglikelihoods
-        '''
-
-        M_space = (np.arange(1, 17, 2)**2.).astype(int)
-        kappa_space = np.linspace(0.5, 20., 7)
-
-        # self.llh_fullspace_mean = np.empty(M_space.size)
-        # self.llh_fullspace_std = np.empty(M_space.size)
-
-        # self.llh_fullspace_mean = np.empty(kappa_space.size)
-        # self.llh_fullspace_std = np.empty(kappa_space.size)
-
-        self.llh_fullspace_mean = np.empty((M_space.size, kappa_space.size))
-        self.llh_fullspace_std = np.empty((M_space.size, kappa_space.size))
-
-        search_progress = progress.Progress(M_space.size*kappa_space.size)
-
-        for i, M in enumerate(M_space):
-            for j, kappa in enumerate(kappa_space):
-                # if search_progress.percentage() % 5.0 < 0.0001:
-                print "%.2f%%, %s left - %s" % (search_progress.percentage(), search_progress.time_remaining_str(), search_progress.eta_str())
-
-                print "Fit for M=%d" % M
-                print "Fit for kappa=%f" % kappa
-
-                # Update parameter
-                self.parameters['M'] = M
-                self.parameters['rc_scale'] = kappa
-
-                # Compute the loglikelihood
-                self.llh_fullspace_mean[i, j], self.llh_fullspace_std[i, j] = self.estimate_likelihood_multiple_models(num_models=3)
-
-                search_progress.increment()
-
-        # Plot the result
-        # plot_mean_std_area(M_space, self.llh_fullspace_mean, self.llh_fullspace_std)
-        pcolor_2d_data(self.llh_fullspace_mean, M_space, kappa_space, "M", "kappa")
-
-
-    def fit_parameters_mixed(self):
-        '''
-            Fit a mixed code, for ratio, sigmax, rc_scale, rc_scale2
-        '''
-
-        # variables_to_save = ['param1_space', 'param2_space', 'self']
-        # dataio = DataIO(output_folder=self.parameters['output_directory'], label=self.parameters['label'])
-
-        # param1_space = np.linspace(0.001, 1., 20)  # ratio conj
-        # param2_space = np.linspace(0.01, 0.4, 20)  # sigmax
-        param1_space = np.linspace(0.01, 10, 10)    # kappa conj
-        param2_space = np.linspace(0.01, 50., 10)   # kappa feat
-
-        self.llh_fullspace_mean = np.empty((param1_space.size, param2_space.size))
-        self.llh_fullspace_std = np.empty((param1_space.size, param2_space.size))
-
-        search_progress = progress.Progress(param1_space.size*param2_space.size)
-
-        k = 0
-
-        # for i, ratio_conj in enumerate(param1_space):
-            # for j, sigmax in enumerate(param2_space):
-        for i, rc_scale in enumerate(param1_space):
-            for j, rc_scale2 in enumerate(param2_space):
-                print "%.2f%%, %s left - %s" % (search_progress.percentage(), search_progress.time_remaining_str(), search_progress.eta_str())
-
-                # print "Fit for ratio=%.1f, sigmax=%.2f" % (ratio_conj, sigmax)
-                print "Fit for rc_scale=%.2f, rc_scale2=%.2f" % (rc_scale, rc_scale2)
-
-                # Update parameter
-                # self.parameters['ratio_conj'] = ratio_conj
-                # self.parameters['sigmax'] = sigmax
-                # self.parameters['rc_scale'] = rc_scale
-                # self.parameters['rc_scale2'] = rc_scale2
-
-                # Compute the loglikelihood
-                self.llh_fullspace_mean[i, j], self.llh_fullspace_std[i, j] = self.estimate_likelihood_multiple_models(num_models=self.parameters['num_repetitions'])
-
-                search_progress.increment()
-
-                # if k % 4 == 0:
-                    # dataio.save_variables(variables_to_save, locals())
-
-                k += 1
-
-        # Plot the result
-        # plot_mean_std_area(M_space, self.llh_fullspace_mean, self.llh_fullspace_std)
-        # dataio.save_variables(variables_to_save, locals())
-        # pcolor_2d_data(self.llh_fullspace_mean, param1_space, param2_space, "ratio_conj", "sigmax")
-        # dataio.save_current_figure("fitexperiment_mixed_ratiosigmax_{unique_id}.pdf")
-
-
+    return locals()
 
 
 
 if __name__ == '__main__':
-    fit_exp = FitExperiment()
+    if True:
+        all_vars = test_fit_experiment()
+
+
+    for key, val in all_vars.iteritems():
+        locals()[key] = val
 

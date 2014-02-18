@@ -370,21 +370,25 @@ def bootstrap_nontarget_stat(responses, target, nontargets=np.array([[]]), nonta
                 em_fit = fit(bootstrap_responses[..., i], bootstrap_targets[..., i], bootstrap_nontargets[..., i])
             elif resample_responses and not resample_targets:
                 em_fit = fit(bootstrap_responses[..., i], target, bootstrap_nontargets[..., i])
+            elif not resample_responses and resample_targets:
+                em_fit = fit(responses, bootstrap_targets[..., i], bootstrap_nontargets[..., i])
             elif not resample_responses and not resample_targets:
                 em_fit = fit(responses, target, bootstrap_nontargets[..., i])
+            else:
+                raise ValueError('Weird! %d %d' % (resample_responses, resample_targets))
 
             bootstrap_results.append(em_fit)
 
-        nontarget_bootstrap = np.array([bootstr_res['mixt_nontargets'] for bootstr_res in bootstrap_results])
+        nontarget_bootstrap_samples = np.array([bootstr_res['mixt_nontargets'] for bootstr_res in bootstrap_results])
 
         # Estimate CDF
-        nontarget_bootstrap_ecdf = stmodsdist.empirical_distribution.ECDF(nontarget_bootstrap)
+        nontarget_bootstrap_ecdf = stmodsdist.empirical_distribution.ECDF(nontarget_bootstrap_samples)
 
     # Compute the p-value for the provided
     em_fit = fit(responses, target, nontargets)
     p_value_bootstrap = 1. - nontarget_bootstrap_ecdf(em_fit['mixt_nontargets'])
 
-    return dict(p_value=p_value_bootstrap, nontarget_ecdf=nontarget_bootstrap_ecdf, em_fit=em_fit, nontarget_bootstrap=nontarget_bootstrap)
+    return dict(p_value=p_value_bootstrap, nontarget_ecdf=nontarget_bootstrap_ecdf, em_fit=em_fit, nontarget_bootstrap_samples=nontarget_bootstrap_samples, bootstrap_results_all=bootstrap_results)
 
 
 def aic(em_fit_result_dict):

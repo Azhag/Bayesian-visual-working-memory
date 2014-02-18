@@ -63,6 +63,9 @@ class HierarchialRandomNetwork(RandomFactorialNetwork):
         self.current_layer_one_response = None
         self.current_layer_two_response = None
 
+        # Used to stored cached network response statistics. Mean_theta(mu(theta)) and Cov_theta(mu(theta))
+        self.network_response_statistics = None
+
         self.debug = debug
 
         if self.debug:
@@ -242,6 +245,9 @@ class HierarchialRandomNetwork(RandomFactorialNetwork):
             Computing the fisher information for a hierarchical code is not yet defined.
         '''
         return dict(inv_FI=0.0, inv_FI_std=0.0, FI=0.0, FI_std=0.0)
+
+    def compute_fisher_information(self, stimulus_input=None, sigma=0.01, cov_stim=None, kappa_different=False, params={}):
+        return 0.0
 
 
     ##### Plots

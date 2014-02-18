@@ -14,35 +14,35 @@ parameters_entryscript=dict(action_to_do='launcher_do_generate_submit_pbs_from_p
 submit_jobs = True
 parameter_generation = 'grid'
 
-pbs_submission_infos = dict(description='Hierarchical network. Assume we want to allocate a fixed number of neurons between the two layers. Do that by constraining the sum of M and M_layer_one to be some constant.', 
-                            command='python /nfs/home2/lmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/code/git-bayesian-visual-working-memory/experimentlauncher.py', 
-                            other_options=dict(action_to_do='launcher_do_hierarchical_precision_M_Mlower_pbs', 
-                                               code_type='hierarchical', 
-                                               output_directory='.', 
-                                               M=100, 
-                                               M_layer_one=100, 
-                                               type_layer_one='conjunctive', 
-                                               sigmax=0.1, 
-                                               N=500, 
-                                               T=6, 
-                                               sigmay=0.0001, 
-                                               inference_method='max_lik', 
-                                               num_repetitions=3, 
-                                               label='hierarchical_const_tot_M_Mlower_volume_conjunctivelayer'), 
-                            walltime='10:00:00', 
-                            memory='2gb', 
+pbs_submission_infos = dict(description='Hierarchical network. Assume we want to allocate a fixed number of neurons between the two layers. Do that by constraining the sum of M and M_layer_one to be some constant.',
+                            command='python $WORKDIR_DROP/experimentlauncher.py',
+                            other_options=dict(action_to_do='launcher_do_hierarchical_precision_M_Mlower_pbs',
+                                               code_type='hierarchical',
+                                               output_directory='.',
+                                               M=100,
+                                               M_layer_one=100,
+                                               type_layer_one='conjunctive',
+                                               sigmax=0.1,
+                                               N=500,
+                                               T=6,
+                                               sigmay=0.0001,
+                                               inference_method='max_lik',
+                                               num_repetitions=3,
+                                               label='hierarchical_const_tot_M_Mlower_volume_conjunctivelayer'),
+                            walltime='10:00:00',
+                            memory='2gb',
                             simul_out_dir=os.path.join(os.getcwd(), 'hierarchical_constant_total_MMlower_volume_conjunctivelayer_230513'),
                             submit_label='hier_MMl_cst')
 
 M_range           =   dict(range=np.arange(1, 201), dtype=int)
-M_lower_range     =   dict(range=np.arange(2, 16, 1)**2., dtype=int)        
+M_lower_range     =   dict(range=np.arange(2, 16, 1)**2., dtype=int)
 # M_range           =   dict(range=np.linspace(5, 505, 1), dtype=int)
 # M_lower_range     =   dict(range=np.arange(5, 6, 2)**2., dtype=int)
 
 dict_parameters_range = dict(M=M_range, M_layer_one=M_lower_range)
 
 
-## Define our filtering function 
+## Define our filtering function
 def filtering_function(new_parameters, dict_parameters_range, function_parameters=None):
     '''
         Receive M and M_layer_one, should make sure their sum is equal to some constant value (set in function_parameters)
@@ -64,7 +64,7 @@ if v2:
 
 
 if __name__ == '__main__':
-    
+
     this_file = inspect.getfile(inspect.currentframe())
     print "Running ", this_file
 

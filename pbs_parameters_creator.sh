@@ -2,7 +2,7 @@
 #
 
 curr_dir=`pwd`
-path_source=/nfs/home2/lmatthey/Documents/work/Visual_working_memory/code/git-bayesian-visual-working-memory
+path_source=$WORKDIR
 launcher=gibbs_sampler_continuous_fullcollapsed_randomfactorialnetwork.py
 action='do_save_responses_simultaneous'
 nb_inputs_experiments=1
@@ -20,13 +20,13 @@ select_num_samples=1
 #        if [    $num_samples -lt  $select_num_samples ]; then
 #            continue
 #        fi
-#        
+#
 #        echo "selection_num_Samples: $select_num_samples"
-        for rc_scale in 0.1 0.25 0.5 1.0 2.0 4.0 5.0; do 
+        for rc_scale in 0.1 0.25 0.5 1.0 2.0 4.0 5.0; do
             echo "rc_scale: ${rc_scale}"
-            for rc_scale2 in 0.1 0.25 0.5 1.0 2.0 4.0 5.0; do 
+            for rc_scale2 in 0.1 0.25 0.5 1.0 2.0 4.0 5.0; do
                 echo "rc_scale2: ${rc_scale2}"
-                for ratio_conj in 0.0 0.2 0.5 0.7 1.0; do 
+                for ratio_conj in 0.0 0.2 0.5 0.7 1.0; do
                     echo "ratio_conj: ${ratio_conj}"
                     for sigmax in 0.8 1.0 1.2 1.5 2.0 3.0; do
                         echo "sigmax: ${sigmax}"
@@ -45,7 +45,7 @@ export OMP_NUM_THREADS=1
 cd ${curr_dir}
 
 hostn=\`hostname\`
-echo "Job execution host: \$hostn" 
+echo "Job execution host: \$hostn"
 
 # If some nodes are messing with you, exclude them
 if [ \$hostn = "behemoth_" -o \$hostn = "wood_" -o \$hostn = "zhora__" ]; then
@@ -61,14 +61,14 @@ nice python ${path_source}/${launcher} --action_to_do ${action} --code_type mixe
 #tar -czf file_${file_suffix}.tar.gz *${file_suffix}-*
 #rm *${file_suffix}-*
 EOF
-        
+
         #
         # Make the script executable (useful for testing)
         #
         chmod a+x script_train_${file_suffix}
-    
+
         #
-        # Submit the job 
+        # Submit the job
         #
         # This command submits the same job multiple time, quite fast and convenient. But breaks qstat IDENTIFIER.
         # qsub script_train_${file_suffix} -t 1-${nb_inputs_experiments}

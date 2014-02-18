@@ -74,7 +74,7 @@ def init_data_gen(random_network, parameters):
         Initialisating the DataGenerator
     '''
 
-    return DataGeneratorRFN(parameters['N'], parameters['T'], random_network, sigma_y=parameters['sigmay'], sigma_x=parameters['sigmax'], time_weights_parameters=parameters['time_weights_parameters'], cued_feature_time=parameters['cued_feature_time'], stimuli_generation=parameters.get('stimuli_generation', None), enforce_first_stimulus=parameters['enforce_first_stimulus'], stimuli_to_use=parameters.get('stimuli_to_use', None), enforce_min_distance=parameters.get('enforce_min_distance', 0.0), specific_stimuli_random_centers=parameters.get('specific_stimuli_random_centers', True))
+    return DataGeneratorRFN(parameters['N'], parameters['T'], random_network, sigma_y=parameters['sigmay'], sigma_x=parameters['sigmax'], time_weights_parameters=parameters['time_weights_parameters'], cued_feature_time=parameters['cued_feature_time'], stimuli_generation=parameters.get('stimuli_generation', None), enforce_first_stimulus=parameters['enforce_first_stimulus'], stimuli_to_use=parameters.get('stimuli_to_use', None), enforce_min_distance=parameters.get('enforce_min_distance', 0.0), specific_stimuli_random_centers=parameters.get('specific_stimuli_random_centers', True), specific_stimuli_asymmetric=parameters.get('specific_stimuli_asymmetric', False))
 
 
 def init_stat_measurer(random_network, parameters):
@@ -170,7 +170,7 @@ def launcher_do_save_responses_simultaneous(args):
             stat_meas = StatisticsMeasurer(data_gen_noise)
             # stat_meas = StatisticsMeasurer(data_gen)
 
-            sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters=stat_meas.model_parameters)
+            sampler = Sampler(data_gen, n_parameters=stat_meas.model_parameters)
 
             for tc in np.arange(t+1):
                 print "Doing T=%d, Tc=%d,  %d/%d" % (t+1, tc, repet_i+1, args.num_repetitions)

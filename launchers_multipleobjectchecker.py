@@ -44,13 +44,13 @@ def launcher_do_checks_2obj(args):
     # min_distance_space = np.linspace(0.01, 0.8, 10.)
     min_distance_space = np.array([all_parameters['enforce_min_distance']])
 
-    fi_curve = np.zeros((min_distance_space.size))
-    fi_var = np.zeros((min_distance_space.size))
-    fi_theo_covmeas = np.zeros((min_distance_space.size))
-    fi_theo_covtheo = np.zeros((min_distance_space.size))
-    fi_precision = np.zeros((min_distance_space.size))
-    bias_avg = np.zeros((min_distance_space.size))
-    fi_bias = np.zeros((min_distance_space.size))
+    fi_curve = np.nan*np.empty((min_distance_space.size))
+    fi_var = np.nan*np.empty((min_distance_space.size))
+    fi_theo_covmeas = np.nan*np.empty((min_distance_space.size))
+    fi_theo_covtheo = np.nan*np.empty((min_distance_space.size))
+    fi_precision = np.nan*np.empty((min_distance_space.size))
+    bias_avg = np.nan*np.empty((min_distance_space.size))
+    fi_bias = np.nan*np.empty((min_distance_space.size))
 
     search_progress = progress.Progress(min_distance_space.size)
 
@@ -139,7 +139,7 @@ def init_everything(parameters):
     data_gen_noise = DataGeneratorRFN(5000, parameters['T'], random_network, sigma_y=parameters['sigmay'], sigma_x=parameters['sigmax'], time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation=noise_stimuli_generation, enforce_min_distance=parameters['enforce_min_distance'])
     stat_meas = StatisticsMeasurer(data_gen_noise)
 
-    sampler = Sampler(data_gen, theta_kappa=0.01, n_parameters=stat_meas.model_parameters, tc=cued_feature_time)
+    sampler = Sampler(data_gen, n_parameters=stat_meas.model_parameters, tc=cued_feature_time)
 
     return (random_network, data_gen, stat_meas, sampler)
 
@@ -188,11 +188,11 @@ def launcher_do_separation_rcdependence(args):
     # all_parameters['enforce_min_distance'] = 0.1
     rcscale_space = np.linspace(0.1, 10., 10.)
 
-    fi_curve = np.zeros((rcscale_space.size, num_repetitions))
-    fi_var = np.zeros((rcscale_space.size, num_repetitions))
-    fi_theo_covmeas = np.zeros((rcscale_space.size, num_repetitions))
-    fi_theo_covtheo = np.zeros((rcscale_space.size, num_repetitions))
-    fi_bias = np.zeros((rcscale_space.size, num_repetitions))
+    fi_curve = np.nan*np.empty((rcscale_space.size, num_repetitions))
+    fi_var = np.nan*np.empty((rcscale_space.size, num_repetitions))
+    fi_theo_covmeas = np.nan*np.empty((rcscale_space.size, num_repetitions))
+    fi_theo_covtheo = np.nan*np.empty((rcscale_space.size, num_repetitions))
+    fi_bias = np.nan*np.empty((rcscale_space.size, num_repetitions))
 
     search_progress = progress.Progress(rcscale_space.size*num_repetitions)
 

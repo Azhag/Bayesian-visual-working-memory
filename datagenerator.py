@@ -311,7 +311,7 @@ class DataGeneratorRFN(DataGenerator):
     '''
         DataGenerator for a RandomFactorialNetwork
     '''
-    def __init__(self, N, T, random_network, sigma_y = 0.05, sigma_x = 0.02, time_weights=None, time_weights_parameters = dict(weighting_alpha=0.3, weighting_beta = 1.0, specific_weighting = 0.3, weight_prior='uniform'), cued_feature_time=0, enforce_min_distance=0.17, stimuli_generation='random', enforce_first_stimulus=True, stimuli_to_use=None, specific_stimuli_random_centers=False):
+    def __init__(self, N, T, random_network, sigma_y = 0.05, sigma_x = 0.02, time_weights=None, time_weights_parameters = dict(weighting_alpha=0.3, weighting_beta = 1.0, specific_weighting = 0.3, weight_prior='uniform'), cued_feature_time=0, enforce_min_distance=0.17, stimuli_generation='random', enforce_first_stimulus=True, stimuli_to_use=None, specific_stimuli_random_centers=False, specific_stimuli_asymmetric=False):
 
         # assert isinstance(random_network, RandomFactorialNetwork), "Use a RandomFactorialNetwork with this DataGeneratorRFN"
 
@@ -323,15 +323,18 @@ class DataGeneratorRFN(DataGenerator):
         self.enforce_min_distance = enforce_min_distance
 
         # Build the correct stimuli
-        if stimuli_generation == 'specific_stimuli':
-            # Use our specifically built function, to get the special stimuli combination allowing to verify some biases
-            self.generate_specific_stimuli(asymmetric=False, centre=np.array([0., 0.]), specific_stimuli_random_centers=specific_stimuli_random_centers)
-        elif stimuli_generation is not None:
-            # Generate it randomly
-            self.generate_stimuli(stimuli_generation=stimuli_generation, enforce_first_stimulus=enforce_first_stimulus)
-        elif stimuli_to_use is not None:
+        if stimuli_to_use is not None:
             # Use the provided stimuli
             self.set_stimuli(stimuli_to_use)
+        else:
+            if stimuli_generation == 'specific_stimuli':
+                # Use our specifically built function, to get the special stimuli combination allowing to verify some biases
+                self.generate_specific_stimuli(asymmetric=specific_stimuli_asymmetric, centre=np.array([0., 0.]), specific_stimuli_random_centers=specific_stimuli_random_centers)
+            elif stimuli_generation is not None:
+                # Generate it randomly
+                self.generate_stimuli(stimuli_generation=stimuli_generation, enforce_first_stimulus=enforce_first_stimulus)
+            else:
+                raise ValueError("No data generation possible.")
 
 
         # Build the dataset
@@ -399,15 +402,15 @@ class DataGeneratorRFN(DataGenerator):
                 self.stimuli_correct[:, :np.min((self.T, 4))] = forced_stimuli[:np.min((self.T, 4))]
 
 
-    def generate_specific_stimuli(self, asymmetric=False, centre=np.array([0., 0.]), specific_stimuli_random_centers=True):
+    def generate_specific_stimuli(self, asymmetric=False, centre=np.array([0., 0.]), specific_stimuli_random_centers=True, randomise_target=True):
         '''
             Construct a specific set of stimuli tailored to discriminate between population code types.
 
             Will generate different error patterns depending on the population codes used.
         '''
 
-        if self.T == 3 and not asymmetric:
-            # Three points on a diagonal. Should produce different biases for conjunctive or feature. Mean of ensemble lies on the center point though, which may complicate analysis.
+        if self.T == 3:
+            # Three points on a diagonal. Should produce different biases for conjunctive or feature.
             dx = self.enforce_min_distance/np.sqrt(2)
 
             if specific_stimuli_random_centers:
@@ -415,10 +418,19 @@ class DataGeneratorRFN(DataGenerator):
             else:
                 centre_disturb_space = np.ones((self.N, 2))*centre
 
-            self.stimuli_correct = np.array([[centre_disturb + np.array([-dx, dx]), centre_disturb + np.array([dx, -dx]), centre_disturb] for centre_disturb in centre_disturb_space])
+            if not asymmetric:
+                # Mean of ensemble lies on the center point though, which may complicate analysis.
+                self.stimuli_correct = np.array([[centre_disturb + np.array([-dx, dx]), centre_disturb + np.array([dx, -dx]), centre_disturb] for centre_disturb in centre_disturb_space])
+            else:
+                # Asymmetric. Mean of ensemble lies at the left of the two on the right.
+                self.stimuli_correct = np.array([[centre_disturb + np.array([-2.*dx, 2.*dx]), centre_disturb + np.array([dx, -dx]), centre_disturb + np.array([2.*dx, -2.*dx])] for centre_disturb in centre_disturb_space])
+
+            # Shuffle targets randomly if desired (always cue T=3, last item)
+            if randomise_target:
+                map(np.random.shuffle, self.stimuli_correct)
 
         else:
-            raise NotImplementedError("Specific stimuli only works for T=3 and non-asymmetric for now")
+            raise NotImplementedError("Specific stimuli only works for T=3 for now")
 
 
 
@@ -493,7 +505,7 @@ class DataGeneratorRFN(DataGenerator):
 
 
 
-    def show_datapoint(self, n=0):
+    def show_datapoint(self, n=0, colormap=None):
         '''
             Show a datapoint.
 
@@ -503,18 +515,20 @@ class DataGeneratorRFN(DataGenerator):
         display_type = self.random_network.population_code_type
 
         if display_type == 'conjunctive':
-            self.show_datapoint_conjunctive(n=n)
-        elif display_type == 'features':
-            self.show_datapoint_features(n=n)
+            self.show_datapoint_conjunctive(n=n, colormap=colormap)
+        elif display_type == 'feature':
+            self.show_datapoint_features(n=n, colormap=colormap)
         elif display_type == 'wavelet':
-            self.show_datapoint_wavelet(n=n)
+            self.show_datapoint_wavelet(n=n, colormap=colormap)
         elif display_type == 'mixed':
-            self.show_datapoint_mixed(n=n)
+            self.show_datapoint_mixed(n=n, colormap=colormap)
         elif display_type == 'hierarchical':
-            self.show_datapoint_hierarchical(n=n)
+            self.show_datapoint_hierarchical(n=n, colormap=colormap)
+        else:
+            raise ValueError("Unknown population type:" + self.random_network.population_code_type)
 
 
-    def show_datapoint_conjunctive(self, n=0):
+    def show_datapoint_conjunctive(self, n=0, colormap=None):
         '''
             Show a datapoint, as a 2D grid plot (for now, assumes R==2).
 
@@ -528,7 +542,7 @@ class DataGeneratorRFN(DataGenerator):
 
         f = plt.figure()
         ax = f.add_subplot(111)
-        im = ax.imshow(np.reshape(self.Y[n][:M_sqrt*M_sqrt], (M_sqrt, M_sqrt)).T, origin='lower', aspect='equal', interpolation='nearest')
+        im = ax.imshow(np.reshape(self.Y[n][:M_sqrt*M_sqrt], (M_sqrt, M_sqrt)).T, origin='lower', aspect='equal', interpolation='nearest', cmap=colormap)
         im.set_extent((-np.pi, np.pi, -np.pi, np.pi))
         ax.set_xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
         ax.set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'))
@@ -538,13 +552,14 @@ class DataGeneratorRFN(DataGenerator):
         # Show ellipses at the stimuli positions
         colmap = plt.get_cmap('gist_rainbow')
         color_gen = [colmap(1.*(i)/self.T) for i in xrange(self.T)][::-1]  # use 22 colors
+        # color_gen = ["blue", "green", "red", "cyan", "magenta", "yellow"]
 
         for t in xrange(self.T):
-            w = plt_patches.Wedge((self.stimuli_correct[n, t, 0], self.stimuli_correct[n, t, 1]), 0.25, 0, 360, 0.03, color=color_gen[t], alpha=0.7, linewidth=2)
+            w = plt_patches.Wedge((self.stimuli_correct[n, t, 0], self.stimuli_correct[n, t, 1]), 0.25, 0, 360, 0.12, color=color_gen[t], alpha=1.0, linewidth=2)
             ax.add_patch(w)
 
 
-    def show_datapoint_features(self, n=0):
+    def show_datapoint_features(self, n=0, colormap=None):
         '''
             Show a datapoint for a features code.
             Will show 2 "lines", with the output of horizontal/vertical neurons.
@@ -570,7 +585,7 @@ class DataGeneratorRFN(DataGenerator):
         ax.set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'))
 
         ax.set_yticks(())
-        ax.legend(['Horizontal cells', 'Vertical cells'], fancybox=True, borderpad=0.3, columnspacing=0.5, borderaxespad=0.7, handletextpad=0, handlelength=1.5)
+        ax.legend(['Horizontal cells', 'Vertical cells'], fancybox=True, borderpad=0.3, columnspacing=0.5, borderaxespad=0.1, handletextpad=0, handlelength=1.5, bbox_to_anchor=(1.0, 1.0))
 
         # Show ellipses at the stimuli positions
         colmap = plt.get_cmap('gist_rainbow')
@@ -579,10 +594,10 @@ class DataGeneratorRFN(DataGenerator):
         for t in xrange(self.T):
 
             # max_pos = np.argmin((np.linspace(-np.pi, np.pi, horiz_cells.size, endpoint=False) - self.stimuli_correct[n, t, 0])**2.)
-            w = plt_patches.Wedge((self.stimuli_correct[n, t, 0], 1.2*self.Y[n, horiz_cells].max()), 0.1, 0, 360, color=color_gen[t], alpha=0.7, linewidth=2)
+            w = plt_patches.Wedge((self.stimuli_correct[n, t, 0], 1.2*self.Y[n, horiz_cells].max()), 0.1, 0, 360, color=color_gen[t], alpha=1.0, linewidth=2)
             ax.add_patch(w)
 
-            w = plt_patches.Wedge((self.stimuli_correct[n, t, 1], 1.1*self.Y[n, horiz_cells].max() + factor_2lines*self.Y[n, horiz_cells].max()), 0.1, 0, 360, color=color_gen[t], alpha=0.7, linewidth=2)
+            w = plt_patches.Wedge((self.stimuli_correct[n, t, 1], 1.1*self.Y[n, horiz_cells].max() + factor_2lines*self.Y[n, horiz_cells].max()), 0.1, 0, 360, color=color_gen[t], alpha=1.0, linewidth=2)
             ax.add_patch(w)
 
         plt.xlim((-np.pi, np.pi))
@@ -594,7 +609,7 @@ class DataGeneratorRFN(DataGenerator):
         # ax.set_yticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'))
 
 
-    def show_datapoint_mixed(self, n=0):
+    def show_datapoint_mixed(self, n=0, colormap=None):
         '''
             Show a datapoint for a mixed code
         '''
@@ -605,7 +620,7 @@ class DataGeneratorRFN(DataGenerator):
         ax = f.add_subplot(211)
         conj_sqrt = int(self.random_network.conj_subpop_size**0.5)
         # TODO Fix for conj_subpop_size = 0
-        im = ax.imshow(np.reshape(self.Y[n][:self.random_network.conj_subpop_size], (conj_sqrt, conj_sqrt)).T, origin='lower', aspect='equal', interpolation='nearest')
+        im = ax.imshow(np.reshape(self.Y[n][:conj_sqrt**2.], (conj_sqrt, conj_sqrt)).T, origin='lower', aspect='equal', interpolation='nearest', cmap=colormap)
         im.set_extent((-np.pi, np.pi, -np.pi, np.pi))
         ax.set_xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
         ax.set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'))
@@ -617,7 +632,7 @@ class DataGeneratorRFN(DataGenerator):
         color_gen = [colmap(1.*(i)/self.T) for i in xrange(self.T)][::-1]  # use 22 colors
 
         for t in xrange(self.T):
-            w = plt_patches.Wedge((self.stimuli_correct[n, t, 0], self.stimuli_correct[n, t, 1]), 0.25, 0, 360, 0.03, color=color_gen[t], alpha=0.7, linewidth=2)
+            w = plt_patches.Wedge((self.stimuli_correct[n, t, 0], self.stimuli_correct[n, t, 1]), 0.25, 0, 360, 0.12, color=color_gen[t], alpha=1.0, linewidth=2)
             ax.add_patch(w)
 
         ##### Show the feature units
@@ -644,10 +659,10 @@ class DataGeneratorRFN(DataGenerator):
         for t in xrange(self.T):
 
             # max_pos = np.argmin((np.linspace(-np.pi, np.pi, horiz_cells.size, endpoint=False) - self.stimuli_correct[n, t, 0])**2.)
-            w = plt_patches.Wedge((self.stimuli_correct[n, t, 0], 1.2*self.Y[n, horiz_cells].max()), 0.1, 0, 360, color=color_gen[t], alpha=0.7, linewidth=2)
+            w = plt_patches.Wedge((self.stimuli_correct[n, t, 0], 1.2*self.Y[n, horiz_cells].max()), 0.1, 0, 360, color=color_gen[t], alpha=1.0, linewidth=2)
             ax.add_patch(w)
 
-            w = plt_patches.Wedge((self.stimuli_correct[n, t, 1], 1.1*self.Y[n, horiz_cells].max() + factor_2lines*self.Y[n, horiz_cells].max()), 0.1, 0, 360, color=color_gen[t], alpha=0.7, linewidth=2)
+            w = plt_patches.Wedge((self.stimuli_correct[n, t, 1], 1.1*self.Y[n, horiz_cells].max() + factor_2lines*self.Y[n, horiz_cells].max()), 0.1, 0, 360, color=color_gen[t], alpha=1.0, linewidth=2)
             ax.add_patch(w)
 
         ax.set_xlim((-np.pi, np.pi))
@@ -655,9 +670,7 @@ class DataGeneratorRFN(DataGenerator):
 
 
 
-
-
-    def show_datapoint_wavelet(self, n=0, single_figure=True):
+    def show_datapoint_wavelet(self, n=0, single_figure=True, colormap=None):
         '''
             Show a datapoint for wavelet code.
             Will print several 2D grid plots (for now, assumes R==2).
@@ -719,7 +732,7 @@ class DataGeneratorRFN(DataGenerator):
             pass
 
 
-    def show_datapoint_hierarchical(self, n=0):
+    def show_datapoint_hierarchical(self, n=0, colormap=None):
         '''
             Show a datapoint from a hiearchical random network
 
