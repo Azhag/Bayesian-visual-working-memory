@@ -22,7 +22,7 @@ num_repetitions = 5
 M  = 200
 T = 6
 
-run_label = 'cmaes_distfitexpbic_mixed_Mratiosigmaxsigmay_allT_repetitions{num_repetitions}_200214'
+run_label = 'cmaes_distfitexpbic_mixed_Mratiosigmaxsigmay_allT_repetitions{num_repetitions}_210214'
 simul_out_dir = os.path.join(os.getcwd(), run_label.format(**locals()))
 
 parameter_generation = 'cma-es'
