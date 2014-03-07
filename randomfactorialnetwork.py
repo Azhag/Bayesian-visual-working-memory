@@ -318,6 +318,12 @@ class RandomFactorialNetwork():
             # Save the rc_scale used
             self.rc_scale = np.mean(self.neurons_sigma, axis=0)
 
+            # Assign response function, depending on neurons_sigma
+            if np.any(self.neurons_sigma > 700):
+                self.get_network_response_opt2d = self.get_network_response_opt2d_large_kappa_safe
+            else:
+                self.get_network_response_opt2d = self.get_network_response_opt2d_bivariate_fisher
+
 
 
     def compute_2d_parameters(self, specific_neurons=None):
@@ -351,13 +357,29 @@ class RandomFactorialNetwork():
 
         if self.normalisation is None:
             self.normalisation = np.zeros(self.M)
+            self.normalisation_feat1 = np.zeros(self.M)
+            self.normalisation_feat2 = np.zeros(self.M)
+            self.normalisation_gauss_feat1 = np.zeros(self.M)
+            self.normalisation_gauss_feat2 = np.zeros(self.M)
+
 
         # The normalising constant
         #   Overflows have happened, but they have no real consequence, as 1/inf = 0.0, appropriately.
         if specific_neurons is None:
             self.normalisation = 4.*np.pi**2.0*scsp.i0(self.neurons_sigma[:, 0])*scsp.i0(self.neurons_sigma[:, 1])/self.gain
+
+            # precompute separate ones
+            self.normalisation_feat1 = 2.*np.pi*scsp.i0(self.neurons_sigma[:, 0])/np.sqrt(self.gain)
+            self.normalisation_feat2 = 2.*np.pi*scsp.i0(self.neurons_sigma[:, 1])/np.sqrt(self.gain)
+            self.normalisation_gauss_feat1 = np.sqrt(self.neurons_sigma[:, 0])/(np.sqrt(2*np.pi*self.gain))
+            self.normalisation_gauss_feat2 = np.sqrt(self.neurons_sigma[:, 1])/(np.sqrt(2*np.pi*self.gain))
         else:
             self.normalisation[specific_neurons] = 4.*np.pi**2.0*scsp.i0(self.neurons_sigma[specific_neurons, 0])*scsp.i0(self.neurons_sigma[specific_neurons, 1])/self.gain
+
+            self.normalisation_feat1[specific_neurons] = 2.*np.pi*scsp.i0(self.neurons_sigma[specific_neurons, 0])/np.sqrt(self.gain)
+            self.normalisation_feat2[specific_neurons] = 2.*np.pi*scsp.i0(self.neurons_sigma[specific_neurons, 1])/np.sqrt(self.gain)
+            self.normalisation_gauss_feat1[specific_neurons] = np.sqrt(self.neurons_sigma[specific_neurons, 0])/(np.sqrt(2*np.pi*self.gain))
+            self.normalisation_gauss_feat2[specific_neurons] = np.sqrt(self.neurons_sigma[specific_neurons, 1])/(np.sqrt(2*np.pi*self.gain))
 
 
     #########################################################################################################
@@ -404,14 +426,8 @@ class RandomFactorialNetwork():
         '''
 
         if specific_neurons is None:
-            # Diff angles
-            dtheta = (stimulus_input[0] - self.neurons_preferred_stimulus[:, 0])
-            dgamma = (stimulus_input[1] - self.neurons_preferred_stimulus[:, 1])
+            output = self.get_network_response_opt2d(stimulus_input[0], stimulus_input[1])
 
-            # Get the response
-            output = np.exp(self.neurons_sigma[:, 0]*np.cos(dtheta) + self.neurons_sigma[:, 1]*np.cos(dgamma))/self.normalisation
-
-            output[self.mask_neurons_unset] = 0.0
         else:
 
             dtheta = (stimulus_input[0] - self.neurons_preferred_stimulus[specific_neurons, 0])
@@ -478,7 +494,7 @@ class RandomFactorialNetwork():
             raise NotImplementedError('R>3 for factorial code...')
 
 
-    def get_network_response_opt2d(self, theta1, theta2):
+    def get_network_response_opt2d_bivariate_fisher(self, theta1, theta2):
         '''
             Optimized version of the Bivariate fisher population code, for 2 angles
         '''
@@ -488,6 +504,32 @@ class RandomFactorialNetwork():
         output[self.mask_neurons_unset] = 0.0
 
         return output
+
+    def get_network_response_opt2d_large_kappa_safe(self, theta1, theta2):
+        '''
+            Implement a safe version of the population code, which uses a Normal approximation to the Von Mises for kappa>700
+        '''
+
+        output = np.ones(self.M)
+
+        # Get normal bivariate output
+        bivariate_fisher_output_feat1 = np.exp(self.neurons_sigma[:, 0]*np.cos((theta1 - self.neurons_preferred_stimulus[:, 0])))/self.normalisation_feat1
+        bivariate_fisher_output_feat2 = np.exp(self.neurons_sigma[:, 1]*np.cos((theta2 - self.neurons_preferred_stimulus[:, 1])))/self.normalisation_feat2
+
+        # Now get gaussian output
+        gaussian_output_feat1 = np.exp(-0.5*self.neurons_sigma[:, 0]*(theta1 - self.neurons_preferred_stimulus[:, 0])**2.)*self.normalisation_gauss_feat1
+        gaussian_output_feat2 = np.exp(-0.5*self.neurons_sigma[:, 1]*(theta1 - self.neurons_preferred_stimulus[:, 1])**2.)*self.normalisation_gauss_feat2
+
+        # Now compute the appropriate combinations
+        output[self.neurons_sigma[:, 0] <= 700] *= bivariate_fisher_output_feat1[self.neurons_sigma[:, 0] <= 700]
+        output[self.neurons_sigma[:, 1] <= 700] *= bivariate_fisher_output_feat2[self.neurons_sigma[:, 1] <= 700]
+        output[self.neurons_sigma[:, 0] > 700] *= gaussian_output_feat1[self.neurons_sigma[:, 0] > 700]
+        output[self.neurons_sigma[:, 1] > 700] *= gaussian_output_feat2[self.neurons_sigma[:, 1] > 700]
+
+        output[self.mask_neurons_unset] = 0.0
+
+        return output
+
 
     ####
 
@@ -785,7 +827,7 @@ class RandomFactorialNetwork():
         # print FI_nobj
 
         try:
-        inv_FI_nobj = np.linalg.inv(FI_nobj)
+            inv_FI_nobj = np.linalg.inv(FI_nobj)
         except np.linalg.linalg.LinAlgError:
             inv_FI_nobj = np.nan*np.empty(FI_nobj.shape)
 
