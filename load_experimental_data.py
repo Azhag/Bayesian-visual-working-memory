@@ -109,6 +109,9 @@ def preprocess_simultaneous(dataset, parameters):
         if n_items > 1:
             dataset['vtest_nitems'][n_items_i] = utils.V_test(utils.dropnan(dataset['errors_nontarget_nitems'][n_items_i]).flatten())['pvalue']
 
+    # Do per subject and nitems, get average histogram
+    compute_average_histograms(dataset)
+
 
 
 def preprocess_sequential(dataset, parameters):
@@ -1059,6 +1062,13 @@ def plots_bays2009(dataset, dataio=None):
     plots_em_mixtures(dataset, dataio)
 
 
+def plots_gorgo11(dataset, dataio=None):
+    '''
+        Plots for Gorgo11, assuming sequential data
+    '''
+    plots_histograms_errors_targets_nontargets_nitems(dataset, dataio)
+
+    plots_em_mixtures(dataset, dataio)
 
 
 def plots_dualrecall(dataset):
@@ -1303,8 +1313,8 @@ if __name__ == '__main__':
     # keys:
     # 'probe', 'delayed', 'item_colour', 'probe_colour', 'item_angle', 'error', 'probe_angle', 'n_items', 'response', 'subject']
         # (data_sequen, data_simult, data_dualrecall) = load_multiple_datasets([dict(filename='Exp1.mat', preprocess=preprocess_sequential, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'))), dict(filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), fit_mixture_model=True)), dict(filename=os.path.join(data_dir, 'DualRecall_Bays', 'rate_data.mat'), preprocess=preprocess_dualrecall, parameters=dict(fit_mixture_model=True))])
-        # (data_simult,) = load_multiple_datasets([dict(name='Gorgo_simult', filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), fit_mixture_model=True, mixture_model_cache='em_simult.pickle'))])
-        (data_bays2009, ) = load_multiple_datasets([dict(name='Bays2009', filename='colour_data.mat', preprocess=preprocess_bays09, parameters=dict(datadir=os.path.join(data_dir, 'Bays2009'), fit_mixture_model=True, mixture_model_cache='em_bays.pickle', should_compute_bootstrap=True, bootstrap_cache='bootstrap_1000samples.pickle'))])
+        (data_simult,) = load_multiple_datasets([dict(name='Gorgo_simult', filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), fit_mixture_model=True, mixture_model_cache='em_simult.pickle'))])
+        # (data_bays2009, ) = load_multiple_datasets([dict(name='Bays2009', filename='colour_data.mat', preprocess=preprocess_bays09, parameters=dict(datadir=os.path.join(data_dir, 'Bays2009'), fit_mixture_model=True, mixture_model_cache='em_bays.pickle', should_compute_bootstrap=True, bootstrap_cache='bootstrap_1000samples.pickle'))])
         # data_dualrecall = load_data_dualrecall(fit_mixture_model=True)
 
 
@@ -1341,6 +1351,9 @@ if __name__ == '__main__':
     # plots_check_bias_nontarget_randomized(data_simult, dataio=dataio)
 
     # plots_bays2009(data_bays2009, dataio=dataio)
+
+    dataio = DataIO.DataIO(label='experiments_gorgo11')
+    plots_gorgo11(data_simult, dataio)
 
     plt.show()
 
