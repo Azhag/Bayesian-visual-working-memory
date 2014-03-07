@@ -390,74 +390,8 @@ class RandomFactorialNetwork():
             Now computes intermediate vectors, could change everything to use vectors only.
         '''
 
-        # TODO get_network_response_vonmisesfisher is not finished
-        print "Unfinished function..."
+        raise NotImplementedError("Unfinished function...")
 
-        # Unpack parameters
-        if 'kappa' in params:
-            kappa = params['kappa']
-        else:
-            kappa = 10.
-        if 'beta' in params:
-            beta = params['beta']
-        else:
-            beta = 0.5
-        if 'function_type' in params:
-            function_type = params['function_type']
-        else:
-            function_type = 'vonmisesfisher'
-
-        if specific_neurons is None:
-            specific_neurons = self._ALL_NEURONS
-
-        # Vector version of the stimulus
-        # stimulus_input = np.array(stimulus_input)
-        # stimulus_input[1] += np.pi
-        stimulus_input_vect = spherical_to_vect(stimulus_input)
-
-        # Diff
-        # deltaV = (self.neurons_preferred_stimulus_vect-stimulus_input_vect)
-
-        # Get the response
-        normalisation = kappa/(2.*np.pi*(np.exp(kappa) - np.exp(-kappa)))
-        # normalisation = 1.0
-
-        # M_rot = create_2D_rotation_matrix(self.neurons_angle[0])
-        # M_scale = np.diag((1.0, 1.0))
-        # A = np.dot(M_rot, np.dot(M_scale, M_rot.T))
-
-        if function_type == 'vonmisesfisher':
-            # Von Mises-Fisher
-            output = normalisation*np.exp(kappa*np.dot(self.neurons_preferred_stimulus_vect[specific_neurons], stimulus_input_vect))
-        elif function_type == 'kent_5':
-            # 5-param Kent
-
-            print "Work in progress..."
-
-            axis1 = gs_ortho(np.array((0., 0., 1.)), self.neurons_preferred_stimulus_vect[7])
-            axis2 = gs_ortho(np.array((0., 1., 0.)), axis1)
-
-            output = normalisation*np.exp(kappa*np.dot(self.neurons_preferred_stimulus_vect, stimulus_input_vect) + beta*(np.dot(stimulus_input_vect, axis1)**2. - np.dot(stimulus_input_vect, axis2)**2.))
-        elif function_type == 'kent_3':
-            # 3-param Kent, simplified. From \cite{Kent2005}
-            #  exp(k cos(theta) + beta sin^2(theta) cos(2 gamma)
-            return np.ones(self.M)*np.exp(kappa*np.cos(stimulus_input[1]) + beta*np.sin(stimulus_input[1])**2.*np.cos(2.*stimulus_input[0]))
-
-        else:
-            raise ValueError('function_type unknown')
-
-        # Von Mises-Fisher extension with rotation
-        # TODO Doesn't work...
-        # M_scale = np.array([[1.0, 0., 0.], [0., 1., 0.], [0., 0., 1.0]])
-        # modified_stimulus = np.dot(M_scale, stimulus_input_vect)
-        # modified_stimulus /= np.linalg.norm(modified_stimulus)
-        # M_rot = create_3D_rotation_around_vector(np.array([0., 0., 1.]), -np.pi/3.0)
-        # modified_stimulus = np.dot(M_rot, stimulus_input_vect)
-        # output = normalisation*np.exp(kappa*np.dot(self.neurons_preferred_stimulus_vect, modified_stimulus))
-
-        output[self.mask_neurons_unset[specific_neurons]] = 0.0
-
-        return output
 
 
     def get_network_response_bivariatefisher(self, stimulus_input, specific_neurons=None, params={}, variant='cos'):
