@@ -201,6 +201,29 @@ class FitExperiment:
 
     #####
 
+    def plot_model_human_loglik_comparison(self):
+        '''
+            Get the LL for human responses and model samples
+            plot model wrt human, to see how they compare
+        '''
+
+        def compute_model_human_loglik(sampler, parameters):
+            # First compute the human LL, which is easy as the responses are already set
+            human_ll = sampler.compute_loglikelihood()
+
+            # Now sample from the model
+            sampler.sample_theta(num_samples=300, burn_samples=300, slice_width=0.07, selection_method='last')
+
+            # Now recompute the LL
+            model_ll = sampler.compute_loglikelihood()
+
+            return dict(human=human_ll, model=model_ll)
+
+        fct_infos = dict(fct=compute_model_human_loglik, parameters=None)
+
+        return self.apply_fct_all_datasets(fct_infos)
+
+
     def plot_loglik_misfit_datapoints(self, max_plots = 10):
         '''
             Plot the posterior distributions of the datapoints that are badly classified.
