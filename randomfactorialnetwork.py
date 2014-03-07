@@ -320,10 +320,10 @@ class RandomFactorialNetwork():
 
             # Assign response function, depending on neurons_sigma
             if np.any(self.neurons_sigma > 700):
+                print ">> RandomNetwork has large Kappa, using safe slow function"
                 self.get_network_response_opt2d = self.get_network_response_opt2d_large_kappa_safe
             else:
                 self.get_network_response_opt2d = self.get_network_response_opt2d_bivariate_fisher
-
 
 
     def compute_2d_parameters(self, specific_neurons=None):
