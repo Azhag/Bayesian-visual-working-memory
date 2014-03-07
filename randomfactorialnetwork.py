@@ -850,7 +850,11 @@ class RandomFactorialNetwork():
 
         # print FI_nobj
 
+        try:
         inv_FI_nobj = np.linalg.inv(FI_nobj)
+        except np.linalg.linalg.LinAlgError:
+            inv_FI_nobj = np.nan*np.empty(FI_nobj.shape)
+
         return inv_FI_nobj[0, 0], FI_nobj[0, 0]
 
 
@@ -900,7 +904,6 @@ class RandomFactorialNetwork():
         FI_estimate = 0
         FI_std_estimate = 0
         epsilon = 0
-        converged_times = 0
 
         previous_estimates = np.zeros(4)
 
@@ -934,7 +937,7 @@ class RandomFactorialNetwork():
             if i > 1.5*min_num_samples_std:
                 # Check convergence
                 new_estimates = np.array([inv_FI_estimate, inv_FI_std_estimate, FI_estimate, FI_std_estimate])
-                epsilon = np.sum(np.abs(previous_estimates - new_estimates))
+                epsilon = np.nansum(np.abs(previous_estimates - new_estimates))
 
                 if epsilon <= convergence_epsilon:
                     # Converged, stop the loop
