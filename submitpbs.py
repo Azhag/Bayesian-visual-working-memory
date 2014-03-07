@@ -693,7 +693,7 @@ class SubmitPBS():
 
         print "=== CMA_ES FINISHED ==="
 
-        return dict(cma_log=cma_log, cma_es=cma_es, result_final=cma_es.result(), result_tracking_dict=self.result_tracking_dict)
+        return dict(result_final=cma_es.result(), result_tracking_dict=self.result_tracking_dict, best_params=cma_es.best.get(), best_f=cma_es.best.f)
 
 
     def check_parameters_candidate(self, list_parameters_candidates_dict, parameter_names_sorted, dict_parameters_range):
@@ -773,6 +773,7 @@ class SubmitPBS():
         sleeping_period = submission_parameters_dict.get('sleeping_period', dict(min=60, max=180))
         submit_jobs = submission_parameters_dict.get('submit_jobs', False)
         result_callback_function_infos = submission_parameters_dict.get('result_callback_function_infos', None)
+        wait_jobs_completed = submission_parameters_dict.get('wait_jobs_completed', True)
 
         # Track status of parameters: parameters -> dict(status=['waiting', 'submitted', 'completed'], result=None, jobwrapper=None, parameters=None)
 
@@ -798,11 +799,14 @@ class SubmitPBS():
         if self.debug:
             print "-> submitted minibatch, %d jobs. %s computation" % (len(parameters_to_submit), job_submission_parameters.get('result_computation', 'no'))
 
-        ## Wait for Jobs to be completed (could do another version where you send multiple jobs before waiting)
-        self.wait_all_jobs_collect_results(result_callback_function_infos=result_callback_function_infos, sleeping_period=sleeping_period, completion_progress=completed_parameters_progress, pbs_submission_infos=pbs_submission_infos)
+        if wait_jobs_completed:
+            ## Wait for Jobs to be completed (could do another version where you send multiple jobs before waiting)
+            self.wait_all_jobs_collect_results(result_callback_function_infos=result_callback_function_infos, sleeping_period=sleeping_period, completion_progress=completed_parameters_progress, pbs_submission_infos=pbs_submission_infos)
 
-        ## Now return the list of results, in the same ordering
-        result_outputs = np.array([self.jobs_tracking_dict[job_name]['result'] for job_name in job_names_ordered])
+            ## Now return the list of results, in the same ordering
+            result_outputs = np.array([self.jobs_tracking_dict[job_name]['result'] for job_name in job_names_ordered])
+        else:
+            result_outputs = np.empty(0)
 
         return result_outputs
 

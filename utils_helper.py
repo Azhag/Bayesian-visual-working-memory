@@ -57,6 +57,12 @@ def strcat(*strings):
     return ''.join(strings)
 
 
+def subdict(dictionary, keys):
+    '''
+        Create a dictionary with only the subset of 'keys'
+    '''
+    return {k: dictionary[k] for k in keys}
+
 def fast_dot_1D(x, y):
     out = 0
     for i in xrange(x.size):
@@ -175,8 +181,6 @@ def convert_deltatime_str_to_seconds(deltatime_str):
     time_mult = 60**np.arange(time_splitted_rev.size)
 
     return np.sum(time_mult*time_splitted_rev)
-
-
 
 
 ########################## FILE I/O #################################
