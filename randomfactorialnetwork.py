@@ -326,6 +326,7 @@ class RandomFactorialNetwork():
                 self.get_network_response_opt2d = self.get_network_response_opt2d_bivariate_fisher
 
 
+
     def compute_2d_parameters(self, specific_neurons=None):
         '''
             Assuming R=2, we have simple fast formulas to get the gaussian responses of neurons
@@ -512,19 +513,24 @@ class RandomFactorialNetwork():
 
         output = np.ones(self.M)
 
+        index_fish_feat1 = self.neurons_sigma[:, 0] <= 700
+        index_fish_feat2 = self.neurons_sigma[:, 1] <= 700
+        index_gauss_feat1 = self.neurons_sigma[:, 0] > 700
+        index_gauss_feat2 = self.neurons_sigma[:, 1] > 700
+
         # Get normal bivariate output
-        bivariate_fisher_output_feat1 = np.exp(self.neurons_sigma[:, 0]*np.cos((theta1 - self.neurons_preferred_stimulus[:, 0])))/self.normalisation_feat1
-        bivariate_fisher_output_feat2 = np.exp(self.neurons_sigma[:, 1]*np.cos((theta2 - self.neurons_preferred_stimulus[:, 1])))/self.normalisation_feat2
+        bivariate_fisher_output_feat1 = np.exp(self.neurons_sigma[:, 0][index_fish_feat1]*np.cos((theta1 - self.neurons_preferred_stimulus[:, 0][index_fish_feat1])))/self.normalisation_feat1[index_fish_feat1]
+        bivariate_fisher_output_feat2 = np.exp(self.neurons_sigma[:, 1][index_fish_feat2]*np.cos((theta2 - self.neurons_preferred_stimulus[:, 1][index_fish_feat2])))/self.normalisation_feat2[index_fish_feat2]
 
         # Now get gaussian output
-        gaussian_output_feat1 = np.exp(-0.5*self.neurons_sigma[:, 0]*(theta1 - self.neurons_preferred_stimulus[:, 0])**2.)*self.normalisation_gauss_feat1
-        gaussian_output_feat2 = np.exp(-0.5*self.neurons_sigma[:, 1]*(theta1 - self.neurons_preferred_stimulus[:, 1])**2.)*self.normalisation_gauss_feat2
+        gaussian_output_feat1 = np.exp(-0.5*self.neurons_sigma[:, 0][index_gauss_feat1]*(theta1 - self.neurons_preferred_stimulus[:, 0][index_gauss_feat1])**2.)*self.normalisation_gauss_feat1[index_gauss_feat1]
+        gaussian_output_feat2 = np.exp(-0.5*self.neurons_sigma[:, 1][index_gauss_feat2]*(theta1 - self.neurons_preferred_stimulus[:, 1][index_gauss_feat2])**2.)*self.normalisation_gauss_feat2[index_gauss_feat2]
 
         # Now compute the appropriate combinations
-        output[self.neurons_sigma[:, 0] <= 700] *= bivariate_fisher_output_feat1[self.neurons_sigma[:, 0] <= 700]
-        output[self.neurons_sigma[:, 1] <= 700] *= bivariate_fisher_output_feat2[self.neurons_sigma[:, 1] <= 700]
-        output[self.neurons_sigma[:, 0] > 700] *= gaussian_output_feat1[self.neurons_sigma[:, 0] > 700]
-        output[self.neurons_sigma[:, 1] > 700] *= gaussian_output_feat2[self.neurons_sigma[:, 1] > 700]
+        output[index_fish_feat1] *= bivariate_fisher_output_feat1
+        output[index_fish_feat2] *= bivariate_fisher_output_feat2
+        output[index_gauss_feat1] *= gaussian_output_feat1
+        output[index_gauss_feat2] *= gaussian_output_feat2
 
         output[self.mask_neurons_unset] = 0.0
 
