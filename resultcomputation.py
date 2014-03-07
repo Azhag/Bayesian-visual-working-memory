@@ -181,6 +181,47 @@ class ResultComputation():
         return bic_summed
 
 
+    def compute_result_distfit_bays09_bic(self, all_variables):
+        '''
+            Result is summed BIC score of FitExperiment to Bays09
+        '''
+        return self.compute_result_distfit_givenexp_bic(all_variables, experiment_id='bays09')
+
+    def compute_result_distfit_gorgo11_bic(self, all_variables):
+        '''
+            Result is summed BIC score of FitExperiment to Bays09
+        '''
+        return self.compute_result_distfit_givenexp_bic(all_variables, experiment_id='gorgo11')
+
+
+    def compute_result_distfit_givenexp_bic(self, all_variables, experiment_id='bays09'):
+        '''
+            Result is the summed BIC score of the FitExperiment result on a given dataset
+        '''
+
+        if 'result_fitexperiments_all' in all_variables:
+            # We have result_fitexperiments_all, that's good.
+
+            # Extract only the Bays09 result
+            experiment_index = all_variables['all_parameters']['experiment_ids'].index(experiment_id)
+
+            # Make it work for either fixed T or multiple T.
+
+            if len(all_variables['result_fitexperiments_all'].shape) == 3:
+                # Single T. Average over axis -1
+                bic_summed = utils.nanmean(all_variables['result_fitexperiments_all'][0, experiment_index])
+            elif len(all_variables['result_fitexperiments_all'].shape) == 4:
+                # Multiple T. Average over axis -1, then sum
+                bic_summed = np.nansum(utils.nanmean(all_variables['result_fitexperiments_all'][:, 0, experiment_index], axis=-1))
+            else:
+                raise ValueError("wrong shape for result_fitexperiments_all: {}".format(all_variables['result_fitexperiments_all'].shape))
+        else:
+            # We do not have it, could instantiate a FitExperiment with "normal" parameters and work from there instead
+            raise NotImplementedError('version without result_fitexperiments_all not implemented yet')
+
+        return bic_summed
+
+
     def compute_result_filenameoutput(self, all_variables):
         '''
             Result is filename of the outputted data.
