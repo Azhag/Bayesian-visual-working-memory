@@ -108,6 +108,7 @@ def best_parameters_callback(job, parameters=None):
                     inference_method='sample',
                     N=300,
                     num_samples=300,
+                    output_directory='./outputs/',
                     selection_method='last',
                     num_repetitions=3,
                     burn_samples=200,

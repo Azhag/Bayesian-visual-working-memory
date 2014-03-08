@@ -836,7 +836,7 @@ class SubmitPBS():
             dict[job_name] -> dict(status=['waiting', 'submitted', 'completed'], result=None, jobwrapper=None, job_submission_parameters=None, parameters=None)
         '''
 
-        self.jobs_tracking_dict[job.job_name] = dict(status='waiting', job=job, job_submission_parameters=job.experiment_parameters, result=None, parameters=parameters, time_started=None)
+        self.jobs_tracking_dict[job.job_name] = dict(status='waiting', job=job, job_submission_parameters=job.experiment_parameters, result=None, parameters=parameters, time_started=None, number_submissions=0)
         self.result_tracking_dict[tuple(parameters.items())] = dict(jobname=job.job_name, result=None)
 
 
@@ -875,9 +875,10 @@ class SubmitPBS():
         job.flag_job_submitted()
         self.jobs_tracking_dict[job.job_name]['status'] = 'submitted'
         self.jobs_tracking_dict[job.job_name]['time_started'] = time.time()
+        self.jobs_tracking_dict[job.job_name]['number_submissions'] += 1
 
 
-    def wait_all_jobs_collect_results(self, result_callback_function_infos=None, sleeping_period=dict(min=60, max=180), completion_progress=None, pbs_submission_infos=None):
+    def wait_all_jobs_collect_results(self, result_callback_function_infos=None, sleeping_period=dict(min=60, max=180), completion_progress=None, pbs_submission_infos=None, max_number_submissions=3):
         '''
             Wait for all Jobs to be completed, and collect the results when they are
             Optionally accepts a callback method on finding a result.
@@ -928,10 +929,17 @@ class SubmitPBS():
                     waited_time = time.time() - self.jobs_tracking_dict[current_job_name]['time_started']
                     if (waited_time > utils.convert_deltatime_str_to_seconds(self.pbs_options['walltime'])*1.2):
                         # Waited too long...
-                        # resubmit it!
+                        # try to resubmit it!
                         if self.debug:
-                            print "Waited more than walltime for job %s, resubmitting it" % current_job_name
-                        self.submit_jobwrapper(self.jobs_tracking_dict[current_job_name]['job'], pbs_submission_infos, submit=True)
+                            print "Waited more than walltime for job %s, resubmitting it (%d/%d)         " % (current_job_name, self.jobs_tracking_dict[current_job_name]['number_submissions'], max_number_submissions)
+
+                        # Only resubmit a certain number of times...
+                        if self.jobs_tracking_dict[current_job_name]['number_submissions'] < max_number_submissions:
+
+                            self.submit_jobwrapper(self.jobs_tracking_dict[current_job_name]['job'], pbs_submission_infos, submit=True)
+                        else:
+                            # the walltime may be too short, just discard it
+                            self.jobs_tracking_dict[current_job_name]['job'].store_result()
 
                     # Sleep for some time
                     # Decide for how long to sleep
