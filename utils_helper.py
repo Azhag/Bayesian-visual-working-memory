@@ -53,6 +53,9 @@ def cross(*args):
             ans = [x+[y] for x in ans for y in arg]
     return ans
 
+    # Faster version:
+    # return [p for p in itertools.product(*args)]
+
 def strcat(*strings):
     return ''.join(strings)
 
