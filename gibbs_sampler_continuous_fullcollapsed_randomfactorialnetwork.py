@@ -486,7 +486,6 @@ class Sampler:
         else:
             return self.compute_loglikelihood_current_tc() - self.normalization
 
-
     def compute_loglikelihood_current_tc(self):
         '''
             Compute the loglikelihood for the current setting of thetas and tc and using the likelihood defined in loglike_theta_fct_single
@@ -784,7 +783,6 @@ class Sampler:
         else:
             em_circular_mixture_to_use = em_circularmixture
 
-        results = {}
         params_fit = em_circular_mixture_to_use.fit(*self.collect_responses())
 
         if compute_responsibilities:

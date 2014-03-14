@@ -688,6 +688,7 @@ def fit_mixture_model(dataset, caching_save_filename=None):
             dataset['em_fits_nitems_arrays']['mean'] = np.array([[dataset['em_fits_nitems']['mean'][item][em_key] for item in np.unique(dataset['n_items'])] for em_key in ['kappa', 'mixt_target', 'mixt_nontargets', 'mixt_random']])
             dataset['em_fits_nitems_arrays']['std'] = np.array([[dataset['em_fits_nitems']['std'][item][em_key] for item in np.unique(dataset['n_items'])] for em_key in ['kappa', 'mixt_target', 'mixt_nontargets', 'mixt_random']])
 
+    if 'sem' not in dataset['em_fits_nitems_arrays']:
         dataset['em_fits_nitems_arrays']['sem'] = dataset['em_fits_nitems_arrays']['std']/np.sqrt(dataset['subject_size'])
 
     if save_caching_file:
@@ -976,10 +977,10 @@ def plots_histograms_errors_targets_nontargets_nitems(dataset, dataio=None):
 
     if dataio is not None:
         plt.figure(f1.number)
-        plt.tight_layout()
+        # plt.tight_layout()
         dataio.save_current_figure("hist_error_target_all_{label}_{unique_id}.pdf")
         plt.figure(f2.number)
-        plt.tight_layout()
+        # plt.tight_layout()
         dataio.save_current_figure("hist_error_nontarget_all_{label}_{unique_id}.pdf")
 
     # Do per subject and nitems, using average histogram
@@ -1014,10 +1015,10 @@ def plots_histograms_errors_targets_nontargets_nitems(dataset, dataio=None):
 
     if dataio is not None:
         plt.figure(f3.number)
-        plt.tight_layout()
+        # plt.tight_layout()
         dataio.save_current_figure("hist_error_target_persubj_{label}_{unique_id}.pdf")
         plt.figure(f4.number)
-        plt.tight_layout()
+        # plt.tight_layout()
         dataio.save_current_figure("hist_error_nontarget_persubj_{label}_{unique_id}.pdf")
 
 
@@ -1041,10 +1042,10 @@ def plots_em_mixtures(dataset, dataio=None, use_sem=True):
     ax.legend(prop={'size':15})
 
     ax.set_title('Mixture model for EM fit')
-    ax.set_xlim([1.0, 5.0])
+    ax.set_xlim([1.0, np.unique(dataset['n_items']).max()])
     ax.set_ylim([0.0, 1.1])
-    ax.set_xticks(range(1, 6))
-    ax.set_xticklabels(range(1, 6))
+    ax.set_xticks(range(1, np.unique(dataset['n_items']).max()+1))
+    ax.set_xticklabels(range(1, np.unique(dataset['n_items']).max()+1))
 
     f.canvas.draw()
 
@@ -1316,6 +1317,8 @@ if __name__ == '__main__':
         (data_simult,) = load_multiple_datasets([dict(name='Gorgo_simult', filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), fit_mixture_model=True, mixture_model_cache='em_simult.pickle'))])
         # (data_bays2009, ) = load_multiple_datasets([dict(name='Bays2009', filename='colour_data.mat', preprocess=preprocess_bays09, parameters=dict(datadir=os.path.join(data_dir, 'Bays2009'), fit_mixture_model=True, mixture_model_cache='em_bays.pickle', should_compute_bootstrap=True, bootstrap_cache='bootstrap_1000samples.pickle'))])
         # data_dualrecall = load_data_dualrecall(fit_mixture_model=True)
+        data_bays2009 = load_data_bays09(fit_mixture_model=True)
+        data_gorgo11 = load_data_gorgo11(fit_mixture_model=True)
 
 
     # Check for bias towards 0 for the error between response and all items
@@ -1345,6 +1348,9 @@ if __name__ == '__main__':
 
     # plots_dualrecall(data_dualrecall)
 
+    plt.rcParams['font.size'] = 16
+    dataio = None
+
     # dataio = DataIO.DataIO(label='experiments_bays2009')
     # plots_check_bias_nontarget(data_simult, dataio=dataio)
     # plots_check_bias_bestnontarget(data_simult, dataio=dataio)
@@ -1352,8 +1358,8 @@ if __name__ == '__main__':
 
     # plots_bays2009(data_bays2009, dataio=dataio)
 
-    dataio = DataIO.DataIO(label='experiments_gorgo11')
-    plots_gorgo11(data_simult, dataio)
+    # dataio = DataIO.DataIO(label='experiments_gorgo11')
+    plots_gorgo11(data_gorgo11, dataio)
 
     plt.show()
 

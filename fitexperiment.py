@@ -11,19 +11,19 @@ import os
 
 import numpy as np
 
-import scipy as sp
-import scipy.optimize as spopt
-import scipy.stats as spst
+# import scipy as sp
+# import scipy.optimize as spopt
+# import scipy.stats as spst
 
 import matplotlib.pyplot as plt
 
-import progress
+# import progress
 
 import experimentlauncher
 import datagenerator
-import launchers
+# import launchers
 import load_experimental_data
-import utils
+# import utils
 
 
 class FitExperiment:
@@ -245,7 +245,7 @@ class FitExperiment:
             self.sampler.plot_likelihood_comparison(n=outlier_i)
 
 
-    def plot_distribution_loglik(self, bins=50):
+    def plot_distribution_loglik(self, bins=50, enforce_response=False):
         '''
             Plot the distribution of data loglikelihoods obtained
 
@@ -253,7 +253,8 @@ class FitExperiment:
         '''
 
         # Set responses
-        self.sampler.set_theta(self.data_responses)
+        if enforce_response:
+            self.sampler.set_theta(self.data_responses)
 
         # Compute data loglikelihood
         data_llh = self.sampler.compute_loglikelihood_N()
