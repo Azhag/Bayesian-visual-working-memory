@@ -623,67 +623,72 @@ class SubmitPBS():
         cma_log = cma.CMADataLogger(name_prefix=os.path.join(self.plot_output_dir, cma_logger_filename)).register(cma_es)
 
         ## Iteration loop!
-        while not cma_es.stop():
+        # Catch CTRL-C, to allow for final state saving.
+        try:
+            while not cma_es.stop():
 
-            ## Request new parameters candidates
-            parameters_candidates_array = cma_es.ask()
+                ## Request new parameters candidates
+                parameters_candidates_array = cma_es.ask()
 
-            # Convert to dictionaries
-            parameters_candidates_dict = self.cma_list_parameters_array_to_dict(parameters_candidates_array, parameter_names_sorted, dict_parameters_range)
+                # Convert to dictionaries
+                parameters_candidates_dict = self.cma_list_parameters_array_to_dict(parameters_candidates_array, parameter_names_sorted, dict_parameters_range)
 
-            # Make sure those parameters are acceptable
-            wrong_parameters_indices = self.check_parameters_candidate(parameters_candidates_dict, parameter_names_sorted, dict_parameters_range)
-            while len(wrong_parameters_indices) > 0:
-                # Resample those wrong parameters
-                for wrong_parameters_i in wrong_parameters_indices:
-                    parameters_candidates_array[wrong_parameters_i] = cma_es.ask(1)[0]
-
-                    parameters_candidates_dict[wrong_parameters_i] = self.cma_parameters_array_to_dict(parameters_candidates_array[wrong_parameters_i], parameter_names_sorted, dict_parameters_range)
-
+                # Make sure those parameters are acceptable
                 wrong_parameters_indices = self.check_parameters_candidate(parameters_candidates_dict, parameter_names_sorted, dict_parameters_range)
+                while len(wrong_parameters_indices) > 0:
+                    # Resample those wrong parameters
+                    for wrong_parameters_i in wrong_parameters_indices:
+                        parameters_candidates_array[wrong_parameters_i] = cma_es.ask(1)[0]
 
-            if self.debug:
-                print "> Submitting minibatch (%d jobs)." % len(parameters_candidates_array)
-                for curr_param_dict_i, curr_param_dict in enumerate(parameters_candidates_dict):
-                    print " - {params}".format(params=utils.pprint_dict(curr_param_dict, key_sorted=parameter_names_sorted))
+                        parameters_candidates_dict[wrong_parameters_i] = self.cma_parameters_array_to_dict(parameters_candidates_array[wrong_parameters_i], parameter_names_sorted, dict_parameters_range)
+
+                    wrong_parameters_indices = self.check_parameters_candidate(parameters_candidates_dict, parameter_names_sorted, dict_parameters_range)
+
+                if self.debug:
+                    print "> Submitting minibatch (%d jobs)." % len(parameters_candidates_array)
+                    for curr_param_dict_i, curr_param_dict in enumerate(parameters_candidates_dict):
+                        print " - {params}".format(params=utils.pprint_dict(curr_param_dict, key_sorted=parameter_names_sorted))
 
 
-            ## Evaluate the parameters fitness, submit them!!
-            fitness_results = self.submit_minibatch_jobswrapper(parameters_candidates_dict, submission_parameters_dict)
+                ## Evaluate the parameters fitness, submit them!!
+                fitness_results = self.submit_minibatch_jobswrapper(parameters_candidates_dict, submission_parameters_dict)
 
-            # replace np.nan by large values...
-            fitness_results[np.isnan(fitness_results)] = cma_nan_replacement
+                # replace np.nan by large values...
+                fitness_results[np.isnan(fitness_results)] = cma_nan_replacement
 
-            if self.debug:
-                print ">> Minibatch completed (%d jobs)." % len(parameters_candidates_array)
-                for curr_param_dict_i, curr_param_dict in enumerate(parameters_candidates_dict):
-                    print " - {params} \t -> {result}".format(params=utils.pprint_dict(curr_param_dict, key_sorted=parameter_names_sorted), result=fitness_results[curr_param_dict_i])
+                if self.debug:
+                    print ">> Minibatch completed (%d jobs)." % len(parameters_candidates_array)
+                    for curr_param_dict_i, curr_param_dict in enumerate(parameters_candidates_dict):
+                        print " - {params} \t -> {result}".format(params=utils.pprint_dict(curr_param_dict, key_sorted=parameter_names_sorted), result=fitness_results[curr_param_dict_i])
 
-            ## Update the state of CMA-ES
-            cma_es.tell(parameters_candidates_array, fitness_results)
-            cma_log.add()
+                ## Update the state of CMA-ES
+                cma_es.tell(parameters_candidates_array, fitness_results)
+                cma_log.add()
 
-            ## Do something after each CMA-ES iteration if desired
-            if cma_iter_callback_function_infos is not None:
-                cma_iter_callback_function_infos['function'](locals(), parameters=cma_iter_callback_function_infos['parameters'])
+                ## Do something after each CMA-ES iteration if desired
+                if cma_iter_callback_function_infos is not None:
+                    cma_iter_callback_function_infos['function'](locals(), parameters=cma_iter_callback_function_infos['parameters'])
 
-            ## Display and all
-            if self.debug:
-                # CMA status
-                cma_es.disp()
+                ## Display and all
+                if self.debug:
+                    # CMA status
+                    cma_es.disp()
 
-                # Results
-                cma.pprint(cma_es.result())
+                    # Results
+                    cma.pprint(cma_es.result())
 
-                # DataLogger plots
-                if cma_logger_do_plot:
-                    try:
-                        cma_log.plot()
-                        cma.savefig('cma_es_state.pdf')
-                        cma_log.closefig()
-                    except KeyError:
-                        # Sometimes, cma_log.plot() fails, I suppose when not enough runs exist... So just ignore it
-                        pass
+                    # DataLogger plots
+                    if cma_logger_do_plot:
+                        try:
+                            cma_log.plot()
+                            cma.savefig('cma_es_state.pdf')
+                            cma_log.closefig()
+                        except KeyError:
+                            # Sometimes, cma_log.plot() fails, I suppose when not enough runs exist... So just ignore it
+                            pass
+        except KeyboardInterrupt:
+            # Ctrl-C
+            print ">>> Quit CMA/ES early"
 
         # Print overall best!
         print "Overall best:"
