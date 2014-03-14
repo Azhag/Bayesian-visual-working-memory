@@ -35,6 +35,11 @@ def launcher_do_memory_curve_marginal_fi(args):
     if all_parameters['burn_samples'] + all_parameters['num_samples'] < 200:
         print "WARNING> you do not have enough samples I think!", all_parameters['burn_samples'] + all_parameters['num_samples']
 
+    if 'plots_during_simulation_callback' in all_parameters:
+        plots_during_simulation_callback = all_parameters['plots_during_simulation_callback']
+        del all_parameters['plots_during_simulation_callback']
+    else:
+        plots_during_simulation_callback = None
 
     # Create DataIO
     #  (complete label with current variable state)
@@ -86,7 +91,7 @@ def launcher_do_memory_curve_marginal_fi(args):
 
             # Fit mixture model
             print "fit mixture model..."
-            curr_params_fit = sampler.fit_mixture_model(use_all_targets=True)
+            curr_params_fit = sampler.fit_mixture_model(use_all_targets=False)
             curr_params_fit['mixt_nontargets_sum'] = np.sum(curr_params_fit['mixt_nontargets'])
             result_em_fits[T_i, :, repet_i] = [curr_params_fit[key] for key in ('kappa', 'mixt_target', 'mixt_nontargets_sum', 'mixt_random', 'train_LL')]
 
@@ -106,8 +111,18 @@ def launcher_do_memory_curve_marginal_fi(args):
 
 
             print result_all_precisions[T_i, repet_i], curr_params_fit, marginal_fi_dict
-            ### /Work ###
 
+            ## Run callback function if exists
+            if plots_during_simulation_callback:
+                print "Doing plots..."
+                try:
+                    # Best super safe, if this fails then the simulation must continue!
+                    plots_during_simulation_callback['function'](locals(), plots_during_simulation_callback['parameters'])
+                    print "plots done."
+                except:
+                    print "error during plotting callback function", plots_during_simulation_callback['function'], plots_during_simulation_callback['parameters']
+
+            ### /Work ###
             search_progress.increment()
             if run_counter % save_every == 0 or search_progress.done():
                 dataio.save_variables_default(locals())
@@ -125,18 +140,12 @@ def launcher_do_memory_curve_marginal_fi_withplots(args):
         Just like launcher_do_memory_curve_marginal_fi but do plots as well
     '''
 
-    ### Run the launcher_do_memory_curve_marginal_fi, will do plots later
-    other_launcher_results = launcher_do_memory_curve_marginal_fi(args)
+    all_parameters = utils.argparse_2_dict(args)
 
-    if other_launcher_results['all_parameters']['ratio_hierarchical'] is not None:
+    if all_parameters['code_type'] == 'hierarchical':
         # Use ratio_conj for plotting/titles
-        other_launcher_results['all_parameters']['ratio_conj'] = other_launcher_results['all_parameters']['ratio_hierarchical']
-
-    dataio = other_launcher_results['dataio']
-    T_space = other_launcher_results['T_space']
-
-    result_em_fits_mean = np.mean(other_launcher_results['result_em_fits'], axis=-1)
-    result_em_fits_std = np.std(other_launcher_results['result_em_fits'], axis=-1)
+        if all_parameters['ratio_hierarchical'] is not None:
+            all_parameters['ratio_conj'] = all_parameters['ratio_hierarchical']
 
     ### Load the experimental data for the plots
     data_gorgo11 = load_experimental_data.load_data_gorgo11(fit_mixture_model=True)
@@ -149,55 +158,110 @@ def launcher_do_memory_curve_marginal_fi_withplots(args):
     bays09_T_space = data_bays09['data_to_fit']['n_items']
     bays09_emfits_meanstd = data_bays09['em_fits_nitems_arrays']
 
-    dict_experiments_to_plot = dict(bays09=dict(emfits=bays09_emfits_meanstd, T_space=bays09_T_space), gorgo11=dict(emfits=gorgo11_emfits_meanstd, T_space=gorgo11_T_space))
+    dict_experiments_to_plot = dict(bays09=dict(emfits=bays09_emfits_meanstd, T_space=bays09_T_space, axes=dict(ax_mem_plot_kappa=None, ax_em_plot_paper=None)), gorgo11=dict(emfits=gorgo11_emfits_meanstd, T_space=gorgo11_T_space, axes=dict(ax_mem_plot_kappa=None, ax_em_plot_paper=None)))
+    plotting_parameters = dict(dict_experiments_to_plot=dict_experiments_to_plot)
 
     ### Now do the plots
-    # Memory curve kappa
-    def mem_plot_kappa(T_space_exp, exp_kappa_mean, exp_kappa_std=None, exp_name=''):
-        ax = utils.plot_mean_std_area(T_space_exp, exp_kappa_mean, exp_kappa_std, linewidth=3, fmt='o-', markersize=8, label='Experimental data')
+    def do_memory_plots(variables_launcher_running, plotting_parameters):
+        dataio = variables_launcher_running['dataio']
+        T_space = variables_launcher_running['T_space']
 
-        ax = utils.plot_mean_std_area(T_space[:T_space_exp.max()], result_em_fits_mean[..., :T_space_exp.max(), 0], result_em_fits_std[..., :T_space_exp.max(), 0], xlabel='Number of items', ylabel="Memory error $[rad^{-2}]$", linewidth=3, fmt='o-', markersize=8, label='Fitted kappa', ax_handle=ax)
+        dict_experiments_to_plot = plotting_parameters['dict_experiments_to_plot']
 
-        ax.set_title("{{exp_name}} {M} {ratio_conj} {sigmax} {sigmay}".format(**other_launcher_results['all_parameters']).format(exp_name=exp_name))
-        ax.legend()
-        ax.set_xlim([0.9, T_space_exp.max()+0.1])
-        ax.set_xticks(range(1, T_space_exp.max()+1))
-        ax.set_xticklabels(range(1, T_space_exp.max()+1))
+        result_em_fits_mean = utils.nanmean(variables_launcher_running['result_em_fits'], axis=-1)
+        result_em_fits_std = utils.nanstd(variables_launcher_running['result_em_fits'], axis=-1)
 
-        ax.get_figure().canvas.draw()
+        plt.ion()
 
-        dataio.save_current_figure('memorycurves_kappa_%s_M{M}_ratio{ratio_conj}_sigmax{sigmax}_sigmay{sigmay}_{{label}}_{{unique_id}}.pdf'.format(**other_launcher_results['all_parameters']) % (exp_name))
+        # Memory curve kappa
+        def mem_plot_kappa(T_space_exp, exp_kappa_mean, exp_kappa_std=None, exp_name='', ax=None):
 
-    # Plot EM Mixtures proportions
-    def em_plot_paper(exp_name=''):
-        f, ax = plt.subplots()
+            if ax is not None:
+                plt.figure(ax.get_figure().number)
+                ax.hold(False)
 
-        # mixture probabilities
-        utils.plot_mean_std_area(T_space, result_em_fits_mean[..., 1], result_em_fits_std[..., 1], xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Target')
-        utils.plot_mean_std_area(T_space, result_em_fits_mean[..., 2], result_em_fits_std[..., 2], xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Nontarget')
-        utils.plot_mean_std_area(T_space, result_em_fits_mean[..., 3], result_em_fits_std[..., 3], xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Random')
+            ax = utils.plot_mean_std_area(T_space_exp, exp_kappa_mean, exp_kappa_std, linewidth=3, fmt='o-', markersize=8, label='Experimental data', ax_handle=ax)
 
-        ax.legend(prop={'size':15})
+            ax.hold(True)
 
-        ax.set_title("{{exp_name}} {M} {ratio_conj} {sigmax} {sigmay}".format(**other_launcher_results['all_parameters']).format(exp_name=exp_name))
-        ax.set_xlim([1.0, T_space.size])
-        ax.set_ylim([0.0, 1.1])
-        ax.set_xticks(range(1, T_space.size+1))
-        ax.set_xticklabels(range(1, T_space.size+1))
+            ax = utils.plot_mean_std_area(T_space[:T_space_exp.max()], result_em_fits_mean[..., :T_space_exp.max(), 0], result_em_fits_std[..., :T_space_exp.max(), 0], xlabel='Number of items', ylabel="Memory error $[rad^{-2}]$", linewidth=3, fmt='o-', markersize=8, label='Fitted kappa', ax_handle=ax)
 
-        f.canvas.draw()
+            ax.set_title("{{exp_name}} {M} {ratio_conj} {sigmax} {sigmay}".format(**variables_launcher_running['all_parameters']).format(exp_name=exp_name))
+            ax.legend()
+            ax.set_xlim([0.9, T_space_exp.max()+0.1])
+            ax.set_xticks(range(1, T_space_exp.max()+1))
+            ax.set_xticklabels(range(1, T_space_exp.max()+1))
 
-        dataio.save_current_figure('memorycurves_emfits_%s_M{M}_ratio{ratio_conj}_sigmax{sigmax}_sigmay{sigmay}_{{label}}_{{unique_id}}.pdf'.format(**other_launcher_results['all_parameters']) % (exp_name))
+            ax.get_figure().canvas.draw()
 
-    # Do all plots for all datasets
-    for exper_name, exper_data in dict_experiments_to_plot.iteritems():
-        mem_plot_kappa(exper_data['T_space'], exper_data['emfits']['mean'][0], exper_data['emfits']['std'][0], exp_name=exper_name)
-        em_plot_paper(exp_name=exper_name)
+            dataio.save_current_figure('memorycurves_kappa_%s_M{M}_ratio{ratio_conj}_sigmax{sigmax}_sigmay{sigmay}_{{label}}_{{unique_id}}.pdf'.format(**variables_launcher_running['all_parameters']) % (exp_name))
+
+            return ax
+
+        # Plot EM Mixtures proportions
+        def em_plot_paper(exp_name='', ax=None):
+
+            if ax is None:
+                _, ax = plt.subplots()
+
+            if ax is not None:
+                plt.figure(ax.get_figure().number)
+                ax.hold(False)
+
+            # mixture probabilities
+            print result_em_fits_mean[..., 1]
+
+            utils.plot_mean_std_area(T_space, result_em_fits_mean[..., 1], result_em_fits_std[..., 1], xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Target')
+            ax.hold(True)
+            utils.plot_mean_std_area(T_space, result_em_fits_mean[..., 2], result_em_fits_std[..., 2], xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Nontarget')
+            utils.plot_mean_std_area(T_space, result_em_fits_mean[..., 3], result_em_fits_std[..., 3], xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Random')
+
+            ax.legend(prop={'size':15})
+
+            ax.set_title("{{exp_name}} {M} {ratio_conj} {sigmax} {sigmay}".format(**variables_launcher_running['all_parameters']).format(exp_name=exp_name))
+            ax.set_xlim([1.0, T_space.size])
+            ax.set_ylim([0.0, 1.1])
+            ax.set_xticks(range(1, T_space.size+1))
+            ax.set_xticklabels(range(1, T_space.size+1))
+
+            ax.get_figure().canvas.draw()
+
+            dataio.save_current_figure('memorycurves_emfits_%s_M{M}_ratio{ratio_conj}_sigmax{sigmax}_sigmay{sigmay}_{{label}}_{{unique_id}}.pdf'.format(**variables_launcher_running['all_parameters']) % (exp_name))
+
+            return ax
+
+        # Do all plots for all datasets
+        for exper_name, exper_data in dict_experiments_to_plot.iteritems():
+            exper_data['axes']['ax_mem_plot_kappa'] = mem_plot_kappa(exper_data['T_space'], exper_data['emfits']['mean'][0], exper_data['emfits']['std'][0], exp_name=exper_name, ax=exper_data['axes']['ax_mem_plot_kappa'])
+            exper_data['axes']['ax_em_plot_paper'] = em_plot_paper(exp_name=exper_name, ax=exper_data['axes']['ax_em_plot_paper'])
 
 
+    if all_parameters.get('do_plots_during_simulation', False):
+        # Define the callback function.
+        all_parameters['plots_during_simulation_callback'] = dict(function=do_memory_plots, parameters=plotting_parameters)
+        # Run the launcher_do_memory_curve_marginal_fi, plots are done during the runs automatically
+        other_launcher_results = launcher_do_memory_curve_marginal_fi(all_parameters)
+    else:
+        # Run the launcher_do_memory_curve_marginal_fi, will do plots later
+        other_launcher_results = launcher_do_memory_curve_marginal_fi(args)
+
+        # Do the plots
+        do_memory_plots(other_launcher_results, plotting_parameters)
 
     # Return the output of the other launcher.
     return other_launcher_results
+
+
+def launcher_do_memory_curve_marginal_fi_withplots_live(args):
+    '''
+        Just like launcher_do_memory_curve_marginal_fi but do plots as well, while the simulation is going on
+    '''
+
+    all_parameters = utils.argparse_2_dict(args)
+
+    all_parameters['do_plots_during_simulation'] = True
+
+    return launcher_do_memory_curve_marginal_fi_withplots(all_parameters)
 
 
 
