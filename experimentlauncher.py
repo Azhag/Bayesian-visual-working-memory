@@ -237,9 +237,18 @@ if __name__ == '__main__':
     #   Ugly but laziness prevails...
     variables_to_reinstantiate = ['data_gen', 'sampler', 'stat_meas', 'random_network', 'args', 'constrained_parameters', 'data_pbs', 'dataio', 'post_processing_outputs', 'fit_exp']
 
+
+    if 'dataio' in experiment_launcher.all_vars:
+        # Reinstantiate the variables saved automatically.
+        dataio_variables_auto = experiment_launcher.all_vars['dataio'].__dict__.get('saved_variables', [])
+
+        if not dataio_variables_auto:
     if 'variables_to_save' in experiment_launcher.all_vars:
         # Also reinstantiate the variables we saved
         variables_to_reinstantiate.extend(experiment_launcher.all_vars['variables_to_save'])
+        else:
+            variables_to_reinstantiate.extend(dataio_variables_auto)
+
 
     for var_reinst in variables_to_reinstantiate:
         if var_reinst in experiment_launcher.all_vars:

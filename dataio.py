@@ -47,6 +47,7 @@ class DataIO:
         self.git_infos = None
         self.debug = debug
         self.git_workdir = git_workdir
+        self.saved_variables = []
 
         # Setup the output directory
         self.make_dirs()
@@ -250,10 +251,13 @@ class DataIO:
 
         # Clean up 'args'
         if 'args' in dict_selected_vars:
-            dict_selected_vars['args'] = remove_functions_dict(vars(dict_selected_vars['args']))
+            dict_selected_vars['args'] = remove_functions_dict(argparse_2_dict(dict_selected_vars['args']))
 
         # Save them as a numpy array
         np.save(self.filename, dict_selected_vars)
+
+        # Remember the set of variables we just saved
+        self.saved_variables = selected_variables
 
 
     def save_variables_default(self, all_variables, additional_variables = []):
