@@ -39,7 +39,7 @@ def plots_specific_stimuli_mixed(data_pbs, generator_module=None):
     plot_per_min_dist_all = False
     specific_plots_paper = False
     plots_emfit_allitems = False
-    plot_min_distance_effect = False
+    plot_min_distance_effect = True
 
     compute_bootstraps = False
 
@@ -344,6 +344,7 @@ def plots_specific_stimuli_mixed(data_pbs, generator_module=None):
             # ax.plot(enforce_min_distance_space[1:], result_emfitallitems[1:, ratio_conj_i, 1:5], linewidth=3)
 
             ax.axvline(x=conj_receptive_field_size[ratio_conj_i]/2., color='k', linestyle='--', linewidth=2)
+            ax.axvline(x=conj_receptive_field_size[ratio_conj_i]*2., color='r', linestyle='--', linewidth=2)
 
             plt.legend(loc='upper left')
             plt.grid()
@@ -351,6 +352,7 @@ def plots_specific_stimuli_mixed(data_pbs, generator_module=None):
             # ax.set_ylabel('Ratio Target to Non-targets')
             plt.axis('tight')
             ax.set_ylim([0.0, 1.0])
+            ax.set_xlim([enforce_min_distance_space[1:].min(), enforce_min_distance_space[1:].max()])
 
             if savefigs:
                 dataio.save_current_figure('ratio%.2f_mindistpred_ratiotargetnontarget_{label}_{unique_id}.pdf' % ratio_conj)
