@@ -188,7 +188,8 @@ def launcher_do_fitexperiment_allT(args):
 
     # Parameter arrays
     T_max = all_parameters['T']
-    T_space = np.arange(1, T_max+1)
+    T_min = all_parameters.get('T_min', 1)
+    T_space = np.arange(T_min, T_max+1)
 
     # Result arrays
     result_fitexperiments = np.nan*np.empty((T_space.size, 2, all_parameters['num_repetitions']))  # LL, BIC total

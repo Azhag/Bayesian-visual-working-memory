@@ -97,7 +97,9 @@ class ExperimentLauncher(object):
         parser.add_argument('--N', default=100, type=int,
             help='Number of datapoints')
         parser.add_argument('--T', default=1, type=int,
-            help='Number of times')
+            help='Number of items. Used as Max number as well.')
+        parser.add_argument('--T_min', default=1, type=int,
+            help='Minimum number of items')
         parser.add_argument('--K', default=2, type=int,
             help='Number of representated features')  # Warning: Need more data for bigger matrix
         parser.add_argument('--D', default=32, type=int,
@@ -243,9 +245,9 @@ if __name__ == '__main__':
         dataio_variables_auto = experiment_launcher.all_vars['dataio'].__dict__.get('saved_variables', [])
 
         if not dataio_variables_auto:
-    if 'variables_to_save' in experiment_launcher.all_vars:
-        # Also reinstantiate the variables we saved
-        variables_to_reinstantiate.extend(experiment_launcher.all_vars['variables_to_save'])
+            if 'variables_to_save' in experiment_launcher.all_vars:
+                # Also reinstantiate the variables we saved
+                variables_to_reinstantiate.extend(experiment_launcher.all_vars['variables_to_save'])
         else:
             variables_to_reinstantiate.extend(dataio_variables_auto)
 
