@@ -211,6 +211,9 @@ def launcher_do_memory_curve_marginal_fi_withplots(args):
             # mixture probabilities
             print result_em_fits_mean[..., 1]
 
+            result_em_fits_mean[np.isnan(result_em_fits_mean)] = 0.0
+            result_em_fits_std[np.isnan(result_em_fits_std)] = 0.0
+
             utils.plot_mean_std_area(T_space, result_em_fits_mean[..., 1], result_em_fits_std[..., 1], xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Target')
             ax.hold(True)
             utils.plot_mean_std_area(T_space, result_em_fits_mean[..., 2], result_em_fits_std[..., 2], xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Nontarget')

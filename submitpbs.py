@@ -955,7 +955,7 @@ class SubmitPBS():
 
                         if completion_progress is not None:
                             # Also add how much time to completion
-                            status_str += " %.2f%%, %s left - %s. %d jobs left         " % (completion_progress.percentage(), completion_progress.time_remaining_str(), completion_progress.eta_str(), len(submitted_job_names))
+                            status_str += " %.2f%%, %s left - %s. %d jobs left         " % (completion_progress.percentage(), completion_progress.time_remaining_str(), completion_progress.eta_str(), len(submitted_job_names)+1)
 
                         status_str += '\r'
                         sys.stdout.write(status_str)
