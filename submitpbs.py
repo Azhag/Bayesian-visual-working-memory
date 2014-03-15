@@ -355,14 +355,14 @@ class SubmitPBS():
             print "-> Submitting job " + new_script_filename + "\n"
 
         # Change to the PBS output directory first
-        os.chdir(self.output_dir)
+        utils.chdir_safe(self.output_dir)
 
         # Submit the job
         # subprocess.Popen([self.pbs_submit_cmd, new_script_filename], shell=True, env=os.environ, stderr=subprocess.STDOUT, stdout=subprocess.STDOUT)
         os.popen(self.pbs_submit_cmd + " " + new_script_filename)
 
         # Change back to the working directory
-        os.chdir(self.working_directory)
+        utils.chdir_safe(self.working_directory)
 
         # Wait a bit, randomly
         if self.wait_submitting:

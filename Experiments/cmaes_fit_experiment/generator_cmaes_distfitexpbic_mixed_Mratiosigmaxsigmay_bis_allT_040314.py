@@ -107,6 +107,7 @@ def best_parameters_callback(job, parameters=None):
                     inference_method='sample',
                     N=300,
                     num_samples=500,
+                    output_directory=os.path.join(simul_out_dir, 'outputs'),
                     selection_method='last',
                     num_repetitions=5,
                     burn_samples=300,
@@ -124,11 +125,9 @@ def best_parameters_callback(job, parameters=None):
 
                 # Submit without waiting
                 print "Submitting extra job for Plots, parameters:", best_params_resend
-                os.chdir(pbs_submission_infos_copy['simul_out_dir'])
                 submission_parameters_dict = dict(pbs_submission_infos=pbs_submission_infos_copy, submit_jobs=submit_jobs, wait_jobs_completed=False)
                 submit_pbs.submit_minibatch_jobswrapper(best_params_resend, submission_parameters_dict)
 
-                os.chdir('../')
             except Exception as e:
                 print "Failure while submitting sub-task for best parameter. Continuing anyway."
                 print parameters

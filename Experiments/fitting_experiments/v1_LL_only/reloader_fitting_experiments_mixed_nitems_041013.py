@@ -107,7 +107,7 @@ def plots_logposterior_mixed_autoset(data_pbs, generator_module=None):
             best_params_to_try.append(parameter_dict)
 
         # Submit them, waiting on them in the process. Should obtain a list of filenames back
-        os.chdir(generator_parameters_dict['pbs_submission_infos']['simul_out_dir'])
+        utils.chdir_safe(generator_parameters_dict['pbs_submission_infos']['simul_out_dir'])
         result_minibatch_filenames = submit_pbs.submit_minibatch_jobswrapper(best_params_to_try, generator_parameters_dict)
 
         result_reloaded_datasets = []
@@ -115,7 +115,7 @@ def plots_logposterior_mixed_autoset(data_pbs, generator_module=None):
             curr_reloaded_dataset = utils.load_npy(result_filename + '.npy')
             result_reloaded_datasets.append(curr_reloaded_dataset)
 
-        os.chdir('../')
+        utils.chdir_safe('../')
 
 
 

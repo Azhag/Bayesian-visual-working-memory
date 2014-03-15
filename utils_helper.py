@@ -248,3 +248,12 @@ def file_exists_new_shell(filename):
     files = "".join(pipelines).split(os.linesep)
     return fname in files
 
+def chdir_safe(directory, verbose=True):
+    '''
+        Change working directory, printing it each time
+    '''
+    os.chdir(directory)
+
+    if verbose:
+        print "changed directory, current: %s" % os.getcwd()
+
