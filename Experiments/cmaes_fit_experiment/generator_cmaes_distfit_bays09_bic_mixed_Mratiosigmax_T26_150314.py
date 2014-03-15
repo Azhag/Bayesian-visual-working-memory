@@ -17,15 +17,15 @@ import submitpbs
 # Read from other scripts
 parameters_entryscript = dict(action_to_do='launcher_do_generate_submit_pbs_from_param_files', output_directory='.')
 submit_jobs = True
-submit_cmd = 'qsub'
-# submit_cmd = 'sbatch'
+# submit_cmd = 'qsub'
+submit_cmd = 'sbatch'
 
 num_repetitions = 5
 M  = 200
 T_min = 2
 T_max = 6
 
-run_label = 'cmaes_distfit_gorgo11_bic_mixed_Mratiosigmax_T26_repetitions{num_repetitions}_140314'
+run_label = 'cmaes_distfit_bays09_bic_mixed_Mratiosigmax_T26_repetitions{num_repetitions}_150314'
 simul_out_dir = os.path.join(os.getcwd(), run_label.format(**locals()))
 
 parameter_generation = 'cma-es'
@@ -37,7 +37,7 @@ cma_use_bounds = True
 
 sleeping_period = dict(min=5, max=15)
 
-pbs_submission_infos = dict(description='Fit experiments (gorgo11), using distfit_gorgo11_bic ResultComputation), using the CMA-ES code. Looks at t \in [T_min, T_max] here. Changes M, ratio_conj and sigmax. Only looks at BIC score.',
+pbs_submission_infos = dict(description='Fit experiments (gorgo11), using distfit_bays09_bic ResultComputation), using the CMA-ES code. Looks at t \in [T_min, T_max] here. Changes M, ratio_conj and sigmax. Only looks at BIC score.',
                             command='python $WORKDIR/experimentlauncher.py',
                             other_options=dict(action_to_do='launcher_do_fitexperiment_allT',
                                                code_type='mixed',
@@ -45,7 +45,7 @@ pbs_submission_infos = dict(description='Fit experiments (gorgo11), using distfi
                                                ratio_conj=0.5,
                                                subaction='collect_responses',
                                                session_id='cmaes_Mratiosigmax',
-                                               result_computation='distfit_gorgo11_bic',
+                                               result_computation='distfit_bays09_bic',
                                                M=M,
                                                sigmax=0.1,
                                                N=200,
@@ -71,7 +71,7 @@ pbs_submission_infos = dict(description='Fit experiments (gorgo11), using distfi
                             memory='2gb',
                             simul_out_dir=simul_out_dir,
                             pbs_submit_cmd=submit_cmd,
-                            submit_label='cmaes_3d_gorgT25')
+                            submit_label='cmaes_3d_baysT25')
 
 
 sigmax_range      =   dict(low=0.0000001, high=1.0, dtype=float)
@@ -112,13 +112,13 @@ def best_parameters_callback(job, parameters=None):
                     num_samples=300,
                     output_directory=os.path.join(simul_out_dir, 'outputs'),
                     selection_method='last',
-                    num_repetitions=3,
+                    num_repetitions=5,
                     burn_samples=200,
                     stimuli_generation='random',
                     stimuli_generation_recall='random',
                     session_id='cmaes_fitting_experiments_relaunchs',
                     result_computation='filenameoutput',
-                    label='cmaes_Mratiosigmax_fitting_experiment_rerun_140314'))
+                    label='cmaes_Mratiosigmax_fitting_experiment_rerun_150314'))
                 pbs_submission_infos_copy['walltime'] = '40:00:00'
                 pbs_submission_infos_copy['submit_label'] = 'bestparam_rerun'
 
