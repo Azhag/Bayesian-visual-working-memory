@@ -16,6 +16,8 @@ import launchers
 from utils import *
 from dataio import *
 from fitexperiment import *
+import progress
+
 
 
 def launcher_do_fitexperiment(args):
@@ -28,7 +30,7 @@ def launcher_do_fitexperiment(args):
     print "Doing a piece of work for launcher_do_fitexperiment"
 
 
-    all_parameters = utils.argparse_2_dict(args)
+    all_parameters = argparse_2_dict(args)
     print all_parameters
 
     if all_parameters['burn_samples'] + all_parameters['num_samples'] < 200:
@@ -48,8 +50,8 @@ def launcher_do_fitexperiment(args):
     run_counter = 0
 
     # Result arrays
-    result_fitexperiments = np.nan*np.empty((2, all_parameters['num_repetitions']))  # LL, BIC total
-    result_fitexperiments_all = np.nan*np.empty((2, len(all_parameters['experiment_ids']), all_parameters['num_repetitions']))  # LL, BIC per experiments
+    result_fitexperiments = np.nan*np.empty((3, all_parameters['num_repetitions']))  # BIC total, LL, LL90
+    result_fitexperiments_all = np.nan*np.empty((3, len(all_parameters['experiment_ids']), all_parameters['num_repetitions']))  # BIC, LL, LL90; per experiments,
     if all_parameters['inference_method'] != 'none':
         result_all_precisions = np.nan*np.empty((all_parameters['num_repetitions']))
         result_em_fits = np.nan*np.empty((6, all_parameters['num_repetitions']))   # kappa, mixt_target, mixt_nontarget, mixt_random, ll, bic
@@ -84,6 +86,7 @@ def launcher_do_fitexperiment(args):
             try:
                 result_fitexperiments_all[0, exper_i, repet_i] = bic_loglik_dict[exper]['bic']
                 result_fitexperiments_all[1, exper_i, repet_i] = bic_loglik_dict[exper]['LL']
+                result_fitexperiments_all[2, exper_i, repet_i] = bic_loglik_dict[exper]['LL90']
             except TypeError:
                 pass
 
@@ -167,7 +170,7 @@ def launcher_do_fitexperiment_allT(args):
     print "Doing a piece of work for launcher_do_fitexperiment_allT"
 
 
-    all_parameters = utils.argparse_2_dict(args)
+    all_parameters = argparse_2_dict(args)
     print all_parameters
 
     if all_parameters['burn_samples'] + all_parameters['num_samples'] < 200:
@@ -192,8 +195,8 @@ def launcher_do_fitexperiment_allT(args):
     T_space = np.arange(T_min, T_max+1)
 
     # Result arrays
-    result_fitexperiments = np.nan*np.empty((T_space.size, 2, all_parameters['num_repetitions']))  # LL, BIC total
-    result_fitexperiments_all = np.nan*np.empty((T_space.size, 2, len(all_parameters['experiment_ids']), all_parameters['num_repetitions']))  # LL, BIC per experiments
+    result_fitexperiments = np.nan*np.empty((T_space.size, 3, all_parameters['num_repetitions']))  # BIC total, LL, LL90
+    result_fitexperiments_all = np.nan*np.empty((T_space.size, 3, len(all_parameters['experiment_ids']), all_parameters['num_repetitions']))  # BIC, LL, LL90; per experiments
     if all_parameters['inference_method'] != 'none':
         result_all_precisions = np.nan*np.empty((T_space.size, all_parameters['num_repetitions']))
         result_em_fits = np.nan*np.empty((T_space.size, 6, all_parameters['num_repetitions']))   # kappa, mixt_target, mixt_nontarget, mixt_random, ll, bic
@@ -232,6 +235,7 @@ def launcher_do_fitexperiment_allT(args):
                 try:
                     result_fitexperiments_all[T_i, 0, exper_i, repet_i] = bic_loglik_dict[exper]['bic']
                     result_fitexperiments_all[T_i, 1, exper_i, repet_i] = bic_loglik_dict[exper]['LL']
+                    result_fitexperiments_all[T_i, 2, exper_i, repet_i] = bic_loglik_dict[exper]['LL90']
                 except TypeError:
                     pass
 

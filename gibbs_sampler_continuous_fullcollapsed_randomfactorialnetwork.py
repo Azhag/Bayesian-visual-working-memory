@@ -486,6 +486,16 @@ class Sampler:
         else:
             return self.compute_loglikelihood_current_tc() - self.normalization
 
+    def compute_loglikelihood_top90percent(self, integrate_tc_out=False):
+        '''
+            Compute the loglikelihood for each datapoint, just like compute_loglikelihood and compute_loglikelihood_N, but now only sums the top 90% results
+        '''
+
+        all_loglikelihoods = self.compute_loglikelihood_N(integrate_tc_out)
+
+        return np.nansum(np.sort(all_loglikelihoods)[self.N/10:])
+
+
     def compute_loglikelihood_current_tc(self):
         '''
             Compute the loglikelihood for the current setting of thetas and tc and using the likelihood defined in loglike_theta_fct_single

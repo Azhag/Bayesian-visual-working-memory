@@ -185,16 +185,29 @@ class ResultComputation():
         '''
             Result is summed BIC score of FitExperiment to Bays09
         '''
-        return self.compute_result_distfit_givenexp_bic(all_variables, experiment_id='bays09')
+        return self.compute_result_distfit_givenexp(all_variables, experiment_id='bays09', metric_index=0)
 
     def compute_result_distfit_gorgo11_bic(self, all_variables):
         '''
             Result is summed BIC score of FitExperiment to Bays09
         '''
-        return self.compute_result_distfit_givenexp_bic(all_variables, experiment_id='gorgo11')
+        return self.compute_result_distfit_givenexp(all_variables, experiment_id='gorgo11', metric_index=0)
 
 
-    def compute_result_distfit_givenexp_bic(self, all_variables, experiment_id='bays09'):
+    def compute_result_distfit_bays09_ll90(self, all_variables):
+        '''
+            Result is summed negative LL, only top 90% each time.
+        '''
+        return -self.compute_result_distfit_givenexp(all_variables, experiment_id='bays09', metric_index=2)
+
+
+    def compute_result_distfit_gorgo11_ll90(self, all_variables):
+        '''
+            Result is summed negative LL, only top 90% each time.
+        '''
+        return -self.compute_result_distfit_givenexp(all_variables, experiment_id='gorgo11', metric_index=2)
+
+    def compute_result_distfit_givenexp(self, all_variables, experiment_id='bays09', metric_index=0):
         '''
             Result is the summed BIC score of the FitExperiment result on a given dataset
         '''
@@ -209,10 +222,10 @@ class ResultComputation():
 
             if len(all_variables['result_fitexperiments_all'].shape) == 3:
                 # Single T. Average over axis -1
-                bic_summed = utils.nanmean(all_variables['result_fitexperiments_all'][0, experiment_index])
+                bic_summed = utils.nanmean(all_variables['result_fitexperiments_all'][metric_index, experiment_index])
             elif len(all_variables['result_fitexperiments_all'].shape) == 4:
                 # Multiple T. Average over axis -1, then sum
-                bic_summed = np.nansum(utils.nanmean(all_variables['result_fitexperiments_all'][:, 0, experiment_index], axis=-1))
+                bic_summed = np.nansum(utils.nanmean(all_variables['result_fitexperiments_all'][:, metric_index, experiment_index], axis=-1))
             else:
                 raise ValueError("wrong shape for result_fitexperiments_all: {}".format(all_variables['result_fitexperiments_all'].shape))
         else:

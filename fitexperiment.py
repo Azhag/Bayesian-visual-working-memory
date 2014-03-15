@@ -179,8 +179,11 @@ class FitExperiment:
         def compute_loglik(sampler, parameters):
             loglikelihood = sampler.compute_loglikelihood()
             return loglikelihood
+        def compute_loglik90percent(sampler, parameters):
+            return sampler.compute_loglikelihood_top90percent()
+
         def compute_both(sampler, parameters):
-            result = dict(bic=compute_bic(sampler, parameters), LL=compute_loglik(sampler, parameters))
+            result = dict(bic=compute_bic(sampler, parameters), LL=compute_loglik(sampler, parameters), LL90=compute_loglik90percent(sampler, parameters))
             return result
 
         fct_infos = dict(fct=compute_both, parameters=dict(K=K))
