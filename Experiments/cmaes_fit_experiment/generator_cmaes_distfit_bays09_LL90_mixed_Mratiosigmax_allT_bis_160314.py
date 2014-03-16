@@ -17,14 +17,14 @@ import submitpbs
 # Read from other scripts
 parameters_entryscript = dict(action_to_do='launcher_do_generate_submit_pbs_from_param_files', output_directory='.')
 submit_jobs = True
-submit_cmd = 'qsub'
-# submit_cmd = 'sbatch'
+# submit_cmd = 'qsub'
+submit_cmd = 'sbatch'
 
 num_repetitions = 5
 M  = 200
 T = 6
 
-run_label = 'cmaes_distfit_bays09_ll90_mixed_Mratiosigmax_allT_repetitions{num_repetitions}_140314'
+run_label = 'cmaes_distfit_bays09_ll90_mixed_Mratiosigmax_allT_repetitions{num_repetitions}_bis_160314'
 simul_out_dir = os.path.join(os.getcwd(), run_label.format(**locals()))
 
 parameter_generation = 'cma-es'
@@ -110,13 +110,13 @@ def best_parameters_callback(job, parameters=None):
                     num_samples=300,
                     output_directory=os.path.join(simul_out_dir, 'outputs'),
                     selection_method='last',
-                    num_repetitions=3,
+                    num_repetitions=10,
                     burn_samples=200,
                     stimuli_generation='random',
                     stimuli_generation_recall='random',
-                    session_id='cmaes_fitting_experiments_relaunchs',
+                    session_id='cmaes_fitting_experiments_relaunchs_bays09LL',
                     result_computation='filenameoutput',
-                    label='cmaes_Mratiosigmax_fitting_experiment_rerun_140314'))
+                    label='cmaes_bays09ll90_fitting_experiment_rerun_140314'))
                 pbs_submission_infos_copy['walltime'] = '40:00:00'
                 pbs_submission_infos_copy['submit_label'] = 'bestparam_rerun'
 

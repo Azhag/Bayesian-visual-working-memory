@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 
 import experimentlauncher
 import datagenerator
-# import launchers
+import launchers
 import load_experimental_data
 # import utils
 
@@ -333,10 +333,73 @@ def test_fit_experiment():
     return locals()
 
 
+def test_loglike_fit():
+    '''
+        Check if the LL computation is correct
+
+        Use specific data, generated from a given model. This model should then have max LL.
+    '''
+
+    # Get a specific model, with given ratio and sigmax
+    experiment_parameters = dict(action_to_do='launcher_do_simple_run',
+                                  inference_method='sample',
+                                  T=2,
+                                  M=200,
+                                  N=400,
+                                  num_samples=500,
+                                  selection_method='last',
+                                  sigmax=0.15,
+                                  sigmay=0.0001,
+                                  code_type='mixed',
+                                  ratio_conj=0.6,
+                                  output_directory='.',
+                                  stimuli_generation_recall='random',
+                                  autoset_parameters=None)
+    experiment_launcher = experimentlauncher.ExperimentLauncher(run=True, arguments_dict=experiment_parameters)
+    experiment_parameters_full = experiment_launcher.args_dict
+    sampler = experiment_launcher.all_vars['sampler']
+
+    # Keep its dataset and responses
+    stimuli_correct_to_force = sampler.data_gen.stimuli_correct.copy()
+    response_to_force = sampler.theta[:, 0].copy()
+    LL_target = sampler.compute_loglikelihood()
+
+    experiment_parameters_full['stimuli_to_use'] = stimuli_correct_to_force
+
+    ratio_space = np.linspace(0.0, 1.0, 31.)
+
+    LL_all_new = np.zeros(ratio_space.shape)
+
+    for ratio_conj_i, ratio_conj in enumerate(ratio_space):
+
+        experiment_parameters_full['ratio_conj'] = ratio_conj
+
+        _, _, _, sampler = launchers.init_everything(experiment_parameters_full)
+
+        # Set responses
+        sampler.set_theta(response_to_force)
+
+        # Compute LL
+        # LL_all_new[ratio_conj_i] = sampler.compute_loglikelihood()
+        LL_all_new[ratio_conj_i] = sampler.compute_loglikelihood_top90percent()
+
+        # Print result
+        print LL_all_new[ratio_conj_i]
+
+    print LL_target
+    print ratio_space, LL_all_new
+    print ratio_space[np.argmax(LL_all_new)]
+
+
+    return locals()
+
+
 
 if __name__ == '__main__':
-    if True:
+    if False:
         all_vars = test_fit_experiment()
+    if True:
+        all_vars = test_loglike_fit()
 
 
     for key, val in all_vars.iteritems():
