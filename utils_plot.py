@@ -19,6 +19,7 @@ import matplotlib.ticker as plttic
 from matplotlib import cm
 # from matplotlib.ticker import LinearLocator
 from matplotlib.colors import LogNorm
+from matplotlib.widgets import Slider
 
 from mpl_toolkits.mplot3d import Axes3D
 
@@ -27,6 +28,7 @@ from mpl_toolkits.mplot3d import Axes3D
 import utils_math
 import utils_fitting
 import utils_helper
+import utils_interpolate
 
 # switch interactive mode on
 plt.ion()
@@ -631,6 +633,119 @@ def contour3d_interpolate_data(all_points, data, xlabel='', ylabel='', title='',
         mlab3d.show()
     else:
         raise NotImplementedError('matplotlib 3d has no contour3d function...')
+
+
+def contourf_interpolate_data_interactive_maxvalue(all_points, data, xlabel='', ylabel='', title='', interpolation_numpoints=200, interpolation_method='linear', mask_when_nearest=True, contour_numlevels=20, show_scatter=True, show_colorbar=True, fignum=None, ax_handle=None, mask_x_condition=None, mask_y_condition=None, log_scale=False):
+    '''
+        Take (x,y) and z tuples, construct an interpolation with them and plot them nicely.
+
+        all_points: Nx2
+        data:       Nx1
+
+        mask_when_nearest: trick to hide points outside the convex hull of points even when using 'nearest' method
+    '''
+
+    assert all_points.shape[1] == 2, "Give a Nx2 matrix for all_points"
+
+    # Construct the interpolation
+    param1_space_int = np.linspace(all_points[:, 0].min(), all_points[:, 0].max(), interpolation_numpoints)
+    param2_space_int = np.linspace(all_points[:, 1].min(), all_points[:, 1].max(), interpolation_numpoints)
+
+    data_interpol = utils_interpolate.interpolate_data_2d(all_points, np.ma.masked_greater(data, data.max()), param1_space_int, param2_space_int, interpolation_numpoints, interpolation_method, mask_when_nearest, mask_x_condition, mask_y_condition)
+
+    parameters = locals()
+
+    # Plot it
+    def __plot(ax_handle_, param1_space_int_, param2_space_int_, all_points_, data_interpol_, data_, contour_numlevels_, xlabel_, ylabel_, title_, show_colorbar_, interpolation_numpoints_, interpolation_method_, mask_when_nearest_, mask_x_condition_, mask_y_condition_, max_value, plot_min=True):
+
+        # Construct the figure
+        if ax_handle_ is None:
+            f_ = plt.figure()
+            ax_handle_ = f_.add_subplot(111)
+            f_.subplots_adjust(bottom=0.25)
+        else:
+            f_ = ax_handle_.get_figure()
+            f_.clf()
+            ax_handle_ = f_.add_subplot(111)
+            f_.subplots_adjust(bottom=0.25)
+
+        if log_scale:
+            cs = ax_handle_.contourf(param1_space_int_, param2_space_int_, data_interpol_, contour_numlevels_, locator=plttic.LogLocator())   # cmap=plt.cm.jet
+        else:
+            cs = ax_handle_.contourf(param1_space_int_, param2_space_int_, data_interpol_, contour_numlevels_)   # cmap=plt.cm.jet
+        ax_handle_.set_xlabel(xlabel_)
+        ax_handle_.set_ylabel(ylabel_)
+        ax_handle_.set_title(title_)
+
+        if show_scatter:
+            ax_handle_.scatter(all_points_[:, 0], all_points_[:, 1], marker='o', c='b', s=5)
+
+            if plot_min:
+                index_min = np.argmin(data_)
+                ax_handle_.scatter(all_points_[index_min, 0], all_points_[index_min, 1], marker='o', c='r', s=15)
+
+        ax_handle_.set_xlim(param1_space_int_.min(), param1_space_int_.max())
+        ax_handle_.set_ylim(param2_space_int_.min(), param2_space_int_.max())
+
+        if show_colorbar_:
+            ax_handle_.get_figure().colorbar(cs)
+
+        ### Add interactive slider
+        # axcolor = 'lightgoldenrodyellow'
+        ax_slider_max = plt.axes([0.1, 0.1, 0.75, 0.04])
+        slider_max = Slider(ax_slider_max, 'Max', data_.min(), data_.max(), valinit=max_value)
+        # ax_handle_.get_figure().sca(ax_handle_)
+
+        def update_max(val):
+
+            new_max = slider_max.val
+            print 'Changed max: %.2f' % new_max
+
+            # Recompute interpolation
+            data_limited_ = np.ma.masked_greater(data_, new_max)
+            data_interpol_ = utils_interpolate.interpolate_data_2d(all_points_, data_limited_, param1_space_int_, param2_space_int_, interpolation_numpoints_, interpolation_method_, mask_when_nearest_, mask_x_condition_, mask_y_condition_)
+
+            # clean figure
+            # ax_handle_.get_figure().subplots_adjust(right=1.1)
+            # ax_handle_.get_figure().clf()
+
+            __plot(ax_handle_, param1_space_int_, param2_space_int_, all_points_, data_interpol_, data_, contour_numlevels_, xlabel_, ylabel_, title_, show_colorbar_, interpolation_numpoints_, interpolation_method_, mask_when_nearest_, mask_x_condition_, mask_y_condition_, new_max)
+
+            ax_handle_.get_figure().canvas.draw()
+
+        slider_max.on_changed(update_max)
+
+        ## Change mouse over behaviour
+        def report_pixel(x_mouse, y_mouse, format="%.2f"):
+            # Extract loglik at that position
+            try:
+                x_i = int(param2_space_int.size*x_mouse)
+                y_i = int(param1_space_int.size*y_mouse)
+
+                x_display = param2_space_int[x_i]
+                y_display = param1_space_int[y_i]
+
+                return ("x=%.2f y=%.2f value="+format) % (x_display, y_display, data_interpol[y_i, x_i])
+            except:
+                return ""
+        ax_handle_.format_coord = report_pixel
+
+        ## Change mouse click behaviour
+        def onclick(event):
+            # print 'button=%d, x=%d, y=%d, xdata=%f, ydata=%f'%(event.button, event.x, event.y, event.xdata, event.ydata)
+            report_str = report_pixel(event.xdata, event.ydata, format="%f")
+            if report_str:
+                print report_str
+
+        ax_handle_.get_figure().canvas.mpl_connect('button_press_event', onclick)
+
+        ax_handle_.get_figure().canvas.draw()
+
+        return ax_handle_
+
+    ax_handle = __plot(ax_handle, param1_space_int, param2_space_int, all_points, data_interpol, data, contour_numlevels, xlabel, ylabel, title, show_colorbar, interpolation_numpoints, interpolation_method, mask_when_nearest, mask_x_condition, mask_y_condition, data.max())
+
+    return ax_handle
 
 
 def pcolor_square_grid(data, nb_to_plot=-1):
