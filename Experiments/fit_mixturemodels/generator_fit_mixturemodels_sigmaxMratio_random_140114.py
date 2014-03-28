@@ -17,13 +17,13 @@ parameters_entryscript = dict(action_to_do='launcher_do_generate_submit_pbs_from
 submit_jobs = True
 
 parameter_generation = 'random'  ## !!!!!! RANDOM HERE   !!!!!
-num_random_samples = 1000
-limit_max_queued_jobs = 200
+num_random_samples = 3000
+limit_max_queued_jobs = 30
 
 resource = ''
 
-# submit_cmd = 'qsub'
-submit_cmd = 'sbatch'
+submit_cmd = 'qsub'
+# submit_cmd = 'sbatch'
 
 # FOR DIRAC
 if getpass.getuser() == 'dc-matt1':
@@ -33,7 +33,7 @@ if getpass.getuser() == 'dc-matt1':
 
 num_repetitions = 3
 
-run_label = 'fit_mixturemodels_sigmaxMratiorcscales_random_repetitions{num_repetitions}_140114'
+run_label = 'fit_mixturemodels_sigmaxMratio_random_repetitions{num_repetitions}_140114'
 
 pbs_submission_infos = dict(description='Runs the model for 1..T items. Computes precision, Fisher information, fits the mixture model, and compare the mixture model fits to the experimental data (Bays09 and Gorgo11 here). Also stores all responses. Meant to run random sampling for a long while!',
                             command='python $WORKDIR/experimentlauncher.py',
@@ -62,7 +62,7 @@ pbs_submission_infos = dict(description='Runs the model for 1..T items. Computes
                                                label=run_label,
                                                experiment_data_dir=os.path.normpath(os.path.join(os.environ['WORKDIR_DROP'], '../../experimental_data')),
                                                ),
-                            walltime='40:00:00',
+                            walltime='80:00:00',
                             memory='2gb',
                             simul_out_dir=os.path.join(os.getcwd(), run_label.format(**locals())),
                             pbs_submit_cmd=submit_cmd,
