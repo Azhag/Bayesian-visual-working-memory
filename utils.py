@@ -18,6 +18,7 @@ from utils_spherical import *
 
 ######################## PLOTTING FUNCTIONS ##################################
 from utils_plot import *
+from utils_animation import *
 
 ############################ FITTING #########################################
 from utils_fitting import *
