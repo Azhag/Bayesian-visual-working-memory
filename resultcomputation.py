@@ -102,7 +102,7 @@ class ResultComputation():
         result_dist_bays09 = np.nan*np.empty((all_variables['T_space'].size, 4))
 
         ### Result computation
-        data_bays2009 = load_experimental_data.load_data_bays2009(fit_mixture_model=True)
+        data_bays2009 = load_experimental_data.load_data_bays09(fit_mixture_model=True)
         bays09_experimental_mixtures_mean = data_bays2009['em_fits_nitems_arrays']['mean']
         bays09_T_space = np.unique(data_bays2009['n_items'])
 
@@ -137,7 +137,7 @@ class ResultComputation():
         result_dist_bays09 = np.nan*np.empty(all_variables['T_space'].size)
 
         ### Result computation
-        data_bays2009 = load_experimental_data.load_data_bays2009(fit_mixture_model=True)
+        data_bays2009 = load_experimental_data.load_data_bays09(fit_mixture_model=True)
         bays09_experimental_mixtures_mean = data_bays2009['em_fits_nitems_arrays']['mean']
         bays09_T_space = np.unique(data_bays2009['n_items'])
 
