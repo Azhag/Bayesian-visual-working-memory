@@ -1,0 +1,115 @@
+"""
+    ExperimentDescriptor for Fitting experiments in a mixed population code
+"""
+
+import os
+import numpy as np
+from experimentlauncher import *
+from dataio import *
+
+import re
+import inspect
+
+import utils
+import submitpbs
+
+# Commit @2042319 +
+
+
+def plots_fitting_experiments_random(data_pbs, generator_module=None):
+    '''
+        Reload 2D volume runs from PBS and plot them
+
+    '''
+
+    #### SETUP
+    #
+    savefigs = True
+    savedata = True
+
+    plot_per_ratio = False
+    plot_2d_pcolor = False
+
+    do_relaunch_bestparams_pbs = True
+
+    colormap = None  # or 'cubehelix'
+    plt.rcParams['font.size'] = 16
+    #
+    #### /SETUP
+
+    print "Order parameters: ", generator_module.dict_parameters_range.keys()
+
+    #### !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    #### !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    #### !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    #### !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    raise ValueError('Data looks weird and is not finished... start somewhere else')
+    return locals()
+
+    #### !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    #### !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    #### !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    #### !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    #### !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    #### !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+
+    all_args = data_pbs.loaded_data['args_list']
+    variables_to_save = ['exp_dataset']
+
+    if savefigs:
+        dataio.save_variables_default(locals(), variables_to_save)
+
+
+    plt.show()
+
+    return locals()
+
+
+
+this_file = inspect.getfile(inspect.currentframe())
+
+parameters_entryscript=dict(action_to_do='launcher_do_reload_constrained_parameters', output_directory='.')
+
+generator_script = 'generator' + re.split("^reloader", os.path.split(this_file)[-1])[-1]
+
+print "Reloader data generated from ", generator_script
+
+generator_module = imp.load_source(os.path.splitext(generator_script)[0], generator_script)
+dataset_infos = dict(label='Fitting of experimental data. All experiments. Random sampling of parameter space. Perhaps too big, be careful...',
+                     files="%s/%s*.npy" % (generator_module.pbs_submission_infos['simul_out_dir'], generator_module.pbs_submission_infos['other_options']['label'].split('{')[0]),
+                     launcher_module=generator_module,
+                     loading_type='args',
+                     parameters=['ratio_conj', 'sigmax'],
+                     variables_to_load=['result_fitexperiments', 'result_fitexperiments_all'],
+                     variables_description=['Fit experiments sum', 'Fit experiments per experiment'],
+                     post_processing=plots_fitting_experiments_random,
+                     save_output_filename='plots_fitexp_random_mixed'
+                     )
+
+
+
+
+if __name__ == '__main__':
+
+    print "Running ", this_file
+
+    arguments_dict=dict(parameters_filename=this_file)
+    arguments_dict.update(parameters_entryscript)
+    experiment_launcher = ExperimentLauncher(run=True, arguments_dict=arguments_dict)
+
+    variables_to_reinstantiate = ['data_gen', 'sampler', 'stat_meas', 'random_network', 'args', 'constrained_parameters', 'data_pbs', 'dataio', 'post_processing_outputs', 'fit_exp']
+
+    if 'variables_to_save' in experiment_launcher.all_vars:
+        # Also reinstantiate the variables we saved
+        variables_to_reinstantiate.extend(experiment_launcher.all_vars['variables_to_save'])
+
+    for var_reinst in variables_to_reinstantiate:
+        if var_reinst in experiment_launcher.all_vars:
+            vars()[var_reinst] = experiment_launcher.all_vars[var_reinst]
+
+    for var_reinst in post_processing_outputs:
+        vars()[var_reinst] = post_processing_outputs[var_reinst]
+
