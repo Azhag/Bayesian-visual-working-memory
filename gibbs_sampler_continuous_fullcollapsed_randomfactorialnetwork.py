@@ -73,7 +73,7 @@ class Sampler:
         y_t | x_t, y_{t-1} ~ Normal
 
     '''
-    def __init__(self, data_gen, tc=None, theta_prior_dict=dict(kappa=0.01, gamma=0.0), n_parameters = dict()):
+    def __init__(self, data_gen, tc=None, theta_prior_dict=dict(kappa=0.01, gamma=0.0), n_parameters = dict(), sigma_output=0.0):
         '''
             Initialise the sampler
 
@@ -84,6 +84,9 @@ class Sampler:
 
         # Initialise noise parameters
         self.set_noise_parameters(n_parameters)
+
+        # Setup output noise
+        self.init_output_noise(sigma_output)
 
         # Get the data
         self.init_from_data_gen(data_gen, tc=tc)
@@ -197,6 +200,18 @@ class Sampler:
         self.compute_normalization()
 
 
+    def init_output_noise(self, sigma_output):
+        '''
+            The output noise is added after samples from the posterior are taken. Adds another level of randomness. Should count it in the BIC.
+
+            Given a level of output noise, as sigma_sigma, stores the corresponding kappa_output.
+
+        '''
+
+        self.sigma_output = sigma_output
+        self.kappa_output = stddev_to_kappa(sigma_output)
+
+
     def precompute_parameters(self, t, amplify_diag=1.0):
         '''
             Precompute some matrices to speed up the sampling.
@@ -253,16 +268,17 @@ class Sampler:
             self.set_theta_max_likelihood(num_points=100, post_optimise=True)
 
 
-    def sample_all(self):
+    def sample_all(self, parameters=None):
         '''
             Do one full sweep of sampling
         '''
 
-        # t = time.time()
-        self.sample_theta()
-        # print "Sample_theta time: %.3f" % (time.time()-t)
-        self.sample_tc()
-        print "Likelihood: %.2f" % self.compute_likelihood()
+        if parameters is not None:
+            self.sample_theta(num_samples=parameters['num_samples'], burn_samples=parameters['burn_samples'], selection_method=parameters['selection_method'], selection_num_samples=parameters['selection_num_samples'], slice_width=parameters['slice_width'], integrate_tc_out=False, debug=True)
+        else:
+            self.sample_theta()
+
+        print "Likelihood: %.2f" % self.compute_loglikelihood()
 
 
     def sample_theta(self, num_samples=500, return_samples=False, burn_samples=100, integrate_tc_out=False, selection_method='last',selection_num_samples=250, subset_theta=None, slice_width=np.pi/16.0, slice_jump_prob=0.3, debug=True):
@@ -326,6 +342,9 @@ class Sampler:
                 else:
                     raise ValueError('wrong value for selection_method')
 
+                # Add output noise if desired.
+                sampled_orientation = self.add_output_noise(sampled_orientation)
+
                 # Save the orientation
                 self.theta[n, sampled_feature_index] = wrap_angles(sampled_orientation)
 
@@ -354,11 +373,7 @@ class Sampler:
         params = (self.theta[n], self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[self.tc[n]], sampled_feature_index, self.mean_fixed_contrib[self.tc[n]], self.inv_covariance_fixed_contrib)
 
         # Sample the new theta
-        # samples, llh = slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=np.pi/8., loglike_fct_params=params, debug=False, step_out=True)
         samples, llh = slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=slice_width, loglike_fct_params=params, debug=False, step_out=True, jump_probability=slice_jump_prob)
-        # samples, llh = slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=0.01, loglike_fct_params=params, debug=False, step_out=True)
-
-        # samples, llh = slicesampler.sample_1D_circular(1, self.theta[n, sampled_feature_index], loglike_theta_fct, burn=100, widths=np.pi/3., thinning=2, loglike_fct_params=params, debug=False, step_out=True)
 
         return (samples, llh)
 
@@ -376,7 +391,6 @@ class Sampler:
             params = (self.theta[n], self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[tc], sampled_feature_index, self.mean_fixed_contrib[tc], self.inv_covariance_fixed_contrib)
 
             # TODO> Should be starting from the previous sample here.
-            # samples, _ = slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=np.pi/8., loglike_fct_params=params, debug=False, step_out=True)
             samples, _ = slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=np.pi/3., loglike_fct_params=params, debug=False, step_out=True)
 
             # Now keep only some of them, following p(tc)
@@ -386,6 +400,29 @@ class Sampler:
 
         return np.array(samples_integratedout)
 
+
+    def add_output_noise(self, sample):
+        '''
+            Assume that samples are corrupted by some extra Von Mises noise, centered at the current sample and with a kappa set by self.sigma_output.
+
+            if self.sigma_output is 0, return the same samples
+        '''
+
+        if self.sigma_output > 0.0:
+            sample += spst.vonmises.rvs(self.kappa_output)
+
+        return sample
+
+    def add_output_noise_vector(self, samples):
+        '''
+            Vector version of add_output_noise()
+        '''
+
+        if self.sigma_output > 0.0:
+            samples += spst.vonmises.rvs(self.kappa_output, size=samples.size)
+            samples = wrap_angles(samples)
+
+        return samples
 
     def set_theta(self, new_thetas):
         '''
@@ -424,6 +461,9 @@ class Sampler:
                 self.theta[n, self.sampled_feature_index] = spopt.fmin(loglike_theta_fct_single_min, all_angles[np.argmax(llh)], args=params, disp=False)[0]
             else:
                 self.theta[n, self.sampled_feature_index] = all_angles[np.argmax(llh)]
+
+        # Add output noise if desired.
+        self.theta[:, self.sampled_feature_index] = self.add_output_noise_vector(self.theta[:, self.sampled_feature_index])
 
 
     def change_cued_features(self, t_cued):

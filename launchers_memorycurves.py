@@ -620,50 +620,6 @@ def launcher_do_memorycurve_theoretical_pbs_theoonly(args):
                         run_counter += 1
     return locals()
 
-# def init_everything(parameters):
-
-#     # Build the random network
-#     random_network = init_random_network(parameters)
-
-#     # Construct the real dataset
-#     time_weights_parameters = dict(weighting_alpha=parameters['alpha'], weighting_beta=1.0, specific_weighting=0.1, weight_prior='uniform')
-#     cued_feature_time = parameters['T']-1
-
-#     # print "Building the database"
-#     data_gen = DataGeneratorRFN(parameters['N'], parameters['T'], random_network, sigma_y=parameters['sigmay'], sigma_x=parameters['sigmax'], time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation=parameters['stimuli_generation'])
-
-#     # Measure the noise structure
-#     # print "Measuring noise structure"
-#     data_gen_noise = DataGeneratorRFN(5000, parameters['T'], random_network, sigma_y=parameters['sigmay'], sigma_x=parameters['sigmax'], time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time, stimuli_generation=parameters['stimuli_generation'])
-#     stat_meas = StatisticsMeasurer(data_gen_noise)
-
-#     sampler = Sampler(data_gen, n_parameters=stat_meas.model_parameters, tc=cued_feature_time)
-
-#     return (random_network, data_gen, stat_meas, sampler)
-
-
-
-# def init_random_network(parameters):
-
-#     # Build the random network
-
-#     if parameters['code_type'] == 'conj':
-#         random_network = RandomFactorialNetwork.create_full_conjunctive(parameters['M'], R=parameters['R'], scale_moments=(parameters['rc_scale'], 0.0001), ratio_moments=(1.0, 0.0001))
-#     elif parameters['code_type'] == 'feat':
-#         random_network = RandomFactorialNetwork.create_full_features(parameters['M'], R=parameters['R'], scale=parameters['rc_scale'], ratio=parameters['feat_ratio'])
-#     elif parameters['code_type'] == 'mixed':
-#         conj_params = dict(scale_moments=[parameters['rc_scale'], 0.0001], ratio_moments=[1.0, 0.0001])
-#         feat_params = dict(scale=parameters['rc_scale2'], ratio=parameters['feat_ratio'])
-
-#         random_network = RandomFactorialNetwork.create_mixed(parameters['M'], R=parameters['R'], ratio_feature_conjunctive=parameters['ratio_conj'], conjunctive_parameters=conj_params, feature_parameters=feat_params)
-#     elif code_type == 'wavelet':
-#         random_network = RandomFactorialNetwork.create_wavelet(parameters['M'], R=parameters['R'], scales_number=5)
-#     else:
-#         raise ValueError('Code_type is wrong!')
-
-#     return random_network
-
-
 def launcher_reload_memorycurve_theoretical(args):
     '''
         Reload results from launcher_do_memorycurve_theoretical and do some plots
