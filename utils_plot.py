@@ -656,45 +656,45 @@ def contourf_interpolate_data_interactive_maxvalue(all_points, data, xlabel='', 
     parameters = locals()
 
     # Plot it
-    def __plot(ax_handle_, param1_space_int_, param2_space_int_, all_points_, data_interpol_, data_, contour_numlevels_, xlabel_, ylabel_, title_, show_colorbar_, interpolation_numpoints_, interpolation_method_, mask_when_nearest_, mask_x_condition_, mask_y_condition_, max_value, plot_min=True):
+    def __plot__(parameters, max_value, plot_min=True):
 
         # Construct the figure
-        if ax_handle_ is None:
-            f_ = plt.figure()
-            ax_handle_ = f_.add_subplot(111)
-            f_.subplots_adjust(bottom=0.25)
+        if parameters['ax_handle'] is None:
+            f = plt.figure()
+            parameters['ax_handle'] = f.add_subplot(111)
+            f.subplots_adjust(bottom=0.25)
         else:
-            f_ = ax_handle_.get_figure()
-            f_.clf()
-            ax_handle_ = f_.add_subplot(111)
-            f_.subplots_adjust(bottom=0.25)
+            f = parameters['ax_handle'].get_figure()
+            f.clf()
+            parameters['ax_handle'] = f.add_subplot(111)
+            f.subplots_adjust(bottom=0.25)
 
         if log_scale:
-            cs = ax_handle_.contourf(param1_space_int_, param2_space_int_, data_interpol_, contour_numlevels_, locator=plttic.LogLocator())   # cmap=plt.cm.jet
+            cs = parameters['ax_handle'].contourf(parameters['param1_space_int'], parameters['param2_space_int'], parameters['data_interpol'], parameters['contour_numlevels'], locator=plttic.LogLocator())   # cmap=plt.cm.jet
         else:
-            cs = ax_handle_.contourf(param1_space_int_, param2_space_int_, data_interpol_, contour_numlevels_)   # cmap=plt.cm.jet
-        ax_handle_.set_xlabel(xlabel_)
-        ax_handle_.set_ylabel(ylabel_)
-        ax_handle_.set_title(title_)
+            cs = parameters['ax_handle'].contourf(parameters['param1_space_int'], parameters['param2_space_int'], parameters['data_interpol'], parameters['contour_numlevels'])   # cmap=plt.cm.jet
+        parameters['ax_handle'].set_xlabel(parameters['xlabel'])
+        parameters['ax_handle'].set_ylabel(parameters['ylabel'])
+        parameters['ax_handle'].set_title(parameters['title'])
 
         if show_scatter:
-            ax_handle_.scatter(all_points_[:, 0], all_points_[:, 1], marker='o', c='b', s=5)
+            parameters['ax_handle'].scatter(parameters['all_points'][:, 0], parameters['all_points'][:, 1], marker='o', c='b', s=5)
 
             if plot_min:
-                index_min = np.argmin(data_)
-                ax_handle_.scatter(all_points_[index_min, 0], all_points_[index_min, 1], marker='o', c='r', s=15)
+                index_min = np.argmin(parameters['data'])
+                parameters['ax_handle'].scatter(parameters['all_points'][index_min, 0], parameters['all_points'][index_min, 1], marker='o', c='r', s=15)
 
-        ax_handle_.set_xlim(param1_space_int_.min(), param1_space_int_.max())
-        ax_handle_.set_ylim(param2_space_int_.min(), param2_space_int_.max())
+        parameters['ax_handle'].set_xlim(parameters['param1_space_int'].min(), parameters['param1_space_int'].max())
+        parameters['ax_handle'].set_ylim(parameters['param2_space_int'].min(), parameters['param2_space_int'].max())
 
-        if show_colorbar_:
-            ax_handle_.get_figure().colorbar(cs)
+        if parameters['show_colorbar']:
+            parameters['ax_handle'].get_figure().colorbar(cs)
 
         ### Add interactive slider
         # axcolor = 'lightgoldenrodyellow'
         ax_slider_max = plt.axes([0.1, 0.1, 0.75, 0.04])
-        slider_max = Slider(ax_slider_max, 'Max', data_.min(), data_.max(), valinit=max_value)
-        # ax_handle_.get_figure().sca(ax_handle_)
+        slider_max = Slider(ax_slider_max, 'Max', parameters['data'].min(), parameters['data'].max(), valinit=max_value)
+        # parameters['ax_handle'].get_figure().sca(parameters['ax_handle'])
 
         def update_max(val):
 
@@ -702,16 +702,16 @@ def contourf_interpolate_data_interactive_maxvalue(all_points, data, xlabel='', 
             print 'Changed max: %.2f' % new_max
 
             # Recompute interpolation
-            data_limited_ = np.ma.masked_greater(data_, new_max)
-            data_interpol_ = utils_interpolate.interpolate_data_2d(all_points_, data_limited_, param1_space_int_, param2_space_int_, interpolation_numpoints_, interpolation_method_, mask_when_nearest_, mask_x_condition_, mask_y_condition_)
+            data_limited_ = np.ma.masked_greater(parameters['data'], new_max)
+            parameters['data_interpol'] = utils_interpolate.interpolate_data_2d(parameters['all_points'], data_limited_, parameters['param1_space_int'], parameters['param2_space_int'], parameters['interpolation_numpoints'], parameters['interpolation_method'], parameters['mask_when_nearest'], parameters['mask_x_condition'], parameters['mask_y_condition'])
 
             # clean figure
-            # ax_handle_.get_figure().subplots_adjust(right=1.1)
-            # ax_handle_.get_figure().clf()
+            # parameters['ax_handle'].get_figure().subplots_adjust(right=1.1)
+            # parameters['ax_handle'].get_figure().clf()
 
-            __plot(ax_handle_, param1_space_int_, param2_space_int_, all_points_, data_interpol_, data_, contour_numlevels_, xlabel_, ylabel_, title_, show_colorbar_, interpolation_numpoints_, interpolation_method_, mask_when_nearest_, mask_x_condition_, mask_y_condition_, new_max)
+            __plot__(parameters, new_max)
 
-            ax_handle_.get_figure().canvas.draw()
+            parameters['ax_handle'].get_figure().canvas.draw()
 
         slider_max.on_changed(update_max)
 
@@ -719,16 +719,16 @@ def contourf_interpolate_data_interactive_maxvalue(all_points, data, xlabel='', 
         def report_pixel(x_mouse, y_mouse, format="%.2f"):
             # Extract loglik at that position
             try:
-                x_i = int(param2_space_int.size*x_mouse)
-                y_i = int(param1_space_int.size*y_mouse)
+                x_i = int(parameters['param2_space_int'].size*x_mouse)
+                y_i = int(parameters['param1_space_int'].size*y_mouse)
 
-                x_display = param2_space_int[x_i]
-                y_display = param1_space_int[y_i]
+                x_display = parameters['param2_space_int'][x_i]
+                y_display = parameters['param1_space_int'][y_i]
 
-                return ("x=%.2f y=%.2f value="+format) % (x_display, y_display, data_interpol[y_i, x_i])
+                return ("x=%.2f y=%.2f value="+format) % (x_display, y_display, parameters['data_interpol'][y_i, x_i])
             except:
                 return ""
-        ax_handle_.format_coord = report_pixel
+        parameters['ax_handle'].format_coord = report_pixel
 
         ## Change mouse click behaviour
         def onclick(event):
@@ -737,13 +737,13 @@ def contourf_interpolate_data_interactive_maxvalue(all_points, data, xlabel='', 
             if report_str:
                 print report_str
 
-        ax_handle_.get_figure().canvas.mpl_connect('button_press_event', onclick)
+        parameters['ax_handle'].get_figure().canvas.mpl_connect('button_press_event', onclick)
 
-        ax_handle_.get_figure().canvas.draw()
+        parameters['ax_handle'].get_figure().canvas.draw()
 
-        return ax_handle_
+        return parameters['ax_handle']
 
-    ax_handle = __plot(ax_handle, param1_space_int, param2_space_int, all_points, data_interpol, data, contour_numlevels, xlabel, ylabel, title, show_colorbar, interpolation_numpoints, interpolation_method, mask_when_nearest, mask_x_condition, mask_y_condition, data.max())
+    ax_handle = __plot__(parameters, data.max())
 
     return ax_handle
 
@@ -903,16 +903,21 @@ def scatter3d(x, y, z, s=20, c='b', title='', xlabel='', ylabel='', zlabel='', a
         fig = plt.figure()
         ax_handle = fig.add_subplot(111, projection='3d')
     else:
-        plt.close(ax_handle.get_figure().number)
-        fig = plt.figure()
-        ax_handle = fig.add_subplot(111, projection='3d')
+        # plt.close(ax_handle.get_figure().number)
+        # fig = plt.figure()
+        # ax_handle = fig.add_subplot(111, projection='3d')
+        pass
 
     ax_handle.scatter(x, y, z, s=s, c=c)
 
-    ax_handle.set_title(title)
-    ax_handle.set_xlabel(xlabel)
-    ax_handle.set_ylabel(ylabel)
-    ax_handle.set_zlabel(zlabel)
+    if title:
+        ax_handle.set_title(title)
+    if xlabel:
+        ax_handle.set_xlabel(xlabel)
+    if ylabel:
+        ax_handle.set_ylabel(ylabel)
+    if zlabel:
+        ax_handle.set_zlabel(zlabel)
 
     ax_handle.get_figure().canvas.draw()
 
