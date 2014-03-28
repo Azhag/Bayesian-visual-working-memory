@@ -225,6 +225,13 @@ class DataIO:
         self.create_filename()
 
 
+    def create_formatted_filename(self, filename):
+        '''
+            Given a filename, preprend the output_folder and fill in unique_id and label.
+        '''
+
+        return os.path.join(self.output_folder, filename.format(unique_id=self.unique_id, label=self.label))
+
     def save_variables(self, selected_variables, all_variables):
         '''
             Main function
@@ -305,7 +312,7 @@ class DataIO:
         '''
 
         # Complete the filename if needs be.
-        formatted_filename = os.path.join(self.output_folder, filename.format(unique_id=self.unique_id, label=self.label))
+        formatted_filename = self.create_formatted_filename(filename)
 
         ## Save the figure.
 
