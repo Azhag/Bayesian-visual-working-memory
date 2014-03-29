@@ -1461,6 +1461,63 @@ class Sampler:
 
 
 
+    def test_outputnoise_convolution(self, n=0, precision=1000):
+        '''
+            Try to see if we can get a convolution of the posterior distribution with the output noise.
+        '''
+
+        assert self.sigma_output > 0.0, "need output noise for this"
+
+        # instantiate the posterior
+        posterior_space = np.linspace(-np.pi, np.pi, precision, endpoint=False)
+        posterior = self.compute_likelihood_fullspace(n=n, all_angles=posterior_space, normalize=True, should_exponentiate=True)[:, 0]
+        posterior /= np.trapz(posterior, posterior_space)
+
+        posterior_mirrored = np.r_[posterior, posterior, posterior]
+
+        # instantiate the output noise
+        noise_space = np.linspace(-np.pi, np.pi, precision, endpoint=False)
+        noise = spst.vonmises.pdf(noise_space, self.kappa_output)
+
+        # Convolution numpy
+        def conv1():
+            convolved_posterior_mirror = np.convolve(posterior_mirrored, noise, mode='same')
+            convolved_posterior_mirror_cut = convolved_posterior_mirror[posterior_space.size:-posterior_space.size]
+            convolved_posterior_mirror_cut /= np.trapz(convolved_posterior_mirror_cut, posterior_space)
+            return convolved_posterior_mirror_cut
+        convolved_posterior_mirror_cut = conv1()
+
+        # Convolution fft
+        def conv2():
+            posterior_fft = np.fft.fft(posterior)
+            noise_fft = np.fft.fft(noise)
+            convolved_posterior_2 = (np.fft.ifft(posterior_fft*noise_fft)).real
+            convolved_posterior_2 /= np.trapz(convolved_posterior_2, posterior_space)
+            # FFT and IFFT shift the phase somehow...
+            convolved_posterior_2 = np.roll(convolved_posterior_2, convolved_posterior_2.size/2)
+            return convolved_posterior_2
+        convolved_posterior_2 = conv2()
+
+        # Convolution ndimage with wrap
+        import scipy.ndimage
+        def conv3():
+            convolved_posterior_3 = scipy.ndimage.convolve(posterior, noise, mode='wrap')
+            convolved_posterior_3 /= np.trapz(convolved_posterior_3, posterior_space)
+            return convolved_posterior_3
+        convolved_posterior_3 = conv3()
+
+        # plots
+        f, axes = plt.subplots(2, 2)
+        axes.shape = 4
+        axes[0].plot(posterior_space, posterior, 'b', noise_space, noise, 'k')
+        axes[1].plot(posterior_space, posterior, posterior_space, convolved_posterior_mirror_cut)
+        axes[2].plot(posterior_space, posterior, posterior_space, convolved_posterior_2)
+        axes[3].plot(posterior_space, posterior, posterior_space, convolved_posterior_3)
+        axes[0].legend(('Posterior', 'Noise'))
+        axes[1].legend(('Posterior original', 'Posterior convolved repeat'))
+        axes[2].legend(('Posterior original', 'Posterior convolved fft'))
+        axes[3].legend(('Posterior original', 'Posterior convolved ndimage wrap'))
+
 
 ####################################
 if __name__ == '__main__':
