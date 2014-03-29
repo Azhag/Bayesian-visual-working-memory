@@ -73,6 +73,7 @@ def plots_fit_mixturemodels_random(data_pbs, generator_module=None):
     bays09_nitems = data_bays09['data_to_fit']['n_items']
     bays09_em_target = np.nan*np.empty((bays09_nitems.max(), 4))  #kappa, prob_target, prob_nontarget, prob_random
     bays09_em_target[bays09_nitems - 1] = data_bays09['em_fits_nitems_arrays']['mean'].T
+    bays09_emmixt_target = bays09_em_target[:, 1:]
 
 
     ## Compute some stuff
@@ -80,15 +81,24 @@ def plots_fit_mixturemodels_random(data_pbs, generator_module=None):
     # result_dist_bays09_kappa_T1_avg = utils.nanmean(result_dist_bays09_flat[:, 0, 0], axis=-1)
     # result_dist_bays09_kappa_allT_avg = np.nansum(utils.nanmean(result_dist_bays09_flat[:, :, 0], axis=-1), axis=1)
 
+    # Square distance to kappa
     result_dist_bays09_allT_avg = utils.nanmean((result_em_fits_flat[:, :, :4] - bays09_em_target[np.newaxis, :, :, np.newaxis])**2, axis=-1)
-    result_dist_bays09_emmixt_sum = np.nansum(np.nansum(result_dist_bays09_allT_avg[:, :, 1:], axis=-1), axis=-1)
     result_dist_bays09_kappa_sum = np.nansum(result_dist_bays09_allT_avg[:, :, 0], axis=-1)
 
     result_dist_bays09_kappa_T1_sum = result_dist_bays09_allT_avg[:, 0, 0]
     result_dist_bays09_kappa_T25_sum = np.nansum(result_dist_bays09_allT_avg[:, 1:, 0], axis=-1)
 
+    # Square and KL distance for EM Mixtures
+    result_dist_bays09_emmixt_sum = np.nansum(np.nansum(result_dist_bays09_allT_avg[:, :, 1:], axis=-1), axis=-1)
     result_dist_bays09_emmixt_T1_sum = np.nansum(result_dist_bays09_allT_avg[:, 0, 1:], axis=-1)
     result_dist_bays09_emmixt_T25_sum = np.nansum(np.nansum(result_dist_bays09_allT_avg[:, 1:, 1:], axis=-1), axis=-1)
+
+
+    result_dist_bays09_emmixt_KL = utils.nanmean(utils.KL_div(result_em_fits_flat[:, :, 1:4], bays09_emmixt_target[np.newaxis, :, :, np.newaxis], axis=-2), axis=-1)   # KL over dimension of mixtures, then mean over repetitions
+    result_dist_bays09_emmixt_KL_sum = np.nansum(result_dist_bays09_emmixt_KL, axis=-1)  # sum over T
+    result_dist_bays09_emmixt_KL_T1_sum = result_dist_bays09_emmixt_KL[:, 0]
+    result_dist_bays09_emmixt_KL_T25_sum = np.nansum(result_dist_bays09_emmixt_KL[:, 1:], axis=-1)
+
 
     result_dist_bays09_both_normalised = result_dist_bays09_emmixt_sum/np.max(result_dist_bays09_emmixt_sum) + result_dist_bays09_kappa_sum/np.max(result_dist_bays09_kappa_sum)
 
@@ -97,11 +107,15 @@ def plots_fit_mixturemodels_random(data_pbs, generator_module=None):
         size_normal_points = 8
         size_best_points = 50
 
-        def plot_scatter(all_vars, result_dist_to_use_name, title=''):
+        def plot_scatter(all_vars, result_dist_to_use_name, title='', log_color=True):
+
             fig = plt.figure()
             ax = Axes3D(fig)
 
             result_dist_to_use = all_vars[result_dist_to_use_name]
+            if not log_color:
+                result_dist_to_use = np.exp(result_dist_to_use)
+
             utils.scatter3d(result_parameters_flat[:, 0], result_parameters_flat[:, 1], result_parameters_flat[:, 2], s=size_normal_points, c=np.log(result_dist_to_use), xlabel=parameter_names_sorted[0], ylabel=parameter_names_sorted[1], zlabel=parameter_names_sorted[2], title=title, ax_handle=ax)
             best_points_result_dist_to_use = np.argsort(result_dist_to_use)[:nb_best_points]
             utils.scatter3d(result_parameters_flat[best_points_result_dist_to_use, 0], result_parameters_flat[best_points_result_dist_to_use, 1], result_parameters_flat[best_points_result_dist_to_use, 2], c='r', s=size_best_points, ax_handle=ax)
@@ -128,8 +142,11 @@ def plots_fit_mixturemodels_random(data_pbs, generator_module=None):
         # Distance for kappa, all T
         plot_scatter(locals(), 'result_dist_bays09_kappa_sum', 'kappa all T')
 
-        # Distance for em fits, all T
+        # Distance for em fits, all T, Squared distance
         plot_scatter(locals(), 'result_dist_bays09_emmixt_sum', 'em fits, all T')
+
+        # Distance for em fits, all T, KL distance
+        plot_scatter(locals(), 'result_dist_bays09_emmixt_KL_sum', 'em fits, all T, KL')
 
         # Distance for sum of normalised em fits + normalised kappa, all T
         plot_scatter(locals(), 'result_dist_bays09_both_normalised', 'summed normalised em mixt + kappa')
@@ -145,6 +162,12 @@ def plots_fit_mixturemodels_random(data_pbs, generator_module=None):
 
         # Distance em fits T = 2...5
         plot_scatter(locals(), 'result_dist_bays09_emmixt_T25_sum', 'em fits T=2/5')
+
+        # Distance em fits T = 1, KL
+        plot_scatter(locals(), 'result_dist_bays09_emmixt_KL_T1_sum', 'em fits T=1, KL')
+
+        # Distance em fits T = 2...5, KL
+        plot_scatter(locals(), 'result_dist_bays09_emmixt_KL_T25_sum', 'em fits T=2/5, KL')
 
 
 

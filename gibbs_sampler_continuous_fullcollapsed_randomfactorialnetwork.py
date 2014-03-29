@@ -843,6 +843,29 @@ class Sampler:
         return params_fit
 
 
+    def compute_KL_mixture_model_responsibilites(self, dataset=None, data_em_fit=dict(), use_all_targets=False):
+        '''
+            Compute the KL divergence between the mixture proportions of the model and the data.
+            Give either the full experimental dataset, or the mixture model for the data
+                1) Assume that the dataset has keys: -> em_fits_nitems -> T
+                2) Assume that the data_em_fit is a dictionary containing the following keys:
+                    mixt_target, mixt_nontargets, mixt_random
+        '''
+        if dataset is not None:
+            if self.T in dataset['em_fits_nitems']['mean']:
+                data_em_fit = dataset['em_fits_nitems']['mean'][self.T]
+            else:
+                # Current number of items does not exist in this dataset
+                return np.nan
+
+        model_em_fit = self.fit_mixture_model(use_all_targets=use_all_targets)
+
+        model_mixtprop = np.array([model_em_fit[key] for key in ('mixt_target', 'mixt_nontargets_sum', 'mixt_random')])
+        data_mixtprop = np.array([data_em_fit[key] for key in ('mixt_target', 'mixt_nontargets', 'mixt_random')])
+
+        return KL_div(model_mixtprop, data_mixtprop)
+
+
     def estimate_fisher_info_from_posterior(self, n=0, all_angles=None, num_points=500):
         '''
             Look at the curvature of the posterior to estimate the Fisher Information

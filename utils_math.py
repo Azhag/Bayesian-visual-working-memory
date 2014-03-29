@@ -220,6 +220,18 @@ def bic(K, LL, N):
 
     return -LL + float(K)/2.*np.log(N)
 
+
+def KL_div(P, Q, axis=None):
+    '''
+        Compute the KL Divergence between P and Q, assuming they are discrete distribution summing to 1.
+
+        Not symmetric obviously:
+
+        D_KL[P || Q] = \sum P_i log(P_i/Q_i)
+    '''
+
+    return np.nansum(P*(np.log(P) - np.log(Q)), axis=axis)
+
 def histogram_binspace(data, bins=20, norm='density', bound_x=np.pi):
     '''
         Compute the histogram given a number of bins or a set of bins.
