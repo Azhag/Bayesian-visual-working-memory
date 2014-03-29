@@ -32,9 +32,8 @@ if getpass.getuser() == 'dc-matt1':
   pbs_unfilled_script = open(os.path.join(os.environ['WORKDIR_DROP'], 'dirac_submission_slurm_unfilled.sh'), 'r').read()
 
 num_repetitions = 3
-M = 144
 
-run_label = 'outputnoise_random_fitmixturemodels_sigmaxratiosigmaoutput_M{M}_repetitions{num_repetitions}_280314'
+run_label = 'outputnoise_random_fitmixturemodels_sigmaxMratiosigmaoutput_repetitions{num_repetitions}_280314'
 
 pbs_submission_infos = dict(description='Runs the model for 1..T items. Computes precision, Fisher information, fits the mixture model, and compare the mixture model fits to the experimental data (Bays09 and Gorgo11 here). Also stores all responses. Meant to run random sampling for a long while! Uses the new output noise process, varying sigma_output accordingly',
                             command='python $WORKDIR/experimentlauncher.py',
@@ -64,12 +63,12 @@ pbs_submission_infos = dict(description='Runs the model for 1..T items. Computes
                                                label=run_label,
                                                experiment_data_dir=os.path.normpath(os.path.join(os.environ['WORKDIR_DROP'], '../../experimental_data')),
                                                ),
-                            walltime='10:00:00',
+                            walltime='80:00:00',
                             memory='2gb',
                             simul_out_dir=os.path.join(os.getcwd(), run_label.format(**locals())),
                             pbs_submit_cmd=submit_cmd,
                             limit_max_queued_jobs=limit_max_queued_jobs,
-                            submit_label='outputnoise_rnd1',
+                            submit_label='outnoise_rnd_4d',
                             resource=resource)
 
 if getpass.getuser() == 'dc-matt1':
@@ -80,8 +79,9 @@ if getpass.getuser() == 'dc-matt1':
 sigmax_range      =   dict(sampling_type='uniform', low=0.01, high=1.0, dtype=float)
 ratioconj_range   =   dict(sampling_type='uniform', low=0.01, high=1.0, dtype=float)
 sigmaoutput_range =   dict(sampling_type='uniform', low=0.0, high=3.0, dtype=float)
+M_range           =   dict(sampling_type='randint', low=6, high=625, dtype=int)
 
-dict_parameters_range =   dict(sigma_output=sigmaoutput_range, ratio_conj=ratioconj_range, sigmax=sigmax_range)
+dict_parameters_range =   dict(M=M_range, sigma_output=sigmaoutput_range, ratio_conj=ratioconj_range, sigmax=sigmax_range)
 
 if __name__ == '__main__':
 
