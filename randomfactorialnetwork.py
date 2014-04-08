@@ -1718,7 +1718,7 @@ if __name__ == '__main__':
 
         plt.show()
 
-    if False:
+    if True:
         print 'Compute KL approx of mixture by Gausian'
 
         alpha = 1.0
@@ -1729,10 +1729,12 @@ if __name__ == '__main__':
         sigma_y = 0.001
         beta = 1.0
         rc_scale = 5.0
+        autoset_parameters = True
 
         time_weights_parameters = dict(weighting_alpha=alpha, weighting_beta = beta, specific_weighting = 0.1, weight_prior='uniform')
-        rn = RandomFactorialNetwork.create_full_conjunctive(N, R=2, rcscale=rc_scale, response_type='bivariate_fisher', gain=4*np.pi**2.)
-        data_gen_noise = DataGeneratorRFN(15000, T, rn, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=T-1, enforce_min_distance=0.0)
+        # rn = RandomFactorialNetwork.create_full_conjunctive(N, R=2, rcscale=rc_scale, response_type='bivariate_fisher', gain=4*np.pi**2.)
+        rn = RandomFactorialNetwork.create_full_conjunctive(N, R=2, rcscale=rc_scale, autoset_parameters=autoset_parameters)
+        data_gen_noise = DataGeneratorRFN(15000, T, rn, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=T-1)
         stat_meas = StatisticsMeasurer(data_gen_noise)
 
         # assert False
@@ -1879,21 +1881,21 @@ if __name__ == '__main__':
 
         # Theoretical eigendecomposition of circulant matrix
         c_tilde_ordered = np.sort((c_tilde))[::-1]
-        F = np.exp(-1j*2.0*np.pi/N)**np.outer(np.arange(N, dtype=float), np.arange(N, dtype=float))
+        F = np.exp(-1j*2.0*np.pi/N)**np.outer(np.arange(N, dtype=float), np.arange(N, dtype=float))/np.sqrt(N)
 
         # Construct true circulant
         c = computed_cov[0]
         circ_c = sp.linalg.circulant(c)
         circ_c_tilde = np.fft.fft(c)
         circ_c_tilde_bis = np.dot(F, c)
-        circ_c_reconst = np.abs((np.dot(F.conj(), np.dot(np.diag(circ_c_tilde_bis), F))/N))
+        circ_c_reconst = np.abs((np.dot(F.conj(), np.dot(np.diag(circ_c_tilde), F))))
 
         # ISSUE: weird mirroring, plus diagonal off by 1. USE conj() and not .T ...
         cov_reconst_theo = np.abs((np.dot(F, np.dot(np.diag(c_tilde), F.conj()))/N))
 
         IF_original = np.dot(rn.get_derivative_network_response(), np.linalg.solve(computed_cov, rn.get_derivative_network_response()))
         IF_eigendec = np.abs(np.dot(rn.get_derivative_network_response(), np.dot(v, np.dot(np.diag(w**-1), np.dot(v.T, rn.get_derivative_network_response())))))
-        IF_fourier_bis = np.abs(np.dot(mu_tilde.conj(), c_tilde**-1*mu_tilde))
+        IF_fourier_bis = np.abs(np.dot(mu_tilde.conj(), c_tilde**-1*mu_tilde))/N
         IF_fourier = np.abs(np.dot(rn.get_derivative_network_response(), np.fft.ifft(c_tilde**-1*mu_tilde)))
 
         IF_fourier_theo = np.abs(np.dot(mu_tilde.conj(), np.dot(np.diag(c_tilde**-1), mu_tilde)))/N
@@ -2162,7 +2164,7 @@ if __name__ == '__main__':
         plt.ylabel('Number of neurons responding at %.f %%' % (percent_max*100.))
         plt.show()
 
-    if True:
+    if False:
         ## Check if covariance approximation with Toeplitz structure works.
 
         # Run %run experimentlauncher before.
