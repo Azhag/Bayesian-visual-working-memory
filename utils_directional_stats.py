@@ -19,6 +19,16 @@ import statsmodels.distributions as stmodsdist
 
 ############################## DIRECTIONAL STATISTICS ################################
 
+def vonmisespdf(x, mu, K):
+    '''
+        Von Mises PDF (switch to Normal if high kappa)
+    '''
+    if K > 700.:
+        return np.sqrt(K)/(np.sqrt(2*np.pi))*np.exp(-0.5*(x -mu)**2.*K)
+    else:
+        return np.exp(K*np.cos(x-mu)) / (2.*np.pi * spsp.i0(K))
+
+
 def sample_angle(size=1):
     return np.random.random(size=size)*2.*np.pi - np.pi
 

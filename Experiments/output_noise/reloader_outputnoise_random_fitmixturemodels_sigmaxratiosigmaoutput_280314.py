@@ -60,7 +60,7 @@ def plots_fit_mixturemodels_random(data_pbs, generator_module=None):
     result_dist_gorgo11_flat = np.array(data_pbs.dict_arrays['result_dist_gorgo11']['results_flat'])
     result_parameters_flat = np.array(data_pbs.dict_arrays['result_em_fits']['parameters_flat'])
 
-    M_space = data_pbs.loaded_data['parameters_uniques']['M']
+    sigmaoutput_space = data_pbs.loaded_data['parameters_uniques']['sigma_output']
     sigmax_space = data_pbs.loaded_data['parameters_uniques']['sigmax']
     ratio_space = data_pbs.loaded_data['parameters_uniques']['sigmax']
     num_repetitions = generator_module.num_repetitions
@@ -120,7 +120,7 @@ def plots_fit_mixturemodels_random(data_pbs, generator_module=None):
             best_points_result_dist_to_use = np.argsort(result_dist_to_use)[:nb_best_points]
             utils.scatter3d(result_parameters_flat[best_points_result_dist_to_use, 0], result_parameters_flat[best_points_result_dist_to_use, 1], result_parameters_flat[best_points_result_dist_to_use, 2], c='r', s=size_best_points, ax_handle=ax)
             print "Best points, %s:" % title
-            print '\n'.join(['M %d, ratio %.2f, sigmax %.2f:  %f' % (result_parameters_flat[i, 0], result_parameters_flat[i, 1], result_parameters_flat[i, 2], result_dist_to_use[i]) for i in best_points_result_dist_to_use])
+            print '\n'.join(['sigma output %.2f, ratio %.2f, sigmax %.2f:  %f' % (result_parameters_flat[i, 0], result_parameters_flat[i, 1], result_parameters_flat[i, 2], result_dist_to_use[i]) for i in best_points_result_dist_to_use])
 
             if savefigs:
                 dataio.save_current_figure('scatter3d_%s_{label}_{unique_id}.pdf' % result_dist_to_use_name)
@@ -216,7 +216,7 @@ def plots_fit_mixturemodels_random(data_pbs, generator_module=None):
 
     if savedata:
         dataio.save_variables_default(locals(), variables_to_save)
-        dataio.make_link_output_to_dropbox(dropbox_current_experiment_folder='fit_mixturemodels')
+        dataio.make_link_output_to_dropbox(dropbox_current_experiment_folder='output_noise')
 
 
     plt.show()
@@ -238,7 +238,7 @@ dataset_infos = dict(label='Fitting of experimental data. All experiments. Rando
                      files="%s/%s*.npy" % (generator_module.pbs_submission_infos['simul_out_dir'], generator_module.pbs_submission_infos['other_options']['label'].split('{')[0]),
                      launcher_module=generator_module,
                      loading_type='args',
-                     parameters=['M', 'ratio_conj', 'sigmax'],
+                     parameters=['sigma_output', 'ratio_conj', 'sigmax'],
                      variables_to_load=['result_em_fits', 'result_em_fits_allnontargets', 'result_dist_bays09', 'result_dist_gorgo11'],
                      variables_description=['EM fits, using all nontargets (may be wrong)', 'EM fits, with nontargets mixtures', 'Distance of EM fits to Bays09 dataset (kappa, mixtures)', 'Distance to Gorgo11 dataset (kappa, mixtures)'],
                      post_processing=plots_fit_mixturemodels_random,

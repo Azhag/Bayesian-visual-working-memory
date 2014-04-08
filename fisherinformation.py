@@ -564,7 +564,7 @@ if __name__ == '__main__':
             data_gen_noise = DataGeneratorRFN(2000, T, random_network, sigma_y = sigma_y, sigma_x=sigma_x, time_weights_parameters=time_weights_parameters, cued_feature_time=cued_feature_time)
             stat_meas = StatisticsMeasurer(data_gen_noise)
 
-            sampler = Sampler(data_gen, n_parameters = stat_meas.model_parameters, tc=cued_feature_time)
+            sampler = Sampler(data_gen, n_parameters = stat_meas.model_parameters, tc=cued_feature_time, sigma_output=0.0)
 
             ### Estimate the Fisher Information
             print "Estimating the Fisher Information, param %.3f" % param
