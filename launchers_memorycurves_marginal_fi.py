@@ -186,7 +186,10 @@ def launcher_do_memory_curve_marginal_fi_withplots(args):
 
             ax = utils.plot_mean_std_area(T_space[:T_space_exp.max()], result_em_fits_mean[..., :T_space_exp.max(), 0], result_em_fits_std[..., :T_space_exp.max(), 0], xlabel='Number of items', ylabel="Memory error $[rad^{-2}]$", linewidth=3, fmt='o-', markersize=8, label='Fitted kappa', ax_handle=ax)
 
-            ax.set_title("{{exp_name}} {M} {ratio_conj} {sigmax} {sigmay}".format(**variables_launcher_running['all_parameters']).format(exp_name=exp_name))
+            if variables_launcher_running['all_parameters']['sigma_output'] > 0.0:
+                ax.set_title("{{exp_name}} {M} {ratio_conj:.2f} {sigmax:.3f} {sigmay:.2f} {sigma_output:.2f}".format(**variables_launcher_running['all_parameters']).format(exp_name=exp_name))
+            else:
+                ax.set_title("{{exp_name}} {M} {ratio_conj:.2f} {sigmax:.3f} {sigmay:.3f}".format(**variables_launcher_running['all_parameters']).format(exp_name=exp_name))
             ax.legend()
             ax.set_xlim([0.9, T_space_exp.max()+0.1])
             ax.set_xticks(range(1, T_space_exp.max()+1))
@@ -194,7 +197,10 @@ def launcher_do_memory_curve_marginal_fi_withplots(args):
 
             ax.get_figure().canvas.draw()
 
-            dataio.save_current_figure('memorycurves_kappa_%s_M{M}_ratio{ratio_conj}_sigmax{sigmax}_sigmay{sigmay}_{{label}}_{{unique_id}}.pdf'.format(**variables_launcher_running['all_parameters']) % (exp_name))
+            if variables_launcher_running['all_parameters']['sigma_output'] > 0.0:
+                dataio.save_current_figure('memorycurves_kappa_%s_M{M}_ratio{ratio_conj}_sigmax{sigmax}_sigmay{sigmay}_sigmaoutput{sigma_output}_{{label}}_{{unique_id}}.pdf'.format(**variables_launcher_running['all_parameters']) % (exp_name))
+            else:
+                dataio.save_current_figure('memorycurves_kappa_%s_M{M}_ratio{ratio_conj}_sigmax{sigmax}_sigmay{sigmay}_{{label}}_{{unique_id}}.pdf'.format(**variables_launcher_running['all_parameters']) % (exp_name))
 
             return ax
 
@@ -221,7 +227,11 @@ def launcher_do_memory_curve_marginal_fi_withplots(args):
 
             ax.legend(prop={'size':15})
 
-            ax.set_title("{{exp_name}} {M} {ratio_conj} {sigmax} {sigmay}".format(**variables_launcher_running['all_parameters']).format(exp_name=exp_name))
+            if variables_launcher_running['all_parameters']['sigma_output'] > 0.0:
+                ax.set_title("{{exp_name}} {M} {ratio_conj:.2f} {sigmax:.3f} {sigmay:.2f} {sigma_output:.2f}".format(**variables_launcher_running['all_parameters']).format(exp_name=exp_name))
+            else:
+                ax.set_title("{{exp_name}} {M} {ratio_conj:.2f} {sigmax:.3f} {sigmay:.3f}".format(**variables_launcher_running['all_parameters']).format(exp_name=exp_name))
+
             ax.set_xlim([1.0, T_space.size])
             ax.set_ylim([0.0, 1.1])
             ax.set_xticks(range(1, T_space.size+1))
@@ -229,7 +239,10 @@ def launcher_do_memory_curve_marginal_fi_withplots(args):
 
             ax.get_figure().canvas.draw()
 
-            dataio.save_current_figure('memorycurves_emfits_%s_M{M}_ratio{ratio_conj}_sigmax{sigmax}_sigmay{sigmay}_{{label}}_{{unique_id}}.pdf'.format(**variables_launcher_running['all_parameters']) % (exp_name))
+            if variables_launcher_running['all_parameters']['sigma_output'] > 0.0:
+                dataio.save_current_figure('memorycurves_emfits_%s_M{M}_ratio{ratio_conj}_sigmax{sigmax}_sigmay{sigmay}_sigmaoutput{sigma_output}_{{label}}_{{unique_id}}.pdf'.format(**variables_launcher_running['all_parameters']) % (exp_name))
+            else:
+                dataio.save_current_figure('memorycurves_emfits_%s_M{M}_ratio{ratio_conj}_sigmax{sigmax}_sigmay{sigmay}_{{label}}_{{unique_id}}.pdf'.format(**variables_launcher_running['all_parameters']) % (exp_name))
 
             return ax
 

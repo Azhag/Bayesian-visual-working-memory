@@ -13,6 +13,7 @@ import numpy as np
 import scipy.stats as spst
 import scipy.optimize as spopt
 import scipy.integrate as spintg
+import scipy.interpolate as spinter
 import scipy.io as sio
 import matplotlib.patches as plt_patches
 # import matplotlib.collections as plt_collections
@@ -209,7 +210,9 @@ class Sampler:
         '''
 
         self.sigma_output = sigma_output
-        self.kappa_output = stddev_to_kappa(sigma_output)
+        self.kappa_output = stddev_to_kappa_single(sigma_output)
+
+        # Add the precomputation of the new convolved posteriors here
 
 
     def precompute_parameters(self, t, amplify_diag=1.0):
@@ -413,7 +416,7 @@ class Sampler:
 
         return sample
 
-    def add_output_noise_vector(self, samples):
+    def add_output_noise_vectorized(self, samples):
         '''
             Vector version of add_output_noise()
         '''
@@ -463,7 +466,7 @@ class Sampler:
                 self.theta[n, self.sampled_feature_index] = all_angles[np.argmax(llh)]
 
         # Add output noise if desired.
-        self.theta[:, self.sampled_feature_index] = self.add_output_noise_vector(self.theta[:, self.sampled_feature_index])
+        self.theta[:, self.sampled_feature_index] = self.add_output_noise_vectorized(self.theta[:, self.sampled_feature_index])
 
 
     def change_cued_features(self, t_cued):
@@ -479,7 +482,7 @@ class Sampler:
         self.theta[np.arange(self.N), self.data_gen.cued_features[:, 0]] = self.data_gen.stimuli_correct[np.arange(self.N), self.data_gen.cued_features[:, 1], self.data_gen.cued_features[:, 0]]
 
 
-    def compute_bic(self, K=None, integrate_tc_out=False):
+    def compute_bic(self, K=None, integrate_tc_out=False, LL=None):
         '''
             Compute the BIC score for the current model.
 
@@ -487,6 +490,7 @@ class Sampler:
                 - Sigmax
                 - M neurons
                 - ratio_conj if code_type is mixed
+                - sigma_output if >0
 
             Usually, sigma_y is set to a super small value, and rc_scales are set automatically.
             Not sure if num_samples/burn_samples should count, I don't think so.
@@ -499,7 +503,13 @@ class Sampler:
             if self.random_network.population_code_type == 'mixed':
                 K += 1.
 
-        LL = self.compute_loglikelihood(integrate_tc_out=integrate_tc_out)
+            if self.sigma_output > 0.0:
+                K += 1
+
+        if LL is None:
+            LL = self.compute_loglikelihood(integrate_tc_out=integrate_tc_out)
+
+        print 'Bic: K ', K
 
         return bic(K, LL, self.N)
 
@@ -526,12 +536,13 @@ class Sampler:
         else:
             return self.compute_loglikelihood_current_tc() - self.normalization
 
-    def compute_loglikelihood_top90percent(self, integrate_tc_out=False):
+    def compute_loglikelihood_top90percent(self, integrate_tc_out=False, all_loglikelihoods=None):
         '''
             Compute the loglikelihood for each datapoint, just like compute_loglikelihood and compute_loglikelihood_N, but now only sums the top 90% results
         '''
 
-        all_loglikelihoods = self.compute_loglikelihood_N(integrate_tc_out)
+        if all_loglikelihoods is None:
+            all_loglikelihoods = self.compute_loglikelihood_N(integrate_tc_out)
 
         return np.nansum(np.sort(all_loglikelihoods)[self.N/10:])
 
@@ -572,6 +583,105 @@ class Sampler:
         return loglikelihood
 
 
+    def compute_loglikelihood_N_convolved_output_noise(self, precision=100):
+        '''
+            Compute the loglikelihood for the current setting of thetas and tc and using the likelihood defined in loglike_theta_fct_single
+        '''
+
+        loglikelihoods = np.empty(self.N)
+
+        posterior_space = np.linspace(-np.pi, np.pi, precision, endpoint=False)
+
+        for n in xrange(self.N):
+
+            # Compute the convolved posterior
+            convolved_posterior = self.compute_likelihood_convolved_output_noise_fullspace(n=n, all_angles=posterior_space)
+
+            # Get a spline interpolation
+            convolv_posterior_spline = spinter.InterpolatedUnivariateSpline(posterior_space, convolved_posterior)
+            normalization_convolv_posterior_spline = convolv_posterior_spline.integral(posterior_space[0], posterior_space[-1])
+
+            # Compute the final convolved loglikelihoods for the actual thetas
+            loglikelihoods[n] = np.log(convolv_posterior_spline(self.theta[n, self.theta_to_sample[n]]).item()) - np.log(normalization_convolv_posterior_spline)
+
+        return loglikelihoods
+
+
+    def compute_loglikelihood_convolved_output_noise(self, precision=100):
+        '''
+            Total summed loglikelihood, given convolved posterior with noise output
+        '''
+        return np.nansum(self.compute_loglikelihood_N_convolved_output_noise(precision=precision))
+
+
+    def compute_likelihood_convolved_output_noise_fullspace(self, n=0, all_angles=None, precision=100, normalize=False):
+        '''
+            Compute/instantiate the convolved loglikelihood on the provided space.
+
+            Computes it with the convolution theorem, in fourier space.
+        '''
+
+        if all_angles is None:
+            all_angles = np.linspace(-np.pi, np.pi, precision, endpoint=False)
+
+        posterior = self.compute_loglikelihood_nt_fullspace(n=n, t=self.tc[n], all_angles=all_angles, normalize=True, should_exponentiate=True)
+        noise = vonmisespdf(all_angles, 0.0, self.kappa_output)
+
+        # Compute the convolved posterior
+        posterior_fft = np.fft.fft(posterior)
+        noise_fft = np.fft.fft(noise)
+        convolved_posterior = np.abs(np.fft.ifft(posterior_fft*noise_fft))
+
+        # Roll it back, weirdly messed up because of the [-pi, pi] space instead of [0, 2pi].
+        convolved_posterior = np.roll(convolved_posterior, convolved_posterior.size/2)
+
+        if normalize:
+            # Get a spline interpolation to compute the normalisation
+            convolv_posterior_spline = spinter.InterpolatedUnivariateSpline(all_angles, convolved_posterior)
+            normalization_convolv_posterior_spline = convolv_posterior_spline.integral(all_angles[0], all_angles[-1])
+
+            convolved_posterior /= normalization_convolv_posterior_spline
+
+        return convolved_posterior
+
+
+    def compute_loglikelihood_nt_fullspace(self, n=0, t=0, all_angles=None, num_points=1000, normalize=False, should_exponentiate=False, remove_mean=False):
+        '''
+            Computes and returns the loglikelihood/likelihood evaluated for a given datapoint n given time/item t on the entire space (e.g. [-pi,pi]).
+        '''
+
+        if all_angles is None:
+            all_angles = np.linspace(-np.pi, np.pi, num_points, endpoint=False)
+        else:
+            num_points = all_angles.size
+
+        loglikelihood = np.empty(num_points)
+
+        # Compute the loglikelihood for all possible first feature
+        for i in xrange(num_points):
+
+            params = (np.array([all_angles[i], self.data_gen.stimuli_correct[n, t, 1]]), self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[t], self.sampled_feature_index, self.mean_fixed_contrib[t], self.inv_covariance_fixed_contrib)
+
+            # Give the correct cued second feature
+            loglikelihood[i] = loglike_theta_fct_single(all_angles[i], params)
+
+        # Normalise if required.
+        if normalize:
+            if t == self.tc[n]:
+                loglikelihood -= self.normalization[n]
+            else:
+                loglikelihood -= np.log(np.trapz(np.exp(loglikelihood), all_angles))
+
+        # Center loglik
+        if remove_mean:
+            loglikelihood -= np.mean(loglikelihood)
+
+        if should_exponentiate:
+            # If desired, exponentiate everything
+            loglikelihood = np.exp(loglikelihood)
+
+        return loglikelihood
+
 
     def compute_likelihood_fullspace(self, n=0, all_angles=None, num_points=1000, normalize=False, remove_mean=False, should_exponentiate=False):
         '''
@@ -587,32 +697,12 @@ class Sampler:
 
         # Compute the array
         for t in xrange(self.T):
-
-            # Compute the loglikelihood for all possible first feature
-            for i in xrange(num_points):
-
-                # Pack the parameters for the likelihood function
-                params = (np.array([all_angles[i], self.data_gen.stimuli_correct[n, t, 1]]), self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[t], self.sampled_feature_index, self.mean_fixed_contrib[t], self.inv_covariance_fixed_contrib)
-
-                # Give the correct cued second feature
-                likelihood[t, i] = loglike_theta_fct_single(all_angles[i], params)
-                # likelihood[t, i] = loglike_theta_fct_vect(np.array([all_angles[i], self.data_gen.stimuli_correct[n, t, 1]]), params)
+            likelihood[t] = self.compute_loglikelihood_nt_fullspace(n=n, t=t, all_angles=all_angles, num_points=num_points, normalize=normalize, should_exponentiate=should_exponentiate, remove_mean=remove_mean)
 
         likelihood = likelihood.T
 
-        # Center loglik
-        if remove_mean:
-            likelihood -= np.mean(likelihood, axis=0)
-
-        # Normalise if required.
-        if normalize:
-            likelihood -= self.normalization[n]
-
-        if should_exponentiate:
-            # If desired, plot the likelihood, not the loglik
-            likelihood = np.exp(likelihood)
-
         return likelihood
+
 
 
     ######################
@@ -806,6 +896,35 @@ class Sampler:
         return ax_handle
 
 
+    def plot_likelihood_convolved_output_noise(self, n=0, num_points=500, ax_handle=None, normalize=True, show_current_theta=True):
+        '''
+            Plot the likelihood obtained by convolving the posterior with the noise output von mises.
+        '''
+
+        all_angles = np.linspace(-np.pi, np.pi, num_points, endpoint=False)
+
+        convolved_posterior = self.compute_likelihood_convolved_output_noise_fullspace(n=n, all_angles=all_angles, normalize=normalize)
+
+        # Plot now
+        if ax_handle is None:
+            f = plt.figure()
+            ax_handle = f.add_subplot(111)
+
+        lines = ax_handle.plot(all_angles, convolved_posterior)
+        ax_handle.set_xlim((-np.pi, np.pi))
+
+        # Put a vertical line at the true answer
+        ax_handle.axvline(x=self.data_gen.stimuli_correct[n, self.tc[n], 0], color=lines[0].get_c())  # ax_handle[t] returns the plotted line
+
+        # Put a dotted line at the current theta sample, for tc
+        if show_current_theta:
+            ax_handle.axvline(x=self.theta[n, self.theta_to_sample[n]], color='k', linestyle="--")
+
+        ax_handle.get_figure().canvas.draw()
+
+        return ax_handle
+
+
     def plot_likelihood_comparison(self, n=0):
         '''
             Plot both likelihood and loglikelihoods of all t
@@ -874,7 +993,7 @@ class Sampler:
         if all_angles is None:
             all_angles = np.linspace(-np.pi, np.pi, num_points)
 
-        log_posterior = self.compute_likelihood_fullspace(n=n, all_angles=all_angles, num_points=num_points, should_exponentiate=False, remove_mean=True)[:, -1].T
+        log_posterior = self.compute_likelihood_fullspace(n=n, all_angles=all_angles, num_points=num_points, should_exponentiate=False, remove_mean=True)[:, self.tc[n]].T
 
         # Look if it seems Gaussian enough
 
@@ -1175,7 +1294,7 @@ class Sampler:
         if all_angles is None:
             all_angles = np.linspace(-np.pi, np.pi, num_points)
 
-        posterior = self.compute_likelihood_fullspace(n=n, all_angles=all_angles, num_points=num_points, should_exponentiate=True, normalize=True, remove_mean=True)[:, t]
+        posterior = self.compute_likelihood_fullspace(n=n, all_angles=all_angles, num_points=num_points, should_exponentiate=True, normalize=True, remove_mean=True)[:, self.tc[n]]
 
         mean_ = np.trapz(posterior*all_angles, all_angles)
         variance_ = np.trapz(posterior*(all_angles - mean_)**2., all_angles)
@@ -1461,7 +1580,7 @@ class Sampler:
 
 
 
-    def test_outputnoise_convolution(self, n=0, precision=1000):
+    def test_outputnoise_convolution(self, n=0, precision=500):
         '''
             Try to see if we can get a convolution of the posterior distribution with the output noise.
         '''
@@ -1470,14 +1589,16 @@ class Sampler:
 
         # instantiate the posterior
         posterior_space = np.linspace(-np.pi, np.pi, precision, endpoint=False)
-        posterior = self.compute_likelihood_fullspace(n=n, all_angles=posterior_space, normalize=True, should_exponentiate=True)[:, 0]
+        posterior = self.compute_likelihood_fullspace(n=n, all_angles=posterior_space, normalize=True, should_exponentiate=True)[:, self.tc[n]]
         posterior /= np.trapz(posterior, posterior_space)
+        log_posterior = self.compute_likelihood_fullspace(n=n, all_angles=posterior_space, normalize=True, should_exponentiate=False)[:, self.tc[n]]
 
         posterior_mirrored = np.r_[posterior, posterior, posterior]
 
         # instantiate the output noise
         noise_space = np.linspace(-np.pi, np.pi, precision, endpoint=False)
         noise = spst.vonmises.pdf(noise_space, self.kappa_output)
+        log_noise = np.log(noise)
 
         # Convolution numpy
         def conv1():
@@ -1492,7 +1613,7 @@ class Sampler:
             posterior_fft = np.fft.fft(posterior)
             noise_fft = np.fft.fft(noise)
             convolved_posterior_2 = (np.fft.ifft(posterior_fft*noise_fft)).real
-            convolved_posterior_2 /= np.trapz(convolved_posterior_2, posterior_space)
+            # convolved_posterior_2 /= np.trapz(convolved_posterior_2, posterior_space)
             # FFT and IFFT shift the phase somehow...
             convolved_posterior_2 = np.roll(convolved_posterior_2, convolved_posterior_2.size/2)
             return convolved_posterior_2
@@ -1506,17 +1627,56 @@ class Sampler:
             return convolved_posterior_3
         convolved_posterior_3 = conv3()
 
+        # Get interpolations and splines
+        interp_post2_lin = spinter.interp1d(posterior_space, convolved_posterior_2, kind='slinear')
+        interp_post2_cub = spinter.interp1d(posterior_space, convolved_posterior_2, kind='cubic')
+        interp_post2_sp = spinter.InterpolatedUnivariateSpline(posterior_space, convolved_posterior_2)
+        posterior_space_large = np.linspace(posterior_space[0], posterior_space[-1], precision*10)
+
+        Z_interp_post2_cub = spintg.quad(interp_post2_cub, posterior_space[0], posterior_space[-1])[0]
+        Z_interp_post2_sp = interp_post2_sp.integral(-np.pi, np.pi)
+
         # plots
         f, axes = plt.subplots(2, 2)
         axes.shape = 4
         axes[0].plot(posterior_space, posterior, 'b', noise_space, noise, 'k')
         axes[1].plot(posterior_space, posterior, posterior_space, convolved_posterior_mirror_cut)
-        axes[2].plot(posterior_space, posterior, posterior_space, convolved_posterior_2)
+        axes[2].plot(posterior_space, posterior, posterior_space, convolved_posterior_2/np.trapz(convolved_posterior_2, posterior_space))
         axes[3].plot(posterior_space, posterior, posterior_space, convolved_posterior_3)
         axes[0].legend(('Posterior', 'Noise'))
         axes[1].legend(('Posterior original', 'Posterior convolved repeat'))
         axes[2].legend(('Posterior original', 'Posterior convolved fft'))
         axes[3].legend(('Posterior original', 'Posterior convolved ndimage wrap'))
+
+        f, axes = plt.subplots()
+        axes.plot(posterior_space, convolved_posterior_2, posterior_space_large, interp_post2_lin(posterior_space_large), posterior_space_large, interp_post2_cub(posterior_space_large), posterior_space_large, interp_post2_sp(posterior_space_large))
+        axes.legend(('Finite grid', 'Lin spline', 'Cube spline', 'Spline object'))
+
+
+        ## Overall solution, estimate posterior and noise on finite support, do spline interpolation and use this as new functional posterior
+        def construct_convolved_posterior():
+
+            # instantiate the posterior
+            posterior_space = np.linspace(-np.pi, np.pi, precision, endpoint=False)
+            posterior = self.compute_likelihood_fullspace(n=n, all_angles=posterior_space, normalize=True, should_exponentiate=True)[:, self.tc[n]]
+            noise = spst.vonmises.pdf(posterior_space, self.kappa_output)
+
+            # Compute the convoluted posterior
+            posterior_fft = np.fft.fft(posterior)
+            noise_fft = np.fft.fft(noise)
+            convolved_posterior_2 = np.abs(np.fft.ifft(posterior_fft*noise_fft))
+
+            convolved_posterior_2 = np.roll(convolved_posterior_2, convolved_posterior_2.size/2)
+
+            # Get a spline interpolation
+            interp_post2_sp = spinter.InterpolatedUnivariateSpline(posterior_space, convolved_posterior_2)
+            Z_interp_post2_sp = interp_post2_sp.integral(posterior_space[0], posterior_space[-1])
+
+            posterior_space_large = np.linspace(-np.pi, np.pi, precision*10)
+            plt.figure()
+            plt.plot(posterior_space, posterior, posterior_space_large,  interp_post2_sp(posterior_space_large)/Z_interp_post2_sp)
+
+
 
 
 ####################################

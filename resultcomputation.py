@@ -189,7 +189,7 @@ class ResultComputation():
 
     def compute_result_distfit_gorgo11_bic(self, all_variables):
         '''
-            Result is summed BIC score of FitExperiment to Bays09
+            Result is summed BIC score of FitExperiment to Gorgo11
         '''
         return self.compute_result_distfit_givenexp(all_variables, experiment_id='gorgo11', metric_index=0)
 
@@ -207,32 +207,46 @@ class ResultComputation():
         '''
         return -self.compute_result_distfit_givenexp(all_variables, experiment_id='gorgo11', metric_index=2)
 
-    def compute_result_distfit_givenexp(self, all_variables, experiment_id='bays09', metric_index=0):
+
+    def compute_result_distfit_givenexp(self, all_variables, experiment_id='bays09', metric_index=0, target_array_name='result_fitexperiments_all'):
         '''
             Result is the summed BIC score of the FitExperiment result on a given dataset
         '''
 
-        if 'result_fitexperiments_all' in all_variables:
-            # We have result_fitexperiments_all, that's good.
+        if target_array_name in all_variables:
+            # We have target_array_name (result_fitexperiments_all or result_fitexperiments_noiseconv_all say), that's good.
 
             # Extract only the Bays09 result
             experiment_index = all_variables['all_parameters']['experiment_ids'].index(experiment_id)
 
             # Make it work for either fixed T or multiple T.
 
-            if len(all_variables['result_fitexperiments_all'].shape) == 3:
+            if len(all_variables[target_array_name].shape) == 3:
                 # Single T. Average over axis -1
-                bic_summed = utils.nanmean(all_variables['result_fitexperiments_all'][metric_index, experiment_index])
-            elif len(all_variables['result_fitexperiments_all'].shape) == 4:
+                bic_summed = utils.nanmean(all_variables[target_array_name][metric_index, experiment_index])
+            elif len(all_variables[target_array_name].shape) == 4:
                 # Multiple T. Average over axis -1, then sum
-                bic_summed = np.nansum(utils.nanmean(all_variables['result_fitexperiments_all'][:, metric_index, experiment_index], axis=-1))
+                bic_summed = np.nansum(utils.nanmean(all_variables[target_array_name][:, metric_index, experiment_index], axis=-1))
             else:
-                raise ValueError("wrong shape for result_fitexperiments_all: {}".format(all_variables['result_fitexperiments_all'].shape))
+                raise ValueError("wrong shape for result_fitexperiments_all: {}".format(all_variables[target_array_name].shape))
         else:
             # We do not have it, could instantiate a FitExperiment with "normal" parameters and work from there instead
             raise NotImplementedError('version without result_fitexperiments_all not implemented yet')
 
         return bic_summed
+
+
+    def compute_result_distfit_noiseconv_gorgo11_bic(self, all_variables):
+        '''
+            Result is summed BIC score of FitExperiment to Gorgo11, using a posterior convolved with a noise output distribution
+        '''
+        return self.compute_result_distfit_givenexp(all_variables, experiment_id='gorgo11', metric_index=0, target_array_name='result_fitexperiments_noiseconv_all')
+
+    def compute_result_distfit_noiseconv_bays09_bic(self, all_variables):
+        '''
+            Result is summed BIC score of FitExperiment to Bays09, using a posterior convolved with a noise output distribution
+        '''
+        return self.compute_result_distfit_givenexp(all_variables, experiment_id='bays09', metric_index=0, target_array_name='result_fitexperiments_noiseconv_all')
 
 
     def compute_result_filenameoutput(self, all_variables):
