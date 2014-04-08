@@ -18,7 +18,7 @@ submit_jobs = True
 
 parameter_generation = 'random'  ## !!!!!! RANDOM HERE   !!!!!
 num_random_samples = 5000
-limit_max_queued_jobs = 30
+limit_max_queued_jobs = 50
 
 resource = ''
 

@@ -18,7 +18,7 @@ submit_jobs = True
 
 parameter_generation = 'random'  ## !!!!!! RANDOM HERE   !!!!!
 num_random_samples = 7000
-limit_max_queued_jobs = 70
+limit_max_queued_jobs = 30
 resource = ''
 
 # submit_cmd = 'qsub'
@@ -34,7 +34,7 @@ M = 144
 num_repetitions = 3
 T = 6
 
-run_label = 'outputnoise_random_fitting_experiments_mixed_sigmaxratiosigmaoutput_allT_ll90_M{M}repetitions{num_repetitions}_280314'
+run_label = 'outputnoise_random_fitting_experiments_mixed_sigmaxratiosigmaoutput_allT_ll90_M{M}repetitions{num_repetitions}_020414'
 
 pbs_submission_infos = dict(description='Random sampling. Fitting of experimental data. Use automatic parameter setting for rcscale and rcscale2, and vary ratio_conj, sigmax and sigma_output. Should fit following datasets: Bays09, Dualrecall, Gorgo11. Compute and store LL and LL90%. Uses new output noise scheme, see if this has an effect',
                             command='python $WORKDIR/experimentlauncher.py',
@@ -67,7 +67,7 @@ pbs_submission_infos = dict(description='Random sampling. Fitting of experimenta
                             simul_out_dir=os.path.join(os.getcwd(), run_label.format(**locals())),
                             pbs_submit_cmd=submit_cmd,
                             limit_max_queued_jobs=limit_max_queued_jobs,
-                            submit_label='outnoise_rndll90',
+                            submit_label='outnoise_LL_fit1',
                             resource=resource)
 
 if getpass.getuser() == 'dc-matt1':
@@ -76,7 +76,7 @@ if getpass.getuser() == 'dc-matt1':
 
 sigmax_range      =   dict(sampling_type='uniform', low=0.01, high=1.0, dtype=float)
 ratio_range       =   dict(sampling_type='uniform', low=0.01, high=1.0, dtype=float)
-sigmaoutput_range =   dict(sampling_type='uniform', low=0.0, high=3.0, dtype=float)
+sigmaoutput_range =   dict(sampling_type='uniform', low=0.01, high=1.5, dtype=float)
 
 dict_parameters_range = dict(sigma_output=sigmaoutput_range, ratio_conj=ratio_range, sigmax=sigmax_range)
 
