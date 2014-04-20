@@ -41,7 +41,7 @@ def plots_fit_mixturemodels_random(data_pbs, generator_module=None):
     savemovies = True
 
     plots_dist_bays09 = True
-    plots_per_T = False
+    plots_per_T = True
     plots_interpolate = False
 
     # do_relaunch_bestparams_pbs = True
@@ -55,6 +55,8 @@ def plots_fit_mixturemodels_random(data_pbs, generator_module=None):
     # parameters: M, ratio_conj, sigmax
 
     # Extract data
+    T_space = data_pbs.loaded_data['datasets_list'][0]['T_space']
+
     result_em_fits_flat = np.array(data_pbs.dict_arrays['result_em_fits']['results_flat'])
     result_dist_bays09_flat = np.array(data_pbs.dict_arrays['result_dist_bays09']['results_flat'])
     result_dist_gorgo11_flat = np.array(data_pbs.dict_arrays['result_dist_gorgo11']['results_flat'])
@@ -107,7 +109,7 @@ def plots_fit_mixturemodels_random(data_pbs, generator_module=None):
         size_normal_points = 8
         size_best_points = 50
 
-        def plot_scatter(all_vars, result_dist_to_use_name, title='', log_color=True):
+        def plot_scatter(all_vars, result_dist_to_use_name, title='', log_color=True, downsampling=1, label_file=''):
 
             fig = plt.figure()
             ax = Axes3D(fig)
@@ -123,19 +125,18 @@ def plots_fit_mixturemodels_random(data_pbs, generator_module=None):
             print '\n'.join(['sigma output %.2f, ratio %.2f, sigmax %.2f:  %f' % (result_parameters_flat[i, 0], result_parameters_flat[i, 1], result_parameters_flat[i, 2], result_dist_to_use[i]) for i in best_points_result_dist_to_use])
 
             if savefigs:
-                dataio.save_current_figure('scatter3d_%s_{label}_{unique_id}.pdf' % result_dist_to_use_name)
+                dataio.save_current_figure('scatter3d_%s%s_{label}_{unique_id}.pdf' % (result_dist_to_use_name, label_file))
 
                 if savemovies:
                     try:
-
-                        utils.rotate_plot3d(ax, dataio.create_formatted_filename('scatter3d_%s_{label}_{unique_id}.mp4' % result_dist_to_use_name), bitrate=8000, min_duration=8)
-                        utils.rotate_plot3d(ax, dataio.create_formatted_filename('scatter3d_%s_{label}_{unique_id}.gif' % result_dist_to_use_name), nb_frames=30, min_duration=8)
+                        utils.rotate_plot3d(ax, dataio.create_formatted_filename('scatter3d_%s%s_{label}_{unique_id}.mp4' % (result_dist_to_use_name, label_file)), bitrate=8000, min_duration=8)
+                        utils.rotate_plot3d(ax, dataio.create_formatted_filename('scatter3d_%s%s_{label}_{unique_id}.gif' % (result_dist_to_use_name, label_file)), nb_frames=30, min_duration=8)
                     except Exception:
                         # Most likely wrong aggregator...
                         print "failed when creating movies for ", result_dist_to_use_name
 
                 ax.view_init(azim=90, elev=10)
-                dataio.save_current_figure('scatter3d_%s_view2_{label}_{unique_id}.pdf' % result_dist_to_use_name)
+                dataio.save_current_figure('scatter3d_view2_%s%s_{label}_{unique_id}.pdf' % (result_dist_to_use_name, label_file))
 
             return ax
 
@@ -171,11 +172,27 @@ def plots_fit_mixturemodels_random(data_pbs, generator_module=None):
 
 
 
-    # if plots_per_T:
-    #     for T in T_space:
-    #         currT_indices = result_parameters_flat[:, 2] == T
+    if plots_per_T:
+        for T_i, T in enumerate(T_space):
 
-    #         utils.contourf_interpolate_data_interactive_maxvalue(result_parameters_flat[currT_indices][..., :2], result_fitexperiments_bic_avg[currT_indices], xlabel='Ratio_conj', ylabel='sigma x', title='BIC, T %d' % T, interpolation_numpoints=200, interpolation_method='nearest', log_scale=False)
+            # Kappa per T, fit to Bays09
+            result_dist_bays09_kappa_currT = result_dist_bays09_allT_avg[:, T_i, 0]
+            result_dist_bays09_kappa_currT_masked = mask_outliers(result_dist_bays09_kappa_currT)
+
+            plot_scatter(locals(), 'result_dist_bays09_kappa_currT_masked', 'kappa T %d masked' % T, label_file="T{}".format(T))
+
+            # EM Mixt per T, fit to Bays09
+            result_dist_bays09_emmixt_sum_currT = np.nansum(result_dist_bays09_allT_avg[:, T_i, 1:], axis=-1)
+            result_dist_bays09_emmixt_sum_currT_masked = mask_outliers(result_dist_bays09_emmixt_sum_currT)
+
+            plot_scatter(locals(), 'result_dist_bays09_emmixt_sum_currT_masked', 'EM mixt T %d masked' % T, label_file="T{}".format(T))
+
+            # EM Mixt per T, fit to Bays09 KL divergence
+            result_dist_bays09_emmixt_KL_sum_currT = result_dist_bays09_emmixt_KL[:, T_i]
+            plot_scatter(locals(), 'result_dist_bays09_emmixt_KL_sum_currT', 'KL EM mixt T %d masked' % T, label_file="T{}".format(T))
+
+
+
 
     # # Interpolate
     # if plots_interpolate:
@@ -222,6 +239,18 @@ def plots_fit_mixturemodels_random(data_pbs, generator_module=None):
     plt.show()
 
     return locals()
+
+
+def mask_outliers(result_dist_to_use, sigma_outlier=3):
+    '''
+        Mask outlier datapoints.
+        Compute the mean of the results and assume that points with:
+          result > mean + sigma_outlier*std
+        are outliers.
+
+        As we want the minimum values, do not mask small values
+    '''
+    return np.ma.masked_greater(result_dist_to_use, np.mean(result_dist_to_use) + sigma_outlier*np.std(result_dist_to_use))
 
 
 
