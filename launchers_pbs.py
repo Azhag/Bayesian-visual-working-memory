@@ -85,6 +85,7 @@ def launcher_do_run_job(args):
     '''
         Instantiate and run a JobWrapper for the given parameters.
     '''
+    job_outputs = {}
 
     all_parameters = vars(args)
 
@@ -92,12 +93,13 @@ def launcher_do_run_job(args):
     job = jobwrapper.JobWrapper(all_parameters, session_id=all_parameters['session_id'])
     print "Completed:", job.check_completed()
 
-    try:
-        job_outputs = job.compute()
-    finally:
-        # Even if an exception arises, we need to write the syncing file...
-        if not job.check_completed():
-            job.store_result()
+    if not job.check_completed():
+        try:
+            job_outputs = job.compute()
+        finally:
+            # Even if an exception arises, we need to write the syncing file...
+            if not job.check_completed():
+                job.store_result()
 
     # Print result
     print "Result:", job.get_result()
