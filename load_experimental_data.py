@@ -390,7 +390,7 @@ def preprocess_bays09(dataset, parameters):
 
 ######
 
-def load_dataset(filename='', preprocess=lambda x, p: x, parameters={}):
+def load_dataset(filename='', preprocess=lambda x, p: x, parameters={}, name=''):
     '''
         Load datasets.
         Supports
@@ -402,6 +402,9 @@ def load_dataset(filename='', preprocess=lambda x, p: x, parameters={}):
 
     # Load everything
     dataset = sio.loadmat(filename, mat_dtype=True)
+
+    # Set its name
+    dataset['name'] = name
 
     # Specific operations, for different types of datasets
     preprocess(dataset, parameters)
@@ -417,7 +420,7 @@ def load_multiple_datasets(datasets_descr = []):
 
     datasets = []
     for datasets_descr in datasets_descr:
-        datasets.append( load_dataset(filename=datasets_descr['filename'], preprocess=datasets_descr['preprocess'], parameters=datasets_descr['parameters']))
+        datasets.append( load_dataset(filename=datasets_descr['filename'], preprocess=datasets_descr['preprocess'], parameters=datasets_descr['parameters'], name=datasets_descr['name']))
 
     return datasets
 
@@ -818,7 +821,7 @@ def plots_check_bias_nontarget(dataset, dataio=None):
 
     # Get histograms of errors, per n_item
     for nitems_i in xrange(n_items_space.size):
-        utils.hist_samples_density_estimation(dataset['errors_nitems'][nitems_i], bins=angle_space, title='N=%d' % (n_items_space[nitems_i]), dataio=dataio, filename='hist_bias_targets_%ditems_{label}_{unique_id}.pdf' % (n_items_space[nitems_i]))
+        utils.hist_samples_density_estimation(dataset['errors_nitems'][nitems_i], bins=angle_space, title='%s N=%d' % (dataset['name'], n_items_space[nitems_i]), dataio=dataio, filename='hist_bias_targets_%ditems_{label}_{unique_id}.pdf' % (n_items_space[nitems_i]))
 
     # Get histograms of bias to nontargets. Do that by binning the errors to others nontargets of the array.
     utils.plot_hists_bias_nontargets(dataset['errors_all_nitems'][n_items_space>1], bins=20, dataio=dataio, label='allnontargets', remove_first_column=True)
@@ -960,11 +963,11 @@ def plots_histograms_errors_targets_nontargets_nitems(dataset, dataio=None):
     f2, axes2 = plt.subplots(ncols=dataset['n_items_size']-1, figsize=((dataset['n_items_size']-1)*6, 6), sharey=True)
 
     for n_items_i, n_items in enumerate(np.unique(dataset['n_items'])):
-        utils.hist_angular_data(dataset['errors_nitems'][n_items_i], bins=angle_space, title='N=%d' % (n_items), norm='density', ax_handle=axes1[n_items_i], pretty_xticks=True)
+        utils.hist_angular_data(dataset['errors_nitems'][n_items_i], bins=angle_space, title='%s N=%d' % (dataset['name'], n_items), norm='density', ax_handle=axes1[n_items_i], pretty_xticks=True)
         axes1[n_items_i].set_ylim([0., 2.0])
 
         if n_items > 1:
-            utils.hist_angular_data(utils.dropnan(dataset['errors_nontarget_nitems'][n_items_i]), bins=angle_space, title='N=%d' % (n_items), norm='density', ax_handle=axes2[n_items_i-1], pretty_xticks=True)
+            utils.hist_angular_data(utils.dropnan(dataset['errors_nontarget_nitems'][n_items_i]), bins=angle_space, title='%s N=%d' % (dataset['name'], n_items), norm='density', ax_handle=axes2[n_items_i-1], pretty_xticks=True)
 
             axes2[n_items_i-1].text(0.02, 0.96, "Vtest pval: %.4f" % (dataset['vtest_nitems'][n_items_i]), transform=axes2[n_items_i-1].transAxes, horizontalalignment='left', fontsize=13)
 
@@ -1041,7 +1044,7 @@ def plots_em_mixtures(dataset, dataio=None, use_sem=True):
 
     ax.legend(prop={'size':15})
 
-    ax.set_title('Mixture model for EM fit')
+    ax.set_title('Mixture model for EM fit %s' % dataset['name'])
     ax.set_xlim([1.0, np.unique(dataset['n_items']).max()])
     ax.set_ylim([0.0, 1.1])
     ax.set_xticks(range(1, np.unique(dataset['n_items']).max()+1))
@@ -1087,12 +1090,12 @@ def plots_dualrecall(dataset):
     if to_plot['resp_vs_targ']:
 
         # Plot scatter and marginals for the orientation trials
-        utils.scatter_marginals(utils.dropnan(dataset['item_angle'][dataset['angle_trials'] & dataset['3_items_trials'], 0]), utils.dropnan(dataset['probe_angle'][dataset['angle_trials'] & dataset['3_items_trials']]), xlabel ='Target angle', ylabel='Response angle', title='Angle trials, 3 items', figsize=(9, 9), factor_axis=1.1, bins=61)
-        utils.scatter_marginals(utils.dropnan(dataset['item_angle'][dataset['angle_trials'] & dataset['6_items_trials'], 0]), utils.dropnan(dataset['probe_angle'][dataset['angle_trials'] & dataset['6_items_trials']]), xlabel ='Target angle', ylabel='Response angle', title='Angle trials, 6 items', figsize=(9, 9), factor_axis=1.1, bins=61)
+        utils.scatter_marginals(utils.dropnan(dataset['item_angle'][dataset['angle_trials'] & dataset['3_items_trials'], 0]), utils.dropnan(dataset['probe_angle'][dataset['angle_trials'] & dataset['3_items_trials']]), xlabel ='Target angle', ylabel='Response angle', title='%s Angle trials, 3 items' % (dataset['name']), figsize=(9, 9), factor_axis=1.1, bins=61)
+        utils.scatter_marginals(utils.dropnan(dataset['item_angle'][dataset['angle_trials'] & dataset['6_items_trials'], 0]), utils.dropnan(dataset['probe_angle'][dataset['angle_trials'] & dataset['6_items_trials']]), xlabel ='Target angle', ylabel='Response angle', title='%s Angle trials, 6 items' % (dataset['name']), figsize=(9, 9), factor_axis=1.1, bins=61)
 
         # Plot scatter and marginals for the colour trials
-        utils.scatter_marginals(utils.dropnan(dataset['item_colour'][dataset['colour_trials']& dataset['3_items_trials'], 0]), utils.dropnan(dataset['probe_colour'][dataset['colour_trials'] & dataset['3_items_trials']]), xlabel ='Target colour', ylabel='Response colour', title='Colour trials, 3 items', figsize=(9, 9), factor_axis=1.1, bins=61, show_colours=True)
-        utils.scatter_marginals(utils.dropnan(dataset['item_colour'][dataset['colour_trials'] & dataset['6_items_trials'], 0]), utils.dropnan(dataset['probe_colour'][dataset['colour_trials'] & dataset['6_items_trials']]), xlabel ='Target colour', ylabel='Response colour', title='Colour trials, 6 items', figsize=(9, 9), factor_axis=1.1, bins=61, show_colours=True)
+        utils.scatter_marginals(utils.dropnan(dataset['item_colour'][dataset['colour_trials']& dataset['3_items_trials'], 0]), utils.dropnan(dataset['probe_colour'][dataset['colour_trials'] & dataset['3_items_trials']]), xlabel ='Target colour', ylabel='Response colour', title='%s Colour trials, 3 items' % (dataset['name']), figsize=(9, 9), factor_axis=1.1, bins=61, show_colours=True)
+        utils.scatter_marginals(utils.dropnan(dataset['item_colour'][dataset['colour_trials'] & dataset['6_items_trials'], 0]), utils.dropnan(dataset['probe_colour'][dataset['colour_trials'] & dataset['6_items_trials']]), xlabel ='Target colour', ylabel='Response colour', title='%s Colour trials, 6 items' % (dataset['name']), figsize=(9, 9), factor_axis=1.1, bins=61, show_colours=True)
 
 
     if 'em_fits' in dataset:
@@ -1259,7 +1262,7 @@ def load_data_simult(data_dir=None, fit_mixture_model=False):
         experim_datadir = os.environ.get('WORKDIR_DROP', os.path.split(utils.__file__)[0])
         data_dir=os.path.normpath(os.path.join(experim_datadir, '../../experimental_data/'))
 
-    data_simult =  load_multiple_datasets([dict(name='Gorgo_simult', filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(fit_mixture_model=fit_mixture_model, datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), mixture_model_cache='em_simult.pickle'))])[0]
+    data_simult =  load_multiple_datasets([dict(name='gorgo11', filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(fit_mixture_model=fit_mixture_model, datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), mixture_model_cache='em_simult.pickle'))])[0]
 
     return data_simult
 
@@ -1273,7 +1276,7 @@ def load_data_bays09(data_dir=None, fit_mixture_model=False):
         experim_datadir = os.environ.get('WORKDIR_DROP', os.path.split(utils.__file__)[0])
         data_dir=os.path.normpath(os.path.join(experim_datadir, '../../experimental_data/'))
 
-    (data_bays2009, ) = load_multiple_datasets([dict(name='Bays2009', filename='colour_data.mat', preprocess=preprocess_bays09, parameters=dict(datadir=os.path.join(data_dir, 'Bays2009'), fit_mixture_model=fit_mixture_model, mixture_model_cache='em_bays_allitems.pickle'))])
+    (data_bays2009, ) = load_multiple_datasets([dict(name='bays09', filename='colour_data.mat', preprocess=preprocess_bays09, parameters=dict(datadir=os.path.join(data_dir, 'Bays2009'), fit_mixture_model=fit_mixture_model, mixture_model_cache='em_bays_allitems.pickle'))])
 
     return data_bays2009
 
@@ -1295,7 +1298,7 @@ def load_data_dualrecall(data_dir=None, fit_mixture_model=False):
         experim_datadir = os.environ.get('WORKDIR_DROP', os.path.split(utils.__file__)[0])
         data_dir=os.path.normpath(os.path.join(experim_datadir, '../../experimental_data/'))
 
-    (data_dualrecall, ) = load_multiple_datasets([dict(name='DualRecall', filename=os.path.join(data_dir, 'DualRecall_Bays', 'rate_data.mat'), preprocess=preprocess_dualrecall, parameters=dict(fit_mixture_model=fit_mixture_model, mixture_model_cache='em_dualrecall_allitems.pickle'))])
+    (data_dualrecall, ) = load_multiple_datasets([dict(name='dualrecall', filename=os.path.join(data_dir, 'DualRecall_Bays', 'rate_data.mat'), preprocess=preprocess_dualrecall, parameters=dict(fit_mixture_model=fit_mixture_model, mixture_model_cache='em_dualrecall_allitems.pickle'))])
 
 
     return data_dualrecall
@@ -1356,7 +1359,7 @@ if __name__ == '__main__':
     # plots_check_bias_bestnontarget(data_simult, dataio=dataio)
     # plots_check_bias_nontarget_randomized(data_simult, dataio=dataio)
 
-    # plots_bays2009(data_bays2009, dataio=dataio)
+    plots_bays2009(data_bays2009, dataio=dataio)
 
     # dataio = DataIO.DataIO(label='experiments_gorgo11')
     plots_gorgo11(data_gorgo11, dataio)
