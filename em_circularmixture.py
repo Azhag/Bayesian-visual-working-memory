@@ -267,7 +267,7 @@ def initialise_parameters_random(N, K, nb_initialisations=10):
     '''
 
     all_params = []
-    resp_ik = np.empty((N, K+1))
+    resp_ik = np.empty((N, int(K+1)))
 
     for i in xrange(nb_initialisations):
         kappa = np.random.rand()*300.
@@ -307,7 +307,7 @@ def initialise_parameters_fixed(N, K):
     # for k in kappa:
     #     resp_ik.append(np.empty((N, K+1)))
 
-    resp_ik = [np.empty((N, K+1)), ]*len(kappa)
+    resp_ik = [np.empty((N, int(K+1))), ]*len(kappa)
 
     return zip(kappa, mixt_target, mixt_random, mixt_nontargets, resp_ik)
 
