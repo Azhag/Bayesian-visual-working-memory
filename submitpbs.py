@@ -20,6 +20,8 @@ import getpass
 import compileall
 import collections
 
+import logging
+
 import utils
 import dataio
 
@@ -62,6 +64,8 @@ class SubmitPBS():
     def __init__(self, pbs_submission_infos=None, working_directory=None, memory='2gb', walltime='1:00:00', set_env=True, scripts_dir='pbs_scripts', output_dir='pbs_output', wait_submitting=False, submit_label='', pbs_submit_cmd='qsub', limit_max_queued_jobs=0, debug=False):
 
         self.debug = debug
+        logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
+        self.logger = logging.getLogger(submit_label)
 
         if pbs_submission_infos is not None:
             # Extract informations from this dictionary instead
@@ -114,7 +118,7 @@ class SubmitPBS():
         self.open_submit_file()
 
         if self.debug:
-            print "SubmitPBS initialised:\n %s, %s, %s, %s" % (self.working_directory, self.scripts_dir, self.output_dir, self.pbs_options)
+            self.logger.info("SubmitPBS initialised:\n %s, %s, %s, %s" % (self.working_directory, self.scripts_dir, self.output_dir, self.pbs_options))
 
         # Force pre-compilation of everything
         compileall.compile_dir(os.environ['WORKDIR'], quiet=True)
@@ -190,7 +194,7 @@ class SubmitPBS():
             sleep_time_rnd = np.random.randint(sleeping_period['min'], sleeping_period['max'])
 
             if self.debug:
-                print "Queue full (%d queued/%d limit max), waiting %d sec..." % (self.num_queued_jobs, self.limit_max_queued_jobs, sleep_time_rnd)
+                self.logger.info("Queue full (%d queued/%d limit max), waiting %d sec..." % (self.num_queued_jobs, self.limit_max_queued_jobs, sleep_time_rnd))
 
             # Sleep for a bit
             time.sleep(sleep_time_rnd)
@@ -330,8 +334,8 @@ class SubmitPBS():
         self.add_to_submit_file(fn, command)
 
         if self.debug:
-            print "\n--- Script created: ---"
-            print command + "\n"
+            self.logger.info("\n--- Script created: ---")
+            self.logger.info(command + "\n")
 
         return fn
 
@@ -352,7 +356,7 @@ class SubmitPBS():
 
         # Submit!
         if self.debug:
-            print "-> Submitting job " + new_script_filename + "\n"
+            self.logger.info("-> Submitting job " + new_script_filename + "\n")
 
         # Change to the PBS output directory first
         utils.chdir_safe(self.output_dir)
@@ -425,7 +429,7 @@ class SubmitPBS():
 
         # Provide as many experimentally constrained parameters as desired
         while len(constrained_parameters) < num_random_samples:
-            print "Parameters tested %d, found %d. %d requested. %.2f%%, %s left - %s" % (tested_parameters, len(constrained_parameters), num_random_samples, fill_parameters_progress.percentage(), fill_parameters_progress.time_remaining_str(), fill_parameters_progress.eta_str())
+            self.logger.info("Parameters tested %d, found %d. %d requested. %.2f%%, %s left - %s" % (tested_parameters, len(constrained_parameters), num_random_samples, fill_parameters_progress.percentage(), fill_parameters_progress.time_remaining_str(), fill_parameters_progress.eta_str()))
 
             # Sample new parameter values
             new_parameters = {}
@@ -449,7 +453,7 @@ class SubmitPBS():
             tested_parameters += 1
 
         if self.debug:
-            print "\n-- Submitted/created %d jobs --\n" % self.num_queued_jobs
+            self.logger.info("\n-- Submitted/created %d jobs --\n" % self.num_queued_jobs)
 
         return constrained_parameters
 
@@ -495,7 +499,7 @@ class SubmitPBS():
 
         # Some debuging info
         if self.debug:
-            print "\n=== Generating up to %d candidate parameter sets ===\n" % len(candidate_parameters)
+            self.logger.info("\n=== Generating up to %d candidate parameter sets ===\n" % len(candidate_parameters))
 
         # Now filter them
         constrained_parameters = []
@@ -510,7 +514,7 @@ class SubmitPBS():
                     self.create_submit_job_parameters(pbs_submission_infos, force_parameters=new_parameters, submit=submit_jobs)
 
         if self.debug:
-            print "\n-- Submitted/created %d jobs --\n" % self.num_queued_jobs
+            self.logger.info("\n-- Submitted/created %d jobs --\n" % self.num_queued_jobs)
 
         return constrained_parameters
 
@@ -539,7 +543,7 @@ class SubmitPBS():
 
         # Perform the sequential optimisation loop
         while parameters_tested < max_optimisation_iterations and not converged:
-            print " >Parameters tested %d (max %d). %.2f%%, %s left - %s" % (parameters_tested, max_optimisation_iterations, fill_parameters_progress.percentage(), fill_parameters_progress.time_remaining_str(), fill_parameters_progress.eta_str())
+            self.logger.info(" >Parameters tested %d (max %d). %.2f%%, %s left - %s" % (parameters_tested, max_optimisation_iterations, fill_parameters_progress.percentage(), fill_parameters_progress.time_remaining_str(), fill_parameters_progress.eta_str()))
 
             # Get new parameter values. For now, random
             # TODO Do something better.
@@ -548,7 +552,7 @@ class SubmitPBS():
                 # Use the provided sampling function (some are predefined)
                 new_parameters[curr_param] = param_dict['sampling_fct']()
             if self.debug:
-                print "New parameters: ", new_parameters, '\n'
+                self.logger.info("New parameters: %s \n" % new_parameters)
 
             # Check if the new parameters are within the constraints
             if (filtering_function is not None) and not filtering_function(new_parameters, dict_parameters_range, filtering_function_parameters):
@@ -609,10 +613,10 @@ class SubmitPBS():
         cma_options = dict()
         if cma_population_size is not None:
             cma_options['popsize'] = cma_population_size
-            print "forcing popsize: ", cma_population_size
+            self.logger.info("forcing popsize: %s " % cma_population_size)
         if cma_use_auto_scaling and not np.allclose(parameters_scalings, np.ones(len(parameter_names_sorted))):
             cma_options['scaling_of_variables'] = parameters_scalings
-            print "forcing scaling: ", parameters_scalings
+            self.logger.info("forcing scaling: %s" % parameters_scalings)
         if cma_use_bounds:
             cma_options['bounds'] = [[dict_parameters_range[param_key][bound_] for param_key in parameter_names_sorted] for bound_ in ('low', 'high')]
 
@@ -645,9 +649,9 @@ class SubmitPBS():
                     wrong_parameters_indices = self.check_parameters_candidate(parameters_candidates_dict, parameter_names_sorted, dict_parameters_range)
 
                 if self.debug:
-                    print "> Submitting minibatch (%d jobs)." % len(parameters_candidates_array)
+                    self.logger.info("> Submitting minibatch (%d jobs)." % len(parameters_candidates_array))
                     for curr_param_dict_i, curr_param_dict in enumerate(parameters_candidates_dict):
-                        print " - {params}".format(params=utils.pprint_dict(curr_param_dict, key_sorted=parameter_names_sorted))
+                        self.logger.info(" - {params}".format(params=utils.pprint_dict(curr_param_dict, key_sorted=parameter_names_sorted)))
 
 
                 ## Evaluate the parameters fitness, submit them!!
@@ -657,9 +661,9 @@ class SubmitPBS():
                 fitness_results[np.isnan(fitness_results)] = cma_nan_replacement
 
                 if self.debug:
-                    print ">> Minibatch completed (%d jobs)." % len(parameters_candidates_array)
+                    self.logger.info(">> Minibatch completed (%d jobs)." % len(parameters_candidates_array))
                     for curr_param_dict_i, curr_param_dict in enumerate(parameters_candidates_dict):
-                        print " - {params} \t -> {result}".format(params=utils.pprint_dict(curr_param_dict, key_sorted=parameter_names_sorted), result=fitness_results[curr_param_dict_i])
+                        self.logger.info(" - {params} \t -> {result}".format(params=utils.pprint_dict(curr_param_dict, key_sorted=parameter_names_sorted), result=fitness_results[curr_param_dict_i]))
 
                 ## Update the state of CMA-ES
                 cma_es.tell(parameters_candidates_array, fitness_results)
@@ -688,15 +692,15 @@ class SubmitPBS():
                             pass
         except KeyboardInterrupt:
             # Ctrl-C
-            print ">>> Quit CMA/ES early"
+            self.logger.info(">>> Quit CMA/ES early")
 
         # Print overall best!
-        print "Overall best:"
-        print utils.pprint_dict(self.cma_parameters_array_to_dict(cma_es.best.x, parameter_names_sorted, dict_parameters_range), parameter_names_sorted)
-        print " -> result: ", cma_es.best.f
-        print cma_es.best.get()
+        self.logger.info("Overall best:")
+        self.logger.info(utils.pprint_dict(self.cma_parameters_array_to_dict(cma_es.best.x, parameter_names_sorted, dict_parameters_range), parameter_names_sorted))
+        self.logger.info(" -> result: %s" % cma_es.best.f)
+        self.logger.info(cma_es.best.get())
 
-        print "=== CMA_ES FINISHED ==="
+        self.logger.info("=== CMA_ES FINISHED ===")
 
         return dict(result_final=cma_es.result(), result_tracking_dict=self.result_tracking_dict, best_params=cma_es.best.get(), best_f=cma_es.best.f)
 
@@ -802,7 +806,7 @@ class SubmitPBS():
             self.submit_jobwrapper(new_job, pbs_submission_infos, submit=submit_jobs)
 
         if self.debug:
-            print "-> submitted minibatch, %d jobs. %s computation" % (len(parameters_to_submit), job_submission_parameters.get('result_computation', 'no'))
+            self.logger.info("-> submitted minibatch, %d jobs. %s computation" % (len(parameters_to_submit), job_submission_parameters.get('result_computation', 'no')))
 
         if wait_jobs_completed:
             ## Wait for Jobs to be completed (could do another version where you send multiple jobs before waiting)
@@ -923,7 +927,7 @@ class SubmitPBS():
                         str_completion = "Job {0} done. Result: {1}. {2} left.".format(current_job_name, self.jobs_tracking_dict[current_job_name]['result'], len(submitted_job_names))
 
                         # (this ridiculous len(str) business is to have some pretty output, as we write \r)
-                        print str_completion, " "*(last_str_len - len(str_completion))
+                        self.logger.info(str_completion + " "*(last_str_len - len(str_completion)))
 
                     if completion_progress is not None:
                         completion_progress.increment()
@@ -936,7 +940,7 @@ class SubmitPBS():
                         # Waited too long...
                         # try to resubmit it!
                         if self.debug:
-                            print "Waited more than walltime for job %s, resubmitting it (%d/%d)         " % (current_job_name, self.jobs_tracking_dict[current_job_name]['number_submissions'], max_number_submissions)
+                            self.logger.info("Waited more than walltime for job %s, resubmitting it (%d/%d)         " % (current_job_name, self.jobs_tracking_dict[current_job_name]['number_submissions'], max_number_submissions))
 
                         # Only resubmit a certain number of times...
                         if self.jobs_tracking_dict[current_job_name]['number_submissions'] < max_number_submissions:
@@ -1017,7 +1021,7 @@ def test_sequential_optimisation():
             best_parameters_seen['job_name'] = job.job_name
             best_parameters_seen['parameters'] = job.experiment_parameters
 
-            print "\n\n>>>>>> Found new best parameters: \n%s\n\n" % best_parameters_seen
+            self.logger.info("\n\n>>>>>> Found new best parameters: \n%s\n\n" % best_parameters_seen)
     submission_parameters_dict['result_callback_function_infos'] = dict(function=best_parameters_callback, parameters=dict(best_parameters_seen=best_parameters_seen))
 
     # Create a SubmitPBS
@@ -1060,7 +1064,7 @@ def test_cmaes_optimisation():
                                                label=run_label,
                                                session_id='emkappa',
                                                experiment_data_dir=os.path.normpath(os.path.join(os.environ['WORKDIR_DROP'], '../../experimental_data')),
-                                               result_computation='distemkappa'
+                                               result_computation='distemkappa_bays09'
                                                ),
                             walltime='00:08:00',
                             memory='2gb',
@@ -1087,7 +1091,7 @@ def test_cmaes_optimisation():
             best_parameters_seen['job_name'] = job.job_name
             best_parameters_seen['parameters'] = job.experiment_parameters
 
-            print "\n\n>>>>>> Found new best parameters: \n%s\n\n" % best_parameters_seen
+            self.logger.info("\n\n>>>>>> Found new best parameters: \n%s\n\n" % best_parameters_seen)
     submission_parameters_dict['result_callback_function_infos'] = dict(function=best_parameters_callback, parameters=dict(best_parameters_seen=best_parameters_seen))
 
     # Callback after each iteration, let's save all candidates/fitness, and do a contour plot
@@ -1149,7 +1153,7 @@ def test_cmaes_optimisation_3d():
                                                label=run_label,
                                                session_id='emkappa',
                                                experiment_data_dir=os.path.normpath(os.path.join(os.environ['WORKDIR_DROP'], '../../experimental_data')),
-                                               result_computation='distemkappa'
+                                               result_computation='distemkappa_bays09'
                                                ),
                             walltime='00:15:00',
                             memory='2gb',
@@ -1176,7 +1180,7 @@ def test_cmaes_optimisation_3d():
             best_parameters_seen['job_name'] = job.job_name
             best_parameters_seen['parameters'] = job.experiment_parameters
 
-            print "\n\n>>>>>> Found new best parameters: \n%s\n\n" % best_parameters_seen
+            self.logger.info("\n\n>>>>>> Found new best parameters: \n%s\n\n" % best_parameters_seen)
     submission_parameters_dict['result_callback_function_infos'] = dict(function=best_parameters_callback, parameters=dict(best_parameters_seen=best_parameters_seen))
 
     # Callback after each iteration, let's save all candidates/fitness, and do a contour plot
