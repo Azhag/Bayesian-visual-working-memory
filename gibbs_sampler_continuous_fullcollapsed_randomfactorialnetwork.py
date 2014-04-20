@@ -896,33 +896,40 @@ class Sampler:
         return ax_handle
 
 
-    def plot_likelihood_convolved_output_noise(self, n=0, num_points=500, ax_handle=None, normalize=True, show_current_theta=True):
+    def plot_likelihood_convolved_output_noise(self, n=0, num_points=500, normalize=True, show_current_theta=True):
         '''
             Plot the likelihood obtained by convolving the posterior with the noise output von mises.
         '''
 
         all_angles = np.linspace(-np.pi, np.pi, num_points, endpoint=False)
 
+        posterior = self.compute_likelihood_fullspace(n=n, all_angles=all_angles, normalize=normalize, should_exponentiate=True)[:, self.tc[n]]
+        # posterior /= np.trapz(posterior, all_angles)
+        noise = spst.vonmises.pdf(all_angles, self.kappa_output)
+
         convolved_posterior = self.compute_likelihood_convolved_output_noise_fullspace(n=n, all_angles=all_angles, normalize=normalize)
 
         # Plot now
-        if ax_handle is None:
-            f = plt.figure()
-            ax_handle = f.add_subplot(111)
-
-        lines = ax_handle.plot(all_angles, convolved_posterior)
-        ax_handle.set_xlim((-np.pi, np.pi))
+        f, axes = plt.subplots(2, 1)
+        axes.shape = 2
+        axes[0].plot(all_angles, posterior, 'b', all_angles, noise, 'r')
+        lines = axes[1].plot(all_angles, posterior, 'b', all_angles, convolved_posterior, 'g')
+        axes[0].legend(('Posterior', 'Noise'))
+        axes[1].legend(('Posterior original', 'Posterior convolved'))
+        axes[0].set_xlim((-np.pi, np.pi))
+        axes[1].set_xlim((-np.pi, np.pi))
 
         # Put a vertical line at the true answer
-        ax_handle.axvline(x=self.data_gen.stimuli_correct[n, self.tc[n], 0], color=lines[0].get_c())  # ax_handle[t] returns the plotted line
+        axes[1].axvline(x=self.data_gen.stimuli_correct[n, self.tc[n], 0], color=lines[0].get_c())  # ax_handle[t] returns the plotted line
 
         # Put a dotted line at the current theta sample, for tc
         if show_current_theta:
-            ax_handle.axvline(x=self.theta[n, self.theta_to_sample[n]], color='k', linestyle="--")
+            axes[1].axvline(x=self.theta[n, self.theta_to_sample[n]], color='k', linestyle="--")
 
-        ax_handle.get_figure().canvas.draw()
+        axes[0].get_figure().canvas.draw()
+        axes[1].get_figure().canvas.draw()
 
-        return ax_handle
+        return axes
 
 
     def plot_likelihood_comparison(self, n=0):
