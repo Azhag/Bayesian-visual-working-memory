@@ -57,7 +57,7 @@ def launcher_do_memory_curve_marginal_fi(args):
     result_em_fits = np.nan*np.ones((T_space.size, 5, all_parameters['num_repetitions']))  # kappa, mixt_target, mixt_nontarget, mixt_random, ll
 
     # If desired, will automatically save all Model responses.
-    if all_parameters['subaction'] == 'collect_responses':
+    if all_parameters['collect_responses'] or all_parameters['subaction'] == 'collect_responses':
         result_responses = np.nan*np.ones((T_space.size, all_parameters['N'], all_parameters['num_repetitions']))
         result_target = np.nan*np.ones((T_space.size, all_parameters['N'], all_parameters['num_repetitions']))
         result_nontargets = np.nan*np.ones((T_space.size, all_parameters['N'], all_parameters['T']-1, all_parameters['num_repetitions']))

@@ -74,6 +74,7 @@ class ResultComputation():
 
 
     ##########################################################################
+
     def compute_result_random(self, all_variables):
         '''
             Dummy result computation, where you just return a random value
@@ -82,7 +83,64 @@ class ResultComputation():
         return np.random.rand()
 
 
-    def compute_result_distemfits(self, all_variables):
+    def compute_result_distemfits_dataset(self, all_variables, experiment_id='bays09', cache_array_name='result_dist_bays09', variable_selection_slice=slice(None, 4), variable_selection_slice_cache=slice(None, None), metric='mse'):
+        '''
+            Result is the distance (sum squared) to experimental data fits
+
+            Assume that:
+                - result_em_fits exists. Does an average over repetitions_axis and sums over all others.
+                - metric = 'mse' | 'kl'
+                - variable_selection_slice: slice(0, 1) for kappa, slice(1, 4) for mixt proportions, slice(none, 4) for all EM params
+        '''
+
+        assert metric == 'mse' or metric == 'kl', "Metric should be {mse, kl}"
+
+        repetitions_axis = all_variables.get('repetitions_axis', -1)
+
+        if cache_array_name in all_variables:
+            # If already computed, use it
+            result_dist_allT = utils.nanmean(all_variables[cache_array_name][:, variable_selection_slice_cache], axis=repetitions_axis)
+
+        elif 'result_em_fits' in all_variables:
+            # Do some annoying slice manipulation
+            slice_valid_indices = variable_selection_slice.indices(all_variables['result_em_fits'].shape[1])
+
+            # Create output variables
+            if metric == 'mse':
+                result_dist_allT = np.nan*np.empty((all_variables['T_space'].size, slice_valid_indices[1] - slice_valid_indices[0]))
+            elif metric == 'kl':
+                result_dist_allT = np.nan*np.empty((all_variables['T_space'].size))
+
+            ### Result computation
+            if experiment_id == 'bays09':
+                data_loaded = load_experimental_data.load_data_bays09(fit_mixture_model=True)
+            elif experiment_id == 'gorgo11':
+                data_loaded = load_experimental_data.load_data_gorgo11(fit_mixture_model=True)
+            else:
+                raise ValueError('wrong experiment_id {}'.format(experiment_id))
+
+            experimental_mixtures_mean = data_loaded['em_fits_nitems_arrays']['mean']
+            experimental_T_space = np.unique(data_loaded['n_items'])
+            curr_result = np.nan
+
+            for T_i, T in enumerate(all_variables['T_space']):
+                if T in experimental_T_space:
+                    if metric == 'mse':
+                        curr_result = (experimental_mixtures_mean[variable_selection_slice, experimental_T_space == T] - all_variables['result_em_fits'][T_i, variable_selection_slice])**2.
+                    elif metric == 'kl':
+                        curr_result = utils.KL_div(all_variables['result_em_fits'][T_i, variable_selection_slice], experimental_mixtures_mean[variable_selection_slice, experimental_T_space==T], axis=0)
+
+                    result_dist_allT[T_i] = utils.nanmean(curr_result, axis=repetitions_axis)
+        else:
+            raise ValueError('array {}/result_em_fits not present, bad'.format(cache_array_name))
+
+        print result_dist_allT
+
+        # return the overall distance, over all parameters and number of items
+        return np.nansum(result_dist_allT)
+
+
+    def compute_result_distemfits_bays09(self, all_variables):
         '''
             Result is the distance (sum squared) to experimental data fits
 
@@ -90,34 +148,20 @@ class ResultComputation():
                 - result_em_fits exists. Does an average over repetitions_axis and sums over all others.
         '''
 
-        variables_required = ['result_em_fits', 'all_parameters', 'T_space']
-        repetitions_axis = all_variables.get('repetitions_axis', -1)
+        return self.compute_result_distemfits_dataset(all_variables, experiment_id='bays09', cache_array_name='result_dist_bays09', variable_selection_slice=slice(None, 4), metric='mse')
 
-        if not set(variables_required) <= set(all_variables.keys()):
-            print "Error, missing variables for compute_result_distemfits: \nRequired: %s\nPresent%s" % (variables_required, all_variables.keys())
-            return np.nan
+    def compute_result_distemfits_gorgo11(self, all_variables):
+        '''
+            Result is the distance (sum squared) to experimental data fits
 
+            Assume that:
+                - result_em_fits exists. Does an average over repetitions_axis and sums over all others.
+        '''
 
-        # Create output variables
-        result_dist_bays09 = np.nan*np.empty((all_variables['T_space'].size, 4))
-
-        ### Result computation
-        data_bays2009 = load_experimental_data.load_data_bays09(fit_mixture_model=True)
-        bays09_experimental_mixtures_mean = data_bays2009['em_fits_nitems_arrays']['mean']
-        bays09_T_space = np.unique(data_bays2009['n_items'])
-
-        for repet_i in xrange(all_variables['all_parameters']['num_repetitions']):
-            for T_i, T in enumerate(all_variables['T_space']):
-                if T in bays09_T_space:
-                    result_dist_bays09[T_i, :] = utils.nanmean((bays09_experimental_mixtures_mean[:, bays09_T_space == T] - all_variables['result_em_fits'][T_i, :4])**2., axis=repetitions_axis)
-
-        print result_dist_bays09
-
-        # return the overall distance, over all parameters and number of items
-        return np.nansum(result_dist_bays09)
+        return self.compute_result_distemfits_dataset(all_variables, experiment_id='gorgo11', cache_array_name='result_dist_gorgo11', variable_selection_slice=slice(None, 4), variable_selection_slice_cache=slice(None, 4), metric='mse')
 
 
-    def compute_result_distemkappa(self, all_variables):
+    def compute_result_distemkappa_bays09(self, all_variables):
         '''
             Result is the distance (sum squared) to experimental data kappa
 
@@ -125,35 +169,39 @@ class ResultComputation():
                 - result_em_fits exists. Does an average over repetitions_axis and sums over all others.
         '''
 
-        variables_required = ['result_em_fits', 'all_parameters', 'T_space']
-        repetitions_axis = all_variables.get('repetitions_axis', -1)
+        return self.compute_result_distemfits_dataset(all_variables, experiment_id='bays09', cache_array_name='result_dist_bays09', variable_selection_slice=slice(0, 1), variable_selection_slice_cache=slice(0, 1), metric='mse')
 
-        if not set(variables_required) <= set(all_variables.keys()):
-            print "Error, missing variables for compute_result_distemfits: \nRequired: %s\nPresent%s" % (variables_required, all_variables.keys())
-            return np.nan
+    def compute_result_distemkappa_gorgo11(self, all_variables):
+        '''
+            Result is the distance (sum squared) to experimental data kappa
 
+            Assume that:
+                - result_em_fits exists. Does an average over repetitions_axis and sums over all others.
+        '''
 
-        # Create output variables
-        result_dist_bays09 = np.nan*np.empty(all_variables['T_space'].size)
-
-        ### Result computation
-        data_bays2009 = load_experimental_data.load_data_bays09(fit_mixture_model=True)
-        bays09_experimental_mixtures_mean = data_bays2009['em_fits_nitems_arrays']['mean']
-        bays09_T_space = np.unique(data_bays2009['n_items'])
-
-        for repet_i in xrange(all_variables['all_parameters']['num_repetitions']):
-            for T_i, T in enumerate(all_variables['T_space']):
-                if T in bays09_T_space:
-                    result_dist_bays09[T_i] = utils.nanmean((bays09_experimental_mixtures_mean[0, bays09_T_space == T].flatten() - all_variables['result_em_fits'][T_i, 0])**2., axis=repetitions_axis)
-
-                    # print bays09_experimental_mixtures_mean[0, bays09_T_space == T].flatten()
-                    # print all_variables['result_em_fits'][T_i, 0]
+        return self.compute_result_distemfits_dataset(all_variables, experiment_id='gorgo11', cache_array_name='result_dist_gorgo11', variable_selection_slice=slice(0, 1), variable_selection_slice_cache=slice(0, 1), metric='mse')
 
 
-        print result_dist_bays09
+    def compute_result_distemmixtKL_bays09(self, all_variables):
+        '''
+            Result is the distance (KL) to experimental mixture proportions
 
-        # return the overall distance, over all parameters and number of items
-        return np.nansum(result_dist_bays09)
+            Assume that:
+                - result_em_fits exists. Does an average over repetitions_axis and sums over all others.
+        '''
+
+        return self.compute_result_distemfits_dataset(all_variables, experiment_id='bays09', cache_array_name='result_dist_bays09_emmixt_KL', variable_selection_slice=slice(1, 4), variable_selection_slice_cache=slice(None, None), metric='kl')
+
+
+    def compute_result_distemmixtKL_gorgo11(self, all_variables):
+        '''
+            Result is the distance (KL) to experimental mixture proportions
+
+            Assume that:
+                - result_em_fits exists. Does an average over repetitions_axis and sums over all others.
+        '''
+
+        return self.compute_result_distemfits_dataset(all_variables, experiment_id='gorgo11', cache_array_name='result_dist_gorgo11_emmixt_KL', variable_selection_slice=slice(1, 4), variable_selection_slice_cache=slice(None, None), metric='kl')
 
 
     def compute_result_distfitexpbic(self, all_variables):
