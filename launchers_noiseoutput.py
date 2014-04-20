@@ -48,7 +48,7 @@ def launcher_do_noise_output_effect(args):
 
     # Parameters to vary
     precision_sigmaoutput = 5
-    sigmaoutput_space = np.linspace(0.0, 2.0, precision_sigmaoutput)
+    sigmaoutput_space = np.linspace(0.0, 0.5, precision_sigmaoutput)
 
     # Result arrays
     result_all_precisions = np.nan*np.ones((sigmaoutput_space.size, all_parameters['num_repetitions']))
