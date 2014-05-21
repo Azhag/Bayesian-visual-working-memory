@@ -949,6 +949,9 @@ class SubmitPBS():
                         else:
                             # the walltime may be too short, just discard it
                             self.jobs_tracking_dict[current_job_name]['job'].store_result()
+                            self.complete_job(current_job_name)
+                            if completion_progress is not None:
+                                completion_progress.increment()
 
                     # Sleep for some time
                     # Decide for how long to sleep
