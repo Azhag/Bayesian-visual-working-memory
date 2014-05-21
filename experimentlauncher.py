@@ -41,6 +41,10 @@ class ExperimentLauncher(object):
         # Complete or overwrite the current arguments with arguments as function parameters
         self.add_arguments_parameters(arguments_dict)
 
+        # Change some parameters if a best_parameters_file is given
+        if self.args_dict['best_parameters_file']:
+            self.load_extra_parameters_from_file(self.args_dict['best_parameters_file'])
+
         # Run the launcher if desired
         if run:
             self.run_launcher()
@@ -192,6 +196,9 @@ class ExperimentLauncher(object):
             help='String used by JobWrapper for Result sync files. Used to avoid overwriting result files when running a job with the same parameters again.')
         parser.add_argument('--job_name', dest='job_name', default='',
             help='Unique job name, constructed from parameter values. Could be rebuilt on the fly, but easier to pass it if it exists.')
+        parser.add_argument('--best_parameters_file', dest='best_parameters_file', default='',
+            help='Reload parameters from a .npy file, created from PBS/SLURM runs. Expects some known dictionaries.')
+        parser.add_argument('--plot_while_running', dest='plot_while_running', default=False, action='store_true', help='If set, will plot while the simulation is going for chosen launchers.')
 
 
         self.args = parser.parse_args()
@@ -211,6 +218,24 @@ class ExperimentLauncher(object):
                 other_arguments_dict[key] = True
 
         self.args_dict.update(other_arguments_dict)
+
+
+    def load_extra_parameters_from_file(self, filename):
+        '''
+            Take a file (assumed .npy), load it and check for known dictionary names
+            that should contain some variables values to force.
+
+            Updates self.args/self.args_dict directly
+        '''
+
+        loaded_file = np.load(filename).item()
+
+        if 'parameters' in loaded_file:
+            if 'best_parameters' in loaded_file['parameters']:
+                print "+++ Reloading best parameters from {} +++".format(filename)
+                for key, value in loaded_file['parameters']['best_parameters'].iteritems():
+                    print "\t> {} : {}".format(key, value)
+                    self.args_dict[key] = value
 
 
     def run_launcher(self):
