@@ -41,7 +41,7 @@ def plots_fit_mixturemodels_random(data_pbs, generator_module=None):
     savemovies = True
 
     plots_dist_bays09 = True
-    plots_per_T = True
+    plots_per_T = False
     plots_interpolate = False
 
     # do_relaunch_bestparams_pbs = True
@@ -104,6 +104,11 @@ def plots_fit_mixturemodels_random(data_pbs, generator_module=None):
 
     result_dist_bays09_both_normalised = result_dist_bays09_emmixt_sum/np.max(result_dist_bays09_emmixt_sum) + result_dist_bays09_kappa_sum/np.max(result_dist_bays09_kappa_sum)
 
+    # Mask kappa for performance too bad
+    result_dist_bays09_kappa_sum_masked = np.ma.masked_greater(result_dist_bays09_kappa_sum, 2*np.median(result_dist_bays09_kappa_sum))
+    result_dist_bays09_emmixt_KL_sum_masked = np.ma.masked_greater(result_dist_bays09_emmixt_KL_sum, 2*np.median(result_dist_bays09_emmixt_KL_sum))
+    result_dist_bays09_both_normalised_mult_masked = 1-(1. - result_dist_bays09_emmixt_KL_sum/np.max(result_dist_bays09_emmixt_KL_sum))*(1. - result_dist_bays09_kappa_sum_masked/np.max(result_dist_bays09_kappa_sum_masked))
+
     if plots_dist_bays09:
         nb_best_points = 30
         size_normal_points = 8
@@ -122,7 +127,7 @@ def plots_fit_mixturemodels_random(data_pbs, generator_module=None):
             best_points_result_dist_to_use = np.argsort(result_dist_to_use)[:nb_best_points]
             utils.scatter3d(result_parameters_flat[best_points_result_dist_to_use, 0], result_parameters_flat[best_points_result_dist_to_use, 1], result_parameters_flat[best_points_result_dist_to_use, 2], c='r', s=size_best_points, ax_handle=ax)
             print "Best points, %s:" % title
-            print '\n'.join(['sigma output %.2f, ratio %.2f, sigmax %.2f:  %f' % (result_parameters_flat[i, 0], result_parameters_flat[i, 1], result_parameters_flat[i, 2], result_dist_to_use[i]) for i in best_points_result_dist_to_use])
+            print '\n'.join(['sigma output %.4f, ratio %.4f, sigmax %.4f:  %f' % (result_parameters_flat[i, 0], result_parameters_flat[i, 1], result_parameters_flat[i, 2], result_dist_to_use[i]) for i in best_points_result_dist_to_use])
 
             if savefigs:
                 dataio.save_current_figure('scatter3d_%s%s_{label}_{unique_id}.pdf' % (result_dist_to_use_name, label_file))
@@ -141,34 +146,37 @@ def plots_fit_mixturemodels_random(data_pbs, generator_module=None):
             return ax
 
         # Distance for kappa, all T
-        plot_scatter(locals(), 'result_dist_bays09_kappa_sum', 'kappa all T')
+        # plot_scatter(locals(), 'result_dist_bays09_kappa_sum', 'kappa all T')
 
-        # Distance for em fits, all T, Squared distance
-        plot_scatter(locals(), 'result_dist_bays09_emmixt_sum', 'em fits, all T')
+        # # Distance for em fits, all T, Squared distance
+        # plot_scatter(locals(), 'result_dist_bays09_emmixt_sum', 'em fits, all T')
 
-        # Distance for em fits, all T, KL distance
-        plot_scatter(locals(), 'result_dist_bays09_emmixt_KL_sum', 'em fits, all T, KL')
+        # # Distance for em fits, all T, KL distance
+        # plot_scatter(locals(), 'result_dist_bays09_emmixt_KL_sum', 'em fits, all T, KL')
 
-        # Distance for sum of normalised em fits + normalised kappa, all T
-        plot_scatter(locals(), 'result_dist_bays09_both_normalised', 'summed normalised em mixt + kappa')
+        # # Distance for sum of normalised em fits + normalised kappa, all T
+        # plot_scatter(locals(), 'result_dist_bays09_both_normalised', 'summed normalised em mixt + kappa')
+
+        # Distance for product of normalised em fits + normalised kappa, all T
+        plot_scatter(locals(), 'result_dist_bays09_both_normalised_mult_masked', 'mult normalised em mixt KL, kappa, masked')
 
         # Distance kappa T = 1
-        plot_scatter(locals(), 'result_dist_bays09_kappa_T1_sum', 'Kappa T=1')
+        # plot_scatter(locals(), 'result_dist_bays09_kappa_T1_sum', 'Kappa T=1')
 
-        # Distance kappa T = 2...5
-        plot_scatter(locals(), 'result_dist_bays09_kappa_T25_sum', 'Kappa T=2/5')
+        # # Distance kappa T = 2...5
+        # plot_scatter(locals(), 'result_dist_bays09_kappa_T25_sum', 'Kappa T=2/5')
 
-        # Distance em fits T = 1
-        plot_scatter(locals(), 'result_dist_bays09_emmixt_T1_sum', 'em fits T=1')
+        # # Distance em fits T = 1
+        # plot_scatter(locals(), 'result_dist_bays09_emmixt_T1_sum', 'em fits T=1')
 
-        # Distance em fits T = 2...5
-        plot_scatter(locals(), 'result_dist_bays09_emmixt_T25_sum', 'em fits T=2/5')
+        # # Distance em fits T = 2...5
+        # plot_scatter(locals(), 'result_dist_bays09_emmixt_T25_sum', 'em fits T=2/5')
 
-        # Distance em fits T = 1, KL
-        plot_scatter(locals(), 'result_dist_bays09_emmixt_KL_T1_sum', 'em fits T=1, KL')
+        # # Distance em fits T = 1, KL
+        # plot_scatter(locals(), 'result_dist_bays09_emmixt_KL_T1_sum', 'em fits T=1, KL')
 
-        # Distance em fits T = 2...5, KL
-        plot_scatter(locals(), 'result_dist_bays09_emmixt_KL_T25_sum', 'em fits T=2/5, KL')
+        # # Distance em fits T = 2...5, KL
+        # plot_scatter(locals(), 'result_dist_bays09_emmixt_KL_T25_sum', 'em fits T=2/5, KL')
 
 
 
