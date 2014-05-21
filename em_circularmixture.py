@@ -109,11 +109,11 @@ def fit(responses, target_angle, nontarget_angles=np.array([[]]), initialisation
                 print "M", i, LL, kappa, mixt_target, mixt_nontargets, mixt_random
 
             # Weird correction...
-            if N <= 15:
-                if kappa < 2:
-                    kappa = np.max([kappa - 2./(N*kappa), 0])
-                else:
-                    kappa = kappa*(N-1)**3/(N**3 + N)
+            # if N <= 15:
+            #     if kappa < 2:
+            #         kappa = np.max([kappa - 2./(N*kappa), 0])
+            #     else:
+            #         kappa = kappa*(N-1)**3/(N**3 + N)
 
             i += 1
 

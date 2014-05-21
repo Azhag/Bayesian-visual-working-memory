@@ -40,6 +40,9 @@ def nanstd(array, axis=None):
     else:
         return np.ma.masked_invalid(array).std()
 
+def nanstats(array, axis=None):
+    return dict(mean=nanmean(array, axis), std=nanstd(array, axis), median=nanmedian(array, axis))
+
 def dropnan(array):
     '''
         Take an array, put it in a MaskedArray with ~np.isfinite masking.
