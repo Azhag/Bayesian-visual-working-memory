@@ -210,7 +210,7 @@ class RandomFactorialNetwork():
         if specific_neurons is None:
             specific_neurons = self._ALL_NEURONS
 
-        assert ratio <= -1 or ratio >= 1, "respect my authority! Use ratio >= 1 or <=-1"
+        assert ratio <= -1 or ratio >= 1, "respect my authority! Use ratio >= 1 or <=-1: %.2f" % ratio
 
         if ratio>0:
             self.neurons_sigma[specific_neurons, 1] = ratio*scale
@@ -554,7 +554,7 @@ class RandomFactorialNetwork():
             # Sample responses to measure the statistics on
             responses = self.collect_network_responses(precision=precision, params=params)
 
-            responses.shape = (precision**2., self.M)
+            responses.shape = (precision**2., int(self.M))
 
             # Compute the mean and covariance
             computed_mean = np.mean(responses, axis=0)
@@ -1395,6 +1395,14 @@ class RandomFactorialNetwork():
             scale = stddev_to_kappa(np.pi)
             scale2 = stddev_to_kappa(2.*np.pi/int(M/2.))
             ratio = scale2/scale
+        else:
+            if ratio < 0.0:
+                # Setting ratio < 0 cause some mid-automatic parameter setting.
+                # Assume that only one scale is really desired, and the other automatically set.
+                scale_fixed = stddev_to_kappa(np.pi)
+                ratio = np.max((scale/scale_fixed, scale_fixed/scale))
+
+                print "Semi auto ratio: %f %f %f" % (scale, scale_fixed, ratio)
 
         rn.assign_prefered_stimuli(tiling_type='2_features', reset=True, nb_feature_centers=nb_feature_centers)
         rn.assign_aligned_eigenvectors(scale=scale, ratio=-ratio, specific_neurons = np.arange(M/2), reset=True)
