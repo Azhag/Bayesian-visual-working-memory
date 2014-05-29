@@ -177,6 +177,10 @@ def receptivesize_effect_plots(variables_launcher_running, plotting_parameters):
         ax.legend()
         ax.set_title("Precision {code_type} {M} {sigmax:.3f} {sigmay:.2f}".format(**variables_launcher_running['all_parameters']))
 
+
+        ax.set_xlim(rcscale_space.min(), rcscale_space.max())
+        ax.set_ylim(bottom=0.0)
+
         ax.get_figure().canvas.draw()
 
         dataio.save_current_figure('precision_rcscale_{code_type}_M{M}_sigmax{sigmax}_sigmay{sigmay}_{{label}}_{{unique_id}}.pdf'.format(**variables_launcher_running['all_parameters']))
@@ -200,6 +204,8 @@ def receptivesize_effect_plots(variables_launcher_running, plotting_parameters):
         ax.legend()
         ax.set_title("FI {code_type} {M} {sigmax:.3f} {sigmay:.2f}".format(**variables_launcher_running['all_parameters']))
 
+        ax.set_xlim(rcscale_space.min(), rcscale_space.max())
+        ax.set_ylim(bottom=0.0)
         ax.get_figure().canvas.draw()
 
         dataio.save_current_figure('fi_rcscale_{code_type}_M{M}_sigmax{sigmax}_sigmay{sigmay}_{{label}}_{{unique_id}}.pdf'.format(**variables_launcher_running['all_parameters']))
@@ -221,6 +227,9 @@ def receptivesize_effect_plots(variables_launcher_running, plotting_parameters):
         ax.axvline(x=optimal_scale_corrected, color='k', linewidth=3)
 
         ax.legend()
+        ax.set_xlim(rcscale_space.min(), rcscale_space.max())
+        ax.set_ylim(bottom=0.0)
+
         ax.get_figure().canvas.draw()
 
         ax.set_title("kappa {code_type} {M} {sigmax:.3f} {sigmay:.2f}".format(**variables_launcher_running['all_parameters']))
@@ -249,6 +258,9 @@ def receptivesize_effect_plots(variables_launcher_running, plotting_parameters):
 
         ax.axvline(x=optimal_scale, color='r', linewidth=3)
         ax.axvline(x=optimal_scale_corrected, color='k', linewidth=3)
+
+        ax.set_xlim(rcscale_space.min(), rcscale_space.max())
+        ax.set_ylim(bottom=0.0, top=1.0)
 
         ax.legend(prop={'size':15})
         ax.set_title("mixts {code_type} {M} {sigmax:.3f} {sigmay:.2f}".format(**variables_launcher_running['all_parameters']))
