@@ -84,7 +84,7 @@ def stddev_to_kappa_single(stddev):
     kappa_init = 1.0
     kappa_opt = spopt.fmin(errfunc, kappa_init, args=(stddev, ), disp=False)
 
-    return kappa_opt[0]
+    return np.abs(kappa_opt[0])
 
 stddev_to_kappa=np.vectorize(stddev_to_kappa_single, doc='''
         Converts stddev to kappa

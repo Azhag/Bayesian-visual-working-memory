@@ -257,7 +257,7 @@ class RandomFactorialNetwork():
         self.precompute_parameters(specific_neurons=specific_neurons)
 
 
-    def assign_scaled_eigenvectors(self, scale_parameters = (100.0, 0.001), ratio_parameters = (100., 0.001), specific_neurons = None, reset = False):
+    def assign_scaled_eigenvectors(self, reset=True):
         '''
             Each neuron gets a gaussian receptive field, with a scale that becomes smaller as it's associate scale goes down as well.
         '''
@@ -269,24 +269,18 @@ class RandomFactorialNetwork():
             self.neurons_sigma = np.zeros((self.M, self.R))
             self.neurons_angle = np.zeros(self.M)
 
-        if specific_neurons is None:
-            specific_neurons = self._ALL_NEURONS
-
-        # First create a normal conjunctive population. Then will shrink it appropriately
-        scale_rnd = np.random.gamma(scale_parameters[0], scale_parameters[1], size=specific_neurons.size)
-        ratio_rnd = np.random.gamma(ratio_parameters[0], ratio_parameters[1], size=specific_neurons.size)
-
-        self.neurons_sigma[specific_neurons, 0] = np.sqrt(scale_rnd/ratio_rnd)
-        self.neurons_sigma[specific_neurons, 1] = ratio_rnd*self.neurons_sigma[specific_neurons, 0]
-
         # Shrink neurons according to their associated scale
-        self.neurons_sigma[:self.neurons_scales.size, :] = self.neurons_sigma[:self.neurons_scales.size, :]/(2.**self.neurons_scales[:, np.newaxis])
+        self.neurons_sigma[:self.neurons_scales.size] = stddev_to_kappa(2.*np.pi/2**self.neurons_scales[:, np.newaxis])
+
+        # Limit the size of the maximum scale, the numerical integration is not fantastic.
+        # 1e-8 works well for utils.stddev_to_kappa(2.*np.pi)
+        self.neurons_sigma[self.neurons_sigma < 5e-9] = 5e-9
 
         # Assign angles
-        self.neurons_angle[specific_neurons] = np.pi*np.random.random(size=specific_neurons.size)
+        self.neurons_angle[:] = 0.0
 
         # Compute parameters
-        self.precompute_parameters(specific_neurons=specific_neurons)
+        self.precompute_parameters()
 
 
 
@@ -1489,28 +1483,26 @@ class RandomFactorialNetwork():
         return rn
 
     @classmethod
-    def create_wavelet(cls, M, R=2, scales_number=3, scale_parameters = None, ratio_parameters = None, scale_moments=(85.0, 0.001), ratio_moments=(1.0, 0.001), response_type='wrong_wrap'):
+    def create_wavelet(cls, M, R=2, scales_number=3, response_type='bivariate_fisher'):
         '''
             Create a RandomFactorialNetwork instance, using a pure conjunctive code
         '''
         print "create wavelet network"
 
-        if scale_parameters is None or ratio_parameters is None:
-            scale_parameters = (100., 0.01)
-            ratio_parameters = (10000.0, 0.0001)
-
-        if scale_moments is not None:
-            # We are given the desired mean and variance of the scale. Convert to appropriate Gamma parameters
-            scale_parameters = (scale_moments[0]**2./scale_moments[1], scale_moments[1]/scale_moments[0])
-
-        if ratio_moments is not None:
-            # same
-            ratio_parameters = (ratio_moments[0]**2./ratio_moments[1], ratio_moments[1]/ratio_moments[0])
+        # Check the scale that we will attain
+        # For a given scales_number, considering we introduce 4 neurons per scale, we have the following total number of neurons:
+        # M = (4**scales_number - 1) / 3
+        # (comes from geometric serie S = a1*(1-r**k)/(1-r) )
+        scales_number_possible = np.int(np.floor(np.log(3*M + 1)/np.log(4)))
+        M_tot_scale = (4**scales_number_possible - 1)/3.
+        if scales_number_possible < scales_number:
+            print "M {M} neurons can only support {scales_number_possible} scales, not {scales_number}. Will instantiate {M_tot_scale} neurons with {scales_number_possible} scales instead".format(M=M, scales_number_possible=scales_number_possible, scales_number=scales_number, M_tot_scale=M_tot_scale)
+            scales_number = scales_number_possible
 
         rn = RandomFactorialNetwork(M, R=R, response_type=response_type)
 
         rn.assign_prefered_stimuli(tiling_type='wavelet', reset=True, scales_number = scales_number)
-        rn.assign_scaled_eigenvectors(scale_parameters=scale_parameters, ratio_parameters=ratio_parameters, reset=True)
+        rn.assign_scaled_eigenvectors()
 
         rn.population_code_type = 'wavelet'
 
@@ -2179,6 +2171,7 @@ if __name__ == '__main__':
         kappa = 4.0
         def cov_toeplitz(theta_n, theta_m, kappa):
             return (scsp.i0(2*kappa*np.cos((theta_n - theta_m)/2.)) - scsp.i0(kappa)**2.)/(4.*np.pi**2.*scsp.i0(kappa)**2.)
+
 
 
 
