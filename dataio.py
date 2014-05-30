@@ -182,14 +182,14 @@ class DataIO:
             self.git_repo = git.Repo(self.git_workdir)
 
             # Get the current branch
-            branch_name = self.git_repo.active_branch.name
+            branch_name = self.git_repo.active_branch
 
             # Get the current commit
-            commit_num = self.git_repo.active_branch.commit.hexsha
+            commit_num = self.git_repo.commit(branch_name).id
             commit_short = commit_num[:7]
 
             # Check if the repo is dirty (hence the commit is incorrect, may be important)
-            repo_dirty = self.git_repo.is_dirty()
+            repo_dirty = self.git_repo.is_dirty
 
             # Save them up
             self.git_infos = dict(repo=str(self.git_repo), branch_name=branch_name, commit_num=commit_num, commit_short=commit_short, repo_dirty=repo_dirty)
