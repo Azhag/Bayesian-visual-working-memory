@@ -2199,6 +2199,48 @@ if __name__ == '__main__':
         def cov_toeplitz(theta_n, theta_m, kappa):
             return (scsp.i0(2*kappa*np.cos((theta_n - theta_m)/2.)) - scsp.i0(kappa)**2.)/(4.*np.pi**2.*scsp.i0(kappa)**2.)
 
+    if True:
+        # Measure the covariance of the population code
+        random_network = RandomFactorialNetwork.create_full_conjunctive(100, R=2, autoset_parameters=True)
+
+        precision = 110
+
+        all_angles = np.linspace(-np.pi, np.pi, precision)
+
+        # Compute E[mu(theta1, gamma1)mu(theta1, gamma1)]_theta1gamma1
+        all_responses = np.empty((precision, precision, random_network.M, random_network.M))
+        for theta1_i in xrange(precision):
+            for gamma1_i in xrange(precision):
+                all_responses[theta1_i, gamma1_i] = np.outer(random_network.get_network_response((all_angles[theta1_i], all_angles[gamma1_i])), random_network.get_network_response((all_angles[theta1_i], all_angles[gamma1_i])))
+
+        second_moment_1 = np.mean(np.mean(all_responses, axis=0), axis=0)
+
+        summed_responses = np.zeros((random_network.M, random_network.M))
+        for theta1_i in xrange(precision):
+            for gamma1_i in xrange(precision):
+                summed_responses += np.outer(random_network.get_network_response((all_angles[theta1_i], all_angles[gamma1_i])), random_network.get_network_response((all_angles[theta1_i], all_angles[gamma1_i])))
+        summed_responses /= precision**2.
+
+        if True:
+            # Compute [mu(theta1, gamma1) mu(theta2, gamma2)]_theta1gamma1theta2gamma2
+            # Compute E[mu(theta1, gamma1)mu(theta1, gamma1)]_theta1gamma1
+            # summed_responses = np.zeros((random_network.M, random_network.M))
+            # for theta1_i in progress.ProgressDisplay(xrange(precision)):
+            #     for gamma1_i in xrange(precision):
+            #         for theta2_i in xrange(precision):
+            #             for gamma2_i in xrange(precision):
+            #                 summed_responses += np.outer(random_network.get_network_response((all_angles[theta1_i], all_angles[gamma1_i])), random_network.get_network_response((all_angles[theta2_i], all_angles[gamma2_i])))
+
+            # second_moment_2 = summed_responses/precision**4.
+            summed_responses = np.zeros((random_network.M, random_network.M))
+
+            num_samples = 100000
+            random_angles = sample_angle((num_samples, 4))
+            for i in progress.ProgressDisplay(xrange(num_samples), display=progress.SINGLE_LINE):
+                summed_responses += np.outer(random_network.get_network_response((random_angles[i, 0], random_angles[i, 1])), random_network.get_network_response((random_angles[i, 2], random_angles[i, 3])))
+            summed_responses /= float(num_samples)
+
+
 
 
 
