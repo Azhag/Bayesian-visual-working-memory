@@ -1745,7 +1745,7 @@ if __name__ == '__main__':
 
         plt.show()
 
-    if True:
+    if False:
         print 'Compute KL approx of mixture by Gausian'
 
         alpha = 1.0
