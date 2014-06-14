@@ -82,11 +82,12 @@ class RandomFactorialNetwork():
 
             if tiling_type == 'conjunctive':
                 self.assign_prefered_stimuli_conjunctive(specific_neurons)
-
             elif tiling_type == '2_features':
                 self.assign_prefered_stimuli_2_features(specific_neurons, nb_feature_centers=nb_feature_centers)
             elif tiling_type == 'wavelet':
                 self.assign_prefered_stimuli_wavelet(specific_neurons, scales_number=scales_number)
+            elif tiling_type == 'random':
+                self.assign_prefered_stimuli_random(specific_neurons)
 
             # Handle uninitialized neurons
             #   check if still some nan, any on the first axis.
@@ -189,6 +190,17 @@ class RandomFactorialNetwork():
         min_size = np.min((new_stim.shape[0], neurons_indices.size))
         self.neurons_preferred_stimulus[neurons_indices[:min_size]] = new_stim[:min_size]
         self.neurons_scales = new_scales[:min_size]
+
+    def assign_prefered_stimuli_random(self, neurons_indices):
+        '''
+            Randomly assign preferred stimuli to all neurons
+        '''
+
+        new_stim = sample_angle(size=(neurons_indices.size, self.R))
+
+        # Assign the preferred stimuli
+        #   Unintialized neurons will get masked out down there.
+        self.neurons_preferred_stimulus[neurons_indices[:new_stim.shape[0]]] = new_stim
 
 
     def assign_aligned_eigenvectors(self, scale=1.0, ratio=1.0, specific_neurons=None, reset=False):
@@ -1346,7 +1358,8 @@ class RandomFactorialNetwork():
 
         if autoset_parameters:
             # We use the optimum heuristic for the rc_scale: try to cover the space fully, assuming uniform coverage with squares of size 2*(2*kappa_to_stddev(kappa)). We assume that 2*stddev gives a good approximation to the appropriate coverage required.
-            rcscale = stddev_to_kappa(2.*np.pi/int(M**0.5))
+            # rcscale = stddev_to_kappa(2.*np.pi/int(M**0.5))
+            rcscale = cls.compute_optimal_rcscale(M, population_code_type='conjunctive')
 
         if rcscale:
             # Assume we construct a conjunctive with ratio 1, no need to get random eigenvectors
@@ -1387,7 +1400,7 @@ class RandomFactorialNetwork():
             # width = stddev_to_kappa(stddev)
 
             scale = stddev_to_kappa(np.pi)
-            scale2 = stddev_to_kappa(2.*np.pi/int(M/2.))
+            scale2 = rcscale = cls.compute_optimal_rcscale(M, population_code_type='feature')
             ratio = scale2/scale
         else:
             if ratio < 0.0:
@@ -1457,10 +1470,11 @@ class RandomFactorialNetwork():
             # Assume one direction should cover width = pi, the other should cover M/2 * width/2. = 2pi
             # width = stddev_to_kappa(stddev)
             if rn.conj_subpop_size > 0:
-                conj_scale = stddev_to_kappa(2.*np.pi/int(rn.conj_subpop_size**0.5))
+                conj_scale = cls.compute_optimal_rcscale(rn.conj_subpop_size, population_code_type='conjunctive')
             if rn.feat_subpop_size > 0:
                 feat_scale = stddev_to_kappa(np.pi)
-                feat_ratio = -stddev_to_kappa(2.*np.pi/int(rn.feat_subpop_size/2.))/feat_scale
+                feat_ratio = -cls.compute_optimal_rcscale(rn.feat_subpop_size, population_code_type='feature')/feat_scale
+
 
 
         print "Population sizes: ratio: %.1f conj: %d, feat: %d, autoset: %d" % (ratio_feature_conjunctive, rn.conj_subpop_size, rn.feat_subpop_size, autoset_parameters)
@@ -1507,6 +1521,19 @@ class RandomFactorialNetwork():
         rn.population_code_type = 'wavelet'
 
         return rn
+
+    @classmethod
+    def compute_optimal_rcscale(cls, M, population_code_type='conjunctive'):
+        '''
+            Compute the optimal rcscale, depending on the type of code we use.
+        '''
+        if population_code_type == 'conjunctive':
+            # We use the optimum heuristic for the rc_scale: try to cover the space fully, assuming uniform coverage with squares of size 2*(2*kappa_to_stddev(kappa)). We assume that 2*stddev gives a good approximation to the appropriate coverage required.
+            return stddev_to_kappa(2.*np.pi/int(M**0.5))
+        elif population_code_type == 'feature':
+            return stddev_to_kappa(2.*np.pi/int(M/2.))
+
+
 
 
 
