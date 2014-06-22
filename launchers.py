@@ -19,6 +19,8 @@ from utils import *
 from dataio import *
 from gibbs_sampler_continuous_fullcollapsed_randomfactorialnetwork import *
 
+from highdimensionnetwork import *
+
 
 
 ################### INITIALISERS ####################
@@ -51,14 +53,14 @@ def init_random_network(parameters):
     # Build the random network
 
     if parameters['code_type'] == 'conj':
-        random_network = RandomFactorialNetwork.create_full_conjunctive(parameters['M'], R=parameters['R'], rcscale=parameters['rc_scale'], autoset_parameters=parameters['autoset_parameters'])
+        random_network = HighDimensionNetwork.create_full_conjunctive(parameters['M'], R=parameters['R'], rcscale=parameters['rc_scale'], autoset_parameters=parameters['autoset_parameters'])
     elif parameters['code_type'] == 'feat':
-        random_network = RandomFactorialNetwork.create_full_features(parameters['M'], R=parameters['R'], scale=parameters['rc_scale'], ratio=parameters['feat_ratio'], autoset_parameters=parameters['autoset_parameters'], nb_feature_centers=1)
+        random_network = HighDimensionNetwork.create_full_features(parameters['M'], R=parameters['R'], scale=parameters['rc_scale'], ratio=parameters['feat_ratio'], autoset_parameters=parameters['autoset_parameters'])
     elif parameters['code_type'] == 'mixed':
-        conj_params = dict(scale=parameters['rc_scale'], scale_moments=[parameters['rc_scale'], 0.001], ratio_moments=[1.0, 0.0001])
-        feat_params = dict(scale=parameters['rc_scale2'], ratio=parameters['feat_ratio'], nb_feature_centers=1)
+        conj_params = dict(scale=parameters['rc_scale'])
+        feat_params = dict(scale=parameters['rc_scale2'], ratio=parameters['feat_ratio'])
 
-        random_network = RandomFactorialNetwork.create_mixed(parameters['M'], R=parameters['R'], ratio_feature_conjunctive=parameters['ratio_conj'], conjunctive_parameters=conj_params, feature_parameters=feat_params, autoset_parameters=parameters['autoset_parameters'])
+        random_network = HighDimensionNetwork.create_mixed(parameters['M'], R=parameters['R'], ratio_feature_conjunctive=parameters['ratio_conj'], conjunctive_parameters=conj_params, feature_parameters=feat_params, autoset_parameters=parameters['autoset_parameters'])
     elif parameters['code_type'] == 'wavelet':
         random_network = RandomFactorialNetwork.create_wavelet(parameters['M'], R=parameters['R'], scales_number=5)
     elif parameters['code_type'] == 'hierarchical':
