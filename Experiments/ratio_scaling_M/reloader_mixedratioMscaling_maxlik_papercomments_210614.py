@@ -32,11 +32,11 @@ def plots_ratioMscaling(data_pbs, generator_module=None):
     savefigs = True
     savedata = True
 
-    plots_pcolor_all = False
-    plots_effect_M_target_precision = False
-    plots_multiple_precisions = False
+    plots_pcolor_all = True
+    plots_effect_M_target_precision = True
+    plots_multiple_precisions = True
 
-    plots_effect_M_target_kappa = False
+    plots_effect_M_target_kappa = True
 
     plots_subpopulations_effects = True
 
@@ -110,24 +110,32 @@ def plots_ratioMscaling(data_pbs, generator_module=None):
                 # replot
                 plot_ratio_target_precision(ratio_target_precision_given_M, target_precision)
 
+                utils.pcolor_2d_data(dist_to_target_precision, log_scale=True, x=M_space, y=ratio_space, xlabel='M', ylabel='ratio', xlabel_format="%d", title='Dist to target precision %d' % target_precision)
+                if savefigs:
+                    dataio.save_current_figure('dist_targetprecision%d_log_pcolor_{label}_{unique_id}.pdf' % target_precision)
+
     if plots_effect_M_target_kappa:
         def plot_ratio_target_kappa(ratio_target_kappa_given_M, target_kappa):
             f, ax = plt.subplots()
             ax.plot(M_space, ratio_target_kappa_given_M)
             ax.set_xlabel('M')
             ax.set_ylabel('Optimal ratio')
-            ax.set_title('Optimal Ratio for precison %d' % target_kappa)
+            ax.set_title('Optimal Ratio for kappa %d' % target_kappa)
 
             if savefigs:
                 dataio.save_current_figure('effect_ratio_M_targetkappa%d_{label}_{unique_id}.pdf' % target_kappa)
 
-        target_kappa = np.array([100, 200, 300, 500, 1000, 3000])
-        for target_kappa in target_kappa:
+        target_kappas = np.array([100, 200, 300, 500, 1000, 3000])
+        for target_kappa in target_kappas:
             dist_to_target_kappa = (result_em_fits_mean[..., 0] - target_kappa)**2.
             ratio_target_kappa_given_M = ratio_space[np.argmin(dist_to_target_kappa, axis=1)]
 
             # replot
             plot_ratio_target_kappa(ratio_target_kappa_given_M, target_kappa)
+
+            utils.pcolor_2d_data(dist_to_target_kappa, log_scale=True, x=M_space, y=ratio_space, xlabel='M', ylabel='ratio', xlabel_format="%d", title='Dist to target kappa %d' % target_kappa)
+            if savefigs:
+                dataio.save_current_figure('dist_targetkappa%d_log_pcolor_{label}_{unique_id}.pdf' % target_kappa)
 
     if plots_subpopulations_effects:
         # result_all_precisions_mean
