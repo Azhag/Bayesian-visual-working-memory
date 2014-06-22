@@ -53,7 +53,7 @@ def loglike_theta_fct_opt2d(new_theta, theta2, datapoint, rn, theta_mu, theta_ka
     '''
 
     like_mean = datapoint - mean_fixed_contrib - \
-                ATtcB*rn.get_network_response_opt2d(new_theta, theta2)
+                ATtcB*rn.get_network_response(np.array([new_theta, theta2])
 
     # Using inverse covariance as param
     # return theta_kappa*np.cos(thetas[sampled_feature_index] - theta_mu) - 0.5*np.dot(like_mean, np.dot(inv_covariance_fixed_contrib, like_mean))
