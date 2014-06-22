@@ -10,19 +10,23 @@ Copyright (c) 2011 Gatsby Unit. All rights reserved.
 ############################ MATH AND STATS ##################################
 from utils_math import *
 
-############################### DIRECTIONAL STATISTICS ################################
+######################### DIRECTIONAL STATISTICS #############################
 from utils_directional_stats import *
 
-############################ SPHERICAL/3D COORDINATES ##################################
+####################### SPHERICAL/3D COORDINATES #############################
 from utils_spherical import *
 
-########################## PLOTTING FUNCTIONS #################################
+######################## PLOTTING FUNCTIONS ##################################
 from utils_plot import *
+from utils_animation import *
 
-################################# FITTING ########################################
+############################ FITTING #########################################
 from utils_fitting import *
 
-########################## TRICKS AND HELPER FUNCTIONS #################################
+############################ INTERPOLATION ###################################
+from utils_interpolate import *
+
+##################### TRICKS AND HELPER FUNCTIONS ############################
 from utils_helper import *
 
 

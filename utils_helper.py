@@ -53,9 +53,18 @@ def cross(*args):
             ans = [x+[y] for x in ans for y in arg]
     return ans
 
+    # Faster version:
+    # return [p for p in itertools.product(*args)]
+
 def strcat(*strings):
     return ''.join(strings)
 
+
+def subdict(dictionary, keys):
+    '''
+        Create a dictionary with only the subset of 'keys'
+    '''
+    return {k: dictionary[k] for k in keys}
 
 def fast_dot_1D(x, y):
     out = 0
@@ -177,8 +186,6 @@ def convert_deltatime_str_to_seconds(deltatime_str):
     return np.sum(time_mult*time_splitted_rev)
 
 
-
-
 ########################## FILE I/O #################################
 
 def unique_filename(prefix=None, suffix=None, unique_id=None, return_id=False):
@@ -240,4 +247,13 @@ def file_exists_new_shell(filename):
     pipelines = pipeoutput.stdout.readlines()
     files = "".join(pipelines).split(os.linesep)
     return fname in files
+
+def chdir_safe(directory, verbose=True):
+    '''
+        Change working directory, printing it each time
+    '''
+    os.chdir(directory)
+
+    if verbose:
+        print "changed directory, current: %s" % os.getcwd()
 

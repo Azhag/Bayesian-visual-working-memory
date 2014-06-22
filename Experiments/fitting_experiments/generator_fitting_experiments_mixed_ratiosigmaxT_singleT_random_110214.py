@@ -31,7 +31,8 @@ if getpass.getuser() == 'dc-matt1':
   pbs_unfilled_script = open(os.path.join(os.environ['WORKDIR_DROP'], 'dirac_submission_slurm_unfilled.sh'), 'r').read()
 
 M = 200
-num_repetitions = 5
+# num_repetitions = 5
+num_repetitions = 3
 
 run_label = 'fitting_experiments_mixed_ratiosigmaxT_random_M{M}repetitions{num_repetitions}_110214'
 

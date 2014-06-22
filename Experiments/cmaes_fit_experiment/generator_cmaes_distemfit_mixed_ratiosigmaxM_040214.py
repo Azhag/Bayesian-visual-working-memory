@@ -78,7 +78,7 @@ pbs_submission_infos = dict(description='Fit experiments (here bays09, using dis
                                                ratio_conj=0.5,
                                                subaction='collect_responses',
                                                session_id='cmaes_ratiosigmax',
-                                               result_computation='distemfits',
+                                               result_computation='distemfits_bays09',
                                                M=M,
                                                sigmax=0.1,
                                                N=300,

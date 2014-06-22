@@ -19,6 +19,16 @@ import statsmodels.distributions as stmodsdist
 
 ############################## DIRECTIONAL STATISTICS ################################
 
+def vonmisespdf(x, mu, K):
+    '''
+        Von Mises PDF (switch to Normal if high kappa)
+    '''
+    if K > 700.:
+        return np.sqrt(K)/(np.sqrt(2*np.pi))*np.exp(-0.5*(x -mu)**2.*K)
+    else:
+        return np.exp(K*np.cos(x-mu)) / (2.*np.pi * spsp.i0(K))
+
+
 def sample_angle(size=1):
     return np.random.random(size=size)*2.*np.pi - np.pi
 
@@ -74,7 +84,7 @@ def stddev_to_kappa_single(stddev):
     kappa_init = 1.0
     kappa_opt = spopt.fmin(errfunc, kappa_init, args=(stddev, ), disp=False)
 
-    return kappa_opt[0]
+    return np.abs(kappa_opt[0])
 
 stddev_to_kappa=np.vectorize(stddev_to_kappa_single, doc='''
         Converts stddev to kappa

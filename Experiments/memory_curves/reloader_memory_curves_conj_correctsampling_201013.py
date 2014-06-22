@@ -74,7 +74,7 @@ def plots_memory_curves(data_pbs, generator_module=None):
     gorgo11_experimental_emfits_sem = gorgo11_experimental_emfits_std/np.sqrt(np.unique(data_simult['subject']).size)
 
 
-    data_bays2009 = load_experimental_data.load_data_bays2009(data_dir=os.path.normpath(os.path.join(experim_datadir, '../../experimental_data/')), fit_mixture_model=True)
+    data_bays2009 = load_experimental_data.load_data_bays09(data_dir=os.path.normpath(os.path.join(experim_datadir, '../../experimental_data/')), fit_mixture_model=True)
     # add interpolated points for 3 and 5 items
     emfit_mean_intpfct = spint.interp1d(np.unique(data_bays2009['n_items']), data_bays2009['em_fits_nitems_arrays']['mean'])
     bays09_experimental_mixtures_mean_compatible = emfit_mean_intpfct(np.arange(1, 6))

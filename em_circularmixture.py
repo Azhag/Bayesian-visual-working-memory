@@ -109,11 +109,11 @@ def fit(responses, target_angle, nontarget_angles=np.array([[]]), initialisation
                 print "M", i, LL, kappa, mixt_target, mixt_nontargets, mixt_random
 
             # Weird correction...
-            if N <= 15:
-                if kappa < 2:
-                    kappa = np.max([kappa - 2./(N*kappa), 0])
-                else:
-                    kappa = kappa*(N-1)**3/(N**3 + N)
+            # if N <= 15:
+            #     if kappa < 2:
+            #         kappa = np.max([kappa - 2./(N*kappa), 0])
+            #     else:
+            #         kappa = kappa*(N-1)**3/(N**3 + N)
 
             i += 1
 
@@ -267,7 +267,7 @@ def initialise_parameters_random(N, K, nb_initialisations=10):
     '''
 
     all_params = []
-    resp_ik = np.empty((N, K+1))
+    resp_ik = np.empty((N, int(K+1)))
 
     for i in xrange(nb_initialisations):
         kappa = np.random.rand()*300.
@@ -307,7 +307,7 @@ def initialise_parameters_fixed(N, K):
     # for k in kappa:
     #     resp_ik.append(np.empty((N, K+1)))
 
-    resp_ik = [np.empty((N, K+1)), ]*len(kappa)
+    resp_ik = [np.empty((N, int(K+1))), ]*len(kappa)
 
     return zip(kappa, mixt_target, mixt_random, mixt_nontargets, resp_ik)
 
@@ -329,7 +329,7 @@ def vonmisespdf(x, mu, K):
         Von Mises PDF (switch to Normal if high kappa)
     '''
     if K > 700.:
-        return spst.norm.pdf(x, mu, 1./np.sqrt(K))
+        return np.sqrt(K)/(np.sqrt(2*np.pi))*np.exp(-0.5*(x -mu)**2.*K)
     else:
         return np.exp(K*np.cos(x-mu)) / (2.*np.pi * spsp.i0(K))
 

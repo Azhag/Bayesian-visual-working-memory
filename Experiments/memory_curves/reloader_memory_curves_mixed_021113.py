@@ -71,7 +71,7 @@ def plots_memory_curves(data_pbs, generator_module=None):
     memory_experimental_kappa_std = np.array([data['kappa'] for _, data in data_simult['em_fits_nitems']['std'].items()])
 
     experim_datadir = os.environ.get('WORKDIR_DROP', os.path.split(load_experimental_data.__file__)[0])
-    data_bays2009 = load_experimental_data.load_data_bays2009(data_dir=os.path.normpath(os.path.join(experim_datadir, '../../experimental_data/')), fit_mixture_model=True)
+    data_bays2009 = load_experimental_data.load_data_bays09(data_dir=os.path.normpath(os.path.join(experim_datadir, '../../experimental_data/')), fit_mixture_model=True)
     bays09_experimental_mixtures_mean = data_bays2009['em_fits_nitems_arrays']['mean']
     # add interpolated points for 3 and 5 items
     bays3 = (bays09_experimental_mixtures_mean[:, 2] + bays09_experimental_mixtures_mean[:, 1])/2.

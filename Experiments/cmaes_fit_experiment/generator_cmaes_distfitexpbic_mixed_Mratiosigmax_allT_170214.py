@@ -39,7 +39,7 @@ sleeping_period = dict(min=10, max=30)
 best_parameters_seen = dict(result=None, job_name='', parameters=None)
 def best_parameters_callback(job, parameters=None):
 
-  if parameters['result'] is None or job.get_result() <= parameters['result'] and not np.isnan(job.get_result()):
+  if (parameters['result'] is None) or (parameters['result'] is np.nan) or (job.get_result() <= parameters['result'] and not np.isnan(job.get_result())):
       # New best parameter!
       parameters['result'] = job.get_result()
       parameters['job_name'] = job.job_name

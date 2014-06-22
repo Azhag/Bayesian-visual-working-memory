@@ -41,9 +41,14 @@ class ExperimentLauncher(object):
         # Complete or overwrite the current arguments with arguments as function parameters
         self.add_arguments_parameters(arguments_dict)
 
+        # Change some parameters if a best_parameters_file is given
+        if self.args_dict['best_parameters_file']:
+            self.load_extra_parameters_from_file(self.args_dict['best_parameters_file'])
+
         # Run the launcher if desired
         if run:
             self.run_launcher()
+
 
     def __str__(self):
         return 'ExperimentLauncher, action: %s, finished: %d' % (self.args.action_to_do, self.has_run)
@@ -96,7 +101,9 @@ class ExperimentLauncher(object):
         parser.add_argument('--N', default=100, type=int,
             help='Number of datapoints')
         parser.add_argument('--T', default=1, type=int,
-            help='Number of times')
+            help='Number of items. Used as Max number as well.')
+        parser.add_argument('--T_min', default=1, type=int,
+            help='Minimum number of items')
         parser.add_argument('--K', default=2, type=int,
             help='Number of representated features')  # Warning: Need more data for bigger matrix
         parser.add_argument('--D', default=32, type=int,
@@ -158,6 +165,8 @@ class ExperimentLauncher(object):
             help='Noise per object')
         parser.add_argument('--sigmay', type=float, default=0.02,
             help='Noise along time')
+        parser.add_argument('--sigma_output', type=float, default=0.0,
+            help='Noise added when outputting samples. Cheap lapse-like process')
         parser.add_argument('--ratio_conj', type=float, default=0.2,
             help='Ratio of conjunctive/field subpopulations for mixed network')
         parser.add_argument('--ratio_hierarchical', type=float, default=None,
@@ -187,6 +196,9 @@ class ExperimentLauncher(object):
             help='String used by JobWrapper for Result sync files. Used to avoid overwriting result files when running a job with the same parameters again.')
         parser.add_argument('--job_name', dest='job_name', default='',
             help='Unique job name, constructed from parameter values. Could be rebuilt on the fly, but easier to pass it if it exists.')
+        parser.add_argument('--best_parameters_file', dest='best_parameters_file', default='',
+            help='Reload parameters from a .npy file, created from PBS/SLURM runs. Expects some known dictionaries.')
+        parser.add_argument('--plot_while_running', dest='plot_while_running', default=False, action='store_true', help='If set, will plot while the simulation is going for chosen launchers.')
 
 
         self.args = parser.parse_args()
@@ -206,6 +218,24 @@ class ExperimentLauncher(object):
                 other_arguments_dict[key] = True
 
         self.args_dict.update(other_arguments_dict)
+
+
+    def load_extra_parameters_from_file(self, filename):
+        '''
+            Take a file (assumed .npy), load it and check for known dictionary names
+            that should contain some variables values to force.
+
+            Updates self.args/self.args_dict directly
+        '''
+
+        loaded_file = np.load(filename).item()
+
+        if 'parameters' in loaded_file:
+            if 'best_parameters' in loaded_file['parameters']:
+                print "+++ Reloading best parameters from {} +++".format(filename)
+                for key, value in loaded_file['parameters']['best_parameters'].iteritems():
+                    print "\t> {} : {}".format(key, value)
+                    self.args_dict[key] = value
 
 
     def run_launcher(self):
@@ -236,9 +266,18 @@ if __name__ == '__main__':
     #   Ugly but laziness prevails...
     variables_to_reinstantiate = ['data_gen', 'sampler', 'stat_meas', 'random_network', 'args', 'constrained_parameters', 'data_pbs', 'dataio', 'post_processing_outputs', 'fit_exp']
 
-    if 'variables_to_save' in experiment_launcher.all_vars:
-        # Also reinstantiate the variables we saved
-        variables_to_reinstantiate.extend(experiment_launcher.all_vars['variables_to_save'])
+
+    if 'dataio' in experiment_launcher.all_vars:
+        # Reinstantiate the variables saved automatically.
+        dataio_variables_auto = experiment_launcher.all_vars['dataio'].__dict__.get('saved_variables', [])
+
+        if not dataio_variables_auto:
+            if 'variables_to_save' in experiment_launcher.all_vars:
+                # Also reinstantiate the variables we saved
+                variables_to_reinstantiate.extend(experiment_launcher.all_vars['variables_to_save'])
+        else:
+            variables_to_reinstantiate.extend(dataio_variables_auto)
+
 
     for var_reinst in variables_to_reinstantiate:
         if var_reinst in experiment_launcher.all_vars:

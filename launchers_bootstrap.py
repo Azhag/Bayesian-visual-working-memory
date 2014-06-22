@@ -243,7 +243,7 @@ def launcher_do_bootstrap_experimental(args):
     # Load the data
     if all_parameters['subaction'] == 'bays09' or all_parameters['subaction'] == '':
         # Bays2009 dataset
-        dataset = load_experimental_data.load_data_bays2009(fit_mixture_model=True)
+        dataset = load_experimental_data.load_data_bays09(fit_mixture_model=True)
 
     # Result arrays
     result_bootstrap_nitems_samples = np.nan*np.empty((dataset['n_items_size'], all_parameters['num_repetitions']))

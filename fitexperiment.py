@@ -11,19 +11,19 @@ import os
 
 import numpy as np
 
-import scipy as sp
-import scipy.optimize as spopt
-import scipy.stats as spst
+# import scipy as sp
+# import scipy.optimize as spopt
+# import scipy.stats as spst
 
 import matplotlib.pyplot as plt
 
-import progress
+# import progress
 
 import experimentlauncher
 import datagenerator
 import launchers
 import load_experimental_data
-import utils
+# import utils
 
 
 class FitExperiment:
@@ -179,11 +179,35 @@ class FitExperiment:
         def compute_loglik(sampler, parameters):
             loglikelihood = sampler.compute_loglikelihood()
             return loglikelihood
+        def compute_loglik90percent(sampler, parameters):
+            return sampler.compute_loglikelihood_top90percent()
+
         def compute_both(sampler, parameters):
-            result = dict(bic=compute_bic(sampler, parameters), LL=compute_loglik(sampler, parameters))
+            result = dict(bic=compute_bic(sampler, parameters), LL=compute_loglik(sampler, parameters), LL90=compute_loglik90percent(sampler, parameters))
             return result
 
         fct_infos = dict(fct=compute_both, parameters=dict(K=K))
+
+        return self.apply_fct_all_datasets(fct_infos)
+
+
+    def compute_bic_loglik_noise_convolved_all_datasets(self, precision=150):
+        '''
+            Compute BIC and LL, based on the
+        '''
+
+        def compute_everything(sampler, parameters):
+            loglikelihood_conv_N = sampler.compute_loglikelihood_N_convolved_output_noise(precision=parameters['precision'])
+
+            loglikelihood_conv = np.nansum(loglikelihood_conv_N)
+            loglikelihood90_conv = sampler.compute_loglikelihood_top90percent(all_loglikelihoods=loglikelihood_conv_N)
+            bic = sampler.compute_bic(LL=loglikelihood_conv)
+
+            result = dict(LL=loglikelihood_conv, LL90=loglikelihood90_conv, bic=bic)
+
+            return result
+
+        fct_infos = dict(fct=compute_everything, parameters=dict(precision=precision))
 
         return self.apply_fct_all_datasets(fct_infos)
 
@@ -200,6 +224,29 @@ class FitExperiment:
 
 
     #####
+
+    def plot_model_human_loglik_comparison(self):
+        '''
+            Get the LL for human responses and model samples
+            plot model wrt human, to see how they compare
+        '''
+
+        def compute_model_human_loglik(sampler, parameters):
+            # First compute the human LL, which is easy as the responses are already set
+            human_ll = sampler.compute_loglikelihood()
+
+            # Now sample from the model
+            sampler.sample_theta(num_samples=300, burn_samples=300, slice_width=0.07, selection_method='last')
+
+            # Now recompute the LL
+            model_ll = sampler.compute_loglikelihood()
+
+            return dict(human=human_ll, model=model_ll)
+
+        fct_infos = dict(fct=compute_model_human_loglik, parameters=None)
+
+        return self.apply_fct_all_datasets(fct_infos)
+
 
     def plot_loglik_misfit_datapoints(self, max_plots = 10):
         '''
@@ -222,7 +269,7 @@ class FitExperiment:
             self.sampler.plot_likelihood_comparison(n=outlier_i)
 
 
-    def plot_distribution_loglik(self, bins=50):
+    def plot_distribution_loglik(self, bins=50, enforce_response=False):
         '''
             Plot the distribution of data loglikelihoods obtained
 
@@ -230,7 +277,8 @@ class FitExperiment:
         '''
 
         # Set responses
-        self.sampler.set_theta(self.data_responses)
+        if enforce_response:
+            self.sampler.set_theta(self.data_responses)
 
         # Compute data loglikelihood
         data_llh = self.sampler.compute_loglikelihood_N()
@@ -306,10 +354,126 @@ def test_fit_experiment():
     return locals()
 
 
+def test_loglike_fit():
+    '''
+        Check if the LL computation is correct
+
+        Use specific data, generated from a given model. This model should then have max LL.
+    '''
+
+    # Get a specific model, with given ratio and sigmax
+    experiment_parameters = dict(action_to_do='launcher_do_simple_run',
+                                  inference_method='sample',
+                                  T=2,
+                                  M=200,
+                                  N=400,
+                                  num_samples=500,
+                                  selection_method='last',
+                                  sigmax=0.15,
+                                  sigmay=0.0001,
+                                  code_type='mixed',
+                                  ratio_conj=0.6,
+                                  output_directory='.',
+                                  stimuli_generation_recall='random',
+                                  autoset_parameters=None)
+    experiment_launcher = experimentlauncher.ExperimentLauncher(run=True, arguments_dict=experiment_parameters)
+    experiment_parameters_full = experiment_launcher.args_dict
+    sampler = experiment_launcher.all_vars['sampler']
+
+    # Keep its dataset and responses
+    stimuli_correct_to_force = sampler.data_gen.stimuli_correct.copy()
+    response_to_force = sampler.theta[:, 0].copy()
+    LL_target = sampler.compute_loglikelihood()
+
+    experiment_parameters_full['stimuli_to_use'] = stimuli_correct_to_force
+
+    ratio_space = np.linspace(0.0, 1.0, 31.)
+
+    LL_all_new = np.zeros(ratio_space.shape)
+
+    for ratio_conj_i, ratio_conj in enumerate(ratio_space):
+
+        experiment_parameters_full['ratio_conj'] = ratio_conj
+
+        _, _, _, sampler = launchers.init_everything(experiment_parameters_full)
+
+        # Set responses
+        sampler.set_theta(response_to_force)
+
+        # Compute LL
+        # LL_all_new[ratio_conj_i] = sampler.compute_loglikelihood()
+        LL_all_new[ratio_conj_i] = sampler.compute_loglikelihood_top90percent()
+
+        # Print result
+        print LL_all_new[ratio_conj_i]
+
+    print LL_target
+    print ratio_space, LL_all_new
+    print ratio_space[np.argmax(LL_all_new)]
+
+    return locals()
+
+
+def test_noiseoutput_loglike():
+    '''
+        Check if the LL computation given noise output is correct
+    '''
+
+    # Get a specific model, with given ratio and sigmax
+    experiment_parameters = dict(action_to_do='launcher_do_simple_run',
+                                  inference_method='none',
+                                  T=2,
+                                  M=200,
+                                  N=400,
+                                  num_samples=500,
+                                  selection_method='last',
+                                  sigmax=0.15,
+                                  sigmay=0.0001,
+                                  code_type='mixed',
+                                  ratio_conj=0.6,
+                                  output_directory='.',
+                                  sigma_output=0.1,
+                                  stimuli_generation_recall='random',
+                                  autoset_parameters=None)
+    experiment_launcher = experimentlauncher.ExperimentLauncher(run=True, arguments_dict=experiment_parameters)
+    sampler = experiment_launcher.all_vars['sampler']
+
+    # Now let's build a FitExperiment
+    parameters = dict(experiment_ids=['gorgo11', 'bays09'], fit_mixture_model=True)
+    fit_exp = FitExperiment(sampler, parameters)
+
+    if False:
+        ## Check precision required for the convolved likelihood
+        precision_space = np.linspace(50, 500, 7)
+        convolved_ll = np.empty(precision_space.size)
+
+        fit_exp.force_experimental_stimuli(experiment_id='bays09')
+
+        for precision_i, precision in enumerate(precision_space):
+            convolved_ll[precision_i] = fit_exp.sampler.compute_loglikelihood_convolved_output_noise(precision=precision)
+        plt.plot(precision_space, convolved_ll, precision_space, np.ones(precision_space.size)*fit_exp.sampler.compute_loglikelihood())
+        plt.legend(('Convolved', 'Classic'))
+        plt.xlabel('Size of finite support')
+
+    if True:
+        # Now compute everything!
+        logliks_nonoise = fit_exp.compute_bic_loglik_all_datasets()
+        logliks_noise = fit_exp.compute_bic_loglik_noise_convolved_all_datasets()
+
+        print "No noise: ", logliks_nonoise
+        print "Noise convolved:", logliks_noise
+
+    return locals()
+
+
 
 if __name__ == '__main__':
-    if True:
+    if False:
         all_vars = test_fit_experiment()
+    if False:
+        all_vars = test_loglike_fit()
+    if True:
+        all_vars = test_noiseoutput_loglike()
 
 
     for key, val in all_vars.iteritems():

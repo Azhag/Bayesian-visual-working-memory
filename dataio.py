@@ -47,6 +47,7 @@ class DataIO:
         self.git_infos = None
         self.debug = debug
         self.git_workdir = git_workdir
+        self.saved_variables = []
 
         # Setup the output directory
         self.make_dirs()
@@ -181,14 +182,14 @@ class DataIO:
             self.git_repo = git.Repo(self.git_workdir)
 
             # Get the current branch
-            branch_name = self.git_repo.active_branch.name
+            branch_name = self.git_repo.active_branch
 
             # Get the current commit
-            commit_num = self.git_repo.active_branch.commit.hexsha
+            commit_num = self.git_repo.commit(branch_name).id
             commit_short = commit_num[:7]
 
             # Check if the repo is dirty (hence the commit is incorrect, may be important)
-            repo_dirty = self.git_repo.is_dirty()
+            repo_dirty = self.git_repo.is_dirty
 
             # Save them up
             self.git_infos = dict(repo=str(self.git_repo), branch_name=branch_name, commit_num=commit_num, commit_short=commit_short, repo_dirty=repo_dirty)
@@ -224,6 +225,13 @@ class DataIO:
         self.create_filename()
 
 
+    def create_formatted_filename(self, filename):
+        '''
+            Given a filename, preprend the output_folder and fill in unique_id and label.
+        '''
+
+        return os.path.join(self.output_folder, filename.format(unique_id=self.unique_id, label=self.label))
+
     def save_variables(self, selected_variables, all_variables):
         '''
             Main function
@@ -250,10 +258,13 @@ class DataIO:
 
         # Clean up 'args'
         if 'args' in dict_selected_vars:
-            dict_selected_vars['args'] = remove_functions_dict(vars(dict_selected_vars['args']))
+            dict_selected_vars['args'] = remove_functions_dict(argparse_2_dict(dict_selected_vars['args']))
 
         # Save them as a numpy array
         np.save(self.filename, dict_selected_vars)
+
+        # Remember the set of variables we just saved
+        self.saved_variables = selected_variables
 
 
     def save_variables_default(self, all_variables, additional_variables = []):
@@ -301,7 +312,7 @@ class DataIO:
         '''
 
         # Complete the filename if needs be.
-        formatted_filename = os.path.join(self.output_folder, filename.format(unique_id=self.unique_id, label=self.label))
+        formatted_filename = self.create_formatted_filename(filename)
 
         ## Save the figure.
 

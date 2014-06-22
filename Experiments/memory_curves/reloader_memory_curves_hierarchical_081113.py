@@ -68,9 +68,9 @@ def plots_memory_curves(data_pbs, generator_module=None):
     gorgo11_experimental_emfits_mean = np.array([[data[key] for _, data in data_simult['em_fits_nitems']['mean'].items()] for key in ['kappa', 'mixt_target', 'mixt_nontargets', 'mixt_random']])
     gorgo11_experimental_emfits_std = np.array([[data[key] for _, data in data_simult['em_fits_nitems']['std'].items()] for key in ['kappa', 'mixt_target', 'mixt_nontargets', 'mixt_random']])
     gorgo11_experimental_emfits_sem = gorgo11_experimental_emfits_std/np.sqrt(np.unique(data_simult['subject']).size)
+    gorgo11_T_space = data_simult['data_to_fit']['n_items']
 
-    experim_datadir = os.environ.get('WORKDIR_DROP', os.path.split(load_experimental_data.__file__)[0])
-    data_bays2009 = load_experimental_data.load_data_bays2009(data_dir=os.path.normpath(os.path.join(experim_datadir, '../../experimental_data/')), fit_mixture_model=True)
+    data_bays2009 = load_experimental_data.load_data_bays09(fit_mixture_model=True)
     bays09_experimental_mixtures_mean = data_bays2009['em_fits_nitems_arrays']['mean']
     bays09_experimental_mixtures_std = data_bays2009['em_fits_nitems_arrays']['std']
     # add interpolated points for 3 and 5 items
@@ -78,7 +78,8 @@ def plots_memory_curves(data_pbs, generator_module=None):
     bays09_experimental_mixtures_mean_compatible = emfit_mean_intpfct(np.arange(1, 6))
     emfit_std_intpfct = spint.interp1d(np.unique(data_bays2009['n_items']), bays09_experimental_mixtures_std)
     bays09_experimental_mixtures_std_compatible = emfit_std_intpfct(np.arange(1, 6))
-    T_space_bays09 = np.arange(1, 6)
+    bays09_T_space_interp = np.arange(1, 6)
+    bays09_T_space = data_bays2009['data_to_fit']['n_items']
 
 
 
@@ -149,65 +150,64 @@ def plots_memory_curves(data_pbs, generator_module=None):
         if savefigs:
             dataio.save_current_figure('memorycurves_precision_ratiohier%.2fsigmax%.2f_{label}_{unique_id}.pdf' % (ratiohier_space[ratiohier_i], sigmax_space[sigmax_i]))
 
-    def mem_plot_kappa(sigmax_i, ratiohier_i, exp_kappa_mean, exp_kappa_std=None):
-        ax = utils.plot_mean_std_area(T_space[:exp_kappa_mean.size], exp_kappa_mean, exp_kappa_std, linewidth=3, fmt='o-', markersize=8, label='Experimental data')
+    def mem_plot_kappa(sigmax_i, ratiohier_i, T_space_exp, exp_kappa_mean, exp_kappa_std=None):
+        ax = utils.plot_mean_std_area(T_space_exp, exp_kappa_mean, exp_kappa_std, linewidth=3, fmt='o-', markersize=8, label='Experimental data')
 
-        ax = utils.plot_mean_std_area(T_space[:exp_kappa_mean.size], result_em_fits_mean[..., :exp_kappa_mean.size, 0][ratiohier_i, sigmax_i], result_em_fits_std[..., :exp_kappa_mean.size, 0][ratiohier_i, sigmax_i], xlabel='Number of items', ylabel="Memory error $[rad^{-2}]$", linewidth=3, fmt='o-', markersize=8, label='Fitted kappa', ax_handle=ax)
+        ax = utils.plot_mean_std_area(T_space[:T_space_exp.max()], result_em_fits_mean[..., :T_space_exp.max(), 0][ratiohier_i, sigmax_i], result_em_fits_std[..., :T_space_exp.max(), 0][ratiohier_i, sigmax_i], xlabel='Number of items', ylabel="Memory error $[rad^{-2}]$", linewidth=3, fmt='o-', markersize=8, label='Fitted kappa', ax_handle=ax)
 
         ax.set_title('ratio_hier %.2f, sigmax %.2f' % (ratiohier_space[ratiohier_i], sigmax_space[sigmax_i]))
         ax.legend()
-        ax.set_xlim([0.9, exp_kappa_mean.size+0.1])
-        ax.set_xticks(range(1, exp_kappa_mean.size+1))
-        ax.set_xticklabels(range(1, exp_kappa_mean.size+1))
+        ax.set_xlim([0.9, T_space_exp.max()+0.1])
+        ax.set_xticks(range(1, T_space_exp.max()+1))
+        ax.set_xticklabels(range(1, T_space_exp.max()+1))
 
         ax.get_figure().canvas.draw()
-
 
         if savefigs:
             dataio.save_current_figure('memorycurves_kappa_ratiohier%.2fsigmax%.2f_{label}_{unique_id}.pdf' % (ratiohier_space[ratiohier_i], sigmax_space[sigmax_i]))
 
-    def em_plot(sigmax_i, ratiohier_i):
-        # TODO finish checking this up.
-        f, ax = plt.subplots()
-        ax2 = ax.twinx()
+    # def em_plot(sigmax_i, ratiohier_i):
+    #     # TODO finish checking this up.
+    #     f, ax = plt.subplots()
+    #     ax2 = ax.twinx()
 
-        # left axis, kappa
-        ax = utils.plot_mean_std_area(T_space, result_em_fits_mean[..., 0][ratiohier_i, sigmax_i], result_em_fits_std[..., 0][ratiohier_i, sigmax_i], xlabel='Number of items', ylabel="Inverse variance $[rad^{-2}]$", ax_handle=ax, linewidth=3, fmt='o-', markersize=8, label='Fitted kappa', color='k')
+    #     # left axis, kappa
+    #     ax = utils.plot_mean_std_area(T_space, result_em_fits_mean[..., 0][ratiohier_i, sigmax_i], result_em_fits_std[..., 0][ratiohier_i, sigmax_i], xlabel='Number of items', ylabel="Inverse variance $[rad^{-2}]$", ax_handle=ax, linewidth=3, fmt='o-', markersize=8, label='Fitted kappa', color='k')
 
-        # Right axis, mixture probabilities
-        utils.plot_mean_std_area(T_space, result_em_fits_mean[..., 1][ratiohier_i, sigmax_i], result_em_fits_std[..., 1][ratiohier_i, sigmax_i], xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax2, linewidth=3, fmt='o-', markersize=8, label='Target')
-        utils.plot_mean_std_area(T_space, result_em_fits_mean[..., 2][ratiohier_i, sigmax_i], result_em_fits_std[..., 2][ratiohier_i, sigmax_i], xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax2, linewidth=3, fmt='o-', markersize=8, label='Nontarget')
-        utils.plot_mean_std_area(T_space, result_em_fits_mean[..., 3][ratiohier_i, sigmax_i], result_em_fits_std[..., 3][ratiohier_i, sigmax_i], xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax2, linewidth=3, fmt='o-', markersize=8, label='Random')
+    #     # Right axis, mixture probabilities
+    #     utils.plot_mean_std_area(T_space, result_em_fits_mean[..., 1][ratiohier_i, sigmax_i], result_em_fits_std[..., 1][ratiohier_i, sigmax_i], xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax2, linewidth=3, fmt='o-', markersize=8, label='Target')
+    #     utils.plot_mean_std_area(T_space, result_em_fits_mean[..., 2][ratiohier_i, sigmax_i], result_em_fits_std[..., 2][ratiohier_i, sigmax_i], xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax2, linewidth=3, fmt='o-', markersize=8, label='Nontarget')
+    #     utils.plot_mean_std_area(T_space, result_em_fits_mean[..., 3][ratiohier_i, sigmax_i], result_em_fits_std[..., 3][ratiohier_i, sigmax_i], xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax2, linewidth=3, fmt='o-', markersize=8, label='Random')
 
-        lines, labels = ax.get_legend_handles_labels()
-        lines2, labels2 = ax2.get_legend_handles_labels()
-        ax.legend(lines + lines2, labels + labels2)
+    #     lines, labels = ax.get_legend_handles_labels()
+    #     lines2, labels2 = ax2.get_legend_handles_labels()
+    #     ax.legend(lines + lines2, labels + labels2)
 
-        ax.set_title('ratio_hier %.2f, sigmax %.2f' % (ratiohier_space[ratiohier_i], sigmax_space[sigmax_i]))
-        ax.set_xlim([0.9, 5.1])
-        ax.set_xticks(range(1, 6))
-        ax.set_xticklabels(range(1, 6))
+    #     ax.set_title('ratio_hier %.2f, sigmax %.2f' % (ratiohier_space[ratiohier_i], sigmax_space[sigmax_i]))
+    #     ax.set_xlim([0.9, 5.1])
+    #     ax.set_xticks(range(1, 6))
+    #     ax.set_xticklabels(range(1, 6))
 
-        f.canvas.draw()
+    #     f.canvas.draw()
 
-        if savefigs:
-            dataio.save_current_figure('memorycurves_emfits_ratiohier%.2fsigmax%.2f_{label}_{unique_id}.pdf' % (ratiohier_space[ratiohier_i], sigmax_space[sigmax_i]))
+    #     if savefigs:
+    #         dataio.save_current_figure('memorycurves_emfits_ratiohier%.2fsigmax%.2f_{label}_{unique_id}.pdf' % (ratiohier_space[ratiohier_i], sigmax_space[sigmax_i]))
 
     def em_plot_paper(sigmax_i, ratiohier_i):
         f, ax = plt.subplots()
 
-        # Right axis, mixture probabilities
-        utils.plot_mean_std_area(T_space_bays09, result_em_fits_mean[..., 1][ratiohier_i, sigmax_i][:T_space_bays09.size], result_em_fits_std[..., 1][ratiohier_i, sigmax_i][:T_space_bays09.size], xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Target')
-        utils.plot_mean_std_area(T_space_bays09, result_em_fits_mean[..., 2][ratiohier_i, sigmax_i][:T_space_bays09.size], result_em_fits_std[..., 2][ratiohier_i, sigmax_i][:T_space_bays09.size], xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Nontarget')
-        utils.plot_mean_std_area(T_space_bays09, result_em_fits_mean[..., 3][ratiohier_i, sigmax_i][:T_space_bays09.size], result_em_fits_std[..., 3][ratiohier_i, sigmax_i][:T_space_bays09.size], xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Random')
+        # mixture probabilities
+        utils.plot_mean_std_area(bays09_T_space_interp, result_em_fits_mean[..., 1][ratiohier_i, sigmax_i][:bays09_T_space_interp.size], result_em_fits_std[..., 1][ratiohier_i, sigmax_i][:bays09_T_space_interp.size], xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Target')
+        utils.plot_mean_std_area(bays09_T_space_interp, result_em_fits_mean[..., 2][ratiohier_i, sigmax_i][:bays09_T_space_interp.size], result_em_fits_std[..., 2][ratiohier_i, sigmax_i][:bays09_T_space_interp.size], xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Nontarget')
+        utils.plot_mean_std_area(bays09_T_space_interp, result_em_fits_mean[..., 3][ratiohier_i, sigmax_i][:bays09_T_space_interp.size], result_em_fits_std[..., 3][ratiohier_i, sigmax_i][:bays09_T_space_interp.size], xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Random')
 
         ax.legend(prop={'size':15})
 
         ax.set_title('ratio_hier %.2f, sigmax %.2f' % (ratiohier_space[ratiohier_i], sigmax_space[sigmax_i]))
-        ax.set_xlim([1.0, T_space_bays09.size])
+        ax.set_xlim([1.0, bays09_T_space_interp.size])
         ax.set_ylim([0.0, 1.1])
-        ax.set_xticks(range(1, T_space_bays09.size+1))
-        ax.set_xticklabels(range(1, T_space_bays09.size+1))
+        ax.set_xticks(range(1, bays09_T_space_interp.size+1))
+        ax.set_xticklabels(range(1, bays09_T_space_interp.size+1))
 
         f.canvas.draw()
 
@@ -223,8 +223,8 @@ def plots_memory_curves(data_pbs, generator_module=None):
             sigmax_i        = np.argmin(np.abs(current_values[1] - sigmax_space))
 
 
-            mem_plot_precision(sigmax_i, ratiohier_i)
-            mem_plot_kappa(sigmax_i, ratiohier_i)
+            # mem_plot_precision(sigmax_i, ratiohier_i)
+            # mem_plot_kappa(sigmax_i, ratiohier_i)
 
     if plot_best_memory_curves:
 
@@ -236,7 +236,7 @@ def plots_memory_curves(data_pbs, generator_module=None):
         # Best kappa fit
         best_axis2_i_all = np.argmin(dist_diff_emkappa_experim, axis=1)
         for axis1_i, best_axis2_i in enumerate(best_axis2_i_all):
-            mem_plot_kappa(best_axis2_i, axis1_i, gorgo11_experimental_emfits_mean[0], gorgo11_experimental_emfits_std[0])
+            mem_plot_kappa(best_axis2_i, axis1_i, gorgo11_T_space, gorgo11_experimental_emfits_mean[0], gorgo11_experimental_emfits_std[0])
             # em_plot(best_axis2_i, axis1_i)
 
         # Best em parameters fit to Bays09
@@ -244,7 +244,7 @@ def plots_memory_curves(data_pbs, generator_module=None):
         # best_axis2_i_all = np.argmin(dist_diff_em_mixtures_bays09, axis=1)
 
         for axis1_i, best_axis2_i in enumerate(best_axis2_i_all):
-            mem_plot_kappa(best_axis2_i, axis1_i, bays09_experimental_mixtures_mean_compatible[0, :T_space_bays09.size], bays09_experimental_mixtures_std_compatible[0, :T_space_bays09.size])
+            mem_plot_kappa(best_axis2_i, axis1_i, bays09_T_space, bays09_experimental_mixtures_mean[0], bays09_experimental_mixtures_std[0])
             # em_plot(best_axis2_i, axis1_i)
             em_plot_paper(best_axis2_i, axis1_i)
 
@@ -266,8 +266,8 @@ this_file = inspect.getfile(inspect.currentframe())
 
 parameters_entryscript=dict(action_to_do='launcher_do_reload_constrained_parameters', output_directory='.')
 
-# generator_script = 'generator' + re.split("^reloader", os.path.split(this_file)[-1])[-1]
-generator_script = 'generator_memory_curves_hierarchical_newruns_141113.py'
+generator_script = 'generator' + re.split("^reloader", os.path.split(this_file)[-1])[-1]
+# generator_script = 'generator_memory_curves_hierarchical_newruns_141113.py'
 
 print "Reloader data generated from ", generator_script
 

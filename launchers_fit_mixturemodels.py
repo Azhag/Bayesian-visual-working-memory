@@ -48,7 +48,7 @@ def launcher_do_fit_mixturemodels(args):
 
 
     # Load datasets to compare against
-    data_bays2009 = load_experimental_data.load_data_bays2009(fit_mixture_model=True)
+    data_bays2009 = load_experimental_data.load_data_bays09(fit_mixture_model=True)
     bays09_experimental_mixtures_mean = data_bays2009['em_fits_nitems_arrays']['mean']
     # Assume that T_space >= max(T_space_bays09)
     bays09_T_space = np.unique(data_bays2009['n_items'])
@@ -70,6 +70,8 @@ def launcher_do_fit_mixturemodels(args):
     result_em_fits_allnontargets = np.nan*np.empty((T_space.size, 5+(T_max-1), all_parameters['num_repetitions']))  # kappa, mixt_target, mixt_nontarget (T-1), mixt_random, ll, bic
     result_dist_bays09 = np.nan*np.empty((T_space.size, 4, all_parameters['num_repetitions']))  # kappa, mixt_target, mixt_nontarget, mixt_random
     result_dist_gorgo11 = np.nan*np.empty((T_space.size, 4, all_parameters['num_repetitions']))  # kappa, mixt_target, mixt_nontarget, mixt_random
+    result_dist_bays09_emmixt_KL = np.nan*np.empty((T_space.size, all_parameters['num_repetitions']))
+    result_dist_gorgo11_emmixt_KL = np.nan*np.empty((T_space.size, all_parameters['num_repetitions']))
 
     # If desired, will automatically save all Model responses.
     if all_parameters['collect_responses']:
@@ -102,8 +104,8 @@ def launcher_do_fit_mixturemodels(args):
 
             # Fit mixture model
             print "fit mixture model..."
-            curr_params_fit = sampler.fit_mixture_model(use_all_targets=True)
-            curr_params_fit['mixt_nontargets_sum'] = np.sum(curr_params_fit['mixt_nontargets'])
+            curr_params_fit = sampler.fit_mixture_model(use_all_targets=False)
+            # curr_params_fit['mixt_nontargets_sum'] = np.sum(curr_params_fit['mixt_nontargets'])
             result_em_fits[T_i, :, repet_i] = [curr_params_fit[key] for key in ['kappa', 'mixt_target', 'mixt_nontargets_sum', 'mixt_random', 'train_LL', 'bic']]
             result_em_fits_allnontargets[T_i, :2, repet_i] = [curr_params_fit['kappa'], curr_params_fit['mixt_target']]
             result_em_fits_allnontargets[T_i, 2:(2+T-1), repet_i] = curr_params_fit['mixt_nontargets']
@@ -116,10 +118,14 @@ def launcher_do_fit_mixturemodels(args):
 
             # Compute distances to datasets
             if T in bays09_T_space:
-                result_dist_bays09[T_i, :, repet_i] = (bays09_experimental_mixtures_mean[:, bays09_T_space==T].flatten() - result_em_fits[T_i, :-2, repet_i])**2.
+                result_dist_bays09[T_i, :, repet_i] = (bays09_experimental_mixtures_mean[:, bays09_T_space==T].flatten() - result_em_fits[T_i, :4, repet_i])**2.
+
+                result_dist_bays09_emmixt_KL[T_i, repet_i] = utils.KL_div(result_em_fits[T_i, 1:4, repet_i], bays09_experimental_mixtures_mean[1:, bays09_T_space==T].flatten())
 
             if T in gorgo11_T_space:
-                result_dist_gorgo11[T_i, :, repet_i] = (gorgo11_experimental_emfits_mean[:, gorgo11_T_space == T].flatten() - result_em_fits[T_i, :-2, repet_i])**2.
+                result_dist_gorgo11[T_i, :, repet_i] = (gorgo11_experimental_emfits_mean[:, gorgo11_T_space == T].flatten() - result_em_fits[T_i, :4, repet_i])**2.
+
+                result_dist_gorgo11_emmixt_KL[T_i, repet_i] = utils.KL_div(result_em_fits[T_i, 1:4, repet_i], gorgo11_experimental_emfits_mean[1:, gorgo11_T_space==T].flatten())
 
 
             # If needed, store responses

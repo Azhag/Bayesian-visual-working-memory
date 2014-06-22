@@ -58,7 +58,7 @@ def plots_boostrap(data_pbs, generator_module=None):
 
     dataio = DataIO(output_folder=generator_module.pbs_submission_infos['simul_out_dir'] + '/outputs/', label='global_' + dataset_infos['save_output_filename'])
 
-    dataset = load_experimental_data.load_data_bays2009(fit_mixture_model=True)
+    dataset = load_experimental_data.load_data_bays09(fit_mixture_model=True)
 
     if load_fit_bootstrap:
         if caching_bootstrap_filename is not None:

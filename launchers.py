@@ -40,7 +40,7 @@ def init_everything(parameters):
     stat_meas = init_stat_measurer(random_network, parameters)
 
     # Init sampler
-    sampler = Sampler(data_gen, n_parameters=stat_meas.model_parameters, tc=parameters['cued_feature_time'])
+    sampler = Sampler(data_gen, n_parameters=stat_meas.model_parameters, tc=parameters['cued_feature_time'], sigma_output=parameters['sigma_output'])
 
     return (random_network, data_gen, stat_meas, sampler)
 
@@ -170,7 +170,7 @@ def launcher_do_save_responses_simultaneous(args):
             stat_meas = StatisticsMeasurer(data_gen_noise)
             # stat_meas = StatisticsMeasurer(data_gen)
 
-            sampler = Sampler(data_gen, n_parameters=stat_meas.model_parameters)
+            sampler = Sampler(data_gen, n_parameters=stat_meas.model_parameters, sigma_output=0.0)
 
             for tc in np.arange(t+1):
                 print "Doing T=%d, Tc=%d,  %d/%d" % (t+1, tc, repet_i+1, args.num_repetitions)

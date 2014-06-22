@@ -16,6 +16,8 @@ import launchers
 from utils import *
 from dataio import *
 from fitexperiment import *
+import progress
+
 
 
 def launcher_do_fitexperiment(args):
@@ -28,7 +30,7 @@ def launcher_do_fitexperiment(args):
     print "Doing a piece of work for launcher_do_fitexperiment"
 
 
-    all_parameters = utils.argparse_2_dict(args)
+    all_parameters = argparse_2_dict(args)
     print all_parameters
 
     if all_parameters['burn_samples'] + all_parameters['num_samples'] < 200:
@@ -48,22 +50,19 @@ def launcher_do_fitexperiment(args):
     run_counter = 0
 
     # Result arrays
-    result_fitexperiments = np.nan*np.empty((2, all_parameters['num_repetitions']))  # LL, BIC total
-    result_fitexperiments_all = np.nan*np.empty((2, len(all_parameters['experiment_ids']), all_parameters['num_repetitions']))  # LL, BIC per experiments
+    result_fitexperiments = np.nan*np.empty((3, all_parameters['num_repetitions']))  # BIC total, LL, LL90
+    result_fitexperiments_all = np.nan*np.empty((3, len(all_parameters['experiment_ids']), all_parameters['num_repetitions']))  # BIC, LL, LL90; per experiments,
     if all_parameters['inference_method'] != 'none':
         result_all_precisions = np.nan*np.empty((all_parameters['num_repetitions']))
         result_em_fits = np.nan*np.empty((6, all_parameters['num_repetitions']))   # kappa, mixt_target, mixt_nontarget, mixt_random, ll, bic
         result_fi_theo = np.nan*np.empty((all_parameters['num_repetitions']))
         result_fi_theocov = np.nan*np.empty((all_parameters['num_repetitions']))
 
-        # If desired, will automatically save all Model responses.
-        # TODO Does not work, dimensionality problem, responses have the dataset sizes, not know a-priori...
-        # if all_parameters['collect_responses']:
-        #     raise NotImplementedError
-        #     print "--- Collecting all responses..."
-        #     result_responses = np.nan*np.ones((all_parameters['N'], all_parameters['num_repetitions']))
-        #     result_target = np.nan*np.ones((all_parameters['N'], all_parameters['num_repetitions']))
-        #     result_nontargets = np.nan*np.ones((all_parameters['N'], all_parameters['N']-1, all_parameters['num_repetitions']))
+    if all_parameters['sigma_output'] > 0.0:
+        # We asked for the additional noise convolved, need to take it into account.
+        result_fitexperiments_noiseconv = np.nan*np.empty((3, all_parameters['num_repetitions']))  # bic (K+1), LL conv, LL90 conv
+        result_fitexperiments_noiseconv_all = np.nan*np.empty((3, len(all_parameters['experiment_ids']), all_parameters['num_repetitions']))  # bic, LL conv, LL90 conv
+
 
     search_progress = progress.Progress(all_parameters['num_repetitions'])
     for repet_i in xrange(all_parameters['num_repetitions']):
@@ -78,22 +77,42 @@ def launcher_do_fitexperiment(args):
         fit_exp = FitExperiment(sampler, fitexperiment_parameters)
 
         ## Compute and store the BIC and LL
-        bic_loglik_dict = fit_exp.compute_bic_loglik_all_datasets(K=None)
+        if all_parameters['code_type'] == 'mixed':
+            K_nb_params = 3
+        else:
+            K_nb_params = 2
+
+        bic_loglik_dict = fit_exp.compute_bic_loglik_all_datasets(K=K_nb_params)
 
         for exper_i, exper in enumerate(all_parameters['experiment_ids']):
             try:
                 result_fitexperiments_all[0, exper_i, repet_i] = bic_loglik_dict[exper]['bic']
                 result_fitexperiments_all[1, exper_i, repet_i] = bic_loglik_dict[exper]['LL']
+                result_fitexperiments_all[2, exper_i, repet_i] = bic_loglik_dict[exper]['LL90']
             except TypeError:
                 pass
 
         result_fitexperiments[:, repet_i] = np.nansum(result_fitexperiments_all[..., repet_i], axis=1)
 
-        # If sampling_method is not none, try to get em_fits and others
+        if all_parameters['sigma_output'] > 0.0:
+            # Compute the loglikelihoods with the convolved posterior. Slowish.
+
+            ## Compute and store the BIC and LL
+            bic_loglik_noise_convolved_dict = fit_exp.compute_bic_loglik_noise_convolved_all_datasets(precision=150)
+
+            for exper_i, exper in enumerate(all_parameters['experiment_ids']):
+                try:
+                    result_fitexperiments_noiseconv_all[0, exper_i, repet_i] = bic_loglik_noise_convolved_dict[exper]['bic']
+                    result_fitexperiments_noiseconv_all[1, exper_i, repet_i] = bic_loglik_noise_convolved_dict[exper]['LL']
+                    result_fitexperiments_noiseconv_all[2, exper_i, repet_i] = bic_loglik_noise_convolved_dict[exper]['LL90']
+                except TypeError:
+                    pass
+
+            result_fitexperiments_noiseconv[:, repet_i] = np.nansum(result_fitexperiments_noiseconv_all[:, :, repet_i], axis=1)
+
+        # If sampling_method is not none, try to get em_fits and others. EXTRA SLOW.
         if not all_parameters['inference_method'] == 'none':
             parameters = dict([[key, eval(key)] for key in ['all_parameters', 'repet_i', 'result_all_precisions', 'result_em_fits', 'result_fi_theo', 'result_fi_theocov']])
-            # if all_parameters['collect_responses']:
-            #     parameters.update(dict(result_responses=result_responses, result_target=result_target, result_nontargets=result_nontargets))
 
             def additional_computations(sampler, parameters):
                 for key, val in parameters.iteritems():
@@ -112,15 +131,6 @@ def launcher_do_fitexperiment(args):
                 curr_params_fit = sampler.fit_mixture_model(use_all_targets=True)
                 result_em_fits[:, repet_i] = [curr_params_fit[key] for key in ['kappa', 'mixt_target', 'mixt_nontargets_sum', 'mixt_random', 'train_LL', 'bic']]
 
-                # # If needed, store responses
-                # if all_parameters['collect_responses']:
-                #     (responses, target, nontarget) = sampler.collect_responses()
-                #     result_responses[:, repet_i] = responses
-                #     result_target[:, repet_i] = target
-                #     result_nontargets[..., repet_i] = nontarget
-
-                #     print "collected responses"
-
                 # Compute fisher info
                 print "compute fisher info"
                 result_fi_theo[repet_i] = sampler.estimate_fisher_info_theocov(use_theoretical_cov=False)
@@ -134,7 +144,10 @@ def launcher_do_fitexperiment(args):
         print "CURRENT RESULTS:"
         if all_parameters['inference_method'] != 'none':
             print result_all_precisions[repet_i], result_em_fits[:, repet_i], result_fi_theo[repet_i], result_fi_theocov[repet_i]
-        print "Fits ML:", bic_loglik_dict
+        print "Fits LL no noise:", bic_loglik_dict
+
+        if all_parameters['sigma_output'] > 0.0:
+            print "Fits LL output noise %.2f: %s" %  (all_parameters['sigma_output'], bic_loglik_noise_convolved_dict)
 
         ### /Work ###
 
@@ -167,7 +180,7 @@ def launcher_do_fitexperiment_allT(args):
     print "Doing a piece of work for launcher_do_fitexperiment_allT"
 
 
-    all_parameters = utils.argparse_2_dict(args)
+    all_parameters = argparse_2_dict(args)
     print all_parameters
 
     if all_parameters['burn_samples'] + all_parameters['num_samples'] < 200:
@@ -188,25 +201,23 @@ def launcher_do_fitexperiment_allT(args):
 
     # Parameter arrays
     T_max = all_parameters['T']
-    T_space = np.arange(1, T_max+1)
+    T_min = all_parameters.get('T_min', 1)
+    T_space = np.arange(T_min, T_max+1)
 
-    # Result arrays
-    result_fitexperiments = np.nan*np.empty((T_space.size, 2, all_parameters['num_repetitions']))  # LL, BIC total
-    result_fitexperiments_all = np.nan*np.empty((T_space.size, 2, len(all_parameters['experiment_ids']), all_parameters['num_repetitions']))  # LL, BIC per experiments
+    ## Result arrays
+    result_fitexperiments = np.nan*np.empty((T_space.size, 3, all_parameters['num_repetitions']))  # BIC total, LL, LL90
+    result_fitexperiments_all = np.nan*np.empty((T_space.size, 3, len(all_parameters['experiment_ids']), all_parameters['num_repetitions']))  # BIC, LL, LL90; per experiments
+
     if all_parameters['inference_method'] != 'none':
         result_all_precisions = np.nan*np.empty((T_space.size, all_parameters['num_repetitions']))
         result_em_fits = np.nan*np.empty((T_space.size, 6, all_parameters['num_repetitions']))   # kappa, mixt_target, mixt_nontarget, mixt_random, ll, bic
         result_fi_theo = np.nan*np.empty((T_space.size, all_parameters['num_repetitions']))
         result_fi_theocov = np.nan*np.empty((T_space.size, all_parameters['num_repetitions']))
 
-        # If desired, will automatically save all Model responses.
-        # TODO Does not work, dimensionality problem, responses have the dataset sizes, not know a-priori...
-        # if all_parameters['collect_responses']:
-        #     raise NotImplementedError
-        #     print "--- Collecting all responses..."
-        #     result_responses = np.nan*np.ones((all_parameters['N'], all_parameters['num_repetitions']))
-        #     result_target = np.nan*np.ones((all_parameters['N'], all_parameters['num_repetitions']))
-        #     result_nontargets = np.nan*np.ones((all_parameters['N'], all_parameters['N']-1, all_parameters['num_repetitions']))
+    if all_parameters['sigma_output'] > 0.0:
+        # We asked for the additional noise convolved, need to take it into account.
+        result_fitexperiments_noiseconv = np.nan*np.empty((T_space.size, 3, all_parameters['num_repetitions']))  # bic (K+1), LL conv, LL90 conv
+        result_fitexperiments_noiseconv_all = np.nan*np.empty((T_space.size, 3, len(all_parameters['experiment_ids']), all_parameters['num_repetitions']))  # bic, LL conv, LL90 conv
 
     search_progress = progress.Progress(T_space.size*all_parameters['num_repetitions'])
     for repet_i in xrange(all_parameters['num_repetitions']):
@@ -225,16 +236,39 @@ def launcher_do_fitexperiment_allT(args):
 
             ## Compute and store the BIC and LL
             print ">> Computing BIC and LL..."
-            bic_loglik_dict = fit_exp.compute_bic_loglik_all_datasets(K=None)
+            ## Compute and store the BIC and LL
+            if all_parameters['code_type'] == 'mixed':
+                K_nb_params = 3
+            else:
+                K_nb_params = 2
+            bic_loglik_dict = fit_exp.compute_bic_loglik_all_datasets(K=K_nb_params)
 
             for exper_i, exper in enumerate(all_parameters['experiment_ids']):
                 try:
                     result_fitexperiments_all[T_i, 0, exper_i, repet_i] = bic_loglik_dict[exper]['bic']
                     result_fitexperiments_all[T_i, 1, exper_i, repet_i] = bic_loglik_dict[exper]['LL']
+                    result_fitexperiments_all[T_i, 2, exper_i, repet_i] = bic_loglik_dict[exper]['LL90']
                 except TypeError:
                     pass
 
             result_fitexperiments[T_i, :, repet_i] = np.nansum(result_fitexperiments_all[T_i, ..., repet_i], axis=1)
+
+            if all_parameters['sigma_output'] > 0.0:
+                # Compute the loglikelihoods with the convolved posterior. Slowish.
+                print ">> Computing BIC and LL for convolved posterior..."
+
+                ## Compute and store the BIC and LL
+                bic_loglik_noise_convolved_dict = fit_exp.compute_bic_loglik_noise_convolved_all_datasets(precision=150)
+
+                for exper_i, exper in enumerate(all_parameters['experiment_ids']):
+                    try:
+                        result_fitexperiments_noiseconv_all[T_i, 0, exper_i, repet_i] = bic_loglik_noise_convolved_dict[exper]['bic']
+                        result_fitexperiments_noiseconv_all[T_i, 1, exper_i, repet_i] = bic_loglik_noise_convolved_dict[exper]['LL']
+                        result_fitexperiments_noiseconv_all[T_i, 2, exper_i, repet_i] = bic_loglik_noise_convolved_dict[exper]['LL90']
+                    except TypeError:
+                        pass
+
+                result_fitexperiments_noiseconv[T_i, :, repet_i] = np.nansum(result_fitexperiments_noiseconv_all[T_i, :, :, repet_i], axis=1)
 
             # If sampling_method is not none, try to get em_fits and others
             if not all_parameters['inference_method'] == 'none':
@@ -260,15 +294,6 @@ def launcher_do_fitexperiment_allT(args):
                     curr_params_fit = sampler.fit_mixture_model(use_all_targets=True)
                     result_em_fits[T_i, :, repet_i] = [curr_params_fit[key] for key in ['kappa', 'mixt_target', 'mixt_nontargets_sum', 'mixt_random', 'train_LL', 'bic']]
 
-                    # # If needed, store responses
-                    # if all_parameters['collect_responses']:
-                    #     (responses, target, nontarget) = sampler.collect_responses()
-                    #     result_responses[:, repet_i] = responses
-                    #     result_target[:, repet_i] = target
-                    #     result_nontargets[..., repet_i] = nontarget
-
-                    #     print "collected responses"
-
                     # Compute fisher info
                     print "compute fisher info"
                     result_fi_theo[T_i, repet_i] = sampler.estimate_fisher_info_theocov(use_theoretical_cov=False)
@@ -282,7 +307,11 @@ def launcher_do_fitexperiment_allT(args):
             print "CURRENT RESULTS:"
             if all_parameters['inference_method'] != 'none':
                 print result_all_precisions[T_i, repet_i], result_em_fits[T_i, :, repet_i], result_fi_theo[T_i, repet_i], result_fi_theocov[T_i, repet_i]
-            print "Fits ML:", bic_loglik_dict
+
+            print "Fits LL no noise:", bic_loglik_dict
+
+            if all_parameters['sigma_output'] > 0.0:
+                print "Fits LL output noise %.2f: %s" %  (all_parameters['sigma_output'], bic_loglik_noise_convolved_dict)
 
             ### /Work ###
 

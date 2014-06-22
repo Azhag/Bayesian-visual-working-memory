@@ -332,7 +332,7 @@ def plot_experimental_mixture():
         Cheat and get data from Bays 2008 from figure...
     '''
 
-    data_bays2009 = load_experimental_data.load_data_bays2009(fit_mixture_model=True)
+    data_bays2009 = load_experimental_data.load_data_bays09(fit_mixture_model=True)
     experimental_mixtures_mean = data_bays2009['em_fits_nitems_arrays']['mean'][1:]
     experimental_mixtures_std = data_bays2009['em_fits_nitems_arrays']['std'][1:]
     experimental_mixtures_mean[np.isnan(experimental_mixtures_mean)] = 0.0
@@ -574,7 +574,7 @@ def plot_bootstrap_randomsamples():
     angle_space = np.linspace(-np.pi, np.pi, 51)
     bins_center = angle_space[:-1] + np.diff(angle_space)[0]/2
 
-    data_bays2009 = load_experimental_data.load_data_bays2009(fit_mixture_model=True)
+    data_bays2009 = load_experimental_data.load_data_bays09(fit_mixture_model=True)
 
     ## Super long simulation, use precomputed data maybe?
     if use_precomputed:

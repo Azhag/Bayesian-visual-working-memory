@@ -109,6 +109,9 @@ def preprocess_simultaneous(dataset, parameters):
         if n_items > 1:
             dataset['vtest_nitems'][n_items_i] = utils.V_test(utils.dropnan(dataset['errors_nontarget_nitems'][n_items_i]).flatten())['pvalue']
 
+    # Do per subject and nitems, get average histogram
+    compute_average_histograms(dataset)
+
 
 
 def preprocess_sequential(dataset, parameters):
@@ -387,7 +390,7 @@ def preprocess_bays09(dataset, parameters):
 
 ######
 
-def load_dataset(filename='', preprocess=lambda x, p: x, parameters={}):
+def load_dataset(filename='', preprocess=lambda x, p: x, parameters={}, name=''):
     '''
         Load datasets.
         Supports
@@ -399,6 +402,9 @@ def load_dataset(filename='', preprocess=lambda x, p: x, parameters={}):
 
     # Load everything
     dataset = sio.loadmat(filename, mat_dtype=True)
+
+    # Set its name
+    dataset['name'] = name
 
     # Specific operations, for different types of datasets
     preprocess(dataset, parameters)
@@ -414,7 +420,7 @@ def load_multiple_datasets(datasets_descr = []):
 
     datasets = []
     for datasets_descr in datasets_descr:
-        datasets.append( load_dataset(filename=datasets_descr['filename'], preprocess=datasets_descr['preprocess'], parameters=datasets_descr['parameters']))
+        datasets.append( load_dataset(filename=datasets_descr['filename'], preprocess=datasets_descr['preprocess'], parameters=datasets_descr['parameters'], name=datasets_descr['name']))
 
     return datasets
 
@@ -685,6 +691,7 @@ def fit_mixture_model(dataset, caching_save_filename=None):
             dataset['em_fits_nitems_arrays']['mean'] = np.array([[dataset['em_fits_nitems']['mean'][item][em_key] for item in np.unique(dataset['n_items'])] for em_key in ['kappa', 'mixt_target', 'mixt_nontargets', 'mixt_random']])
             dataset['em_fits_nitems_arrays']['std'] = np.array([[dataset['em_fits_nitems']['std'][item][em_key] for item in np.unique(dataset['n_items'])] for em_key in ['kappa', 'mixt_target', 'mixt_nontargets', 'mixt_random']])
 
+    if 'sem' not in dataset['em_fits_nitems_arrays']:
         dataset['em_fits_nitems_arrays']['sem'] = dataset['em_fits_nitems_arrays']['std']/np.sqrt(dataset['subject_size'])
 
     if save_caching_file:
@@ -814,7 +821,7 @@ def plots_check_bias_nontarget(dataset, dataio=None):
 
     # Get histograms of errors, per n_item
     for nitems_i in xrange(n_items_space.size):
-        utils.hist_samples_density_estimation(dataset['errors_nitems'][nitems_i], bins=angle_space, title='N=%d' % (n_items_space[nitems_i]), dataio=dataio, filename='hist_bias_targets_%ditems_{label}_{unique_id}.pdf' % (n_items_space[nitems_i]))
+        utils.hist_samples_density_estimation(dataset['errors_nitems'][nitems_i], bins=angle_space, title='%s N=%d' % (dataset['name'], n_items_space[nitems_i]), dataio=dataio, filename='hist_bias_targets_%ditems_{label}_{unique_id}.pdf' % (n_items_space[nitems_i]))
 
     # Get histograms of bias to nontargets. Do that by binning the errors to others nontargets of the array.
     utils.plot_hists_bias_nontargets(dataset['errors_all_nitems'][n_items_space>1], bins=20, dataio=dataio, label='allnontargets', remove_first_column=True)
@@ -956,11 +963,11 @@ def plots_histograms_errors_targets_nontargets_nitems(dataset, dataio=None):
     f2, axes2 = plt.subplots(ncols=dataset['n_items_size']-1, figsize=((dataset['n_items_size']-1)*6, 6), sharey=True)
 
     for n_items_i, n_items in enumerate(np.unique(dataset['n_items'])):
-        utils.hist_angular_data(dataset['errors_nitems'][n_items_i], bins=angle_space, title='N=%d' % (n_items), norm='density', ax_handle=axes1[n_items_i], pretty_xticks=True)
+        utils.hist_angular_data(dataset['errors_nitems'][n_items_i], bins=angle_space, title='%s N=%d' % (dataset['name'], n_items), norm='density', ax_handle=axes1[n_items_i], pretty_xticks=True)
         axes1[n_items_i].set_ylim([0., 2.0])
 
         if n_items > 1:
-            utils.hist_angular_data(utils.dropnan(dataset['errors_nontarget_nitems'][n_items_i]), bins=angle_space, title='N=%d' % (n_items), norm='density', ax_handle=axes2[n_items_i-1], pretty_xticks=True)
+            utils.hist_angular_data(utils.dropnan(dataset['errors_nontarget_nitems'][n_items_i]), bins=angle_space, title='%s N=%d' % (dataset['name'], n_items), norm='density', ax_handle=axes2[n_items_i-1], pretty_xticks=True)
 
             axes2[n_items_i-1].text(0.02, 0.96, "Vtest pval: %.4f" % (dataset['vtest_nitems'][n_items_i]), transform=axes2[n_items_i-1].transAxes, horizontalalignment='left', fontsize=13)
 
@@ -973,10 +980,10 @@ def plots_histograms_errors_targets_nontargets_nitems(dataset, dataio=None):
 
     if dataio is not None:
         plt.figure(f1.number)
-        plt.tight_layout()
+        # plt.tight_layout()
         dataio.save_current_figure("hist_error_target_all_{label}_{unique_id}.pdf")
         plt.figure(f2.number)
-        plt.tight_layout()
+        # plt.tight_layout()
         dataio.save_current_figure("hist_error_nontarget_all_{label}_{unique_id}.pdf")
 
     # Do per subject and nitems, using average histogram
@@ -1011,10 +1018,10 @@ def plots_histograms_errors_targets_nontargets_nitems(dataset, dataio=None):
 
     if dataio is not None:
         plt.figure(f3.number)
-        plt.tight_layout()
+        # plt.tight_layout()
         dataio.save_current_figure("hist_error_target_persubj_{label}_{unique_id}.pdf")
         plt.figure(f4.number)
-        plt.tight_layout()
+        # plt.tight_layout()
         dataio.save_current_figure("hist_error_nontarget_persubj_{label}_{unique_id}.pdf")
 
 
@@ -1037,11 +1044,11 @@ def plots_em_mixtures(dataset, dataio=None, use_sem=True):
 
     ax.legend(prop={'size':15})
 
-    ax.set_title('Mixture model for EM fit')
-    ax.set_xlim([1.0, 5.0])
+    ax.set_title('Mixture model for EM fit %s' % dataset['name'])
+    ax.set_xlim([1.0, np.unique(dataset['n_items']).max()])
     ax.set_ylim([0.0, 1.1])
-    ax.set_xticks(range(1, 6))
-    ax.set_xticklabels(range(1, 6))
+    ax.set_xticks(range(1, np.unique(dataset['n_items']).max()+1))
+    ax.set_xticklabels(range(1, np.unique(dataset['n_items']).max()+1))
 
     f.canvas.draw()
 
@@ -1059,6 +1066,13 @@ def plots_bays2009(dataset, dataio=None):
     plots_em_mixtures(dataset, dataio)
 
 
+def plots_gorgo11(dataset, dataio=None):
+    '''
+        Plots for Gorgo11, assuming sequential data
+    '''
+    plots_histograms_errors_targets_nontargets_nitems(dataset, dataio)
+
+    plots_em_mixtures(dataset, dataio)
 
 
 def plots_dualrecall(dataset):
@@ -1076,12 +1090,12 @@ def plots_dualrecall(dataset):
     if to_plot['resp_vs_targ']:
 
         # Plot scatter and marginals for the orientation trials
-        utils.scatter_marginals(utils.dropnan(dataset['item_angle'][dataset['angle_trials'] & dataset['3_items_trials'], 0]), utils.dropnan(dataset['probe_angle'][dataset['angle_trials'] & dataset['3_items_trials']]), xlabel ='Target angle', ylabel='Response angle', title='Angle trials, 3 items', figsize=(9, 9), factor_axis=1.1, bins=61)
-        utils.scatter_marginals(utils.dropnan(dataset['item_angle'][dataset['angle_trials'] & dataset['6_items_trials'], 0]), utils.dropnan(dataset['probe_angle'][dataset['angle_trials'] & dataset['6_items_trials']]), xlabel ='Target angle', ylabel='Response angle', title='Angle trials, 6 items', figsize=(9, 9), factor_axis=1.1, bins=61)
+        utils.scatter_marginals(utils.dropnan(dataset['item_angle'][dataset['angle_trials'] & dataset['3_items_trials'], 0]), utils.dropnan(dataset['probe_angle'][dataset['angle_trials'] & dataset['3_items_trials']]), xlabel ='Target angle', ylabel='Response angle', title='%s Angle trials, 3 items' % (dataset['name']), figsize=(9, 9), factor_axis=1.1, bins=61)
+        utils.scatter_marginals(utils.dropnan(dataset['item_angle'][dataset['angle_trials'] & dataset['6_items_trials'], 0]), utils.dropnan(dataset['probe_angle'][dataset['angle_trials'] & dataset['6_items_trials']]), xlabel ='Target angle', ylabel='Response angle', title='%s Angle trials, 6 items' % (dataset['name']), figsize=(9, 9), factor_axis=1.1, bins=61)
 
         # Plot scatter and marginals for the colour trials
-        utils.scatter_marginals(utils.dropnan(dataset['item_colour'][dataset['colour_trials']& dataset['3_items_trials'], 0]), utils.dropnan(dataset['probe_colour'][dataset['colour_trials'] & dataset['3_items_trials']]), xlabel ='Target colour', ylabel='Response colour', title='Colour trials, 3 items', figsize=(9, 9), factor_axis=1.1, bins=61, show_colours=True)
-        utils.scatter_marginals(utils.dropnan(dataset['item_colour'][dataset['colour_trials'] & dataset['6_items_trials'], 0]), utils.dropnan(dataset['probe_colour'][dataset['colour_trials'] & dataset['6_items_trials']]), xlabel ='Target colour', ylabel='Response colour', title='Colour trials, 6 items', figsize=(9, 9), factor_axis=1.1, bins=61, show_colours=True)
+        utils.scatter_marginals(utils.dropnan(dataset['item_colour'][dataset['colour_trials']& dataset['3_items_trials'], 0]), utils.dropnan(dataset['probe_colour'][dataset['colour_trials'] & dataset['3_items_trials']]), xlabel ='Target colour', ylabel='Response colour', title='%s Colour trials, 3 items' % (dataset['name']), figsize=(9, 9), factor_axis=1.1, bins=61, show_colours=True)
+        utils.scatter_marginals(utils.dropnan(dataset['item_colour'][dataset['colour_trials'] & dataset['6_items_trials'], 0]), utils.dropnan(dataset['probe_colour'][dataset['colour_trials'] & dataset['6_items_trials']]), xlabel ='Target colour', ylabel='Response colour', title='%s Colour trials, 6 items' % (dataset['name']), figsize=(9, 9), factor_axis=1.1, bins=61, show_colours=True)
 
 
     if 'em_fits' in dataset:
@@ -1248,7 +1262,7 @@ def load_data_simult(data_dir=None, fit_mixture_model=False):
         experim_datadir = os.environ.get('WORKDIR_DROP', os.path.split(utils.__file__)[0])
         data_dir=os.path.normpath(os.path.join(experim_datadir, '../../experimental_data/'))
 
-    data_simult =  load_multiple_datasets([dict(name='Gorgo_simult', filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(fit_mixture_model=fit_mixture_model, datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), mixture_model_cache='em_simult.pickle'))])[0]
+    data_simult =  load_multiple_datasets([dict(name='gorgo11', filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(fit_mixture_model=fit_mixture_model, datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), mixture_model_cache='em_simult.pickle'))])[0]
 
     return data_simult
 
@@ -1262,7 +1276,7 @@ def load_data_bays09(data_dir=None, fit_mixture_model=False):
         experim_datadir = os.environ.get('WORKDIR_DROP', os.path.split(utils.__file__)[0])
         data_dir=os.path.normpath(os.path.join(experim_datadir, '../../experimental_data/'))
 
-    (data_bays2009, ) = load_multiple_datasets([dict(name='Bays2009', filename='colour_data.mat', preprocess=preprocess_bays09, parameters=dict(datadir=os.path.join(data_dir, 'Bays2009'), fit_mixture_model=fit_mixture_model, mixture_model_cache='em_bays_allitems.pickle'))])
+    (data_bays2009, ) = load_multiple_datasets([dict(name='bays09', filename='colour_data.mat', preprocess=preprocess_bays09, parameters=dict(datadir=os.path.join(data_dir, 'Bays2009'), fit_mixture_model=fit_mixture_model, mixture_model_cache='em_bays_allitems.pickle'))])
 
     return data_bays2009
 
@@ -1284,7 +1298,7 @@ def load_data_dualrecall(data_dir=None, fit_mixture_model=False):
         experim_datadir = os.environ.get('WORKDIR_DROP', os.path.split(utils.__file__)[0])
         data_dir=os.path.normpath(os.path.join(experim_datadir, '../../experimental_data/'))
 
-    (data_dualrecall, ) = load_multiple_datasets([dict(name='DualRecall', filename=os.path.join(data_dir, 'DualRecall_Bays', 'rate_data.mat'), preprocess=preprocess_dualrecall, parameters=dict(fit_mixture_model=fit_mixture_model, mixture_model_cache='em_dualrecall_allitems.pickle'))])
+    (data_dualrecall, ) = load_multiple_datasets([dict(name='dualrecall', filename=os.path.join(data_dir, 'DualRecall_Bays', 'rate_data.mat'), preprocess=preprocess_dualrecall, parameters=dict(fit_mixture_model=fit_mixture_model, mixture_model_cache='em_dualrecall_allitems.pickle'))])
 
 
     return data_dualrecall
@@ -1303,9 +1317,11 @@ if __name__ == '__main__':
     # keys:
     # 'probe', 'delayed', 'item_colour', 'probe_colour', 'item_angle', 'error', 'probe_angle', 'n_items', 'response', 'subject']
         # (data_sequen, data_simult, data_dualrecall) = load_multiple_datasets([dict(filename='Exp1.mat', preprocess=preprocess_sequential, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'))), dict(filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), fit_mixture_model=True)), dict(filename=os.path.join(data_dir, 'DualRecall_Bays', 'rate_data.mat'), preprocess=preprocess_dualrecall, parameters=dict(fit_mixture_model=True))])
-        # (data_simult,) = load_multiple_datasets([dict(name='Gorgo_simult', filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), fit_mixture_model=True, mixture_model_cache='em_simult.pickle'))])
-        (data_bays2009, ) = load_multiple_datasets([dict(name='Bays2009', filename='colour_data.mat', preprocess=preprocess_bays09, parameters=dict(datadir=os.path.join(data_dir, 'Bays2009'), fit_mixture_model=True, mixture_model_cache='em_bays.pickle', should_compute_bootstrap=True, bootstrap_cache='bootstrap_1000samples.pickle'))])
+        (data_simult,) = load_multiple_datasets([dict(name='Gorgo_simult', filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), fit_mixture_model=True, mixture_model_cache='em_simult.pickle'))])
+        # (data_bays2009, ) = load_multiple_datasets([dict(name='Bays2009', filename='colour_data.mat', preprocess=preprocess_bays09, parameters=dict(datadir=os.path.join(data_dir, 'Bays2009'), fit_mixture_model=True, mixture_model_cache='em_bays.pickle', should_compute_bootstrap=True, bootstrap_cache='bootstrap_1000samples.pickle'))])
         # data_dualrecall = load_data_dualrecall(fit_mixture_model=True)
+        data_bays2009 = load_data_bays09(fit_mixture_model=True)
+        data_gorgo11 = load_data_gorgo11(fit_mixture_model=True)
 
 
     # Check for bias towards 0 for the error between response and all items
@@ -1335,12 +1351,18 @@ if __name__ == '__main__':
 
     # plots_dualrecall(data_dualrecall)
 
+    plt.rcParams['font.size'] = 16
+    dataio = None
+
     # dataio = DataIO.DataIO(label='experiments_bays2009')
     # plots_check_bias_nontarget(data_simult, dataio=dataio)
     # plots_check_bias_bestnontarget(data_simult, dataio=dataio)
     # plots_check_bias_nontarget_randomized(data_simult, dataio=dataio)
 
-    # plots_bays2009(data_bays2009, dataio=dataio)
+    plots_bays2009(data_bays2009, dataio=dataio)
+
+    # dataio = DataIO.DataIO(label='experiments_gorgo11')
+    plots_gorgo11(data_gorgo11, dataio)
 
     plt.show()
 
