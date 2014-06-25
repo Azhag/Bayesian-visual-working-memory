@@ -22,7 +22,7 @@ submit_cmd = 'sbatch'
 
 num_repetitions = 5
 # num_repetitions = 10
-T  = 1
+T  = 2
 sigmax = 0.1
 
 run_label = 'mixedratioMscaling_mixed_papercomments_T{T}repetitions{num_repetitions}_140614'
@@ -44,10 +44,10 @@ pbs_submission_infos = dict(description='Runs and collect precision and mixture 
                                                T=T,
                                                sigmay=0.0001,
                                                inference_method='sample',
-                                               num_samples=200,
+                                               num_samples=300,
                                                selection_num_samples=1,
-                                               slice_width=0.07,
-                                               burn_samples=100,
+                                               slice_width=0.14,
+                                               burn_samples=200,
                                                num_repetitions=num_repetitions,
                                                enforce_min_distance=0.17,
                                                specific_stimuli_random_centers=None,
@@ -63,7 +63,7 @@ pbs_submission_infos = dict(description='Runs and collect precision and mixture 
                             pbs_submit_cmd=submit_cmd,
                             submit_label='ratioMscaling')
 
-nb_M = 30.
+nb_M = 31.
 
 M_range      =   dict(range=np.arange(5, 800, round((800-5)/nb_M)), dtype=int)
 ratio_range  =   dict(range=np.linspace(0.0001, 1.0, 30.), dtype=float)

@@ -32,11 +32,11 @@ def plots_ratioMscaling(data_pbs, generator_module=None):
     savefigs = True
     savedata = True
 
-    plots_pcolor_all = False
-    plots_effect_M_target_precision = False
-    plots_multiple_precisions = False
+    plots_pcolor_all = True
+    plots_effect_M_target_precision = True
+    plots_multiple_precisions = True
 
-    plots_effect_M_target_kappa = False
+    plots_effect_M_target_kappa = True
 
     plots_subpopulations_effects = True
 
