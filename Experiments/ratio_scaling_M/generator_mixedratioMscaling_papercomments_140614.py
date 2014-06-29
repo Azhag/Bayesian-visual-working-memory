@@ -22,7 +22,8 @@ submit_cmd = 'sbatch'
 
 num_repetitions = 5
 # num_repetitions = 10
-T  = 2
+# T  = 2
+T = 1
 sigmax = 0.1
 
 run_label = 'mixedratioMscaling_mixed_papercomments_T{T}repetitions{num_repetitions}_140614'

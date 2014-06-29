@@ -12,6 +12,7 @@ import utils
 import re
 import imp
 import matplotlib.pyplot as plt
+import launchers
 
 import inspect
 
@@ -32,13 +33,17 @@ def plots_ratioMscaling(data_pbs, generator_module=None):
     savefigs = True
     savedata = True
 
-    plots_pcolor_all = True
-    plots_effect_M_target_precision = True
-    plots_multiple_precisions = True
+    plots_pcolor_all = False
+    plots_effect_M_target_precision = False
+    plots_multiple_precisions = False
 
-    plots_effect_M_target_kappa = True
+    plots_effect_M_target_kappa = False
 
-    plots_subpopulations_effects = True
+    plots_subpopulations_effects = False
+
+    plots_subpopulations_effects_kappa_fi = True
+    compute_fisher_info_perratioconj = True
+    caching_fisherinfo_filename = os.path.join(generator_module.pbs_submission_infos['simul_out_dir'], 'cache_fisherinfo.pickle')
 
     colormap = None  # or 'cubehelix'
     plt.rcParams['font.size'] = 16
@@ -52,6 +57,10 @@ def plots_ratioMscaling(data_pbs, generator_module=None):
     result_em_fits_mean = (utils.nanmean(data_pbs.dict_arrays['result_em_fits']['results'], axis=-1))
     result_em_fits_std = (utils.nanstd(data_pbs.dict_arrays['result_em_fits']['results'], axis=-1))
 
+    all_args = data_pbs.loaded_data['args_list']
+
+    result_em_fits_kappa = result_em_fits_mean[..., 0]
+
     M_space = data_pbs.loaded_data['parameters_uniques']['M'].astype(int)
     ratio_space = data_pbs.loaded_data['parameters_uniques']['ratio_conj']
     num_repetitions = generator_module.num_repetitions
@@ -64,7 +73,10 @@ def plots_ratioMscaling(data_pbs, generator_module=None):
 
     target_precision = 100.
     dist_to_target_precision = (result_all_precisions_mean - target_precision)**2.
-    ratio_target_precision_given_M = ratio_space[np.argmin(dist_to_target_precision, axis=1)]
+    best_dist_to_target_precision = np.argmin(dist_to_target_precision, axis=1)
+    MAX_DISTANCE = 100.
+
+    ratio_target_precision_given_M = np.ma.masked_where(dist_to_target_precision[np.arange(dist_to_target_precision.shape[0]), best_dist_to_target_precision] > MAX_DISTANCE, ratio_space[best_dist_to_target_precision])
 
     if plots_pcolor_all:
         # Check evolution of precision given M and ratio
@@ -73,17 +85,17 @@ def plots_ratioMscaling(data_pbs, generator_module=None):
             dataio.save_current_figure('precision_log_pcolor_{label}_{unique_id}.pdf')
 
         # See distance to target precision evolution
-        utils.pcolor_2d_data(dist_to_target_precision, log_scale=True, x=M_space, y=ratio_space, xlabel='M', ylabel='ratio', xlabel_format="%d", title='Dist to target precision')
+        utils.pcolor_2d_data(dist_to_target_precision, log_scale=True, x=M_space, y=ratio_space, xlabel='M', ylabel='ratio', xlabel_format="%d", title='Dist to target precision %d' % target_precision)
         if savefigs:
             dataio.save_current_figure('dist_targetprecision_log_pcolor_{label}_{unique_id}.pdf')
 
 
         # Show kappa
-        utils.pcolor_2d_data(result_em_fits_mean[..., 0], log_scale=True, x=M_space, y=ratio_space, xlabel='M', ylabel='ratio', xlabel_format="%d", title='kappa wrt M / ratio')
+        utils.pcolor_2d_data(result_em_fits_kappa, log_scale=True, x=M_space, y=ratio_space, xlabel='M', ylabel='ratio', xlabel_format="%d", title='kappa wrt M / ratio')
         if savefigs:
             dataio.save_current_figure('kappa_log_pcolor_{label}_{unique_id}.pdf')
 
-        utils.pcolor_2d_data((result_em_fits_mean[..., 0] - 200)**2., log_scale=True, x=M_space, y=ratio_space, xlabel='M', ylabel='ratio', xlabel_format="%d", title='dist to kappa')
+        utils.pcolor_2d_data((result_em_fits_kappa - 200)**2., log_scale=True, x=M_space, y=ratio_space, xlabel='M', ylabel='ratio', xlabel_format="%d", title='dist to kappa')
         if savefigs:
             dataio.save_current_figure('dist_kappa_log_pcolor_{label}_{unique_id}.pdf')
 
@@ -105,7 +117,8 @@ def plots_ratioMscaling(data_pbs, generator_module=None):
             target_precisions = np.array([100, 200, 300, 500, 1000])
             for target_precision in target_precisions:
                 dist_to_target_precision = (result_all_precisions_mean - target_precision)**2.
-                ratio_target_precision_given_M = ratio_space[np.argmin(dist_to_target_precision, axis=1)]
+                best_dist_to_target_precision = np.argmin(dist_to_target_precision, axis=1)
+                ratio_target_precision_given_M = np.ma.masked_where(dist_to_target_precision[np.arange(dist_to_target_precision.shape[0]), best_dist_to_target_precision] > MAX_DISTANCE, ratio_space[best_dist_to_target_precision])
 
                 # replot
                 plot_ratio_target_precision(ratio_target_precision_given_M, target_precision)
@@ -123,8 +136,9 @@ def plots_ratioMscaling(data_pbs, generator_module=None):
 
         target_kappa = np.array([100, 200, 300, 500, 1000, 3000])
         for target_kappa in target_kappa:
-            dist_to_target_kappa = (result_em_fits_mean[..., 0] - target_kappa)**2.
-            ratio_target_kappa_given_M = ratio_space[np.argmin(dist_to_target_kappa, axis=1)]
+            dist_to_target_kappa = (result_em_fits_kappa - target_kappa)**2.
+            best_dist_to_target_kappa = np.argmin(dist_to_target_kappa, axis=1)
+            ratio_target_kappa_given_M = np.ma.masked_where(dist_to_target_kappa[np.arange(dist_to_target_kappa.shape[0]), best_dist_to_target_kappa] > MAX_DISTANCE, ratio_space[best_dist_to_target_kappa])
 
             # replot
             plot_ratio_target_kappa(ratio_target_kappa_given_M, target_kappa)
@@ -137,7 +151,7 @@ def plots_ratioMscaling(data_pbs, generator_module=None):
             M_feat_space = M_tot_selected - M_conj_space
 
             f, axes = plt.subplots(2, 2)
-            axes[0, 0].plot(ratio_space, result_all_precisions_mean[M_tot_selected_i])
+            axes[0, 0].plot(ratio_space, result_all_precisions_mean[2*M_tot_selected_i])
             axes[0, 0].set_xlabel('ratio')
             axes[0, 0].set_title('Measured precision')
 
@@ -157,7 +171,83 @@ def plots_ratioMscaling(data_pbs, generator_module=None):
             f.set_tight_layout(True)
 
             if savefigs:
-                dataio.save_current_figure('scaling_subpop_Mtot%d_{label}_{unique_id}.pdf' % M_tot_selected)
+                dataio.save_current_figure('scaling_precision_subpop_Mtot%d_{label}_{unique_id}.pdf' % M_tot_selected)
+
+            plt.close(f)
+
+    if plots_subpopulations_effects_kappa_fi:
+        # From cache
+        if caching_fisherinfo_filename is not None:
+            if os.path.exists(caching_fisherinfo_filename):
+                # Got file, open it and try to use its contents
+                try:
+                    with open(caching_fisherinfo_filename, 'r') as file_in:
+                        # Load and assign values
+                        cached_data = pickle.load(file_in)
+                        result_fisherinfo_Mratio = cached_data['result_fisherinfo_Mratio']
+                        compute_fisher_info_perratioconj = False
+
+                except IOError:
+                    print "Error while loading ", caching_fisherinfo_filename, "falling back to computing the Fisher Info"
+
+        if compute_fisher_info_perratioconj:
+            # We did not save the Fisher info, but need it if we want to fit the mixture model with fixed kappa. So recompute them using the args_dicts
+
+            result_fisherinfo_Mratio = np.empty((M_space.size, ratio_space.size))
+
+            # Invert the all_args_i -> M, ratio_conj direction
+            parameters_indirections = data_pbs.loaded_data['parameters_dataset_index']
+
+            for M_i, M in enumerate(M_space):
+                for ratio_conj_i, ratio_conj in enumerate(ratio_space):
+                    # Get index of first dataset with the current ratio_conj (no need for the others, I think)
+                    try:
+                        arg_index = parameters_indirections[(M, ratio_conj)][0]
+
+                        # Now using this dataset, reconstruct a RandomFactorialNetwork and compute the fisher info
+                        curr_args = all_args[arg_index]
+
+                        # curr_args['stimuli_generation'] = lambda T: np.linspace(-np.pi*0.6, np.pi*0.6, T)
+
+                        (_, _, _, sampler) = launchers.init_everything(curr_args)
+
+                        # Theo Fisher info
+                        result_fisherinfo_Mratio[M_i, ratio_conj_i] = sampler.estimate_fisher_info_theocov()
+
+                        # del curr_args['stimuli_generation']
+                    except KeyError:
+                        result_fisherinfo_Mratio[M_i, ratio_conj_i] = np.nan
+
+
+            # Save everything to a file, for faster later plotting
+            if caching_fisherinfo_filename is not None:
+                try:
+                    with open(caching_fisherinfo_filename, 'w') as filecache_out:
+                        data_cache = dict(result_fisherinfo_Mratio=result_fisherinfo_Mratio)
+                        pickle.dump(data_cache, filecache_out, protocol=2)
+                except IOError:
+                    print "Error writing out to caching file ", caching_fisherinfo_filename
+
+        # result_em_fits_kappa
+        for M_tot_selected_i, M_tot_selected in enumerate(M_space[::2]):
+
+            M_conj_space = ((1.-ratio_space)*M_tot_selected).astype(int)
+            M_feat_space = M_tot_selected - M_conj_space
+
+            f, axes = plt.subplots(2, 2)
+            axes[0, 0].plot(ratio_space, result_em_fits_kappa[2*M_tot_selected_i])
+            axes[0, 0].set_xlabel('ratio')
+            axes[0, 0].set_title('Fitted kappa')
+
+            axes[1, 0].plot(ratio_space, utils.stddev_to_kappa(1./result_fisherinfo_Mratio[2*M_tot_selected_i]**0.5))
+            axes[1, 0].set_xlabel('M_feat_size')
+            axes[1, 0].set_title('kappa_FI_mixed')
+
+            f.suptitle('M_tot %d' % M_tot_selected, fontsize=15)
+            f.set_tight_layout(True)
+
+            if savefigs:
+                dataio.save_current_figure('scaling_kappa_subpop_Mtot%d_{label}_{unique_id}.pdf' % M_tot_selected)
 
             plt.close(f)
 
