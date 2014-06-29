@@ -17,8 +17,8 @@ import inspect
 parameters_entryscript = dict(action_to_do='launcher_do_generate_submit_pbs_from_param_files', output_directory='.')
 submit_jobs = True
 parameter_generation = 'grid'
-# submit_cmd = 'qsub'
-submit_cmd = 'sbatch'
+submit_cmd = 'qsub'
+# submit_cmd = 'sbatch'
 
 num_repetitions = 5
 # num_repetitions = 10
@@ -57,13 +57,13 @@ pbs_submission_infos = dict(description='Runs and collect precision and mixture 
                                                label=run_label,
                                                experiment_data_dir=os.path.normpath(os.path.join(os.environ['WORKDIR_DROP'], '../../experimental_data')),
                                                ),
-                            walltime='40:00:00',
+                            walltime='1:00:00',
                             memory='2gb',
                             simul_out_dir=os.path.join(os.getcwd(), run_label.format(**locals())),
                             pbs_submit_cmd=submit_cmd,
                             submit_label='ratioMscaling')
 
-nb_M = 30.
+nb_M = 31.
 
 M_range      =   dict(range=np.arange(5, 800, round((800-5)/nb_M)), dtype=int)
 ratio_range  =   dict(range=np.linspace(0.0001, 1.0, 30.), dtype=float)
