@@ -684,7 +684,7 @@ class HighDimensionNetwork():
         '''
 
         if debug:
-            print "create conjunctive network, M %d, autoset: %d" % (M, autoset_parameters)
+            print "create conjunctive network, R=%d, M=%d, autoset: %d" % (R, M, autoset_parameters)
 
         rn = HighDimensionNetwork(M, R=R)
         rn.population_code_type = 'conjunctive'
@@ -706,7 +706,7 @@ class HighDimensionNetwork():
         '''
             Create a RandomFactorialNetwork instance, using a pure conjunctive code
         '''
-        print "create feature network, autoset: %d" % autoset_parameters
+        print "create feature network, R=%d, M=%d, autoset: %d" % (R, M, autoset_parameters)
 
         rn = HighDimensionNetwork(M, R=R)
 
@@ -747,7 +747,7 @@ class HighDimensionNetwork():
         '''
             Create a RandomFactorialNetwork instance, using a pure conjunctive code
         '''
-        print "create mixed network"
+        print "Create mixed network, R=%d autoset: %d" % (R, autoset_parameters)
 
         conj_scale = 1.0
         feat_scale = 0.3

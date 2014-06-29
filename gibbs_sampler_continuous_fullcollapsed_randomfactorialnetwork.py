@@ -40,32 +40,18 @@ def loglike_theta_fct_single(new_theta, (thetas, datapoint, rn, theta_mu, theta_
     thetas[sampled_feature_index] = new_theta
 
     like_mean = datapoint - mean_fixed_contrib - \
-                np.dot(ATtcB, rn.get_network_response(thetas))
+                ATtcB*rn.get_network_response(thetas)
 
     # Using inverse covariance as param
     # return theta_kappa*np.cos(thetas[sampled_feature_index] - theta_mu) - 0.5*np.dot(like_mean, np.dot(inv_covariance_fixed_contrib, like_mean))
     return -0.5*np.dot(like_mean, np.dot(inv_covariance_fixed_contrib, like_mean))
     # return -1./(2*0.2**2)*np.sum(like_mean**2.)
-
-def loglike_theta_fct_opt2d(new_theta, theta2, datapoint, rn, theta_mu, theta_kappa, ATtcB, sampled_feature_index, mean_fixed_contrib, inv_covariance_fixed_contrib):
-    '''
-        Compute the loglikelihood of: theta_r | n_tc theta_r' tc
-    '''
-
-    like_mean = datapoint - mean_fixed_contrib - \
-                ATtcB*rn.get_network_response(np.array([new_theta, theta2])
-
-    # Using inverse covariance as param
-    # return theta_kappa*np.cos(thetas[sampled_feature_index] - theta_mu) - 0.5*np.dot(like_mean, np.dot(inv_covariance_fixed_contrib, like_mean))
-    return -0.5*np.dot(like_mean, np.dot(inv_covariance_fixed_contrib, like_mean))
-    # return -1./(2*0.2**2)*np.sum(like_mean**2.)
-
-def like_theta_fct_opt2d(new_theta, theta2, datapoint, rn, theta_mu, theta_kappa, ATtcB, sampled_feature_index, mean_fixed_contrib, inv_covariance_fixed_contrib):
-    return np.exp(loglike_theta_fct_opt2d(new_theta, theta2, datapoint, rn, theta_mu, theta_kappa, ATtcB, sampled_feature_index, mean_fixed_contrib, inv_covariance_fixed_contrib))
 
 def loglike_theta_fct_single_min(x, thetas, datapoint, rn, theta_mu, theta_kappa, ATtcB, sampled_feature_index, mean_fixed_contrib, inv_covariance_fixed_contrib):
     return -loglike_theta_fct_single(x, (thetas, datapoint, rn, theta_mu, theta_kappa, ATtcB, sampled_feature_index, mean_fixed_contrib, inv_covariance_fixed_contrib))
 
+def like_theta_fct_single(x, thetas, datapoint, rn, theta_mu, theta_kappa, ATtcB, sampled_feature_index, mean_fixed_contrib, inv_covariance_fixed_contrib):
+    return np.exp(loglike_theta_fct_single(x, (thetas, datapoint, rn, theta_mu, theta_kappa, ATtcB, sampled_feature_index, mean_fixed_contrib, inv_covariance_fixed_contrib)))
 
 class Sampler:
     '''
@@ -173,9 +159,8 @@ class Sampler:
         # Construct the list of uncued features, which should be sampled
         self.theta_to_sample = np.array([[r for r in xrange(self.R) if r != self.data_gen.cued_features[n, 0]] for n in xrange(self.N)], dtype='int')
 
-        if self.R == 2:
-            # Just for convenience (in compute_angle_error), flatten the theta_to_sample
-            self.theta_to_sample = self.theta_to_sample.flatten()
+        # Index of the actual theta we need to report
+        self.theta_target_index = np.zeros(self.N, dtype=int)
 
 
     def init_cache_parameters(self, amplify_diag=1.0):
@@ -245,9 +230,9 @@ class Sampler:
 
         for n in xrange(self.N):
             ## Pack parameters and integrate using scipy, super fast
-            params = (self.theta[n, 1], self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[self.tc[n]], self.sampled_feature_index, self.mean_fixed_contrib[self.tc[n]], self.inv_covariance_fixed_contrib)
+            params = (self.theta[n], self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[self.tc[n]], self.sampled_feature_index, self.mean_fixed_contrib[self.tc[n]], self.inv_covariance_fixed_contrib)
 
-            self.normalization[n] = np.log(spintg.quad(like_theta_fct_opt2d, -np.pi, np.pi, args=params)[0])
+            self.normalization[n] = np.log(spintg.quad(like_theta_fct_single, -np.pi, np.pi, args=params)[0])
 
 
     #######
@@ -316,7 +301,7 @@ class Sampler:
             all_samples = np.zeros((permuted_datapoints.size, num_samples))
 
         if debug:
-            search_progress = progress.Progress(permuted_datapoints.size)
+            search_progress = progress.Progress((self.R - 1)*permuted_datapoints.size)
 
         # Do everything in log-domain, to avoid numerical errors
         i = 0
@@ -324,7 +309,7 @@ class Sampler:
         for n in permuted_datapoints:
 
             # Sample all the non-cued features
-            permuted_features = np.random.permutation(self.theta_to_sample[n, np.newaxis])
+            permuted_features = np.random.permutation(self.theta_to_sample[n])
 
             for sampled_feature_index in permuted_features:
                 # Get samples from the current distribution
@@ -588,6 +573,9 @@ class Sampler:
             Compute the loglikelihood for the current setting of thetas and tc and using the likelihood defined in loglike_theta_fct_single
         '''
 
+        # TODO CONVERT ME
+        assert self.R == 2, 'Only works for R=2 now, really should convert it'
+
         loglikelihoods = np.empty(self.N)
 
         posterior_space = np.linspace(-np.pi, np.pi, precision, endpoint=False)
@@ -602,7 +590,7 @@ class Sampler:
             normalization_convolv_posterior_spline = convolv_posterior_spline.integral(posterior_space[0], posterior_space[-1])
 
             # Compute the final convolved loglikelihoods for the actual thetas
-            loglikelihoods[n] = np.log(convolv_posterior_spline(self.theta[n, self.theta_to_sample[n]]).item()) - np.log(normalization_convolv_posterior_spline)
+            loglikelihoods[n] = np.log(convolv_posterior_spline(self.theta[n, self.theta_target_index[n]]).item()) - np.log(normalization_convolv_posterior_spline)
 
         return loglikelihoods
 
@@ -620,6 +608,9 @@ class Sampler:
 
             Computes it with the convolution theorem, in fourier space.
         '''
+
+        # TODO CONVERT ME
+        assert self.R == 2, 'Only works for R=2 now, really should convert it'
 
         if all_angles is None:
             all_angles = np.linspace(-np.pi, np.pi, precision, endpoint=False)
@@ -657,10 +648,11 @@ class Sampler:
 
         loglikelihood = np.empty(num_points)
 
+        curr_theta = self.data_gen.stimuli_correct[n, t].copy()
+
         # Compute the loglikelihood for all possible first feature
         for i in xrange(num_points):
-
-            params = (np.array([all_angles[i], self.data_gen.stimuli_correct[n, t, 1]]), self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[t], self.sampled_feature_index, self.mean_fixed_contrib[t], self.inv_covariance_fixed_contrib)
+            params = (curr_theta, self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[t], self.sampled_feature_index, self.mean_fixed_contrib[t], self.inv_covariance_fixed_contrib)
 
             # Give the correct cued second feature
             loglikelihood[i] = loglike_theta_fct_single(all_angles[i], params)
@@ -732,7 +724,7 @@ class Sampler:
 
         ax_handle.plot(x, ll_x)
         ax_handle.axvline(x=self.data_gen.stimuli_correct[n, self.data_gen.cued_features[n, 1], 0], color='r')
-        ax_handle.axvline(x=self.theta[n, self.theta_to_sample[n]], color='k', linestyle='--')
+        ax_handle.axvline(x=self.theta[n, self.theta_target_index[n]], color='k', linestyle='--')
 
         ax_handle.set_xlim((-np.pi, np.pi))
 
@@ -762,13 +754,15 @@ class Sampler:
         all_angles = np.linspace(-np.pi, np.pi, num_points, endpoint=False)
         llh_2angles = np.zeros((num_points, num_points))
 
+        curr_theta = self.data_gen.stimuli_correct[n, t].copy()
+
         # Compute the array
         for i in xrange(num_points):
             print "%d%%" % (i/float(num_points)*100)
             for j in xrange(num_points):
-
                 # Pack the parameters for the likelihood function
-                params = (np.array([all_angles[i], all_angles[j]]), self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[t], self.sampled_feature_index, self.mean_fixed_contrib[t], self.inv_covariance_fixed_contrib)
+                curr_theta[1] = all_angles[j]
+                params = (curr_theta, self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[t], self.sampled_feature_index, self.mean_fixed_contrib[t], self.inv_covariance_fixed_contrib)
 
                 # llh_2angles[i, j] = loglike_theta_fct_vect(np.array([all_angles[i], all_angles[j]]), params)
                 llh_2angles[i, j] = loglike_theta_fct_single(all_angles[i], params)
@@ -871,7 +865,7 @@ class Sampler:
 
             # Put a dotted line at the current theta sample, for tc
             if show_current_theta:
-                ax_handle.axvline(x=self.theta[n, self.theta_to_sample[n]], color='k', linestyle="--")
+                ax_handle.axvline(x=self.theta[n, self.theta_target_index[n]], color='k', linestyle="--")
 
             ax_handle.get_figure().canvas.draw()
 
@@ -924,7 +918,7 @@ class Sampler:
 
         # Put a dotted line at the current theta sample, for tc
         if show_current_theta:
-            axes[1].axvline(x=self.theta[n, self.theta_to_sample[n]], color='k', linestyle="--")
+            axes[1].axvline(x=self.theta[n, self.theta_target_index[n]], color='k', linestyle="--")
 
         axes[0].get_figure().canvas.draw()
         axes[1].get_figure().canvas.draw()
@@ -1427,10 +1421,10 @@ class Sampler:
         '''
 
         # Get the target angles
-        true_angles = self.data_gen.stimuli_correct[np.arange(self.N), self.data_gen.cued_features[:, 1], self.theta_to_sample]
+        true_angles = self.data_gen.stimuli_correct[np.arange(self.N), self.data_gen.cued_features[:, 1], self.theta_target_index]
 
         # Compute the angle difference error between predicted and ground truth
-        angle_errors = true_angles - self.theta[np.arange(self.N), self.theta_to_sample]
+        angle_errors = true_angles - self.theta[np.arange(self.N), self.theta_target_index]
 
         # Correct for obtuse angles
         angle_errors = wrap_angles(angle_errors)
@@ -1480,7 +1474,7 @@ class Sampler:
         if show_nontargets:
 
             # Get the non-target/distractor angles.
-            nontargets = self.data_gen.stimuli_correct[np.arange(self.N), self.data_gen.nontargets_indices.T, self.theta_to_sample].T
+            nontargets = self.data_gen.stimuli_correct[np.arange(self.N), self.data_gen.nontargets_indices.T, self.theta_target_index].T
 
             print "Target " + ''.join(["\t NT %d " % x for x in (np.arange(nontargets.shape[1])+1)]) + "\t Inferred \t Error"
 
@@ -1577,11 +1571,11 @@ class Sampler:
             return (responses, target, nontargets)
         '''
         # Current inferred responses
-        responses = self.theta[np.arange(self.N), self.theta_to_sample]
+        responses = self.theta[np.arange(self.N), self.theta_target_index]
         # Target angles. Funny indexing, maybe not the best place for t_r
-        target    =  self.data_gen.stimuli_correct[np.arange(self.N), self.data_gen.cued_features[:, 1], self.theta_to_sample]
+        target    =  self.data_gen.stimuli_correct[np.arange(self.N), self.data_gen.cued_features[:, 1], self.theta_target_index]
         # Non-target angles
-        nontargets = self.data_gen.stimuli_correct[np.arange(self.N), self.data_gen.nontargets_indices.T, self.theta_to_sample].T
+        nontargets = self.data_gen.stimuli_correct[np.arange(self.N), self.data_gen.nontargets_indices.T, self.theta_target_index].T
 
         return (responses, target, nontargets)
 
