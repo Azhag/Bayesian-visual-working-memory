@@ -13,6 +13,11 @@ import re
 import imp
 import matplotlib.pyplot as plt
 import launchers
+import cPickle as pickle
+
+import em_circularmixture
+import em_circularmixture_allitems_uniquekappa
+import em_circularmixture_allitems_kappafi
 
 import inspect
 
