@@ -60,7 +60,7 @@ class Sampler:
         y_t | x_t, y_{t-1} ~ Normal
 
     '''
-    def __init__(self, data_gen, tc=None, theta_prior_dict=dict(kappa=0.01, gamma=0.0), n_parameters = dict(), sigma_output=0.0):
+    def __init__(self, data_gen, tc=None, theta_prior_dict=dict(kappa=0.01, gamma=0.0), n_parameters = dict(), sigma_output=0.0, parameters_dict=None):
         '''
             Initialise the sampler
 
@@ -68,6 +68,9 @@ class Sampler:
         '''
 
         self.theta_prior_dict = theta_prior_dict
+
+        # Initialise sampling parameters
+        self.init_sampling_parameters(parameters_dict)
 
         # Initialise noise parameters
         self.set_noise_parameters(n_parameters)
@@ -123,6 +126,28 @@ class Sampler:
 
         # Precompute the parameters and cache them
         self.init_cache_parameters()
+
+
+    def init_sampling_parameters(self, parameters_dict=None):
+        '''
+            Takes a dictionary of parameters, will extra and use some of them
+        '''
+        if parameters_dict is None:
+            parameters_dict = dict()
+
+        default_parameters = dict(inference_method='sample', num_samples=200, burn_samples=100, selection_method='last', selection_num_samples=1, slice_width=np.pi/16., slice_jump_prob=0.3, integrate_tc_out=False, num_sampling_passes=1)
+
+        # First defaults parameters
+        for param_name, param_value in default_parameters.iteritems():
+            if not hasattr(self, param_name):
+                # Set default only if not already set
+                setattr(self, param_name, param_value)
+
+        # Then new parameters
+        for param_name, param_value in parameters_dict.iteritems():
+            if param_name in default_parameters:
+                setattr(self, param_name, param_value)
+
 
 
     def init_tc(self, tc=None):
@@ -237,7 +262,7 @@ class Sampler:
 
     #######
 
-    def run_inference(self, parameters):
+    def run_inference(self, parameters=None):
         '''
             Infer angles based on memory state
 
@@ -248,28 +273,44 @@ class Sampler:
             Warning: needs around 200 samples to mix. Burn_samples set to 100.
         '''
         print "Running inference..."
-        if parameters['inference_method'] == 'sample':
+
+        if parameters is not None:
+            # force some values
+            self.init_sampling_parameters(parameters)
+
+        if self.inference_method == 'sample':
             # Sample thetas
-            self.sample_theta(num_samples=parameters['num_samples'], burn_samples=parameters['burn_samples'], selection_method=parameters['selection_method'], selection_num_samples=parameters['selection_num_samples'], slice_width=parameters['slice_width'], integrate_tc_out=False, debug=True)
-        elif parameters['inference_method'] == 'max_lik':
+            print "-> Sampling theta, %d passes" % self.num_sampling_passes
+
+            for pass_i in xrange(self.num_sampling_passes):
+                print "--> Pass %d" % (pass_i + 1)
+                self.sample_all()
+
+        elif self.inference_method == 'max_lik':
             # Just use the ML value for the theta
+            print "-> Setting theta to ML values"
             self.set_theta_max_likelihood(num_points=100, post_optimise=True)
+        elif self.inference_method== 'none':
+            # Do nothing
+            print "-> no inference"
 
 
-    def sample_all(self, parameters=None):
+    def sample_all(self):
         '''
             Do one full sweep of sampling
         '''
 
-        if parameters is not None:
-            self.sample_theta(num_samples=parameters['num_samples'], burn_samples=parameters['burn_samples'], selection_method=parameters['selection_method'], selection_num_samples=parameters['selection_num_samples'], slice_width=parameters['slice_width'], integrate_tc_out=False, debug=True)
-        else:
-            self.sample_theta()
+        self.sample_theta()
 
-        print "Likelihood: %.2f" % self.compute_loglikelihood()
+        loglikelihood = self.compute_loglikelihood()
+
+        print "Loglikelihood: %.2f" % loglikelihood
+        print "top 90%% loglike: %.2f" % self.compute_loglikelihood_top90percent()
+
+        return loglikelihood
 
 
-    def sample_theta(self, num_samples=500, return_samples=False, burn_samples=100, integrate_tc_out=False, selection_method='last',selection_num_samples=250, subset_theta=None, slice_width=np.pi/16.0, slice_jump_prob=0.3, debug=True):
+    def sample_theta(self, return_samples=False, subset_theta=None, debug=True):
         '''
             Sample the thetas
             Need to use a slice sampler, as we do not know the normalization constant.
@@ -277,9 +318,9 @@ class Sampler:
             ASSUMES A_t = A for all t. Same for B.
         '''
 
-        if selection_num_samples > num_samples:
+        if self.selection_num_samples > self.num_samples:
             # Limit selection_num_samples
-            selection_num_samples = num_samples
+            self.selection_num_samples = self.num_samples
 
         if subset_theta is not None:
             # Should only sample a subset of the theta
@@ -292,13 +333,13 @@ class Sampler:
         # errors = np.zeros(permuted_datapoints.shape, dtype=float)
 
         if debug:
-            if selection_method == 'last':
-                print "Sampling theta: %d samples, %d burnin, select last" % (num_samples, burn_samples)
+            if self.selection_method == 'last':
+                print "Sampling theta: %d samples, %d burnin, select last" % (self.num_samples, self.burn_samples)
             else:
-                print "Sampling theta: %d samples, %d selection, %d burnin" % (num_samples, selection_num_samples, burn_samples)
+                print "Sampling theta: %d samples, %d selection, %d burnin" % (self.num_samples, self.selection_num_samples, self.burn_samples)
 
         if return_samples:
-            all_samples = np.zeros((permuted_datapoints.size, num_samples))
+            all_samples = np.zeros((permuted_datapoints.size, self.num_samples))
 
         if debug:
             search_progress = progress.Progress((self.R - 1)*permuted_datapoints.size)
@@ -313,19 +354,19 @@ class Sampler:
 
             for sampled_feature_index in permuted_features:
                 # Get samples from the current distribution
-                if integrate_tc_out:
-                    samples = self.get_samples_theta_tc_integratedout(n, num_samples=num_samples, sampled_feature_index=sampled_feature_index, burn_samples=burn_samples)
+                if self.integrate_tc_out:
+                    samples = self.get_samples_theta_tc_integratedout(n, sampled_feature_index=sampled_feature_index)
                 else:
-                    (samples, _) = self.get_samples_theta_current_tc(n, num_samples=num_samples, sampled_feature_index=sampled_feature_index, burn_samples=burn_samples, slice_width=slice_width, slice_jump_prob=slice_jump_prob)
+                    (samples, _) = self.get_samples_theta_current_tc(n, sampled_feature_index=sampled_feature_index)
 
                 # Keep all samples if desired
                 if return_samples:
                     all_samples[i] = samples
 
                 # Select the new orientation
-                if selection_method == 'median':
-                    sampled_orientation = np.median(samples[-selection_num_samples:], overwrite_input=True)
-                elif selection_method == 'last':
+                if self.selection_method == 'median':
+                    sampled_orientation = np.median(samples[-self.selection_num_samples:], overwrite_input=True)
+                elif self.selection_method == 'last':
                     sampled_orientation = samples[-1]
                 else:
                     raise ValueError('wrong value for selection_method')
@@ -354,19 +395,22 @@ class Sampler:
             return all_samples
 
 
-    def get_samples_theta_current_tc(self, n, num_samples=2000, burn_samples=200, slice_width=np.pi/4., slice_jump_prob=0.2, sampled_feature_index=0):
+    def get_samples_theta_current_tc(self, n, sampled_feature_index=0):
 
         # Pack the parameters for the likelihood function.
         #   Here, as the loglike_function only varies one of the input, need to give the rest of the theta vector.
         params = (self.theta[n], self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[self.tc[n]], sampled_feature_index, self.mean_fixed_contrib[self.tc[n]], self.inv_covariance_fixed_contrib)
 
+        theta_initial = self.theta[n, sampled_feature_index]
+        # theta_initial = np.random.rand()*2.*np.pi-np.pi
+
         # Sample the new theta
-        samples, llh = slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=slice_width, loglike_fct_params=params, debug=False, step_out=True, jump_probability=slice_jump_prob)
+        samples, llh = slicesampler.sample_1D_circular(self.num_samples, theta_initial, loglike_theta_fct_single, burn=self.burn_samples, widths=self.slice_width, loglike_fct_params=params, debug=False, step_out=True, jump_probability=self.slice_jump_prob)
 
         return (samples, llh)
 
 
-    def get_samples_theta_tc_integratedout(self, n, num_samples=2000, burn_samples=100, sampled_feature_index=0):
+    def get_samples_theta_tc_integratedout(self, n, sampled_feature_index=0):
         '''
             Sample theta, with tc integrated out.
             Use rejection sampling (or something), discarding some samples.
@@ -378,8 +422,10 @@ class Sampler:
         for tc in xrange(self.T):
             params = (self.theta[n], self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[tc], sampled_feature_index, self.mean_fixed_contrib[tc], self.inv_covariance_fixed_contrib)
 
-            # TODO> Should be starting from the previous sample here.
-            samples, _ = slicesampler.sample_1D_circular(num_samples, np.random.rand()*2.*np.pi-np.pi, loglike_theta_fct_single, burn=burn_samples, widths=np.pi/3., loglike_fct_params=params, debug=False, step_out=True)
+            theta_initial = self.theta[n, sampled_feature_index]
+            # theta_initial = np.random.rand()*2.*np.pi-np.pi
+
+            samples, _ = slicesampler.sample_1D_circular(self.num_samples, theta_initial, loglike_theta_fct_single, burn=self.burn_samples, widths=self.slice_width, loglike_fct_params=params, debug=False, step_out=True, jump_probability=self.slice_jump_prob)
 
             # Now keep only some of them, following p(tc)
             #   for now, p(tc) = 1/T
@@ -744,7 +790,7 @@ class Sampler:
                 return (ll_x, x)
 
 
-    def plot_likelihood_variation_twoangles(self, num_points=100, amplify_diag=1.0, should_plot=True, should_return=False, should_exponentiate = False, remove_mean=False, n=0, t=0, interpolation='nearest', normalize=False, colormap=None):
+    def plot_likelihood_variation_twoangles(self, index_second_feature=1, num_points=100, amplify_diag=1.0, should_plot=True, should_return=False, should_exponentiate = False, remove_mean=False, n=0, t=0, interpolation='nearest', normalize=False, colormap=None):
         '''
             Compute the likelihood, varying two angles around.
             Plot the result
@@ -761,7 +807,7 @@ class Sampler:
             print "%d%%" % (i/float(num_points)*100)
             for j in xrange(num_points):
                 # Pack the parameters for the likelihood function
-                curr_theta[1] = all_angles[j]
+                curr_theta[index_second_feature] = all_angles[j]
                 params = (curr_theta, self.NT[n], self.random_network, self.theta_gamma, self.theta_kappa, self.ATtcB[t], self.sampled_feature_index, self.mean_fixed_contrib[t], self.inv_covariance_fixed_contrib)
 
                 # llh_2angles[i, j] = loglike_theta_fct_vect(np.array([all_angles[i], all_angles[j]]), params)
@@ -807,7 +853,7 @@ class Sampler:
             color_gen = [colmap(1.*(i)/self.T) for i in xrange(self.T)][::-1]  # use 22 colors
 
             for t in xrange(self.T):
-                w = plt_patches.Wedge((correct_angles[t, 0], correct_angles[t, 1]), 0.25, 0, 360, 0.10, color=color_gen[t], alpha=0.9)
+                w = plt_patches.Wedge((correct_angles[t, 0], correct_angles[t, index_second_feature]), 0.25, 0, 360, 0.10, color=color_gen[t], alpha=0.9)
                 ax.add_patch(w)
 
             # plt.annotate('O', (correct_angles[1, 0], correct_angles[1, 1]), color='blue', fontweight='bold', fontsize=30, horizontalalignment='center', verticalalignment='center')
@@ -1212,7 +1258,7 @@ class Sampler:
         for repet_i in xrange(num_repetitions):
 
             # Get samples
-            samples = self.sample_theta(num_samples=num_samples, integrate_tc_out=False, return_samples=True, subset_theta=[n], selection_method=selection_method)[0]
+            samples = self.sample_theta(return_samples=True, subset_theta=[n])[0]
 
             # Estimate the circular standard deviation of those samples
             circ_std_dev = angle_circular_std_dev(samples)
@@ -1338,7 +1384,7 @@ class Sampler:
         for repet_i in xrange(num_repetitions):
 
             # Get samples
-            all_samples[repet_i] = self.sample_theta(num_samples=num_samples, integrate_tc_out=False, return_samples=True, subset_theta=[n], selection_method=selection_method, burn_samples=100)[0]
+            all_samples[repet_i] = self.sample_theta(return_samples=True, subset_theta=[n])[0]
 
             # fit_gaussian_samples(all_samples[repet_i])
 
@@ -1362,7 +1408,7 @@ class Sampler:
 
         if samples is None:
             # no samples, get them
-            samples = self.sample_theta(num_samples=num_samples, integrate_tc_out=False, return_samples=True, subset_theta=[n], selection_method=selection_method)[0]
+            samples = self.sample_theta(return_samples=True, subset_theta=[n])[0]
 
         # Plot the samples and the fit
         fit_gaussian_samples(samples)

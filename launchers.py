@@ -42,7 +42,7 @@ def init_everything(parameters):
     stat_meas = init_stat_measurer(random_network, parameters)
 
     # Init sampler
-    sampler = Sampler(data_gen, n_parameters=stat_meas.model_parameters, tc=parameters['cued_feature_time'], sigma_output=parameters['sigma_output'])
+    sampler = Sampler(data_gen, n_parameters=stat_meas.model_parameters, tc=parameters['cued_feature_time'], sigma_output=parameters['sigma_output'], parameters_dict=parameters)
 
     return (random_network, data_gen, stat_meas, sampler)
 
@@ -107,17 +107,7 @@ def launcher_do_simple_run(args):
     print "Inferring optimal angles, for t=%d" % sampler.tc[0]
     # sampler.set_theta_max_likelihood(num_points=500, post_optimise=True)
 
-    if args.inference_method == 'sample':
-        # Sample thetas
-        print "-> Sampling theta"
-        sampler.sample_theta(num_samples=all_parameters['num_samples'], burn_samples=all_parameters['burn_samples'], selection_method='median', selection_num_samples=all_parameters['selection_num_samples'], integrate_tc_out=False, debug=True)
-    elif args.inference_method == 'max_lik':
-        # Just use the ML value for the theta
-        print "-> Setting theta to ML values"
-        sampler.set_theta_max_likelihood(num_points=100, post_optimise=True)
-    elif args.inference_method == 'none':
-        # Do nothing
-        print "do nothing"
+    sampler.run_inference()
 
     sampler.print_comparison_inferred_groundtruth()
 

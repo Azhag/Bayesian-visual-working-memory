@@ -234,28 +234,33 @@ def plots_ratioMscaling(data_pbs, generator_module=None):
                     print "Error writing out to caching file ", caching_fisherinfo_filename
 
         # result_em_fits_kappa
-        for M_tot_selected_i, M_tot_selected in enumerate(M_space[::2]):
+        if False:
 
-            M_conj_space = ((1.-ratio_space)*M_tot_selected).astype(int)
-            M_feat_space = M_tot_selected - M_conj_space
+            for M_tot_selected_i, M_tot_selected in enumerate(M_space[::2]):
 
-            f, axes = plt.subplots(2, 2)
-            axes[0, 0].plot(ratio_space, result_em_fits_kappa[2*M_tot_selected_i])
-            axes[0, 0].set_xlabel('ratio')
-            axes[0, 0].set_title('Fitted kappa')
+                M_conj_space = ((1.-ratio_space)*M_tot_selected).astype(int)
+                M_feat_space = M_tot_selected - M_conj_space
 
-            axes[1, 0].plot(ratio_space, utils.stddev_to_kappa(1./result_fisherinfo_Mratio[2*M_tot_selected_i]**0.5))
-            axes[1, 0].set_xlabel('M_feat_size')
-            axes[1, 0].set_title('kappa_FI_mixed')
+                f, axes = plt.subplots(2, 2)
+                axes[0, 0].plot(ratio_space, result_em_fits_kappa[2*M_tot_selected_i])
+                axes[0, 0].set_xlabel('ratio')
+                axes[0, 0].set_title('Fitted kappa')
 
-            f.suptitle('M_tot %d' % M_tot_selected, fontsize=15)
-            f.set_tight_layout(True)
+                axes[1, 0].plot(ratio_space, utils.stddev_to_kappa(1./result_fisherinfo_Mratio[2*M_tot_selected_i]**0.5))
+                axes[1, 0].set_xlabel('M_feat_size')
+                axes[1, 0].set_title('kappa_FI_mixed')
 
-            if savefigs:
-                dataio.save_current_figure('scaling_kappa_subpop_Mtot%d_{label}_{unique_id}.pdf' % M_tot_selected)
+                f.suptitle('M_tot %d' % M_tot_selected, fontsize=15)
+                f.set_tight_layout(True)
 
-            plt.close(f)
+                if savefigs:
+                    dataio.save_current_figure('scaling_kappa_subpop_Mtot%d_{label}_{unique_id}.pdf' % M_tot_selected)
 
+                plt.close(f)
+
+        utils.pcolor_2d_data((result_fisherinfo_Mratio- 2000)**2., log_scale=True, x=M_space, y=ratio_space, xlabel='M', ylabel='ratio', xlabel_format="%d", title='Fisher info')
+        if savefigs:
+            dataio.save_current_figure('dist2000_fi_log_pcolor_{label}_{unique_id}.pdf')
 
 
 

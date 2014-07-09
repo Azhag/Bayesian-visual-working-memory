@@ -116,6 +116,8 @@ class ExperimentLauncher(object):
             help='Number of population codes')
         parser.add_argument('--num_samples', type=int, default=20,
             help='Number of samples to use')
+        parser.add_argument('--num_sampling_passes', type=int, default=1,
+            help='Number of passes to do over the thetas. If negative, do it till convergence.')
         parser.add_argument('--burn_samples', type=int, default=100,
             help='Number of samples to use for burn in')
         parser.add_argument('--selection_num_samples', type=int, default=1,
