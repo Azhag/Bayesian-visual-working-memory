@@ -135,7 +135,7 @@ class Sampler:
         if parameters_dict is None:
             parameters_dict = dict()
 
-        default_parameters = dict(inference_method='sample', num_samples=200, burn_samples=100, selection_method='last', selection_num_samples=1, slice_width=np.pi/16., slice_jump_prob=0.3, integrate_tc_out=False, num_sampling_passes=1)
+        default_parameters = dict(inference_method='sample', num_samples=200, burn_samples=100, selection_method='last', selection_num_samples=1, slice_width=np.pi/16., slice_jump_prob=0.3, integrate_tc_out=False, num_sampling_passes=1, cued_feature_type='single')
 
         # First defaults parameters
         for param_name, param_value in default_parameters.iteritems():
@@ -176,9 +176,20 @@ class Sampler:
         self.theta_kappa = self.theta_prior_dict['kappa']
         self.theta = np.random.vonmises(self.theta_gamma, self.theta_kappa, size=(self.N, self.R))
 
+        if self.cued_feature_type == 'single':
+            self.init_theta_single_cued()
+        elif self.cued_feature_type == 'all':
+            self.init_theta_all_cued()
+
+
+    def init_theta_single_cued(self):
+        '''
+            Only one feature is cued, all others need to be sampled
+        '''
+
         # Assign the cued ones now
         #   stimuli_correct: N x T x R
-        #   cued_features:      N x (recall_feature, recall_time)
+        #   cued_features:   N x (recall_feature, recall_time)
         self.theta[np.arange(self.N), self.data_gen.cued_features[:, 0]] = self.data_gen.stimuli_correct[np.arange(self.N), self.data_gen.cued_features[:, 1], self.data_gen.cued_features[:, 0]]
 
         # Construct the list of uncued features, which should be sampled
@@ -186,6 +197,24 @@ class Sampler:
 
         # Index of the actual theta we need to report
         self.theta_target_index = np.zeros(self.N, dtype=int)
+
+
+    def init_theta_all_cued(self):
+        '''
+            All non-sampled features are cued.
+        '''
+
+        # Index of the actual theta we need to report
+        self.theta_target_index = np.zeros(self.N, dtype=int)
+
+        # Assign the cued ones now
+        #   stimuli_correct: N x T x R
+        #   cued_features:   N x (recall_feature, recall_time)
+        # r = 0 always the target to be sampled
+        self.theta[:, 1:] = self.data_gen.stimuli_correct[np.arange(self.N), self.data_gen.cued_features[:, 1], 1:]
+
+        # Construct the list of uncued features, which should be sampled
+        self.theta_to_sample = self.theta_target_index
 
 
     def init_cache_parameters(self, amplify_diag=1.0):
@@ -344,13 +373,18 @@ class Sampler:
         if debug:
             search_progress = progress.Progress((self.R - 1)*permuted_datapoints.size)
 
+        if len(self.theta_to_sample.shape) > 1:
+            permutation_fct = np.random.permutation
+        else:
+            permutation_fct = lambda x: [x]
+
         # Do everything in log-domain, to avoid numerical errors
         i = 0
         # for n in progress.ProgressDisplay(permuted_datapoints, display=progress.SINGLE_LINE):
         for n in permuted_datapoints:
 
             # Sample all the non-cued features
-            permuted_features = np.random.permutation(self.theta_to_sample[n])
+            permuted_features = permutation_fct(self.theta_to_sample[n])
 
             for sampled_feature_index in permuted_features:
                 # Get samples from the current distribution
@@ -500,7 +534,7 @@ class Sampler:
         self.theta[:, self.sampled_feature_index] = self.add_output_noise_vectorized(self.theta[:, self.sampled_feature_index])
 
 
-    def change_cued_features(self, t_cued):
+    def change_time_cued(self, t_cued):
         '''
             Change the cue.
                 Modify time of cue, and pull it from data_gen again

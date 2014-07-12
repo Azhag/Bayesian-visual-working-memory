@@ -118,6 +118,7 @@ class ExperimentLauncher(object):
             help='Number of samples to use')
         parser.add_argument('--num_sampling_passes', type=int, default=1,
             help='Number of passes to do over the thetas. If negative, do it till convergence.')
+        parser.add_argument('--cued_feature_type', choices=['single', 'all'], default='single', help='In case of R>2, should we cue only feature R=1 or all R>0?')
         parser.add_argument('--burn_samples', type=int, default=100,
             help='Number of samples to use for burn in')
         parser.add_argument('--selection_num_samples', type=int, default=1,
