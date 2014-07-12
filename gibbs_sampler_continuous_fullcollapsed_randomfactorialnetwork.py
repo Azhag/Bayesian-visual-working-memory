@@ -311,6 +311,8 @@ class Sampler:
             # Sample thetas
             print "-> Sampling theta, %d passes" % self.num_sampling_passes
 
+            print "initial loglikelihood: %.2f" % self.compute_loglikelihood()
+
             for pass_i in xrange(self.num_sampling_passes):
                 print "--> Pass %d" % (pass_i + 1)
                 self.sample_all()
@@ -1147,11 +1149,11 @@ class Sampler:
             return nanmean(mean_FI)
 
 
-    def compute_covariance_theoretical(self, precision=50, ignore_cache=False):
+    def compute_covariance_theoretical(self, num_samples=1000, ignore_cache=False):
         '''
             Compute and returns the theoretical covariance, found from KL minimization.
         '''
-        return self.random_network.compute_covariance_KL(sigma_2=(self.data_gen.sigma_x**2. + self.data_gen.sigma_y**2.), T=self.T, beta=1.0, precision=precision, ignore_cache=ignore_cache)
+        return self.random_network.compute_covariance_KL(sigma_2=(self.data_gen.sigma_x**2. + self.data_gen.sigma_y**2.), T=self.T, beta=1.0, num_samples=num_samples, ignore_cache=ignore_cache)
 
 
     def estimate_fisher_info_theocov(self, use_theoretical_cov=True, kappa_different=True):
@@ -1161,7 +1163,7 @@ class Sampler:
 
         if use_theoretical_cov:
             # Get the computed covariance
-            computed_cov = self.compute_covariance_theoretical(precision=50, ignore_cache=False)
+            computed_cov = self.compute_covariance_theoretical(num_samples=1000, ignore_cache=False)
 
             # Check if it seems correctly similar to the current measured one.
             if np.mean((self.noise_covariance-computed_cov)**2.) > 0.01:
