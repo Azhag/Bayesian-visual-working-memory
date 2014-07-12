@@ -1156,7 +1156,7 @@ class Sampler:
         return self.random_network.compute_covariance_KL(sigma_2=(self.data_gen.sigma_x**2. + self.data_gen.sigma_y**2.), T=self.T, beta=1.0, num_samples=num_samples, ignore_cache=ignore_cache)
 
 
-    def estimate_fisher_info_theocov(self, use_theoretical_cov=True, kappa_different=True):
+    def estimate_fisher_info_theocov(self, use_theoretical_cov=True):
         '''
             Compute the theoretical Fisher Information, using the KL-derived covariance matrix if desired
         '''
@@ -1180,7 +1180,7 @@ class Sampler:
             computed_cov = self.noise_covariance
 
         # Compute the theoretical FI
-        return self.random_network.compute_fisher_information(stimulus_input=(0.0, 0.0), cov_stim=computed_cov, kappa_different=kappa_different)
+        return self.random_network.compute_fisher_information(cov_stim=computed_cov)
 
 
     def estimate_fisher_info_theocov_largen(self, use_theoretical_cov=True):
@@ -1190,7 +1190,7 @@ class Sampler:
 
         if use_theoretical_cov:
             # Get the computed covariance
-            computed_cov = self.compute_covariance_theoretical(precision=50, ignore_cache=False)
+            computed_cov = self.compute_covariance_theoretical(num_samples=1000, ignore_cache=False)
             sigma = np.mean(np.diag(computed_cov))**0.5
         else:
             # Use the measured one...

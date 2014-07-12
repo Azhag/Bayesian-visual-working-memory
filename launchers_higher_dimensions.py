@@ -161,6 +161,7 @@ def launcher_do_check_scaling_ratio_with_M_single(args):
     # Result arrays
     result_all_precisions = np.nan*np.ones((all_parameters['num_repetitions']))
     result_em_fits = np.nan*np.ones((5, all_parameters['num_repetitions']))  # kappa, mixt_target, mixt_nontarget, mixt_random, ll
+    result_fisher_info = np.nan*np.ones((all_parameters['num_repetitions']))
 
     search_progress = progress.Progress(all_parameters['num_repetitions'])
 
@@ -188,7 +189,11 @@ def launcher_do_check_scaling_ratio_with_M_single(args):
         curr_params_fit = sampler.fit_mixture_model(use_all_targets=False)
         result_em_fits[:, repet_i] = [curr_params_fit[key] for key in ('kappa', 'mixt_target', 'mixt_nontargets_sum', 'mixt_random', 'train_LL')]
 
-        print result_all_precisions[repet_i], curr_params_fit
+        # Get fisher information
+        print "Fisher information..."
+        result_fisher_info[repet_i] = sampler.estimate_fisher_info_theocov()
+
+        print result_all_precisions[repet_i], curr_params_fit, result_fisher_info[repet_i]
 
         ## Run callback function if exists
         if plots_during_simulation_callback:

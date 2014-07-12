@@ -267,6 +267,24 @@ class HighDimensionNetwork():
         return output
 
 
+    def get_derivative_network_response(self, derivative_feature_target = 0, stimulus_input=None):
+        '''
+            Compute and return the derivative of the network response.
+        '''
+
+        if stimulus_input is None:
+            stimulus_input = self.default_stimulus_input
+
+
+        dmu_specific_feature = stimulus_input[derivative_feature_target] - self.neurons_preferred_stimulus[:, derivative_feature_target]
+
+        der_f = self.neurons_sigma[:, derivative_feature_target]*np.sin(dmu_specific_feature)*self.get_network_response(stimulus_input)
+
+        der_f[self.mask_neurons_unset] = 0.0
+
+        return der_f
+
+
     ####
 
     def compute_network_response_statistics(self, num_samples = 5000, params = {}, ignore_cache=False):
@@ -436,6 +454,21 @@ class HighDimensionNetwork():
 
         # Output it
         return covariance
+
+
+    def compute_fisher_information(self, stimulus_input=None, sigma=0.01, cov_stim=None, params={}):
+
+        if stimulus_input is None:
+            stimulus_input = self.default_stimulus_input
+
+        if cov_stim is None:
+            # The covariance for the stimulus
+            cov_stim = self.compute_covariance_stimulus(stimulus_input, sigma=sigma, params=params)
+
+        der_f = self.get_derivative_network_response()
+
+        return np.dot(der_f, np.linalg.solve(cov_stim, der_f))
+
 
 
     ########################
