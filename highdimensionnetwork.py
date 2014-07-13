@@ -240,7 +240,7 @@ class HighDimensionNetwork():
                 specific_neurons = slice(None)
 
             dmu = stimulus_input - self.neurons_preferred_stimulus[specific_neurons]
-            output = np.exp(np.sum(self.neurons_sigma[specific_neurons]*np.cos(dmu), axis=-1))/self.normalisation[specific_neurons]
+            output = np.exp(-np.sum(self.neurons_sigma[specific_neurons]*(1. - np.cos(dmu)), axis=-1))
 
             output[self.mask_neurons_unset[specific_neurons]] = 0.0
 
@@ -258,9 +258,9 @@ class HighDimensionNetwork():
             index_fish = self.neurons_sigma[:, r] <= 700
             index_gauss = self.neurons_sigma[:, r] > 700
 
-            output[index_fish] *= np.exp(self.neurons_sigma[index_fish, r]*np.cos((stimulus_input[r] - self.neurons_preferred_stimulus[index_fish, r])))/self.normalisation_fisher_all[index_fish, r]
+            output[index_fish] *= np.exp(self.neurons_sigma[index_fish, r]*np.cos((stimulus_input[r] - self.neurons_preferred_stimulus[index_fish, r])))
 
-            output[index_gauss] *= np.exp(-0.5*self.neurons_sigma[index_gauss, r]*(stimulus_input[r] - self.neurons_preferred_stimulus[index_gauss, r])**2.)*self.normalisation_gauss_all[index_gauss, r]
+            output[index_gauss] *= np.exp(-0.5*self.neurons_sigma[index_gauss, r]*(stimulus_input[r] - self.neurons_preferred_stimulus[index_gauss, r])**2.)
 
         output[self.mask_neurons_unset] = 0.0
 
