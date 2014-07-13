@@ -187,6 +187,8 @@ class Sampler:
             Only one feature is cued, all others need to be sampled
         '''
 
+        print "-> init theta, feature %d cued" % self.data_gen.cued_features[0, 1]
+
         # Assign the cued ones now
         #   stimuli_correct: N x T x R
         #   cued_features:   N x (recall_feature, recall_time)
@@ -204,6 +206,8 @@ class Sampler:
             All non-sampled features are cued.
         '''
 
+        print "-> init theta, all cued"
+
         # Index of the actual theta we need to report
         self.theta_target_index = np.zeros(self.N, dtype=int)
 
@@ -215,6 +219,7 @@ class Sampler:
 
         # Construct the list of uncued features, which should be sampled
         self.theta_to_sample = self.theta_target_index
+
 
 
     def init_cache_parameters(self, amplify_diag=1.0):
