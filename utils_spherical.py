@@ -34,7 +34,7 @@ def dist_torus(points1, points2):
     xx = np.abs(points1 - points2)
     d = (np.fmin(2.*np.pi - xx, xx))**2.
 
-    return (d[:, 0]+d[:, 1])**0.5
+    return np.sum(d, axis=-1)**0.5
 
 
 def dist_sphere(point1, point2):
