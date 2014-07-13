@@ -30,7 +30,7 @@ class HighDimensionNetwork():
         Modified paradigm for this Network. Uses a factorial representation of K features, and samples them using K-dimensional gaussian receptive fields.
             Randomness is in the distribution of orientations and radii of those gaussians.
     """
-    def __init__(self, M, R=2):
+    def __init__(self, M, R=2, response_maxout=False):
 
         self.M = M
         self.R = R
@@ -46,6 +46,12 @@ class HighDimensionNetwork():
         self._ALL_NEURONS = np.arange(M)
 
         self.get_network_response_opt = None
+
+        if response_maxout:
+            print(' -- new maxout response')
+            self.get_network_response_bivariatefisher_callback = self.get_network_response_bivariatefisher_maxoutput
+        else:
+            self.get_network_response_bivariatefisher_callback = self.get_network_response_bivariatefisher
         self.default_stimulus_input = np.array((0.0,)*self.R)
 
         # Need to assign to each of the M neurons a preferred stimulus (tuple(orientation, color) for example)
@@ -221,7 +227,7 @@ class HighDimensionNetwork():
         if stimulus_input is None:
             stimulus_input = self.default_stimulus_input
 
-        return self.get_network_response_bivariatefisher(stimulus_input, specific_neurons=specific_neurons, params=params)
+        return self.get_network_response_bivariatefisher_callback(stimulus_input, specific_neurons=specific_neurons, params=params)
 
 
     def get_network_response_bivariatefisher(self, stimulus_input, specific_neurons=None, params={}):
@@ -240,9 +246,28 @@ class HighDimensionNetwork():
                 specific_neurons = slice(None)
 
             dmu = stimulus_input - self.neurons_preferred_stimulus[specific_neurons]
-            output = np.exp(-np.sum(self.neurons_sigma[specific_neurons]*(1. - np.cos(dmu)), axis=-1))
+            output = np.exp(np.sum(self.neurons_sigma[specific_neurons]*np.cos(dmu), axis=-1))/self.normalisation[specific_neurons]
 
             output[self.mask_neurons_unset[specific_neurons]] = 0.0
+
+        return output
+
+    def get_network_response_bivariatefisher_maxoutput(self, stimulus_input, specific_neurons=None, params={}):
+        '''
+            Compute the response of the network.
+
+            Use a Von Mises-Fisher general distribution.
+
+            Now computes intermediate vectors, could change everything to use vectors only.
+        '''
+
+        if specific_neurons is None:
+            specific_neurons = slice(None)
+
+        dmu = stimulus_input - self.neurons_preferred_stimulus[specific_neurons]
+        output = np.exp(-np.sum(self.neurons_sigma[specific_neurons]*(1. - np.cos(dmu)), axis=-1))
+
+        output[self.mask_neurons_unset[specific_neurons]] = 0.0
 
         return output
 
@@ -258,9 +283,9 @@ class HighDimensionNetwork():
             index_fish = self.neurons_sigma[:, r] <= 700
             index_gauss = self.neurons_sigma[:, r] > 700
 
-            output[index_fish] *= np.exp(self.neurons_sigma[index_fish, r]*np.cos((stimulus_input[r] - self.neurons_preferred_stimulus[index_fish, r])))
+            output[index_fish] *= np.exp(self.neurons_sigma[index_fish, r]*np.cos((stimulus_input[r] - self.neurons_preferred_stimulus[index_fish, r])))/self.normalisation_fisher_all[index_fish, r]
 
-            output[index_gauss] *= np.exp(-0.5*self.neurons_sigma[index_gauss, r]*(stimulus_input[r] - self.neurons_preferred_stimulus[index_gauss, r])**2.)
+            output[index_gauss] *= np.exp(-0.5*self.neurons_sigma[index_gauss, r]*(stimulus_input[r] - self.neurons_preferred_stimulus[index_gauss, r])**2.)*self.normalisation_gauss_all[index_gauss, r]
 
         output[self.mask_neurons_unset] = 0.0
 
@@ -711,7 +736,7 @@ class HighDimensionNetwork():
     ##########################
 
     @classmethod
-    def create_full_conjunctive(cls, M, R=2, rcscale=None, autoset_parameters=False, debug=True):
+    def create_full_conjunctive(cls, M, R=2, rcscale=None, autoset_parameters=False, response_maxout=False, debug=True):
         '''
             Create a RandomFactorialNetwork instance, using a pure conjunctive code
         '''
@@ -719,7 +744,7 @@ class HighDimensionNetwork():
         if debug:
             print "create conjunctive network, R=%d, M=%d, autoset: %d" % (R, M, autoset_parameters)
 
-        rn = HighDimensionNetwork(M, R=R)
+        rn = HighDimensionNetwork(M, R=R, response_maxout=response_maxout)
         rn.population_code_type = 'conjunctive'
 
         ## Create receptive fields
@@ -735,13 +760,13 @@ class HighDimensionNetwork():
         return rn
 
     @classmethod
-    def create_full_features(cls, M, R=2, scale=0.3, ratio=40., autoset_parameters=False):
+    def create_full_features(cls, M, R=2, scale=0.3, ratio=40., autoset_parameters=False, response_maxout=False):
         '''
             Create a RandomFactorialNetwork instance, using a pure conjunctive code
         '''
         print "create feature network, R=%d, M=%d, autoset: %d" % (R, M, autoset_parameters)
 
-        rn = HighDimensionNetwork(M, R=R)
+        rn = HighDimensionNetwork(M, R=R, response_maxout=response_maxout)
 
         if autoset_parameters:
             # Use optimal values for the parameters. Be careful, this assumes M/2 and coverage of full 2 pi space
@@ -776,7 +801,7 @@ class HighDimensionNetwork():
         return rn
 
     @classmethod
-    def create_mixed(cls, M, R=2, ratio_feature_conjunctive = 0.5, conjunctive_parameters=None, feature_parameters=None, autoset_parameters=False):
+    def create_mixed(cls, M, R=2, ratio_feature_conjunctive = 0.5, conjunctive_parameters=None, feature_parameters=None, autoset_parameters=False, response_maxout=False):
         '''
             Create a RandomFactorialNetwork instance, using a pure conjunctive code
         '''
@@ -796,7 +821,7 @@ class HighDimensionNetwork():
 
             nb_feature_centers = feature_parameters.get('nb_feature_centers', 1)
 
-        rn = HighDimensionNetwork(M, R=R)
+        rn = HighDimensionNetwork(M, R=R, response_maxout=response_maxout)
 
         rn.conj_subpop_size = int(M*ratio_feature_conjunctive)
         rn.feat_subpop_size = M - rn.conj_subpop_size
@@ -846,7 +871,7 @@ def test_optimised_network_response():
     R = 2
     M = int(50*R + 10**R)
     ratio = 0.1
-    rn = HighDimensionNetwork.create_mixed(M, R=R, ratio_feature_conjunctive = ratio, autoset_parameters=True)
+    rn = HighDimensionNetwork.create_mixed(M, R=R, ratio_feature_conjunctive = ratio, autoset_parameters=True, response_maxout=False)
 
     print "Testing if optimised and non-optimised network response are the same..."
     rnd_angles = sample_angle((10000, R))

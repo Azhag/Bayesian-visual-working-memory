@@ -53,14 +53,14 @@ def init_random_network(parameters):
     # Build the random network
 
     if parameters['code_type'] == 'conj':
-        random_network = HighDimensionNetwork.create_full_conjunctive(parameters['M'], R=parameters['R'], rcscale=parameters['rc_scale'], autoset_parameters=parameters['autoset_parameters'])
+        random_network = HighDimensionNetwork.create_full_conjunctive(parameters['M'], R=parameters['R'], rcscale=parameters['rc_scale'], autoset_parameters=parameters['autoset_parameters'], response_maxout=parameters['response_maxout'])
     elif parameters['code_type'] == 'feat':
-        random_network = HighDimensionNetwork.create_full_features(parameters['M'], R=parameters['R'], scale=parameters['rc_scale'], ratio=parameters['feat_ratio'], autoset_parameters=parameters['autoset_parameters'])
+        random_network = HighDimensionNetwork.create_full_features(parameters['M'], R=parameters['R'], scale=parameters['rc_scale'], ratio=parameters['feat_ratio'], autoset_parameters=parameters['autoset_parameters'], response_maxout=parameters['response_maxout'])
     elif parameters['code_type'] == 'mixed':
         conj_params = dict(scale=parameters['rc_scale'])
         feat_params = dict(scale=parameters['rc_scale2'], ratio=parameters['feat_ratio'])
 
-        random_network = HighDimensionNetwork.create_mixed(parameters['M'], R=parameters['R'], ratio_feature_conjunctive=parameters['ratio_conj'], conjunctive_parameters=conj_params, feature_parameters=feat_params, autoset_parameters=parameters['autoset_parameters'])
+        random_network = HighDimensionNetwork.create_mixed(parameters['M'], R=parameters['R'], ratio_feature_conjunctive=parameters['ratio_conj'], conjunctive_parameters=conj_params, feature_parameters=feat_params, autoset_parameters=parameters['autoset_parameters'], response_maxout=parameters['response_maxout'])
     elif parameters['code_type'] == 'wavelet':
         random_network = RandomFactorialNetwork.create_wavelet(parameters['M'], R=parameters['R'], scales_number=5)
     elif parameters['code_type'] == 'hierarchical':

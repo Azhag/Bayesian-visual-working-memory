@@ -148,6 +148,8 @@ class ExperimentLauncher(object):
             help='Scale of receptive fields, second population (e.g. feature for mixed population)')
         parser.add_argument('--autoset_parameters', dest='autoset_parameters', action='store_true', default=False,
             help='Automatically attempt to set the rc_scale/ratio to cover the space evenly, depending on the number of neurons')
+        parser.add_argument('--response_maxout', dest='response_maxout', action='store_true', default=False,
+            help='Change the network response to be max = 1. Changes many things...')
         parser.add_argument('--type_layer_one', choices=['conjunctive', 'feature'], default='feature',
             help='Select the type of population code for an hierarchical network')
         parser.add_argument('--sparsity', type=float, default=1.0,
