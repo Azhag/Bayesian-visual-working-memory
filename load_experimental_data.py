@@ -1253,6 +1253,57 @@ def plots_dualrecall(dataset):
         print fitted_parameters
 
 
+def plot_bias_close_feature(dataset, dataio=None):
+    '''
+        Check if there is a bias in the response towards closest item (either closest wrt cued feature, or wrt all features)
+    '''
+
+    # Error to nontarget
+    bias_to_nontarget = np.abs(data_bays2009['errors_nontarget_nitems'][1].flatten())
+    bias_to_target = np.abs(data_bays2009['errors_nitems'][1].flatten())
+    ratio_biases = bias_to_nontarget/ bias_to_target
+    response = data_bays2009['data_to_fit'][2]['response']
+
+    target = data_bays2009['data_to_fit'][2]['item_features'][:, 0]
+    nontarget = data_bays2009['data_to_fit'][2]['item_features'][:, 1]
+
+    # Distance between probe and closest nontarget, in full feature space
+    dist_target_nontarget_torus = utils.dist_torus(target, nontarget)
+
+    # Distance only looking at recalled feature
+    dist_target_nontarget_recalled = np.abs(utils.wrap_angles((target[:, 0] - nontarget[:, 0])))
+
+    # Distance only looking at cued feature.
+    # Needs more work. They are only a few possible values, so we can group them and get a boxplot for each
+    dist_target_nontarget_cue = np.round(np.abs(utils.wrap_angles((target[:, 1] - nontarget[:, 1]))), decimals=8)
+    dist_distinct_values = np.unique(dist_target_nontarget_cue)
+    bias_to_nontarget_grouped_dist_cue = []
+    for dist_value in dist_distinct_values:
+        bias_to_nontarget_grouped_dist_cue.append(bias_to_nontarget[dist_target_nontarget_cue == dist_value])
+
+    f, ax = plt.subplots(2, 2)
+    ax[0, 0].plot(dist_target_nontarget_torus, bias_to_nontarget, 'x')
+    ax[0, 0].set_xlabel('Distance full feature space')
+    ax[0, 0].set_ylabel('Error to nontarget')
+
+    ax[0, 1].boxplot(bias_to_nontarget_grouped_dist_cue, positions=dist_distinct_values)
+    ax[0, 1].set_ylabel('Error to nontarget')
+    ax[0, 1].set_xlabel('Distance cued feature only')
+
+    # ax[1, 0].plot(dist_target_nontarget_recalled, np.ma.masked_greater(ratio_biases, 100), 'x')
+    ax[1, 0].plot(dist_target_nontarget_recalled, np.ma.masked_greater(bias_to_nontarget/dist_target_nontarget_recalled, 30), 'x')
+    ax[1, 0].set_xlabel('Distance recalled feature only')
+    ax[1, 0].set_ylabel('Error to nontarget')
+
+    ax[1, 1].plot(dist_target_nontarget_recalled, np.ma.masked_greater(bias_to_nontarget/dist_target_nontarget_recalled, 2), 'x')
+    ax[1, 1].set_xlabel('Distance recalled feature only')
+    ax[1, 1].set_ylabel('Error to nontarget')
+
+
+    f.suptitle('Effect of distance between items on bias of response towards nontarget')
+
+
+
 def load_data_simult(data_dir=None, fit_mixture_model=False):
     '''
         Convenience function, automatically load the Gorgoraptis_2011 dataset.
@@ -1359,10 +1410,10 @@ if __name__ == '__main__':
     # plots_check_bias_bestnontarget(data_simult, dataio=dataio)
     # plots_check_bias_nontarget_randomized(data_simult, dataio=dataio)
 
-    plots_bays2009(data_bays2009, dataio=dataio)
+    # plots_bays2009(data_bays2009, dataio=dataio)
 
     # dataio = DataIO.DataIO(label='experiments_gorgo11')
-    plots_gorgo11(data_gorgo11, dataio)
+    # plots_gorgo11(data_gorgo11, dataio)
 
     plt.show()
 
