@@ -246,7 +246,7 @@ def plots_fit_mixturemodels_random(data_pbs, generator_module=None):
     #             dataio.save_current_figure('results_fitexp_%s_loglike_ratioconj%.2f_{label}_global_{unique_id}.pdf' % (exp_dataset, ratio_conj))
 
 
-    variables_to_save = ['parameter_names_sorted']
+    variables_to_save = ['parameter_names_sorted', 'all_repeats_completed', 'T_space']
 
     if savedata:
         dataio.save_variables_default(locals(), variables_to_save)

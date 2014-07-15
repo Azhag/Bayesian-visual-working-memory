@@ -39,11 +39,11 @@ def plots_ratioMscaling(data_pbs, generator_module=None):
     savedata = True
 
     plots_pcolor_all = True
-    plots_effect_M_target_kappa = False
+    plots_effect_M_target_kappa = True
 
-    plots_kappa_fi_comparison = False
-    plots_multiple_fisherinfo = False
-    specific_plot_effect_R = False
+    plots_kappa_fi_comparison = True
+    plots_multiple_fisherinfo = True
+    specific_plot_effect_R = True
 
 
     colormap = None  # or 'cubehelix'
@@ -173,18 +173,21 @@ def plots_ratioMscaling(data_pbs, generator_module=None):
 
     if specific_plot_effect_R:
         # Choose a M, find which ratio gives best fit to a given kappa
-        M_target = 228
+        M_target = 356
         M_target_i = np.argmin(np.abs(M_space - M_target))
 
+        utils.pcolor_2d_data(result_em_fits_kappa_valid[M_target_i], log_scale=True, x=ratio_space, y=R_space, xlabel='ratio', ylabel='R', ylabel_format="%d", title='Kappa, M %d' % (M_target))
+        if savefigs:
+            dataio.save_current_figure('specific_pcolor_kappa_M%d_log_{label}_{unique_id}.pdf' % (M_target))
         # target_kappa = np.ma.mean(result_em_fits_kappa_valid[M_target_i])
         # target_kappa = 5*1e3
-        target_kappa = 1e3
+        target_kappa = 1.2e3
 
-        dist_target_kappa = (result_em_fits_kappa_valid[M_target_i] - target_kappa)**2.
+        dist_target_kappa = np.abs(result_em_fits_kappa_valid[M_target_i] - target_kappa)
 
         utils.pcolor_2d_data(dist_target_kappa, log_scale=True, x=ratio_space, y=R_space, xlabel='ratio', ylabel='R', ylabel_format="%d", title='Kappa dist %.2f, M %d' % (target_kappa, M_target))
         if savefigs:
-            dataio.save_current_figure('pcolor_distkappa%d_M%d_log_{label}_{unique_id}.pdf' % (target_kappa, M_target))
+            dataio.save_current_figure('specific_pcolor_distkappa%d_M%d_log_{label}_{unique_id}.pdf' % (target_kappa, M_target))
 
 
 
