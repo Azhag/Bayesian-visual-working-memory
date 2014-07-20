@@ -566,7 +566,7 @@ def plot_bootstrap_randomsamples():
         Do histograms with random samples from bootstrap nontarget estimates
     '''
 
-    dataio = DataIO.DataIO(label='plotpaper_bootstrap_randomized')
+    dataio = DataIO(label='plotpaper_bootstrap_randomized')
 
     nb_bootstrap_samples = 200
     use_precomputed = True
