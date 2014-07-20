@@ -331,6 +331,14 @@ class Sampler:
             print "-> no inference"
 
 
+    def force_sampling_round(self):
+        '''
+            Force a round of sampling on the model
+        '''
+
+        self.run_inference(dict(inference_method='sample'))
+
+
     def sample_all(self):
         '''
             Do one full sweep of sampling
