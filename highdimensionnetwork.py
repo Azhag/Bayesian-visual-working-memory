@@ -216,6 +216,23 @@ class HighDimensionNetwork():
             self.normalisation[specific_neurons] = np.prod(self.normalisation_fisher_all[specific_neurons], axis=-1)
 
 
+    def compute_maximum_activation_network(self, nb_samples=50):
+        '''
+            Try to estimate the maximum activation for the network.
+
+            This can be used to make sure sigmax is adapted, or to renormalize everything.
+        '''
+
+        test_samples = sample_angle((nb_samples, self.R))
+
+        max_activation = 0
+        for test_sample in test_samples:
+            max_activation = max(np.nanmax(self.get_network_response(test_sample)), max_activation)
+
+        return max_activation
+
+
+
     #########################################################################################################
 
 
@@ -851,6 +868,7 @@ class HighDimensionNetwork():
             rn.assign_aligned_eigenvectors(scale=feat_scale, ratio=feat_ratio, scaled_dimension=r, specific_neurons = np.arange(rn.conj_subpop_size + r*feat_sub_M, rn.conj_subpop_size + (r+1)*feat_sub_M))
 
         rn.population_code_type = 'mixed'
+        rn.ratio_conj = ratio_feature_conjunctive
 
         return rn
 

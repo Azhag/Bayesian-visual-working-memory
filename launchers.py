@@ -76,7 +76,7 @@ def init_data_gen(random_network, parameters):
         Initialisating the DataGenerator
     '''
 
-    return DataGeneratorRFN(parameters['N'], parameters['T'], random_network, sigma_y=parameters['sigmay'], sigma_x=parameters['sigmax'], time_weights_parameters=parameters['time_weights_parameters'], cued_feature_time=parameters['cued_feature_time'], stimuli_generation=parameters.get('stimuli_generation', None), enforce_first_stimulus=parameters['enforce_first_stimulus'], stimuli_to_use=parameters.get('stimuli_to_use', None), enforce_min_distance=parameters.get('enforce_min_distance', 0.0), specific_stimuli_random_centers=parameters.get('specific_stimuli_random_centers', True), specific_stimuli_asymmetric=parameters.get('specific_stimuli_asymmetric', False))
+    return DataGeneratorRFN(parameters['N'], parameters['T'], random_network, sigma_y=parameters['sigmay'], sigma_x=parameters['sigmax'], time_weights_parameters=parameters['time_weights_parameters'], cued_feature_time=parameters['cued_feature_time'], stimuli_generation=parameters.get('stimuli_generation', None), enforce_first_stimulus=parameters['enforce_first_stimulus'], stimuli_to_use=parameters.get('stimuli_to_use', None), enforce_min_distance=parameters.get('enforce_min_distance', 0.0), specific_stimuli_random_centers=parameters.get('specific_stimuli_random_centers', True), specific_stimuli_asymmetric=parameters.get('specific_stimuli_asymmetric', False), enforce_distance_cued_feature_only=parameters.get('enforce_distance_cued_feature_only', False), renormalize_sigmax=parameters.get('renormalize_sigmax', False))
 
 
 def init_stat_measurer(random_network, parameters):

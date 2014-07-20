@@ -134,6 +134,8 @@ class ExperimentLauncher(object):
             help='Dataset generation used for the recall model.')
         parser.add_argument('--enforce_min_distance', type=float, default=0.17,
             help='Minimal distance between items of the same array')
+        parser.add_argument('--enforce_distance_cued_feature_only', action='store_true', default=False,
+            help='Enforce minimum distance on the cued feature only.')
         parser.add_argument('--specific_stimuli_random_centers', dest='specific_stimuli_random_centers', action='store_true', default=False,
             help='Should the centers in the specific stimuli be moved randomly?')
         parser.add_argument('--specific_stimuli_asymmetric', dest='specific_stimuli_asymmetric', action='store_true', default=False,
@@ -172,6 +174,7 @@ class ExperimentLauncher(object):
             help='Noise along time')
         parser.add_argument('--sigma_output', type=float, default=0.0,
             help='Noise added when outputting samples. Cheap lapse-like process')
+        parser.add_argument('--renormalize_sigmax', action='store_true', default=False, help='If set, sigmax is considered a proportion of the maximum activation of the network. Best for R>2.')
         parser.add_argument('--ratio_conj', type=float, default=0.2,
             help='Ratio of conjunctive/field subpopulations for mixed network')
         parser.add_argument('--ratio_hierarchical', type=float, default=None,

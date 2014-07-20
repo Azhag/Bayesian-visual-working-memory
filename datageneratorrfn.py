@@ -25,14 +25,14 @@ class DataGeneratorRFN(datagenerator.DataGenerator):
     '''
         DataGenerator for a RandomFactorialNetwork
     '''
-    def __init__(self, N, T, random_network, sigma_y = 0.05, sigma_x = 0.02, time_weights=None, time_weights_parameters = dict(weighting_alpha=0.3, weighting_beta = 1.0, specific_weighting = 0.3, weight_prior='uniform'), cued_feature_time=0, enforce_min_distance=0.17, stimuli_generation='random', enforce_first_stimulus=True, stimuli_to_use=None, specific_stimuli_random_centers=False, specific_stimuli_asymmetric=False):
+    def __init__(self, N, T, random_network, sigma_y = 0.05, sigma_x = 0.02, time_weights=None, time_weights_parameters = dict(weighting_alpha=0.3, weighting_beta = 1.0, specific_weighting = 0.3, weight_prior='uniform'), cued_feature_time=0, enforce_min_distance=0.17, stimuli_generation='random', enforce_first_stimulus=True, stimuli_to_use=None, specific_stimuli_random_centers=False, specific_stimuli_asymmetric=False, enforce_distance_cued_feature_only=False, renormalize_sigmax=False):
 
         # assert isinstance(random_network, RandomFactorialNetwork), "Use a RandomFactorialNetwork with this DataGeneratorRFN"
 
         datagenerator.DataGenerator.__init__(self, N, T, random_network, sigma_y = sigma_y, time_weights = time_weights, time_weights_parameters = time_weights_parameters)
 
         # This is the noise on specific memories. Belongs here.
-        self.sigma_x = sigma_x
+        self.init_sigmax(sigma_x, renormalize=renormalize_sigmax)
 
         self.enforce_min_distance = enforce_min_distance
 
@@ -46,7 +46,7 @@ class DataGeneratorRFN(datagenerator.DataGenerator):
                 self.generate_specific_stimuli(asymmetric=specific_stimuli_asymmetric, centre=np.array([0., 0.]), specific_stimuli_random_centers=specific_stimuli_random_centers)
             elif stimuli_generation is not None:
                 # Generate it randomly
-                self.generate_stimuli(stimuli_generation=stimuli_generation, enforce_first_stimulus=enforce_first_stimulus)
+                self.generate_stimuli(stimuli_generation=stimuli_generation, enforce_first_stimulus=enforce_first_stimulus, cued_feature_R=1, enforce_distance_cued_feature_only=enforce_distance_cued_feature_only)
             else:
                 raise ValueError("No data generation possible.")
 
@@ -54,8 +54,20 @@ class DataGeneratorRFN(datagenerator.DataGenerator):
         # Build the dataset
         self.build_dataset(cued_feature_time=cued_feature_time)
 
+    def init_sigmax(self, sigma_x_input=0.1, renormalize=False):
+        '''
+            Will initialise sigma_x properly.
+            If desired, we can max it so that sigma_x_input is interpreted as a proportion of the maximal network activation (obviously values close to 1 will be crazy).
+            This allows for a more useful setting of sigmax, and should work for R>2 (as the max activation depends on R, most likely as 10^-R)
+        '''
+        if renormalize:
+            max_network_activation = self.random_network.compute_maximum_activation_network()
+            self.sigma_x = max_network_activation*sigma_x_input
+        else:
+            self.sigma_x = sigma_x_input
 
-    def generate_stimuli(self, stimuli_generation='random', enforce_first_stimulus=True):
+
+    def generate_stimuli(self, stimuli_generation='random', enforce_first_stimulus=True, cued_feature_R=1, enforce_distance_cued_feature_only=False):
         '''
             Choose N stimuli for this dataset.
 
@@ -95,7 +107,7 @@ class DataGeneratorRFN(datagenerator.DataGenerator):
                 self.stimuli_correct[n, :, r] = angle_generator(self.T)
 
                 # Enforce minimal distance between different times
-                if random_generation and self.enforce_min_distance > 0.:
+                if random_generation and self.enforce_min_distance > 0. and (not enforce_distance_cued_feature_only or cued_feature_R == r):
                     tries = 0
                     while np.any(pdist(self.stimuli_correct[n, :, r][:, np.newaxis], 'chebyshev') < self.enforce_min_distance) and tries < 1000:
                         # Some are too close, resample
