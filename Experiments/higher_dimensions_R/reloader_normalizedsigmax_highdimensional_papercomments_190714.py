@@ -39,16 +39,12 @@ def plots_ratioMscaling(data_pbs, generator_module=None):
     savedata = True
 
     plots_pcolor_all = True
-    plots_effect_M_target_kappa = False
+    plots_effect_M_target_kappa = True
 
-    plots_kappa_fi_comparison = False
-    plots_multiple_fisherinfo = False
-    specific_plot_effect_R = False
+    plots_kappa_fi_comparison = True
+    plots_multiple_fisherinfo = True
+    specific_plot_effect_R = True
 
-    convert_M_realsizes = True
-
-    plots_pcolor_realsizes_Msubs = True
-    plots_pcolor_realsizes_Mtot = True
 
     colormap = None  # or 'cubehelix'
     plt.rcParams['font.size'] = 16
@@ -64,22 +60,11 @@ def plots_ratioMscaling(data_pbs, generator_module=None):
     result_fisherinfo_mean = (utils.nanmean(data_pbs.dict_arrays['result_fisher_info']['results'], axis=-1))
     result_fisherinfo_std = (utils.nanstd(data_pbs.dict_arrays['result_fisher_info']['results'], axis=-1))
 
+    all_args = data_pbs.loaded_data['args_list']
+
     result_em_fits_kappa = result_em_fits_mean[..., 0]
     result_em_fits_target = result_em_fits_mean[..., 1]
     result_em_fits_kappa_valid = np.ma.masked_where(result_em_fits_target < 0.8, result_em_fits_kappa)
-
-
-    # flat versions
-    result_parameters_flat = np.array(data_pbs.dict_arrays['result_all_precisions']['parameters_flat'])
-    result_all_precisions_mean_flat = np.mean(np.array(data_pbs.dict_arrays['result_all_precisions']['results_flat']), axis=-1)
-    result_em_fits_mean_flat = np.mean(np.array(data_pbs.dict_arrays['result_em_fits']['results_flat']), axis=-1)
-    result_fisherinfor_mean_flat = np.mean(np.array(data_pbs.dict_arrays['result_fisher_info']['results_flat']), axis=-1)
-    result_em_fits_kappa_flat = result_em_fits_mean_flat[..., 0]
-    result_em_fits_target_flat = result_em_fits_mean_flat[..., 1]
-    result_em_fits_kappa_valid_flat = np.ma.masked_where(result_em_fits_target_flat < 0.8, result_em_fits_kappa_flat)
-
-    all_args = data_pbs.loaded_data['args_list']
-
 
     M_space = data_pbs.loaded_data['parameters_uniques']['M'].astype(int)
     ratio_space = data_pbs.loaded_data['parameters_uniques']['ratio_conj']
@@ -95,91 +80,33 @@ def plots_ratioMscaling(data_pbs, generator_module=None):
 
     MAX_DISTANCE = 100.
 
-    if convert_M_realsizes:
-        # alright, currently M*ratio_conj gives the conjunctive subpopulation,
-        # but only floor(M_conj**1/R) neurons are really used. So we should
-        # convert to M_conj_real and M_feat_real instead of M and ratio
-        result_parameters_flat_subM_converted = []
-        result_parameters_flat_Mtot_converted = []
-
-        for params in result_parameters_flat:
-            M = params[0]; ratio_conj = params[1]; R = int(params[2])
-
-            M_conj_prior = int(M*ratio_conj)
-            M_conj_true = int(np.floor(M_conj_prior**(1./R))**R)
-            M_feat_true = int(np.floor((M-M_conj_prior)/R)*R)
-
-            # result_parameters_flat_subM_converted contains (M_conj, M_feat, R)
-            result_parameters_flat_subM_converted.append(np.array([M_conj_true, M_feat_true, R]))
-            # result_parameters_flat_Mtot_converted contains (M_tot, ratio_conj, R)
-            result_parameters_flat_Mtot_converted.append(np.array([float(M_conj_true+M_feat_true), M_conj_true/float(M_conj_true+M_feat_true), R]))
-
-        result_parameters_flat_subM_converted = np.array(result_parameters_flat_subM_converted)
-        result_parameters_flat_Mtot_converted = np.array(result_parameters_flat_Mtot_converted)
-
     if plots_pcolor_all:
-        if convert_M_realsizes:
-            def plot_interp(points, data, currR_indices, title='', points_label='', xlabel='', ylabel=''):
-                utils.contourf_interpolate_data_interactive_maxvalue(points[currR_indices][..., :2], data[currR_indices], xlabel=xlabel, ylabel=ylabel, title='%s, R=%d' % (title, R), interpolation_numpoints=200, interpolation_method='nearest', log_scale=False)
+        # Do one pcolor for M and ratio per R
+        for R_i, R in enumerate(R_space):
+            # Check evolution of precision given M and ratio
+            utils.pcolor_2d_data(result_all_precisions_mean[..., R_i], log_scale=True, x=M_space, y=ratio_space, xlabel='M', ylabel='ratio', xlabel_format="%d", title='precision, R=%d' % R)
+            if savefigs:
+                dataio.save_current_figure('pcolor_precision_R%d_log_{label}_{unique_id}.pdf' % R)
 
+            # Show kappa
+            try:
+                utils.pcolor_2d_data(result_em_fits_kappa_valid[..., R_i], log_scale=True, x=M_space, y=ratio_space, xlabel='M', ylabel='ratio', xlabel_format="%d", title='kappa, R=%d' % R)
                 if savefigs:
-                    dataio.save_current_figure('pcolortrueM%s_%s_R%d_log_{label}_{unique_id}.pdf' % (points_label, title, R))
+                    dataio.save_current_figure('pcolor_kappa_R%d_log_{label}_{unique_id}.pdf' % R)
+            except ValueError:
+                pass
 
-            all_datas = [dict(name='precision', data=result_all_precisions_mean_flat), dict(name='kappa', data=result_em_fits_kappa_flat), dict(name='kappavalid', data=result_em_fits_kappa_valid_flat), dict(name='target', data=result_em_fits_target_flat), dict(name='fisherinfo', data=result_fisherinfor_mean_flat)]
-            all_points = []
-            if plots_pcolor_realsizes_Msubs:
-                all_points.append(dict(name='sub', data=result_parameters_flat_subM_converted, xlabel='M_conj', ylabel='M_feat'))
-            if plots_pcolor_realsizes_Mtot:
-                all_points.append(dict(name='tot', data=result_parameters_flat_Mtot_converted, xlabel='Mtot', ylabel='ratio_conj'))
+            # Show probability on target
+            utils.pcolor_2d_data(result_em_fits_target[..., R_i], log_scale=False, x=M_space, y=ratio_space, xlabel='M', ylabel='ratio', xlabel_format="%d", title='target, R=%d' % R)
+            if savefigs:
+                dataio.save_current_figure('pcolor_target_R%d_{label}_{unique_id}.pdf' % R)
 
-            for curr_points in all_points:
-                for curr_data in all_datas:
-                    for R_i, R in enumerate(R_space):
-                        currR_indices = curr_points['data'][:, 2] == R
+            # # Show Fisher info
+            utils.pcolor_2d_data(result_fisherinfo_mean[..., R_i], log_scale=True, x=M_space, y=ratio_space, xlabel='M', ylabel='ratio', xlabel_format="%d", title='fisher info, R=%d' % R)
+            if savefigs:
+                dataio.save_current_figure('pcolor_fisherinfo_R%d_log_{label}_{unique_id}.pdf' % R)
 
-                        plot_interp(curr_points['data'], curr_data['data'], currR_indices, title=curr_data['name'], points_label=curr_points['name'], xlabel=curr_points['xlabel'], ylabel=curr_points['ylabel'])
-
-                # # show precision
-                # plot_interp(result_parameters_flat_subM_converted, result_all_precisions_mean_flat, currR_indices, title='precision')
-
-                # # show kappa
-                # plot_interp(result_parameters_flat_subM_converted, result_em_fits_kappa_flat, currR_indices, title='kappa')
-
-                # plot_interp(result_parameters_flat_subM_converted, result_em_fits_kappa_valid_flat, currR_indices, title='kappavalid')
-
-                # # show probability on target
-                # plot_interp(result_parameters_flat_subM_converted, result_em_fits_target_flat, currR_indices, title='target')
-
-                # # show fisher info
-                # plot_interp(result_parameters_flat_subM_converted, result_fisherinfor_mean_flat, currR_indices, title='fisherinfo')
-
-        else:
-            # Do one pcolor for M and ratio per R
-            for R_i, R in enumerate(R_space):
-                # Check evolution of precision given M and ratio
-                utils.pcolor_2d_data(result_all_precisions_mean[..., R_i], log_scale=True, x=M_space, y=ratio_space, xlabel='M', ylabel='ratio', xlabel_format="%d", title='precision, R=%d' % R)
-                if savefigs:
-                    dataio.save_current_figure('pcolor_precision_R%d_log_{label}_{unique_id}.pdf' % R)
-
-                # Show kappa
-                try:
-                    utils.pcolor_2d_data(result_em_fits_kappa_valid[..., R_i], log_scale=True, x=M_space, y=ratio_space, xlabel='M', ylabel='ratio', xlabel_format="%d", title='kappa, R=%d' % R)
-                    if savefigs:
-                        dataio.save_current_figure('pcolor_kappa_R%d_log_{label}_{unique_id}.pdf' % R)
-                except ValueError:
-                    pass
-
-                # Show probability on target
-                utils.pcolor_2d_data(result_em_fits_target[..., R_i], log_scale=False, x=M_space, y=ratio_space, xlabel='M', ylabel='ratio', xlabel_format="%d", title='target, R=%d' % R)
-                if savefigs:
-                    dataio.save_current_figure('pcolor_target_R%d_{label}_{unique_id}.pdf' % R)
-
-                # # Show Fisher info
-                utils.pcolor_2d_data(result_fisherinfo_mean[..., R_i], log_scale=True, x=M_space, y=ratio_space, xlabel='M', ylabel='ratio', xlabel_format="%d", title='fisher info, R=%d' % R)
-                if savefigs:
-                    dataio.save_current_figure('pcolor_fisherinfo_R%d_log_{label}_{unique_id}.pdf' % R)
-
-                plt.close('all')
+            plt.close('all')
 
     if plots_effect_M_target_kappa:
         def plot_ratio_target_kappa(ratio_target_kappa_given_M, target_kappa, R):

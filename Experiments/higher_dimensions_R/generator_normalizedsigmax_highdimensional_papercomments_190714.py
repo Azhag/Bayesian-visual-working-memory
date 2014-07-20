@@ -20,17 +20,17 @@ parameter_generation = 'grid'
 # submit_cmd = 'qsub'
 submit_cmd = 'sbatch'
 
-# limit_max_queued_jobs = 200
+# limit_max_queued_jobs = 50
 
 num_repetitions = 3
 # num_repetitions = 10
 # T = 1
-T = 2
-# T = 3
+# T = 2
+T = 3
 sigmax = 0.1
 cued_feature_type = 'all'
 
-run_label = 'highdimensional_respmaxout_mixed_papercomments_cuedtype{cued_feature_type}T{T}repetitions{num_repetitions}_130714'
+run_label = 'highdimensional_normalizedsigmax_mixed_papercomments_cuedtype{cued_feature_type}T{T}repetitions{num_repetitions}_170714'
 
 pbs_submission_infos = dict(description='Runs and collect precision, mixture model fits and fisher info for varying M, ratio_conj and R. Should then look at how R affects the precision and the ratio. New with max output Response implementation.',
                             command='python $WORKDIR/experimentlauncher.py',
@@ -45,6 +45,7 @@ pbs_submission_infos = dict(description='Runs and collect precision, mixture mod
                                                ratio_conj=1.0,
                                                M=100,
                                                sigmax=sigmax,
+                                               renormalize_sigmax=None,
                                                N=200,
                                                T=T,
                                                sigmay=0.0001,
@@ -56,11 +57,11 @@ pbs_submission_infos = dict(description='Runs and collect precision, mixture mod
                                                burn_samples=200,
                                                num_repetitions=num_repetitions,
                                                enforce_min_distance=0.17,
+                                               enforce_distance_cued_feature_only=None
                                                specific_stimuli_random_centers=None,
                                                stimuli_generation='random',
                                                stimuli_generation_recall='random',
                                                autoset_parameters=None,
-                                               response_maxout=None,
                                                label=run_label,
                                                experiment_data_dir=os.path.normpath(os.path.join(os.environ['WORKDIR_DROP'], '../../experimental_data')),
                                                ),
@@ -68,7 +69,7 @@ pbs_submission_infos = dict(description='Runs and collect precision, mixture mod
                             memory='2gb',
                             simul_out_dir=os.path.join(os.getcwd(), run_label.format(**locals())),
                             pbs_submit_cmd=submit_cmd,
-                            submit_label='highdim_respmax')
+                            submit_label='highdim_respmax%d' % T)
 
 nb_M = 11.
 
