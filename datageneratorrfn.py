@@ -60,11 +60,16 @@ class DataGeneratorRFN(datagenerator.DataGenerator):
             If desired, we can max it so that sigma_x_input is interpreted as a proportion of the maximal network activation (obviously values close to 1 will be crazy).
             This allows for a more useful setting of sigmax, and should work for R>2 (as the max activation depends on R, most likely as 10^-R)
         '''
+        max_network_activation = self.random_network.compute_maximum_activation_network()
+
         if renormalize:
-            max_network_activation = self.random_network.compute_maximum_activation_network()
+            # max_network_activation = self.random_network.compute_maximum_activation_network()
             self.sigma_x = max_network_activation*sigma_x_input
         else:
             self.sigma_x = sigma_x_input
+
+        print "sigmax/max network: %.5f" % (self.sigma_x/max_network_activation)
+
 
 
     def generate_stimuli(self, stimuli_generation='random', enforce_first_stimulus=True, cued_feature_R=1, enforce_distance_cued_feature_only=False):

@@ -81,7 +81,7 @@ def init_data_gen(random_network, parameters):
 
 def init_stat_measurer(random_network, parameters):
     # print "Measuring noise structure"
-    data_gen_noise = DataGeneratorRFN(5000, parameters['T'], random_network, sigma_y=parameters['sigmay'], sigma_x=parameters['sigmax'], time_weights_parameters=parameters['time_weights_parameters'], cued_feature_time=parameters['cued_feature_time'], stimuli_generation=parameters['stimuli_generation_recall'])
+    data_gen_noise = DataGeneratorRFN(5000, parameters['T'], random_network, sigma_y=parameters['sigmay'], sigma_x=parameters['sigmax'], time_weights_parameters=parameters['time_weights_parameters'], cued_feature_time=parameters['cued_feature_time'], stimuli_generation=parameters['stimuli_generation_recall'], enforce_min_distance=parameters.get('enforce_min_distance', 0.0), enforce_distance_cued_feature_only=parameters.get('enforce_distance_cued_feature_only', False), renormalize_sigmax=parameters.get('renormalize_sigmax', False))
     stat_meas = StatisticsMeasurer(data_gen_noise)
 
     return stat_meas
