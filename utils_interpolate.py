@@ -13,7 +13,7 @@ import scipy.interpolate as spint
 
 ####################### INTERPOLATION FUNCTIONS #############################
 
-def interpolate_data_2d(all_points, data, param1_space_int=None, param2_space_int=None, interpolation_numpoints=200, interpolation_method='linear', mask_when_nearest=True, mask_x_condition=None, mask_y_condition=None):
+def interpolate_data_2d(all_points, data, param1_space_int=None, param2_space_int=None, interpolation_numpoints=200, interpolation_method='linear', mask_when_nearest=True, mask_x_condition=None, mask_y_condition=None, mask_smaller_than=None, mask_greater_than=None):
 
     # Construct the interpolation
     if param1_space_int is None:
@@ -38,6 +38,10 @@ def interpolate_data_2d(all_points, data, param1_space_int=None, param2_space_in
     if not mask_y_condition is None:
         data_interpol[:, mask_y_condition(param2_space_int)] = 0.0
 
+    if mask_smaller_than is not None:
+        data_interpol = np.ma.masked_less(data_interpol, mask_smaller_than)
+    if mask_greater_than is not None:
+        data_interpol = np.ma.masked_greater(data_interpol, mask_greater_than)
     return data_interpol
 
 

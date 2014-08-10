@@ -368,7 +368,7 @@ def plot_hists_bias_nontargets(errors_nitems_nontargets, bins=20, label_nontarge
     hist_samples_density_estimation(errors_to_nontargets_all, bins=angle_space, title='Error to nontarget, all %s' % label_nontargets_all, dataio=dataio, filename='hist_bias_nontargets_allitems_%s_{label}_{unique_id}.pdf' % (label_nontargets_all))
 
 
-def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorbar=True, ax_handle=None, label_format="%.2f", xlabel_format=None, ylabel_format=None, fignum=None, interpolation='nearest', log_scale=False, ticks_interpolate=None, cmap=None):
+def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorbar=True, ax_handle=None, label_format="%.2f", xlabel_format=None, ylabel_format=None, fignum=None, interpolation='nearest', log_scale=False, ticks_interpolate=None, cmap=None, vmin=None, vmax=None):
     '''
         Plots a Pcolor-like 2d grid plot. Can give x and y arrays, which will provide ticks.
 
@@ -431,7 +431,7 @@ def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorba
         if log_scale:
             im = ax_handle.imshow(data.T, interpolation=interpolation, origin='lower left', norm=LogNorm(), cmap=cmap)
         else:
-            im = ax_handle.imshow(data.T, interpolation=interpolation, origin='lower left', cmap=cmap)
+            im = ax_handle.imshow(data.T, interpolation=interpolation, origin='lower left', cmap=cmap, vmin=vmin, vmax=vmax)
 
         if not x is None:
             assert data.shape[0] == x.size, 'Wrong x dimension'
@@ -635,7 +635,7 @@ def contour3d_interpolate_data(all_points, data, xlabel='', ylabel='', title='',
         raise NotImplementedError('matplotlib 3d has no contour3d function...')
 
 
-def contourf_interpolate_data_interactive_maxvalue(all_points, data, xlabel='', ylabel='', title='', interpolation_numpoints=200, interpolation_method='linear', mask_when_nearest=True, contour_numlevels=20, show_scatter=True, show_colorbar=True, fignum=None, ax_handle=None, mask_x_condition=None, mask_y_condition=None, log_scale=False):
+def contourf_interpolate_data_interactive_maxvalue(all_points, data, xlabel='', ylabel='', title='', interpolation_numpoints=200, interpolation_method='linear', mask_when_nearest=True, contour_numlevels=20, show_scatter=True, show_colorbar=True, fignum=None, ax_handle=None, mask_x_condition=None, mask_y_condition=None, log_scale=False, mask_smaller_than=None, mask_greater_than=None, show_slider=True):
     '''
         Take (x,y) and z tuples, construct an interpolation with them and plot them nicely.
 
@@ -651,7 +651,7 @@ def contourf_interpolate_data_interactive_maxvalue(all_points, data, xlabel='', 
     param1_space_int = np.linspace(all_points[:, 0].min(), all_points[:, 0].max(), interpolation_numpoints)
     param2_space_int = np.linspace(all_points[:, 1].min(), all_points[:, 1].max(), interpolation_numpoints)
 
-    data_interpol = utils_interpolate.interpolate_data_2d(all_points, np.ma.masked_greater(data, data.max()), param1_space_int, param2_space_int, interpolation_numpoints, interpolation_method, mask_when_nearest, mask_x_condition, mask_y_condition)
+    data_interpol = utils_interpolate.interpolate_data_2d(all_points, np.ma.masked_greater(data, data.max()), param1_space_int=param1_space_int, param2_space_int=param2_space_int, interpolation_numpoints=interpolation_numpoints, interpolation_method=interpolation_method, mask_when_nearest=mask_when_nearest, mask_x_condition=mask_x_condition, mask_y_condition=mask_y_condition, mask_smaller_than=mask_smaller_than, mask_greater_than=mask_greater_than)
 
     parameters = locals()
 
@@ -661,12 +661,12 @@ def contourf_interpolate_data_interactive_maxvalue(all_points, data, xlabel='', 
         # Construct the figure
         if parameters['ax_handle'] is None:
             f = plt.figure()
-            parameters['ax_handle'] = f.add_subplot(111)
-            f.subplots_adjust(bottom=0.25)
         else:
             f = parameters['ax_handle'].get_figure()
             f.clf()
-            parameters['ax_handle'] = f.add_subplot(111)
+
+        parameters['ax_handle'] = f.add_subplot(111)
+        if show_slider:
             f.subplots_adjust(bottom=0.25)
 
         if log_scale:
@@ -691,29 +691,30 @@ def contourf_interpolate_data_interactive_maxvalue(all_points, data, xlabel='', 
             parameters['ax_handle'].get_figure().colorbar(cs)
 
         ### Add interactive slider
-        # axcolor = 'lightgoldenrodyellow'
-        ax_slider_max = plt.axes([0.1, 0.1, 0.75, 0.04])
-        slider_max = Slider(ax_slider_max, 'Max', parameters['data'].min(), parameters['data'].max(), valinit=max_value)
-        # parameters['ax_handle'].get_figure().sca(parameters['ax_handle'])
+        if show_slider:
+            # axcolor = 'lightgoldenrodyellow'
+            ax_slider_max = plt.axes([0.1, 0.1, 0.75, 0.04])
+            slider_max = Slider(ax_slider_max, 'Max', parameters['data'].min(), parameters['data'].max(), valinit=max_value)
+            # parameters['ax_handle'].get_figure().sca(parameters['ax_handle'])
 
-        def update_max(val):
+            def update_max(val):
 
-            new_max = slider_max.val
-            print 'Changed max: %.2f' % new_max
+                new_max = slider_max.val
+                print 'Changed max: %.2f' % new_max
 
-            # Recompute interpolation
-            data_limited_ = np.ma.masked_greater(parameters['data'], new_max)
-            parameters['data_interpol'] = utils_interpolate.interpolate_data_2d(parameters['all_points'], data_limited_, parameters['param1_space_int'], parameters['param2_space_int'], parameters['interpolation_numpoints'], parameters['interpolation_method'], parameters['mask_when_nearest'], parameters['mask_x_condition'], parameters['mask_y_condition'])
+                # Recompute interpolation
+                data_limited_ = np.ma.masked_greater(parameters['data'], new_max)
+                parameters['data_interpol'] = utils_interpolate.interpolate_data_2d(parameters['all_points'], data_limited_, parameters['param1_space_int'], parameters['param2_space_int'], parameters['interpolation_numpoints'], parameters['interpolation_method'], parameters['mask_when_nearest'], parameters['mask_x_condition'], parameters['mask_y_condition'])
 
-            # clean figure
-            # parameters['ax_handle'].get_figure().subplots_adjust(right=1.1)
-            # parameters['ax_handle'].get_figure().clf()
+                # clean figure
+                # parameters['ax_handle'].get_figure().subplots_adjust(right=1.1)
+                # parameters['ax_handle'].get_figure().clf()
 
-            __plot__(parameters, new_max)
+                __plot__(parameters, new_max)
 
-            parameters['ax_handle'].get_figure().canvas.draw()
+                parameters['ax_handle'].get_figure().canvas.draw()
 
-        slider_max.on_changed(update_max)
+            slider_max.on_changed(update_max)
 
         ## Change mouse over behaviour
         def report_pixel(x_mouse, y_mouse, format="%.2f"):
