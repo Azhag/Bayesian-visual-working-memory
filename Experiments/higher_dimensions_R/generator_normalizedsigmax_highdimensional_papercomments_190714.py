@@ -24,9 +24,9 @@ submit_cmd = 'sbatch'
 
 num_repetitions = 3
 # num_repetitions = 10
-# T = 1
-# T = 2
-T = 3
+T = 1
+#T = 2
+#T = 3
 sigmax = 0.1
 cued_feature_type = 'all'
 
@@ -51,13 +51,13 @@ pbs_submission_infos = dict(description='Runs and collect precision, mixture mod
                                                sigmay=0.0001,
                                                inference_method='sample',
                                                cued_feature_type=cued_feature_type,
-                                               num_samples=300,
+                                               num_samples=200,
                                                selection_num_samples=1,
                                                slice_width=0.07,
                                                burn_samples=200,
                                                num_repetitions=num_repetitions,
                                                enforce_min_distance=0.17,
-                                               enforce_distance_cued_feature_only=None
+                                               enforce_distance_cued_feature_only=None,
                                                specific_stimuli_random_centers=None,
                                                stimuli_generation='random',
                                                stimuli_generation_recall='random',
@@ -73,8 +73,8 @@ pbs_submission_infos = dict(description='Runs and collect precision, mixture mod
 
 nb_M = 11.
 
-M_range      =   dict(range=np.arange(100, 800, round((800-100)/nb_M)), dtype=int)
-ratio_range  =   dict(range=np.linspace(0.0001, 1.0, 15.), dtype=float)
+M_range      =   dict(range=np.arange(100, 800, round((800-100)/nb_M))[::-1], dtype=int)
+ratio_range  =   dict(range=np.linspace(0.0001, 1.0, 15.)[::-1], dtype=float)
 R_range      =   dict(range=np.arange(2, 6), dtype=int)
 
 dict_parameters_range =   dict(M=M_range, ratio_conj=ratio_range, R=R_range)
