@@ -171,6 +171,17 @@ class ResultComputation():
 
         return self.compute_result_distemfits_dataset(all_variables, experiment_id='bays09', cache_array_name='result_dist_bays09', variable_selection_slice=slice(0, 1), variable_selection_slice_cache=slice(0, 1), metric='mse')
 
+    def compute_result_distemkappalog_bays09(self, all_variables):
+        '''
+            Compute the distance to the experimental data kappa, but now take the log afterwards.
+
+            Should be better behaved.
+
+            Assume that:
+                - result_em_fits exists. Does an average over repetitions_axis and sums over all others.
+        '''
+        return np.log(self.compute_result_distemkappa_bays09(all_variables))
+
     def compute_result_distemkappa_gorgo11(self, all_variables):
         '''
             Result is the distance (sum squared) to experimental data kappa
@@ -180,6 +191,17 @@ class ResultComputation():
         '''
 
         return self.compute_result_distemfits_dataset(all_variables, experiment_id='gorgo11', cache_array_name='result_dist_gorgo11', variable_selection_slice=slice(0, 1), variable_selection_slice_cache=slice(0, 1), metric='mse')
+
+    def compute_result_distemkappalog_gorgo11(self, all_variables):
+        '''
+            Compute the distance to the experimental data kappa, but now take the log afterwards.
+
+            Should be better behaved.
+
+            Assume that:
+                - result_em_fits exists. Does an average over repetitions_axis and sums over all others.
+        '''
+        return np.log(self.compute_result_distemkappa_gorgo11(all_variables))
 
 
     def compute_result_distemmixtKL_bays09(self, all_variables):
@@ -203,6 +225,28 @@ class ResultComputation():
 
         return self.compute_result_distemfits_dataset(all_variables, experiment_id='gorgo11', cache_array_name='result_dist_gorgo11_emmixt_KL', variable_selection_slice=slice(1, 4), variable_selection_slice_cache=slice(None, None), metric='kl')
 
+
+    def compute_result_distem_logkappa_mixtKL_bays09(self, all_variables, normaliser_logkappa=1.0, normaliser_mixtKL=1.0):
+        '''
+            Result is the sum of the emkappa_log and emmixtKL distances.
+
+            Should be normalized later, not sure how to pass it on.
+
+            Assume that:
+                - result_em_fits exists. Does an average over repetitions_axis and sums over all others.
+        '''
+        return self.compute_result_distemkappalog_bays09(all_variables)/normaliser_logkappa + self.compute_result_distemmixtKL_bays09(all_variables)/normaliser_mixtKL
+
+    def compute_result_distem_logkappa_mixtKL_gorgo11(self, all_variables, normaliser_logkappa=1.0, normaliser_mixtKL=1.0):
+        '''
+            Result is the sum of the emkappa_log and emmixtKL distances.
+
+            Should be normalized later, not sure how to pass it on.
+
+            Assume that:
+                - result_em_fits exists. Does an average over repetitions_axis and sums over all others.
+        '''
+        return self.compute_result_distemkappalog_gorgo11(all_variables)/normaliser_logkappa + self.compute_result_distemmixtKL_gorgo11(all_variables)/normaliser_mixtKL
 
     def compute_result_distfitexpbic(self, all_variables):
         '''
