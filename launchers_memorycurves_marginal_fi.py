@@ -85,7 +85,7 @@ def do_memory_plots(variables_launcher_running, plotting_parameters):
         return ax
 
     # Plot EM Mixtures proportions
-    def em_plot_paper(exp_name='', ax=None):
+    def em_plot_paper(T_space_exp, exp_data_mean, exp_data_std, exp_name='', ax=None):
 
         if ax is None:
             _, ax = plt.subplots()
@@ -100,10 +100,18 @@ def do_memory_plots(variables_launcher_running, plotting_parameters):
         result_em_fits_mean[np.isnan(result_em_fits_mean)] = 0.0
         result_em_fits_std[np.isnan(result_em_fits_std)] = 0.0
 
-        utils.plot_mean_std_area(T_space, result_em_fits_mean[..., 1], result_em_fits_std[..., 1], xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Target')
+        T_max_exp = T_space_exp.max()
+
+        # Show model fits
+        utils.plot_mean_std_area(T_space[:T_max_exp], result_em_fits_mean[..., :T_max_exp, 1], result_em_fits_std[..., :T_max_exp, 1], xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Target')
         ax.hold(True)
-        utils.plot_mean_std_area(T_space, result_em_fits_mean[..., 2], result_em_fits_std[..., 2], xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Nontarget')
-        utils.plot_mean_std_area(T_space, result_em_fits_mean[..., 3], result_em_fits_std[..., 3], xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Random')
+        utils.plot_mean_std_area(T_space[:T_max_exp], result_em_fits_mean[..., :T_max_exp, 2], result_em_fits_std[..., :T_max_exp, 2], xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Nontarget')
+        utils.plot_mean_std_area(T_space[:T_max_exp], result_em_fits_mean[..., :T_max_exp, 3], result_em_fits_std[..., :T_max_exp, 3], xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Random')
+
+        # Now data
+        utils.plot_mean_std_area(T_space_exp, exp_data_mean[0], exp_data_std[0], xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=2, fmt='o:', markersize=5, label='Data target')
+        utils.plot_mean_std_area(T_space_exp, exp_data_mean[1], exp_data_std[1], xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=2, fmt='o:', markersize=5, label='Data nontarget')
+        utils.plot_mean_std_area(T_space_exp, exp_data_mean[2], exp_data_std[2], xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=2, fmt='o:', markersize=5, label='Data random')
 
         ax.legend(prop={'size':15})
 
@@ -112,10 +120,11 @@ def do_memory_plots(variables_launcher_running, plotting_parameters):
         else:
             ax.set_title("{{exp_name}} {M} {ratio_conj:.2f} {sigmax:.3f} {sigmay:.3f}".format(**variables_launcher_running['all_parameters']).format(exp_name=exp_name))
 
-        ax.set_xlim([1.0, T_space.size])
+
+        ax.set_xlim([0.9, T_max_exp + 0.1])
         ax.set_ylim([0.0, 1.1])
-        ax.set_xticks(range(1, T_space.size+1))
-        ax.set_xticklabels(range(1, T_space.size+1))
+        ax.set_xticks(range(1, T_max_exp+1))
+        ax.set_xticklabels(range(1, T_max_exp+1))
 
         if suptitle_text:
             ax.get_figure().suptitle(suptitle_text)
@@ -133,7 +142,7 @@ def do_memory_plots(variables_launcher_running, plotting_parameters):
     # Do all plots for all datasets
     for exper_name, exper_data in dict_experiments_to_plot.iteritems():
         ax1 = mem_plot_kappa(exper_data['T_space'], exper_data['emfits']['mean'][0], exper_data['emfits']['std'][0], exp_name=exper_name, ax=exper_data['axes']['ax_mem_plot_kappa'])
-        ax2 = em_plot_paper(exp_name=exper_name, ax=exper_data['axes']['ax_em_plot_paper'])
+        ax2 = em_plot_paper(exper_data['T_space'], exper_data['emfits']['mean'][1:], exper_data['emfits']['std'][1:], exp_name=exper_name, ax=exper_data['axes']['ax_em_plot_paper'])
         if reuse_axes:
             exper_data['axes']['ax_mem_plot_kappa'] = ax1
             exper_data['axes']['ax_em_plot_paper'] = ax2
