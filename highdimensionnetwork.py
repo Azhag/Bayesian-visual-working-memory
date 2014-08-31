@@ -512,6 +512,14 @@ class HighDimensionNetwork():
         return np.dot(der_f, np.linalg.solve(cov_stim, der_f))
 
 
+    def compute_marginal_inverse_FI(self, k_items, inv_cov_stim, max_n_samples=int(1e5), min_distance=0.1, convergence_epsilon = 1e-7, debug=False):
+        '''
+            Computing the fisher information for a hierarchical code is not yet defined.
+        '''
+        FI = self.compute_fisher_information(cov_stim=np.linalg.inv(inv_cov_stim))
+
+        return dict(inv_FI=FI**-1., inv_FI_std=0.0, FI=FI, FI_std=0.0)
+
 
     ########################
 
