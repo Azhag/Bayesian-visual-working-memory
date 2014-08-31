@@ -88,6 +88,25 @@ class SubmitPBS():
 
             self.resource = pbs_submission_infos.get('resource', '')
 
+            self.qos = pbs_submission_infos.get('qos', '')
+            if self.qos == 'auto':
+                # Compute it automatically.
+                # rules:
+                # < 1h -> short
+                # < 24h -> normal
+                # < 72h -> medium
+                # < 7d -> long
+                walltime_seconds = utils.convert_deltatime_str_to_seconds(walltime)
+                if walltime_seconds <= 1*3600:
+                    self.qos = 'short'
+                elif walltime_seconds <= 24*3600:
+                    self.qos = 'normal'
+                elif walltime_seconds <= 72*3600:
+                    self.qos = 'medium'
+                else:
+                    self.qos = 'long'
+
+
 
         self.pbs_options = {'mem': memory, 'pmem': memory, 'walltime': walltime, 'ncpus': '1'}
         self.set_env = set_env
@@ -317,6 +336,10 @@ class SubmitPBS():
             # Add the resource if provided
             if self.resource:
                 pbs_options += "\n#SBATCH -A " + self.resource
+
+            # Add the QOS if provided
+            if self.qos:
+                pbs_options += "\n#SBATCH --qos=" + self.qos
 
             # Add the environment
             if self.set_env:
