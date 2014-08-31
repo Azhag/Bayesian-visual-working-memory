@@ -210,7 +210,7 @@ def cma_iter_plot_scatter3d_candidates(all_variables, parameters=None):
     axes[1].plot(fitness_arr)
     axes[1].set_xlabel('Time')
     axes[1].set_ylabel('Fitness')
-    axes[1].set_title('N Current fitness: %s' % np.round(np.median(fitness_arr[-100:]), 4))
+    axes[1].set_title('N Current fitness: %s' % np.round(utils.nanmedian(fitness_arr[-100:]), 4))
     f.canvas.draw()
 
     if parameters['dataio'] is not None:

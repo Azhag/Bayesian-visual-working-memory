@@ -91,6 +91,7 @@ def plots_fit_mixturemodels_random(data_pbs, generator_module=None):
     # Square distance to kappa
     result_dist_bays09_allT_avg = utils.nanmean((result_em_fits_flat[:, :, :4] - bays09_em_target[np.newaxis, :, :, np.newaxis])**2, axis=-1)
     result_dist_bays09_kappa_sum = np.nansum(result_dist_bays09_allT_avg[:, :, 0], axis=-1)
+    result_dist_bays09_kappa_sum_masked = np.ma.masked_greater(result_dist_bays09_kappa_sum, 1e8)
 
     result_dist_bays09_kappa_T1_sum = result_dist_bays09_allT_avg[:, 0, 0]
     result_dist_bays09_kappa_T25_sum = np.nansum(result_dist_bays09_allT_avg[:, 1:, 0], axis=-1)
@@ -107,6 +108,7 @@ def plots_fit_mixturemodels_random(data_pbs, generator_module=None):
     result_dist_bays09_emmixt_KL_T25_sum = np.nansum(result_dist_bays09_emmixt_KL[:, 1:], axis=-1)
 
     result_dist_bays09_both_normalised = result_dist_bays09_emmixt_sum/np.max(result_dist_bays09_emmixt_sum) + result_dist_bays09_kappa_sum/np.max(result_dist_bays09_kappa_sum)
+    result_dist_bays09_kappaKL_normalised_summed = result_dist_bays09_emmixt_KL_sum/np.max(result_dist_bays09_emmixt_KL_sum) + result_dist_bays09_kappa_sum/np.max(result_dist_bays09_kappa_sum)
 
 
     if plots_dist_bays09:
