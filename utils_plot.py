@@ -23,6 +23,7 @@ from matplotlib.widgets import Slider
 
 from mpl_toolkits.mplot3d import Axes3D
 
+import pandas as pd
 
 
 import utils_math
@@ -261,6 +262,67 @@ def plot_square_grid(x, y, nb_to_plot=-1):
                 subaxes[i, j].set_visible(False)
 
     return (f, subaxes)
+
+
+def plot_mean_std_from_samples(x, y, bins=100, bins_y=100, xlabel='', ylabel='', title='',  ax_handle=None, nb_stddev=1., show_scatter=False):
+    '''
+        Given a set of (x, y) variables, will estimate a mean and std through 'x'.
+        Should give how many bins you want on the x axis (this will affect the fit)
+        Do a 2d histogram to solve that.
+    '''
+
+    if ax_handle is None:
+        f, ax_handle = plt.subplots()
+    else:
+        f = ax_handle.get_figure()
+
+    cnts_hist, x_edges, y_edges = np.histogram2d(x, y, bins = [bins, bins_y])
+    x_centers = (x_edges + np.diff(x_edges)[0]/2.)[:-1]
+    y_centers = (y_edges + np.diff(y_edges)[0]/2.)[:-1]
+
+    # Now compute mean and std by repeating the y_centers.
+    # There should be a better way but I can't find it, it's late....
+    binned_data = [np.repeat(y_centers, cnts_hist[i].astype(int)) for i in xrange(bins)]
+    data_mean = np.array([np.mean(curr_data) for curr_data in binned_data])
+    data_std = np.array([np.std(curr_data) for curr_data in binned_data])
+
+    plot_mean_std_area(x_centers, data_mean, nb_stddev*data_std, ax_handle=ax_handle, xlabel=xlabel, ylabel=ylabel, title=title)
+
+    if show_scatter:
+        ax_handle.plot(x, y, '.k')
+
+    f.canvas.draw()
+
+
+def plot_mean_std_from_samples_rolling(x, y, window=25, xlabel='', ylabel='', title='', ax_handle=None, nb_stddev=1., show_scatter=False):
+    '''
+        Given a set of (x, y) data, will estimate mean and std through x.
+
+        Uses Pandas and rolling mean and std to get that.
+    '''
+
+    # Construct a Dataframe, and appy rolling mean and std
+    data_pd = pd.DataFrame(data=y, index=x)
+    data_pd = data_pd.sort()
+
+    data_mean = pd.rolling_mean(data_pd, window, center=True)
+    data_std = pd.rolling_std(data_pd, window, center=True)
+
+    # Now plot
+    if ax_handle is None:
+        f, ax_handle = plt.subplots()
+    else:
+        f = ax_handle.get_figure()
+
+    plot_mean_std_area(data_mean.index.values.astype('float'), np.ma.masked_invalid(np.array(data_mean).flatten()), nb_stddev*np.ma.masked_invalid(np.array(data_std)).flatten(), ax_handle=ax_handle, xlabel=xlabel, ylabel=ylabel, title=title)
+
+    if show_scatter:
+        ax_handle.scatter(x, y, s=2, color='k')
+
+    ax_handle.set_xlim([np.min(x), np.max(x)])
+    ax_handle.set_ylim([np.min(y), np.max(y)])
+
+    f.canvas.draw()
 
 
 def hist_angular_data(data, bins=20, alpha=1.0, in_degrees=False, title=None, norm='density', fignum=None, ax_handle=None, pretty_xticks=False):
