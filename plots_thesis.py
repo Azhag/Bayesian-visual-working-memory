@@ -97,18 +97,68 @@ def do_plots_multiscale_random_populations():
     return locals()
 
 
+def do_plot_best_fit_bays09():
+    '''
+        Takes best fitted parameters from CMA/ES runs and re-run plotting on those
+    '''
+
+    num_repetitions = 5
+    best_parameters = dict(
+        ratio_conj = 9.16142946e-01,
+        M = int(2.26351315e+02),
+        sigmax = 2.69370127e-01,
+        sigma_output = 1.66844398e-01
+    )
+
+    arguments_dict = dict(action_to_do='launcher_do_memory_curve_marginal_fi_withplots_live',
+                            subaction='collect_responses',
+                            collect_responses=None,
+                            inference_method='sample',
+                            N=300,
+                            num_samples=200,
+                            M=100,
+                            T = 6,
+                            num_repetitions=num_repetitions,
+                            renormalize_sigmax=None,
+                            autoset_parameters=None,
+                            session_id='cmaes_fitting_experiments_relaunchs',
+                            label='thesis_bestfit_bays09_cmaes_Mratiosigmaxsigmaoutput',
+                            code_type='mixed',
+                            output_directory='./Figures/thesis/plot_best_fit_bays09',
+                            ratio_conj=0.5,
+                            sigmax=0.1,
+                            sigmay=0.000001,
+                            sigma_output=0.0,
+                            selection_num_samples=1,
+                            selection_method='last',
+                            slice_width=0.07,
+                            burn_samples=200,
+                            enforce_min_distance=0.17,
+                            specific_stimuli_random_centers=None,
+                            stimuli_generation='random',
+                            stimuli_generation_recall='random',
+                            experiment_data_dir=os.path.normpath(os.path.join(os.environ['WORKDIR_DROP'], '../../experimental_data')),
+                       )
+
+    arguments_dict.update(best_parameters)
+
+    experiment_launcher = ExperimentLauncher(run=True, arguments_dict=arguments_dict)
+
+    return locals()
+
 
 if __name__ == '__main__':
 
     all_vars = {}
 
-    all_vars = do_plots_multiscale_random_populations()
+    # all_vars = do_plots_multiscale_random_populations()
+    all_vars = do_plot_best_fit_bays09()
 
 
     if 'experiment_launcher' in all_vars:
         all_vars.update(all_vars['experiment_launcher'].all_vars)
 
-    variables_to_reinstantiate = ['data_gen', 'sampler', 'stat_meas', 'random_network', 'args', 'constrained_parameters', 'data_pbs', 'dataio', 'experiment_launcher']
+    variables_to_reinstantiate = ['data_gen', 'sampler', 'stat_meas', 'random_network', 'args', 'constrained_parameters', 'data_pbs', 'dataio', 'experiment_launcher', 'arguments_dict']
 
     for var_reinst in variables_to_reinstantiate:
         if var_reinst in all_vars:
