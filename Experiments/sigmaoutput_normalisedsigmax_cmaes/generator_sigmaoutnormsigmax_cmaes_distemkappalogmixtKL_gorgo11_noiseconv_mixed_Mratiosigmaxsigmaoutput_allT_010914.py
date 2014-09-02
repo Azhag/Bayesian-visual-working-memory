@@ -26,7 +26,7 @@ submit_cmd = 'sbatch'
 num_repetitions = 5
 T = 6
 
-run_label = 'sigmaoutnormsigmax_cmaes_distemkappalogmixtKL_gorgo11_noiseconv_mixed_Mratiosigmaxsigmaoutput_allT_repetitions{num_repetitions}_290814'
+run_label = 'sigmaoutnormsigmax_cmaes_distemkappalogmixtKL_gorgo11_noiseconv_mixed_Mratiosigmaxsigmaoutput_allT_repetitions{num_repetitions}_010914'
 simul_out_dir = os.path.join(os.getcwd(), run_label.format(**locals()))
 
 parameter_generation = 'cma-es'
@@ -38,7 +38,7 @@ cma_use_bounds = True
 
 sleeping_period = dict(min=10, max=20)
 
-pbs_submission_infos = dict(description='Fit experiments (gorgo11), using distem_logkappa_mixtKL_bays09 ResultComputation), using the CMA-ES code. Looks at all t<=T here. Changes M, ratio_conj, sigmax and sigma_output. Get samples and look at the mixture proportions and kappa. Tries to combine them directly, but could do with some normalisation...',
+pbs_submission_infos = dict(description='Fit experiments (gorgo11), using distem_logkappa_mixtKL_gorgo11 ResultComputation), using the CMA-ES code. Looks at all t<=T here. Changes M, ratio_conj, sigmax and sigma_output. Get samples and look at the mixture proportions and kappa. Tries to combine them directly, but could do with some normalisation...',
                             command='python $WORKDIR/experimentlauncher.py',
                             other_options=dict(action_to_do='launcher_do_fit_mixturemodels',
                                                code_type='mixed',
@@ -46,7 +46,7 @@ pbs_submission_infos = dict(description='Fit experiments (gorgo11), using distem
                                                ratio_conj=0.5,
                                                collect_responses=None,
                                                session_id='cmaes_sigmaoutputratiosigmax',
-                                               result_computation='distem_logkappa_mixtKL_bays09',
+                                               result_computation='distem_logkappa_mixtKL_gorgo11',
                                                M=100,
                                                sigmax=0.1,
                                                N=200,
@@ -73,7 +73,7 @@ pbs_submission_infos = dict(description='Fit experiments (gorgo11), using distem
                             memory='2gb',
                             simul_out_dir=simul_out_dir,
                             pbs_submit_cmd=submit_cmd,
-                            submit_label='sonewsxcma4d_sum',
+                            submit_label='sonewsxcma4d_gor',
                             qos='auto')
 
 
@@ -86,25 +86,40 @@ dict_parameters_range =   dict(sigma_output=sigmaoutput_range, ratio_conj=ratioc
 
 
 # result_callback_function to track best parameter
-best_parameters_seen = dict(result=np.nan, job_name='', parameters=None, submit_best=True, pbs_submission_infos_copy=copy.deepcopy(pbs_submission_infos))
+best_parameters_seen = dict(result=np.nan, job_name='', parameters=None, submit_parameters=True, pbs_submission_infos_copy=copy.deepcopy(pbs_submission_infos), cnt_parameters_seen=0, plot_every=50)
 def best_parameters_callback(job, parameters=None):
 
-    if not np.any(np.isnan(job.get_result())) and (np.any(np.isnan(parameters['result'])) or (job.get_result() <= parameters['result'])):
-        # New best parameter!
-        parameters['result'] = job.get_result()
-        parameters['job_name'] = job.job_name
-        parameters['parameters'] = job.experiment_parameters
-        parameters['best_parameters'] = utils.subdict(job.experiment_parameters, dict_parameters_range.keys())
+    try:
 
-        print "\n\n>>>>>> Found new best parameters: \n%s %s %s\n\n" % (parameters['best_parameters'], parameters['result'], parameters['job_name'])
+        submit_current_parameters = False
+        parameters['cnt_parameters_seen'] = parameters['cnt_parameters_seen'] + 1
 
-        np.save('./outputs/best_params', dict(parameters=parameters))
+        if not np.any(np.isnan(job.get_result())):
+            if parameters['cnt_parameters_seen'] % parameters['plot_every'] == 0:
+                # Let's plot again.
+                print "\n\n >>>>> Will run new submission with these parameters: %s, fitness: %f \n\n" % (utils.subdict(job.experiment_parameters, dict_parameters_range.keys()), job.get_result())
 
-        # If desired, automatically create additional plots.
-        if parameters.get('submit_best', False):
+                np.save('./outputs/curr_params', dict(parameters=parameters))
 
-            pbs_submission_infos_copy = parameters['pbs_submission_infos_copy']
-            try:
+                submit_current_parameters = True
+
+            if (np.any(np.isnan(parameters['result'])) or (job.get_result() <= parameters['result'])):
+                # New best parameter!
+                parameters['result'] = job.get_result()
+                parameters['job_name'] = job.job_name
+                parameters['parameters'] = job.experiment_parameters
+                parameters['best_parameters'] = utils.subdict(job.experiment_parameters, dict_parameters_range.keys())
+
+                print "\n\n>>>>>> Found new best parameters: \n%s %s %s\n\n" % (parameters['best_parameters'], parameters['result'], parameters['job_name'])
+
+                np.save('./outputs/best_params', dict(parameters=parameters))
+
+                submit_current_parameters = True
+
+            # If desired, automatically create additional plots.
+            if parameters.get('submit_parameters', False) and submit_current_parameters:
+
+                pbs_submission_infos_copy = parameters['pbs_submission_infos_copy']
                 # Will check the best fitting parameters, and relaunch simulations for them, in order to get new cool plots.
 
                 ## First do Memory curves + EM Fits
@@ -128,23 +143,23 @@ def best_parameters_callback(job, parameters=None):
                     result_computation='filenameoutput',
                     label='cmaes_Mratiosigmaxsigmaoutput_fitting_experiment_rerun_290814'))
                 pbs_submission_infos_copy['walltime'] = '70:00:00'
-                pbs_submission_infos_copy['submit_label'] = 'bestparam_rerun'
+                pbs_submission_infos_copy['submit_label'] = 'param_rerun'
                 pbs_submission_infos_copy['qos'] = 'auto'
 
                 submit_pbs = submitpbs.SubmitPBS(pbs_submission_infos=pbs_submission_infos_copy, debug=True)
 
                 # Extract the parameters to try
-                best_params_resend = [utils.subdict(job.experiment_parameters, dict_parameters_range.keys())]
+                params_resend = [utils.subdict(job.experiment_parameters, dict_parameters_range.keys())]
 
                 # Submit without waiting
-                print "Submitting extra job for Plots, parameters:", best_params_resend
+                print "Submitting extra job for Plots, parameters:", params_resend
                 submission_parameters_dict = dict(pbs_submission_infos=pbs_submission_infos_copy, submit_jobs=submit_jobs, wait_jobs_completed=False)
-                submit_pbs.submit_minibatch_jobswrapper(best_params_resend, submission_parameters_dict)
+                submit_pbs.submit_minibatch_jobswrapper(params_resend, submission_parameters_dict)
 
-            except Exception as e:
-                print "Failure while submitting sub-task for best parameter. Continuing anyway."
-                print parameters
-                print e
+    except Exception as e:
+        print "Failure while submitting sub-task for current parameters. Continuing anyway."
+        print parameters
+        print e
 
 
 result_callback_function_infos = dict(function=best_parameters_callback, parameters=best_parameters_seen)
