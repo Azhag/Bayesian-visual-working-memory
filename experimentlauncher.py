@@ -26,11 +26,12 @@ class ExperimentLauncher(object):
         Takes parameters, either on the command line or from a file, and launch the appropriate commands
     """
 
-    def __init__(self, run=True, arguments_dict={}):
+    def __init__(self, run=True, arguments_dict={}, job_wrapped=False):
         self.actions = None
         self.args = None
         self.all_vars = None
         self.has_run = False
+        self.job_wrapped = job_wrapped
 
         # Init the launchers (should be imported already)
         self.init_possible_launchers()
@@ -42,8 +43,8 @@ class ExperimentLauncher(object):
         self.add_arguments_parameters(arguments_dict)
 
         # Change some parameters if a best_parameters_file is given
-        if self.args_dict['best_parameters_file']:
-            self.load_extra_parameters_from_file(self.args_dict['best_parameters_file'])
+        if not self.job_wrapped and self.args_dict['best_parameters_file']:
+            self.load_extra_parameters_from_file(self.args_dict['best_parameters_file'], force_all=self.args_dict['load_all_from_parameters_file'])
 
         # Run the launcher if desired
         if run:
@@ -206,6 +207,7 @@ class ExperimentLauncher(object):
             help='Unique job name, constructed from parameter values. Could be rebuilt on the fly, but easier to pass it if it exists.')
         parser.add_argument('--best_parameters_file', dest='best_parameters_file', default='',
             help='Reload parameters from a .npy file, created from PBS/SLURM runs. Expects some known dictionaries.')
+        parser.add_argument('--load_all_from_parameters_file', default=False, action='store_true', help='If a best parameter file is given, should we force all used parameters or just the optimized/best ones?')
         parser.add_argument('--plot_while_running', dest='plot_while_running', default=False, action='store_true', help='If set, will plot while the simulation is going for chosen launchers.')
 
 
@@ -228,7 +230,7 @@ class ExperimentLauncher(object):
         self.args_dict.update(other_arguments_dict)
 
 
-    def load_extra_parameters_from_file(self, filename):
+    def load_extra_parameters_from_file(self, filename, force_best=True, force_all=False):
         '''
             Take a file (assumed .npy), load it and check for known dictionary names
             that should contain some variables values to force.
@@ -239,11 +241,23 @@ class ExperimentLauncher(object):
         loaded_file = np.load(filename).item()
 
         if 'parameters' in loaded_file:
-            if 'best_parameters' in loaded_file['parameters']:
+            if force_best and 'best_parameters' in loaded_file['parameters']:
                 print "+++ Reloading best parameters from {} +++".format(filename)
                 for key, value in loaded_file['parameters']['best_parameters'].iteritems():
                     print "\t> {} : {}".format(key, value)
                     self.args_dict[key] = value
+            if force_all and 'parameters' in loaded_file['parameters']:
+                print "+++ Reloading all previous parameters from {} +++".format(filename)
+                for key, value in loaded_file['parameters']['parameters'].iteritems():
+                    if value is None:
+                        print "\t> {} : True".format(key)
+                        self.args_dict[key] = True
+                    else:
+                        print "\t> {} : {}".format(key, value)
+                        self.args_dict[key] = value
+
+
+
 
 
     def run_launcher(self):

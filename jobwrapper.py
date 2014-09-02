@@ -96,7 +96,7 @@ class JobWrapper(object):
         # Now the action_to_do for the WrappedJob really is job_action. All other parameters are the same
         self.experiment_parameters['action_to_do'] = self.experiment_parameters['job_action']
 
-        experiment_launcher = experimentlauncher.ExperimentLauncher(run=True, arguments_dict=self.experiment_parameters)
+        experiment_launcher = experimentlauncher.ExperimentLauncher(run=True, arguments_dict=self.experiment_parameters, job_wrapped=True)
         print "--- job completed ---"
 
         # Compute metric result out of the results from the computation if desired
