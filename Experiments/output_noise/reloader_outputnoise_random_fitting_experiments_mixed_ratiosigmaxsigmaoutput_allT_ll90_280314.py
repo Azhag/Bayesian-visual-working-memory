@@ -74,6 +74,8 @@ def plots_fitting_experiments_random(data_pbs, generator_module=None):
     dataio = DataIO(output_folder=generator_module.pbs_submission_infos['simul_out_dir'] + '/outputs/', label='global_' + dataset_infos['save_output_filename'])
 
     # Compute some stuff
+    # Data is summed over all experiments for _flat, contains bic, ll and ll90.
+    # for _all_flat, contains bic, ll and ll90 per experiment. Given that Gorgo11 and Bays09 are incompatible, shouldn't really use the combined version directly!
     result_fitexperiments_noiseconv_bic_avg_allT = utils.nanmean(result_fitexperiments_noiseconv_flat, axis=-1)[..., 0]
 
     # Summed T
