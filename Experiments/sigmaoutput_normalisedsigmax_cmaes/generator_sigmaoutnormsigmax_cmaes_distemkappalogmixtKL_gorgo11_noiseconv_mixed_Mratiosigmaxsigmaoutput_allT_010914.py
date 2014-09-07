@@ -186,7 +186,7 @@ def cma_iter_plot_scatter3d_candidates(all_variables, parameters=None):
         parameters['dataio'].make_link_output_to_dropbox(dropbox_current_experiment_folder='sigmaoutput_normalisedsigmax_cmaes')
 
     # Best median parameters for now
-    best_param_str = ' '.join(["%s: %s" % (param_val[0], np.round(param_val[1], 4)) for param_val in zip(parameter_names_sorted, np.median(candidates_arr[-100:], axis=0))])
+    best_param_str = ' '.join(["%s: %s" % (param_val[0], np.round(param_val[1], 4)) for param_val in zip(parameter_names_sorted, np.median(candidates_arr[-100:], axis=0))]) + ' > %f' % np.median(fitness_arr[-100:])
     print "Best parameters: %s" % best_param_str
 
     # Do plots
