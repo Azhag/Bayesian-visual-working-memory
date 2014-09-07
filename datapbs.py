@@ -12,7 +12,7 @@ import glob
 import re
 import numpy as np
 import argparse
-
+import progress
 
 class DataPBS:
     '''
@@ -91,6 +91,7 @@ class DataPBS:
         parameters_complete = dict()
         parameters_uniques = dict()
         args_list = []
+
 
         for curr_file in all_output_files:
 
@@ -184,6 +185,8 @@ class DataPBS:
         parameters_dataset_index = dict()
         args_list = []
 
+        load_progress = progress.Progress(len(all_output_files))
+
         for curr_file_i, curr_file in enumerate(all_output_files):
 
             # Load the data
@@ -249,7 +252,11 @@ class DataPBS:
             nb_datasets_per_parameters = np.max([len(val) for key, val in parameters_dataset_index.items()])
 
             if self.debug:
-                print curr_file, ', '.join(["%s %.2f" % (param, curr_args[param]) for param in self.dataset_infos['parameters']])
+                print curr_file
+                print "%.2f%%, %s left - %s" % (load_progress.percentage(), load_progress.time_remaining_str(), load_progress.eta_str())
+                print ', '.join(["%s %.2f" % (param, curr_args[param]) for param in self.dataset_infos['parameters']])
+
+            load_progress.increment()
 
 
         # Extract the unique parameter values
