@@ -18,7 +18,7 @@ submit_jobs = True
 
 parameter_generation = 'random'  ## !!!!!! RANDOM HERE   !!!!!
 num_random_samples = 1000
-limit_max_queued_jobs = 30
+limit_max_queued_jobs = 60
 
 resource = ''
 
@@ -32,7 +32,7 @@ if getpass.getuser() == 'dc-matt1':
   pbs_unfilled_script = open(os.path.join(os.environ['WORKDIR_DROP'], 'dirac_submission_slurm_unfilled.sh'), 'r').read()
 
 num_repetitions = 3
-M = 144
+M = 400
 
 run_label = 'rcscaleeffect_random_fitmixturemodels_rcscale_M{M}_repetitions{num_repetitions}_290814'
 
@@ -79,7 +79,7 @@ if getpass.getuser() == 'dc-matt1':
   pbs_submission_infos['walltime'] = '12:00:00'
 
 
-rc_scale_range     =   dict(sampling_type='uniform', low=0.01, high=30.0, dtype=float)
+rc_scale_range     =   dict(sampling_type='uniform', low=0.01, high=60.0, dtype=float)
 
 dict_parameters_range =   dict(rc_scale = rc_scale_range)
 

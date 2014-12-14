@@ -19,14 +19,14 @@ import load_experimental_data
 import launchers
 
 
-def load_prepare_datasets(data_dir=None):
-    data_gorgo11 = load_experimental_data.load_data_gorgo11(data_dir=data_dir, fit_mixture_model=True)
+def load_prepare_datasets():
+    data_gorgo11 = load_experimental_data.load_data_gorgo11(fit_mixture_model=True)
     gorgo11_T_space = data_gorgo11['data_to_fit']['n_items']
     gorgo11_emfits_meanstd = data_gorgo11['em_fits_nitems_arrays']
     gorgo11_emfits_meanstd['mean'][2, 0] = 0.0
     gorgo11_emfits_meanstd['std'][2, 0] = 0.0
 
-    data_bays09 = load_experimental_data.load_data_bays09(data_dir=data_dir, fit_mixture_model=True)
+    data_bays09 = load_experimental_data.load_data_bays09(fit_mixture_model=True)
     bays09_T_space = data_bays09['data_to_fit']['n_items']
     bays09_emfits_meanstd = data_bays09['em_fits_nitems_arrays']
 

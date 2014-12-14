@@ -99,7 +99,7 @@ def launcher_do_run_job(args):
         finally:
             # Even if an exception arises, we need to write the syncing file...
             if not job.check_completed():
-                job.store_result()
+                job.complete_job()
 
     # Print result
     print "Result:", job.get_result()

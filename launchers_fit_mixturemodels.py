@@ -48,12 +48,12 @@ def launcher_do_fit_mixturemodels(args):
 
 
     # Load datasets to compare against
-    data_bays2009 = load_experimental_data.load_data_bays09(fit_mixture_model=True)
+    data_bays2009 = load_experimental_data.load_data_bays09(data_dir=all_parameters['experiment_data_dir'], fit_mixture_model=True)
     bays09_experimental_mixtures_mean = data_bays2009['em_fits_nitems_arrays']['mean']
     # Assume that T_space >= max(T_space_bays09)
     bays09_T_space = np.unique(data_bays2009['n_items'])
 
-    data_gorgo11 = load_experimental_data.load_data_simult(fit_mixture_model=True)
+    data_gorgo11 = load_experimental_data.load_data_simult(data_dir=all_parameters['experiment_data_dir'], fit_mixture_model=True)
     gorgo11_experimental_emfits_mean = data_gorgo11['em_fits_nitems_arrays']['mean']
     gorgo11_T_space = np.unique(data_gorgo11['n_items'])
 

@@ -290,7 +290,7 @@ def preprocess_dualrecall(dataset, parameters):
     dataset_filtered = dict((k, dataset[k].flatten()) for k in ('n_items', 'trial', 'subject', 'reject', 'rating', 'probe_colour', 'probe_angle', 'cond', 'error', 'error_angle', 'error_colour', 'response', 'target'))
 
     if parameters['fit_mixture_model']:
-        dataset_filtered.update(dataset['em_fits'])
+        dataset_filtered .update(dataset['em_fits'])
 
     dataset['panda'] = pd.DataFrame(dataset_filtered)
 
@@ -1013,6 +1013,10 @@ def plots_histograms_errors_targets_nontargets_nitems(dataset, dataio=None):
             axes4[n_items_i-1].set_xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
             axes4[n_items_i-1].set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=16)
 
+        utils.scatter_marginals(utils.dropnan(dataset['data_to_fit'][1]['item_features'][:, 0, 0]), utils.dropnan(dataset['data_to_fit'][1]['response']), xlabel ='Target angle', ylabel='Response angle', title='%s Angle trials, 3 items' % (dataset['name']), figsize=(9, 9), factor_axis=1.1, bins=61)
+        # utils.scatter_marginals(utils.dropnan(dataset['item_angle'][dataset['angle_trials'] & dataset['3_items_trials'], 0]), utils.dropnan(dataset['probe_angle'][dataset['angle_trials'] & dataset['3_items_trials']]), xlabel ='Target angle', ylabel='Response angle', title='%s Angle trials, 3 items' % (dataset['name']), figsize=(9, 9), factor_axis=1.1, bins=61)
+        # utils.scatter_marginals(utils.dropnan(dataset['item_angle'][dataset['angle_trials'] & dataset['6_items_trials'], 0]), utils.dropnan(dataset['probe_angle'][dataset['angle_trials'] & dataset['6_items_trials']]), xlabel ='Target angle', ylabel='Response angle', title='%s Angle trials, 6 items' % (dataset['name']), figsize=(9, 9), factor_axis=1.1, bins=61)
+
     f3.canvas.draw()
     f4.canvas.draw()
 
@@ -1207,9 +1211,12 @@ def plots_dualrecall(dataset):
 
         # Show inferred mixture proportions and kappa
         if to_plot['em_fits']:
-            ax = dataset_grouped_nona_conditems_mean[['mixt_target', 'mixt_nontarget', 'mixt_random', 'kappa']].plot(secondary_y='kappa', kind='bar')
+            # ax = dataset_grouped_nona_conditems_mean[['mixt_target', 'mixt_nontarget', 'mixt_random', 'kappa']].plot(secondary_y='kappa', kind='bar')
+            ax = dataset_grouped_nona_conditems_mean[['mixt_target', 'mixt_nontarget', 'mixt_random']].plot(kind='bar')
             ax.set_ylabel('Mixture proportions')
-            ax.right_ax.set_ylabel('Kappa')
+
+            ax = dataset_grouped_nona_conditems_mean[['kappa']].plot(kind='bar')
+            ax.set_ylabel('Kappa')
 
         # Show loglihood of fit
         if to_plot['loglik']:
@@ -1317,35 +1324,35 @@ def plot_bias_close_feature(dataset, dataio=None):
 
 
 
-def load_data_simult(data_dir=None, fit_mixture_model=False):
+def load_data_simult(data_dir='../../experimental_data/', fit_mixture_model=False):
     '''
         Convenience function, automatically load the Gorgoraptis_2011 dataset.
     '''
 
-    if data_dir is None:
+    if data_dir == '../../experimental_data/':
         experim_datadir = os.environ.get('WORKDIR_DROP', os.path.split(utils.__file__)[0])
-        data_dir=os.path.normpath(os.path.join(experim_datadir, '../../experimental_data/'))
+        data_dir = os.path.normpath(os.path.join(experim_datadir, data_dir))
 
     data_simult =  load_multiple_datasets([dict(name='gorgo11', filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(fit_mixture_model=fit_mixture_model, datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), mixture_model_cache='em_simult.pickle'))])[0]
 
     return data_simult
 
 
-def load_data_bays09(data_dir=None, fit_mixture_model=False):
+def load_data_bays09(data_dir='../../experimental_data/', fit_mixture_model=False):
     '''
         Convenience function, automatically load the Bays2009 dataset.
     '''
 
-    if data_dir is None:
+    if data_dir == '../../experimental_data/':
         experim_datadir = os.environ.get('WORKDIR_DROP', os.path.split(utils.__file__)[0])
-        data_dir=os.path.normpath(os.path.join(experim_datadir, '../../experimental_data/'))
+        data_dir = os.path.normpath(os.path.join(experim_datadir, data_dir))
 
     (data_bays2009, ) = load_multiple_datasets([dict(name='bays09', filename='colour_data.mat', preprocess=preprocess_bays09, parameters=dict(datadir=os.path.join(data_dir, 'Bays2009'), fit_mixture_model=fit_mixture_model, mixture_model_cache='em_bays_allitems.pickle'))])
 
     return data_bays2009
 
 
-def load_data_gorgo11(data_dir=None, fit_mixture_model=False):
+def load_data_gorgo11(data_dir='../../experimental_data/', fit_mixture_model=False):
     '''
         Convenience function, automatically load the Gorgo11 simultaneous dataset.
     '''
@@ -1353,14 +1360,14 @@ def load_data_gorgo11(data_dir=None, fit_mixture_model=False):
     return load_data_simult(data_dir, fit_mixture_model)
 
 
-def load_data_dualrecall(data_dir=None, fit_mixture_model=False):
+def load_data_dualrecall(data_dir='../../experimental_data/', fit_mixture_model=False):
     '''
         Convenience function, automatically load the Double recall dataset (unpublished).
     '''
 
-    if data_dir is None:
+    if data_dir == '../../experimental_data/':
         experim_datadir = os.environ.get('WORKDIR_DROP', os.path.split(utils.__file__)[0])
-        data_dir=os.path.normpath(os.path.join(experim_datadir, '../../experimental_data/'))
+        data_dir = os.path.normpath(os.path.join(experim_datadir, data_dir))
 
     (data_dualrecall, ) = load_multiple_datasets([dict(name='dualrecall', filename=os.path.join(data_dir, 'DualRecall_Bays', 'rate_data.mat'), preprocess=preprocess_dualrecall, parameters=dict(fit_mixture_model=fit_mixture_model, mixture_model_cache='em_dualrecall_allitems.pickle'))])
 
@@ -1372,8 +1379,10 @@ def load_data_dualrecall(data_dir=None, fit_mixture_model=False):
 if __name__ == '__main__':
     ## Load data
     experim_datadir = os.environ.get('WORKDIR_DROP', os.path.split(utils.__file__)[0])
-    data_dir = os.path.normpath(os.path.join(experim_datadir, '../../experimental_data/'))
+    # data_dir = os.path.normpath(os.path.join(experim_datadir, '../../experimental_data/'))
     # data_dir = '/Users/loicmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/experimental_data/'
+
+    data_dir = os.path.normpath(os.path.join(experim_datadir, '../experimental_data/'))
 
     print sys.argv
 
@@ -1383,9 +1392,9 @@ if __name__ == '__main__':
         # (data_sequen, data_simult, data_dualrecall) = load_multiple_datasets([dict(filename='Exp1.mat', preprocess=preprocess_sequential, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'))), dict(filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), fit_mixture_model=True)), dict(filename=os.path.join(data_dir, 'DualRecall_Bays', 'rate_data.mat'), preprocess=preprocess_dualrecall, parameters=dict(fit_mixture_model=True))])
         (data_simult,) = load_multiple_datasets([dict(name='Gorgo_simult', filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), fit_mixture_model=True, mixture_model_cache='em_simult.pickle'))])
         # (data_bays2009, ) = load_multiple_datasets([dict(name='Bays2009', filename='colour_data.mat', preprocess=preprocess_bays09, parameters=dict(datadir=os.path.join(data_dir, 'Bays2009'), fit_mixture_model=True, mixture_model_cache='em_bays.pickle', should_compute_bootstrap=True, bootstrap_cache='bootstrap_1000samples.pickle'))])
-        # data_dualrecall = load_data_dualrecall(fit_mixture_model=True)
-        data_bays2009 = load_data_bays09(fit_mixture_model=True)
-        data_gorgo11 = load_data_gorgo11(fit_mixture_model=True)
+        data_dualrecall = load_data_dualrecall(data_dir=data_dir, fit_mixture_model=True)
+        data_bays2009 = load_data_bays09(data_dir=data_dir, fit_mixture_model=True)
+        data_gorgo11 = load_data_gorgo11(data_dir=data_dir, fit_mixture_model=True)
 
 
     # Check for bias towards 0 for the error between response and all items
@@ -1413,7 +1422,7 @@ if __name__ == '__main__':
 
     # np.save('processed_experimental_230613.npy', dict(data_simult=data_simult, data_sequen=data_sequen))
 
-    # plots_dualrecall(data_dualrecall)
+    plots_dualrecall(data_dualrecall)
 
     plt.rcParams['font.size'] = 16
     dataio = None
@@ -1428,11 +1437,11 @@ if __name__ == '__main__':
     # dataio = DataIO.DataIO(label='experiments_gorgo11')
     # plots_gorgo11(data_gorgo11, dataio)
 
-    dataio = DataIO.DataIO(label='experiments_bays2009')
-    plot_bias_close_feature(data_bays2009, dataio)
+    # dataio = DataIO.DataIO(label='experiments_bays2009')
+    # plot_bias_close_feature(data_bays2009, dataio)
 
-    dataio = DataIO.DataIO(label='experiments_gorgo11')
-    plot_bias_close_feature(data_gorgo11, dataio)
+    # dataio = DataIO.DataIO(label='experiments_gorgo11')
+    # plot_bias_close_feature(data_gorgo11, dataio)
 
     plt.show()
 

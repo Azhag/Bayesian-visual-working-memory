@@ -24,8 +24,8 @@ submit_cmd = 'sbatch'
 
 num_repetitions = 3
 # num_repetitions = 10
-T = 1
-#T = 2
+# T = 1
+T = 2
 #T = 3
 sigmax = 0.1
 cued_feature_type = 'all'

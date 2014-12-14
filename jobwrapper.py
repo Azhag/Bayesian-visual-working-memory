@@ -108,11 +108,17 @@ class JobWrapper(object):
             self.result = self.result_computation.compute_result(experiment_launcher.all_vars)
 
         # Store result, also indicating that this Job has completed
-        self.job_state = 'completed'
-        self.store_result()
+        self.complete_job()
 
         return experiment_launcher.all_vars
 
+
+    def complete_job(self):
+        '''
+            Mark complete and store the result
+        '''
+        self.job_state = 'completed'
+        self.store_result()
 
     ############
     ### Handle results

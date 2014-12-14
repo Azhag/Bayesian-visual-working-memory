@@ -1180,14 +1180,17 @@ class Sampler:
 
             # Check if it seems correctly similar to the current measured one.
             if np.mean((self.noise_covariance-computed_cov)**2.) > 0.01:
-                print np.mean((self.noise_covariance-computed_cov)**2.)
-                print "M: %d, rcscale: %.3f, sigmax: %.3f, sigmay: %.3f" % (self.M, self.random_network.rc_scale, self.data_gen.sigma_x, self.data_gen.sigma_y)
+                print "WARNING> Divergence between measured and theoretical covariance, use measured"
 
-                pcolor_2d_data(computed_cov)
-                pcolor_2d_data(self.noise_covariance)
-                plt.show()
+                computed_cov = self.noise_covariance
+                # print np.mean((self.noise_covariance-computed_cov)**2.)
+                # print "M: %d, rcscale: %.3f, sigmax: %.3f, sigmay: %.3f" % (self.M, self.random_network.rc_scale.flatten()[0], self.data_gen.sigma_x, self.data_gen.sigma_y)
 
-                raise ValueError('Big divergence between measured and theoretical divergence!')
+                # pcolor_2d_data(computed_cov)
+                # pcolor_2d_data(self.noise_covariance)
+                # plt.show()
+
+                # raise ValueError('Big divergence between measured and theoretical divergence!')
         else:
             # Use the measured one...
             computed_cov = self.noise_covariance

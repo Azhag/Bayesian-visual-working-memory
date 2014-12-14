@@ -44,10 +44,10 @@ def plots_ratioMscaling(data_pbs, generator_module=None):
 
     plots_kappa_fi_comparison = False
     plots_multiple_fisherinfo = False
-    specific_plot_effect_R = False
-    specific_plot_effect_ratio_M = True
+    specific_plot_effect_R = True
+    specific_plot_effect_ratio_M = False
 
-    convert_M_realsizes = True
+    convert_M_realsizes = False
 
     plots_pcolor_realsizes_Msubs = True
     plots_pcolor_realsizes_Mtot = True
@@ -252,7 +252,8 @@ def plots_ratioMscaling(data_pbs, generator_module=None):
                 dataio.save_current_figure('specific_pcolortrueMtot_kappa_M%d_log_%s_{label}_{unique_id}.pdf' % (M_tot_target, interpolation_method))
 
             # Then plot distance to specific kappa
-            target_kappa = 1.2e3
+            # target_kappa = 1.2e3
+            target_kappa = 580
             dist_target_kappa_flat = np.abs(result_em_fits_kappa_flat - target_kappa)
             mask_greater_than = 5e3
 
@@ -272,7 +273,8 @@ def plots_ratioMscaling(data_pbs, generator_module=None):
                 dataio.save_current_figure('specific_Reffect_pcolor_kappa_M%dT%d_log_{label}_{unique_id}.pdf' % (M_target, T))
             # target_kappa = np.ma.mean(result_em_fits_kappa_valid[M_target_i])
             # target_kappa = 5*1e3
-            target_kappa = 1.2e3
+            # target_kappa = 1.2e3
+            target_kappa = 580
 
             # dist_target_kappa = np.abs(result_em_fits_kappa_valid[M_target_i] - target_kappa)
             dist_target_kappa = result_em_fits_kappa[M_target_i]/target_kappa
@@ -286,7 +288,7 @@ def plots_ratioMscaling(data_pbs, generator_module=None):
                 dataio.save_current_figure('specific_Reffect_pcolor_distkappa%d_M%dT%d_log_{label}_{unique_id}.pdf' % (target_kappa, M_target, T))
 
             # Plot the probability of being on-target
-            utils.pcolor_2d_data(result_em_fits_target[M_target_i], log_scale=False, x=ratio_space, y=R_space, xlabel='ratio', ylabel='R', ylabel_format="%d", title='target mixture proportion, M %d' % (M_target), vmin=0.0, vmax=1.0, cmap='Greys')
+            utils.pcolor_2d_data(result_em_fits_target[M_target_i], log_scale=False, x=ratio_space, y=R_space, xlabel='ratio', ylabel='R', ylabel_format="%d", title='target mixture proportion, M %d' % (M_target), vmin=0.0, vmax=1.0)  #cmap='RdBu_r'
             plt.gcf().set_tight_layout(True)
             plt.gcf().canvas.draw()
             if savefigs:
