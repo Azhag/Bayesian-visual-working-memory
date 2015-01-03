@@ -57,9 +57,10 @@ def preprocess_simultaneous(dataset, parameters):
     # Assign probe field correctly
     dataset['probe'] = np.zeros(dataset['error'].shape, dtype= int)
 
-    # Convert everything to radians, spanning a -np.pi/2:np.pi
+
+    # Convert everything to radians, spanning a -np.pi:np.pi
     if convert_radians: #pylint: disable=E0602
-        convert_wrap(dataset)
+        convert_wrap(dataset, multiply_factor=2, max_angle=np.pi)
 
     # Make some aliases
     dataset['n_items'] = dataset['n_items'].astype(int)
@@ -327,6 +328,11 @@ def preprocess_bays09(dataset, parameters):
     dataset['errors_subject_nitems'] = np.empty((dataset['subject_size'], dataset['n_items_size']), dtype=np.object)
     dataset['errors_nontarget_subject_nitems'] = np.empty((dataset['subject_size'], dataset['n_items_size']), dtype=np.object)
     dataset['vtest_nitems'] = np.empty(dataset['n_items_size'])*np.nan
+    dataset['precision_subject_nitems_bays'] = np.nan*np.empty((dataset['subject_size'], dataset['n_items_size']))
+    dataset['precision_subject_nitems_theo'] = np.nan*np.empty((dataset['subject_size'], dataset['n_items_size']))
+    dataset['precision_subject_nitems_theo_nochance'] = np.nan*np.empty((dataset['subject_size'], dataset['n_items_size']))
+    dataset['precision_subject_nitems_bays_notreatment'] = np.nan*np.empty((dataset['subject_size'], dataset['n_items_size']))
+
 
 
     # Fit mixture model
@@ -346,6 +352,12 @@ def preprocess_bays09(dataset, parameters):
             dataset['errors_subject_nitems'][subject_i, n_items_i] = dataset['error'][ids_filtered, 0]
             dataset['errors_nontarget_subject_nitems'][subject_i, n_items_i] = dataset['error'][ids_filtered, 1:n_items]
 
+            # Precisions
+            # Compute the precision
+            dataset['precision_subject_nitems_bays'][subject_i, n_items_i] = compute_precision(dataset['errors_subject_nitems'][subject_i, n_items_i], remove_chance_level=True, correct_orientation=False, use_wrong_precision=True)
+            dataset['precision_subject_nitems_theo'][subject_i, n_items_i] = compute_precision(dataset['errors_subject_nitems'][subject_i, n_items_i], remove_chance_level=False, correct_orientation=False, use_wrong_precision=False)
+            dataset['precision_subject_nitems_theo_nochance'][subject_i, n_items_i] = compute_precision(dataset['errors_subject_nitems'][subject_i, n_items_i], remove_chance_level=True, correct_orientation=False, use_wrong_precision=False)
+            dataset['precision_subject_nitems_bays_notreatment'][subject_i, n_items_i] = compute_precision(dataset['errors_subject_nitems'][subject_i, n_items_i], remove_chance_level=False, correct_orientation=False, use_wrong_precision=True)
 
         # Data collapsed accross subjects
         ids_filtered = (dataset['n_items'] == n_items).flatten()
@@ -525,7 +537,7 @@ def create_subject_arrays(dataset = {}, double_precision=True   ):
             ids_filtered = ((dataset['subject']==subject) & (dataset['n_items'] == n_items)).flatten()
 
             # Get the errors
-            dataset['errors_subject_nitems'][subject_i, n_items_i] = dataset['error'][ids_filtered]
+            dataset['errors_subject_nitems'][subject_i, n_items_i] = dataset['errors_all'][ids_filtered, 0]
             dataset['errors_all_subject_nitems'][subject_i, n_items_i] = dataset['errors_all'][ids_filtered]
             dataset['errors_nontarget_subject_nitems'][subject_i, n_items_i] = dataset['errors_all'][ids_filtered, 1:]
 
@@ -534,16 +546,16 @@ def create_subject_arrays(dataset = {}, double_precision=True   ):
             dataset['item_angle_subject_nitems'][subject_i, n_items_i] = dataset['item_angle'][ids_filtered]
 
             # Compute the precision
-            precision_subject_nitems[subject_i, n_items_i] = compute_precision(dataset['errors_subject_nitems'][subject_i, n_items_i], remove_chance_level=True, correct_orientation=False, use_wrong_precision=True)
-            precision_subject_nitems_theo[subject_i, n_items_i] = compute_precision(dataset['errors_subject_nitems'][subject_i, n_items_i], remove_chance_level=False, correct_orientation=False, use_wrong_precision=False)
+            precision_subject_nitems[subject_i, n_items_i] = compute_precision(dataset['errors_subject_nitems'][subject_i, n_items_i], remove_chance_level=True, correct_orientation=True, use_wrong_precision=True)
+            precision_subject_nitems_theo[subject_i, n_items_i] = compute_precision(dataset['errors_subject_nitems'][subject_i, n_items_i], remove_chance_level=False, correct_orientation=True, use_wrong_precision=False)
             precision_subject_nitems_nochance[subject_i, n_items_i] = compute_precision(dataset['errors_subject_nitems'][subject_i, n_items_i], remove_chance_level=True, correct_orientation=False, use_wrong_precision=False)
-            precision_subject_nitems_raw[subject_i, n_items_i] = compute_precision(dataset['errors_subject_nitems'][subject_i, n_items_i], remove_chance_level=False, correct_orientation=False, use_wrong_precision=True)
+            precision_subject_nitems_raw[subject_i, n_items_i] = compute_precision(dataset['errors_subject_nitems'][subject_i, n_items_i], remove_chance_level=False, correct_orientation=True, use_wrong_precision=True)
 
-    if double_precision:
-        precision_subject_nitems *= 2.
-        precision_subject_nitems_theo *= 2.
-        # precision_subject_nitems_nochance *= 2.
-        precision_subject_nitems_raw *= 2.
+    # if double_precision:
+    #     precision_subject_nitems *= 2.
+    #     precision_subject_nitems_theo *= 2.
+    #     # precision_subject_nitems_nochance *= 2.
+    #     precision_subject_nitems_raw *= 2.
 
     dataset['precision_subject_nitems_bays'] = precision_subject_nitems
     dataset['precision_subject_nitems_theo'] = precision_subject_nitems_theo
@@ -1013,7 +1025,7 @@ def plots_histograms_errors_targets_nontargets_nitems(dataset, dataio=None):
             axes4[n_items_i-1].set_xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
             axes4[n_items_i-1].set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=16)
 
-        utils.scatter_marginals(utils.dropnan(dataset['data_to_fit'][1]['item_features'][:, 0, 0]), utils.dropnan(dataset['data_to_fit'][1]['response']), xlabel ='Target angle', ylabel='Response angle', title='%s Angle trials, 3 items' % (dataset['name']), figsize=(9, 9), factor_axis=1.1, bins=61)
+        utils.scatter_marginals(utils.dropnan(dataset['data_to_fit'][n_items]['item_features'][:, 0, 0]), utils.dropnan(dataset['data_to_fit'][n_items]['response']), xlabel ='Target angle', ylabel='Response angle', title='%s histogram responses, %d items' % (dataset['name'], n_items), figsize=(9, 9), factor_axis=1.1, bins=61)
         # utils.scatter_marginals(utils.dropnan(dataset['item_angle'][dataset['angle_trials'] & dataset['3_items_trials'], 0]), utils.dropnan(dataset['probe_angle'][dataset['angle_trials'] & dataset['3_items_trials']]), xlabel ='Target angle', ylabel='Response angle', title='%s Angle trials, 3 items' % (dataset['name']), figsize=(9, 9), factor_axis=1.1, bins=61)
         # utils.scatter_marginals(utils.dropnan(dataset['item_angle'][dataset['angle_trials'] & dataset['6_items_trials'], 0]), utils.dropnan(dataset['probe_angle'][dataset['angle_trials'] & dataset['6_items_trials']]), xlabel ='Target angle', ylabel='Response angle', title='%s Angle trials, 6 items' % (dataset['name']), figsize=(9, 9), factor_axis=1.1, bins=61)
 
@@ -1033,6 +1045,7 @@ def plots_em_mixtures(dataset, dataio=None, use_sem=True):
     '''
         Do plots for the mixture models and kappa
     '''
+    T_space_exp = np.unique(dataset['n_items'])
 
     f, ax = plt.subplots()
 
@@ -1042,22 +1055,73 @@ def plots_em_mixtures(dataset, dataio=None, use_sem=True):
         errorbars = 'std'
 
     # Mixture probabilities
-    utils.plot_mean_std_area(np.unique(dataset['n_items']), dataset['em_fits_nitems_arrays']['mean'][1], np.ma.masked_invalid(dataset['em_fits_nitems_arrays'][errorbars][1]).filled(0.0), xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Target')
-    utils.plot_mean_std_area(np.unique(dataset['n_items']), np.ma.masked_invalid(dataset['em_fits_nitems_arrays']['mean'][2]).filled(0.0), np.ma.masked_invalid(dataset['em_fits_nitems_arrays'][errorbars][2]).filled(0.0), xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Nontarget')
-    utils.plot_mean_std_area(np.unique(dataset['n_items']), dataset['em_fits_nitems_arrays']['mean'][3], np.ma.masked_invalid(dataset['em_fits_nitems_arrays'][errorbars][3]).filled(0.0), xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Random')
+    utils.plot_mean_std_area(T_space_exp, dataset['em_fits_nitems_arrays']['mean'][1], np.ma.masked_invalid(dataset['em_fits_nitems_arrays'][errorbars][1]).filled(0.0), xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Target')
+    utils.plot_mean_std_area(T_space_exp, np.ma.masked_invalid(dataset['em_fits_nitems_arrays']['mean'][2]).filled(0.0), np.ma.masked_invalid(dataset['em_fits_nitems_arrays'][errorbars][2]).filled(0.0), xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Nontarget')
+    utils.plot_mean_std_area(T_space_exp, dataset['em_fits_nitems_arrays']['mean'][3], np.ma.masked_invalid(dataset['em_fits_nitems_arrays'][errorbars][3]).filled(0.0), xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Random')
 
     ax.legend(prop={'size':15})
 
     ax.set_title('Mixture model for EM fit %s' % dataset['name'])
-    ax.set_xlim([1.0, np.unique(dataset['n_items']).max()])
+    ax.set_xlim([1.0, T_space_exp.max()])
     ax.set_ylim([0.0, 1.1])
-    ax.set_xticks(range(1, np.unique(dataset['n_items']).max()+1))
-    ax.set_xticklabels(range(1, np.unique(dataset['n_items']).max()+1))
+    ax.set_xticks(range(1, T_space_exp.max()+1))
+    ax.set_xticklabels(range(1, T_space_exp.max()+1))
 
     f.canvas.draw()
 
     if dataio is not None:
         dataio.save_current_figure('emfits_mixtures_{label}_{unique_id}.pdf')
+
+    # Kappa
+    f, ax = plt.subplots()
+
+    ax = utils.plot_mean_std_area(T_space_exp,
+    dataset['em_fits_nitems_arrays']['mean'][0], np.ma.masked_invalid(dataset['em_fits_nitems_arrays'][errorbars][0]).filled(0.0), linewidth=3, fmt='o-', markersize=8, ylabel='Experimental data', ax_handle=ax)
+
+    ax.legend(prop={'size':15})
+    ax.set_title('Kappa for EM fit %s' % dataset['name'])
+    ax.set_xlim([0.9, T_space_exp.max()+0.1])
+    ax.set_ylim([0.0, np.max(dataset['em_fits_nitems_arrays']['mean'][0])*1.1])
+    ax.set_xticks(range(1, T_space_exp.max()+1))
+    ax.set_xticklabels(range(1, T_space_exp.max()+1))
+    ax.get_figure().canvas.draw()
+
+    if dataio is not None:
+        dataio.save_current_figure('emfits_kappa_{label}_{unique_id}.pdf')
+
+def plots_precision(dataset, dataio=None, use_sem=True):
+    '''
+        Do plots for the mixture models and kappa
+    '''
+    T_space_exp = np.unique(dataset['n_items'])
+
+    precisions_to_plot = [['precision_subject_nitems_theo', 'Precision Theo'],['precision_subject_nitems_bays_notreatment', 'Precision BaysNoTreat'],['precision_subject_nitems_bays', 'Precision Bays'],['precision_subject_nitems_theo_nochance', 'Precision TheoNoChance']]
+
+    for precision_to_plot, precision_title in precisions_to_plot:
+        f, ax = plt.subplots()
+
+        # Compute the errorbars
+        precision_mean = np.mean(dataset[precision_to_plot], axis=0)
+        precision_errors = np.std(dataset[precision_to_plot], axis=0)
+        if use_sem:
+            precision_errors /= np.sqrt(dataset['subject_size'])
+
+        # Now show the precision
+        utils.plot_mean_std_area(T_space_exp, precision_mean, precision_errors, xlabel='Number of items', label="Precision", ax_handle=ax, linewidth=3, fmt='o-', markersize=5)
+
+        ax.legend(prop={'size':15})
+
+        ax.set_title('%s %s' % (precision_title, dataset['name']))
+        ax.set_xlim([1.0, T_space_exp.max()])
+        ax.set_ylim([0.0, np.max(precision_mean)+np.max(precision_errors)])
+        ax.set_xticks(range(1, T_space_exp.max()+1))
+        ax.set_xticklabels(range(1, T_space_exp.max()+1))
+
+        f.canvas.draw()
+
+        if dataio is not None:
+            dataio.save_current_figure('%s_{label}_{unique_id}.pdf' % precision_title)
+
 
 def plots_bays2009(dataset, dataio=None):
     '''
@@ -1067,6 +1131,8 @@ def plots_bays2009(dataset, dataio=None):
 
     plots_histograms_errors_targets_nontargets_nitems(dataset, dataio)
 
+    plots_precision(dataset, dataio)
+
     plots_em_mixtures(dataset, dataio)
 
 
@@ -1075,6 +1141,8 @@ def plots_gorgo11(dataset, dataio=None):
         Plots for Gorgo11, assuming sequential data
     '''
     plots_histograms_errors_targets_nontargets_nitems(dataset, dataio)
+
+    plots_precision(dataset, dataio)
 
     plots_em_mixtures(dataset, dataio)
 
@@ -1379,10 +1447,10 @@ def load_data_dualrecall(data_dir='../../experimental_data/', fit_mixture_model=
 if __name__ == '__main__':
     ## Load data
     experim_datadir = os.environ.get('WORKDIR_DROP', os.path.split(utils.__file__)[0])
-    # data_dir = os.path.normpath(os.path.join(experim_datadir, '../../experimental_data/'))
+    data_dir = os.path.normpath(os.path.join(experim_datadir, '../../experimental_data/'))
     # data_dir = '/Users/loicmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/experimental_data/'
 
-    data_dir = os.path.normpath(os.path.join(experim_datadir, '../experimental_data/'))
+    # data_dir = os.path.normpath(os.path.join(experim_datadir, '../experimental_data/'))
 
     print sys.argv
 
@@ -1392,7 +1460,7 @@ if __name__ == '__main__':
         # (data_sequen, data_simult, data_dualrecall) = load_multiple_datasets([dict(filename='Exp1.mat', preprocess=preprocess_sequential, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'))), dict(filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), fit_mixture_model=True)), dict(filename=os.path.join(data_dir, 'DualRecall_Bays', 'rate_data.mat'), preprocess=preprocess_dualrecall, parameters=dict(fit_mixture_model=True))])
         (data_simult,) = load_multiple_datasets([dict(name='Gorgo_simult', filename='Exp2_withcolours.mat', preprocess=preprocess_simultaneous, parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), fit_mixture_model=True, mixture_model_cache='em_simult.pickle'))])
         # (data_bays2009, ) = load_multiple_datasets([dict(name='Bays2009', filename='colour_data.mat', preprocess=preprocess_bays09, parameters=dict(datadir=os.path.join(data_dir, 'Bays2009'), fit_mixture_model=True, mixture_model_cache='em_bays.pickle', should_compute_bootstrap=True, bootstrap_cache='bootstrap_1000samples.pickle'))])
-        data_dualrecall = load_data_dualrecall(data_dir=data_dir, fit_mixture_model=True)
+        # data_dualrecall = load_data_dualrecall(data_dir=data_dir, fit_mixture_model=True)
         data_bays2009 = load_data_bays09(data_dir=data_dir, fit_mixture_model=True)
         data_gorgo11 = load_data_gorgo11(data_dir=data_dir, fit_mixture_model=True)
 
@@ -1422,7 +1490,7 @@ if __name__ == '__main__':
 
     # np.save('processed_experimental_230613.npy', dict(data_simult=data_simult, data_sequen=data_sequen))
 
-    plots_dualrecall(data_dualrecall)
+    # plots_dualrecall(data_dualrecall)
 
     plt.rcParams['font.size'] = 16
     dataio = None
@@ -1435,7 +1503,10 @@ if __name__ == '__main__':
     # plots_bays2009(data_bays2009, dataio=dataio)
 
     # dataio = DataIO.DataIO(label='experiments_gorgo11')
-    # plots_gorgo11(data_gorgo11, dataio)
+    plots_gorgo11(data_gorgo11, dataio)
+
+    # plots_precision(data_gorgo11, dataio)
+    # plots_precision(data_bays2009, dataio)
 
     # dataio = DataIO.DataIO(label='experiments_bays2009')
     # plot_bias_close_feature(data_bays2009, dataio)
