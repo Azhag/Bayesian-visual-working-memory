@@ -109,7 +109,7 @@ def fit(responses, target_angle, nontarget_angles=np.array([[]]), initialisation
                 break
             else:
                 # Kappa for all target/nontarget put together
-                R = utils.angle_population_R(np.r_[error_to_target, error_to_nontargets.reshape(N*K)], weights=np.r_[rw[:, 0], rw[:, 1:].reshape(N*K)])
+                R = utils.angle_population_R(np.r_[error_to_target, error_to_nontargets.reshape(int(N*K))], weights=np.r_[rw[:, 0], rw[:, 1:].reshape(int(N*K))])
                 kappa = A1inv(R)
 
                 # Clamp kappa to avoid overfitting
@@ -178,7 +178,7 @@ def compute_responsibilities(responses, target_angle, nontarget_angles, paramete
 
     resp_target = mixt_target * vonmisespdf(error_to_target, 0.0, kappa)
     resp_random = mixt_random/(2.*np.pi)
-    resp_nontargets = np.empty((responses.size, K))
+    resp_nontargets = np.empty((int(responses.size), int(K)))
     if K > 0.:
         resp_nontargets = mixt_nontargets*vonmisespdf(error_to_nontargets, 0.0, kappa)
 
@@ -270,13 +270,13 @@ def initialise_parameters_random(N, K, nb_initialisations=10):
     '''
 
     all_params = []
-    resp_ik = np.empty((N, K+1))
+    resp_ik = np.empty((int(N), int(K+1)))
 
     for i in xrange(nb_initialisations):
         kappa = np.random.rand()*300.
 
         mixt_target = np.random.rand()
-        mixt_nontargets = np.random.rand(K)
+        mixt_nontargets = np.random.rand(int(K))
         mixt_random = np.random.rand()
 
         mixt_sum = mixt_target + np.sum(mixt_nontargets) + mixt_random
@@ -306,7 +306,7 @@ def initialise_parameters_fixed(N, K):
 
     mixt_target_fixed = [1. - np.sum(mixt_nontargets_fixed[i]) - mixt_random_fixed[i] for i in xrange(len(mixt_random_fixed))]
 
-    resp_ik_fixed = [np.empty((N, K+1)), ]*kappa_fixed.shape[0]
+    resp_ik_fixed = [np.empty((int(N), int(K+1))), ]*kappa_fixed.shape[0]
 
     return zip(kappa_fixed, mixt_target_fixed, mixt_random_fixed, mixt_nontargets_fixed, resp_ik_fixed)
 
