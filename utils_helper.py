@@ -56,6 +56,22 @@ def cross(*args):
     # Faster version:
     # return [p for p in itertools.product(*args)]
 
+
+def fliplr_nonan(array):
+    '''
+        Flip data left <-> right, leaving nans untouched
+
+        Used for sequential recall data
+    '''
+
+    array_out = np.nan*np.empty(array.shape)
+    for i in xrange(array.shape[0]):
+        filter_ind = ~np.isnan(array[i])
+        array_out[i, filter_ind] = array[i, filter_ind][::-1]
+
+    return array_out
+
+
 def strcat(*strings):
     return ''.join(strings)
 

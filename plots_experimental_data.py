@@ -342,6 +342,30 @@ def plots_gorgo11(dataset, dataio=None):
 
     plots_em_mixtures(dataset, dataio)
 
+def plots_gorgo11_sequential(dataset, dataio=None):
+    '''
+        Plots for Gorgo11 sequential, different
+    '''
+
+    # Fig 6
+    plt.figure()
+    plt.plot(np.nanmean(data_gorgo11_sequ['em_fits_subjects_nitems_arrays'], axis=0)[:5, 0])
+    plt.figure()
+    plt.plot(np.nanmean(data_gorgo11_sequ['em_fits_subjects_nitems_arrays'], axis=0)[:5, 1:4])
+
+    # fig 7
+    plt.figure()
+    plt.plot(utils.fliplr_nonan(data_gorgo11_sequ['em_fits_nitems_trecall_arrays'][:5, :5, 0]).T, 'o-')
+
+    plt.figure()
+    plt.plot(utils.fliplr_nonan(data_gorgo11_sequ['em_fits_nitems_trecall_arrays'][:5, :5, 1]).T, 'o-')
+    plt.figure()
+    plt.plot(utils.fliplr_nonan(data_gorgo11_sequ['em_fits_nitems_trecall_arrays'][:5, :5, 2]).T, 'o-')
+    plt.figure()
+    plt.plot(utils.fliplr_nonan(data_gorgo11_sequ['em_fits_nitems_trecall_arrays'][:5, :5, 3]).T, 'o-')
+
+
+
 
 def plots_dualrecall(dataset):
     '''

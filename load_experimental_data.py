@@ -115,7 +115,7 @@ if __name__ == '__main__':
         # data_bays2009 = load_data_bays09(data_dir=data_dir, fit_mixture_model=True)
         # data_gorgo11 = load_data_gorgo11(data_dir=data_dir, fit_mixture_model=True)
         # data_dualrecall = load_data_dualrecall(data_dir=data_dir, fit_mixture_model=True)
-        data_gorgo11_sequ = load_data_gorgo11_sequential(data_dir=data_dir, fit_mixture_model=False)
+        data_gorgo11_sequ = load_data_gorgo11_sequential(data_dir=data_dir, fit_mixture_model=True)
 
 
 

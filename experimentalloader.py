@@ -106,7 +106,7 @@ class ExperimentalLoader(object):
         return precision
 
 
-    def fit_mixture_model_cached(self, caching_save_filename=None):
+    def fit_mixture_model_cached(self, caching_save_filename=None, saved_keys=['em_fits', 'em_fits_nitems', 'em_fits_subjects_nitems', 'em_fits_nitems_arrays']):
         '''
             Fit the mixture model onto classical responses/item_angle values
 
@@ -131,7 +131,7 @@ class ExperimentalLoader(object):
                         should_fit_model = False
                         print "reloaded mixture model from cache", caching_save_filename
 
-                except IOError:
+                except:
                     print "Error while loading ", caching_save_filename, "falling back to computing the EM fits"
             else:
                 # No file, create it after everything is computed
@@ -144,7 +144,7 @@ class ExperimentalLoader(object):
         if save_caching_file:
             try:
                 with open(caching_save_filename, 'w') as filecache_out:
-                    data_em = dict((key, self.dataset[key]) for key in ['em_fits', 'em_fits_nitems', 'em_fits_subjects_nitems', 'em_fits_nitems_arrays'])
+                    data_em = dict((key, self.dataset[key]) for key in saved_keys)
 
                     pickle.dump(data_em, filecache_out, protocol=2)
 
@@ -153,7 +153,7 @@ class ExperimentalLoader(object):
 
 
     def fit_mixture_model(self):
-        # Initalisize empty arrays
+        # Initialize empty arrays
         self.dataset['em_fits'] = dict(
                                   kappa=np.empty(self.dataset['probe'].size),
                                   mixt_target=np.empty(self.dataset['probe'].size),
