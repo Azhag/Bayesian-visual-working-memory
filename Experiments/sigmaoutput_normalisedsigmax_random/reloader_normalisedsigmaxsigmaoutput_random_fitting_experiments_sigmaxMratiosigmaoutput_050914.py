@@ -19,6 +19,7 @@ import launchers_memorycurves_marginal_fi
 import re
 import inspect
 
+import imp
 import utils
 # import submitpbs
 
@@ -35,7 +36,7 @@ def plots_fitting_experiments_random(data_pbs, generator_module=None):
 
     #### SETUP
     #
-    savefigs = False
+    savefigs = True
     savedata = True
     savemovies = False
 
@@ -239,7 +240,7 @@ def plots_fitting_experiments_random(data_pbs, generator_module=None):
         if not os.environ.get('WORKDIR_DROP'):
             data_dir = '../experimental_data/'
 
-        plotting_parameters = launchers_memorycurves_marginal_fi.load_prepare_datasets(data_dir = data_dir)
+        plotting_parameters = launchers_memorycurves_marginal_fi.load_prepare_datasets()
 
         def plot_memorycurves_fits_fromexternal(all_vars, result_dist_to_use_name, nb_best_points=10):
             result_dist_to_use = all_vars[result_dist_to_use_name]
@@ -273,11 +274,11 @@ def plots_fitting_experiments_random(data_pbs, generator_module=None):
                 launchers_memorycurves_marginal_fi.do_memory_plots(packed_data, plotting_parameters)
 
 
-        plot_memorycurves_fits_fromexternal(locals(), 'result_fitexperiments_noiseconv_bays09_ll90_avg_sumT', nb_best_points=3)
+        plot_memorycurves_fits_fromexternal(locals(), 'result_external_fitexperiments_noiseconv_bays09_ll90_avg_sumT', nb_best_points=3)
 
-        plot_memorycurves_fits_fromexternal(locals(), 'result_fitexperiments_noiseconv_gorgo11_ll90_avg_sumT', nb_best_points=3)
+        plot_memorycurves_fits_fromexternal(locals(), 'result_external_fitexperiments_noiseconv_gorgo11_ll90_avg_sumT', nb_best_points=3)
 
-        plot_memorycurves_fits_fromexternal(locals(), 'result_fitexperiments_noiseconv_dualrecall_ll90_avg_sumT', nb_best_points=3)
+        plot_memorycurves_fits_fromexternal(locals(), 'result_external_fitexperiments_noiseconv_dualrecall_ll90_avg_sumT', nb_best_points=3)
 
 
 
