@@ -14,7 +14,7 @@ import getpass
 
 # Read from other scripts
 parameters_entryscript = dict(action_to_do='launcher_do_generate_submit_pbs_from_param_files', output_directory='.')
-submit_jobs = False
+submit_jobs = True
 
 parameter_generation = 'random'  ## !!!!!! RANDOM HERE   !!!!!
 num_random_samples = 5000
