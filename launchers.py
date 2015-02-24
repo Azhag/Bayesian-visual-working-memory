@@ -30,7 +30,11 @@ def init_everything(parameters):
 
     # Forces some parameters
     parameters['time_weights_parameters'] = dict(weighting_alpha=parameters['alpha'], weighting_beta=1.0, specific_weighting=0.1, weight_prior='uniform')
-    parameters['cued_feature_time'] = parameters['T']-1
+
+    if parameters.get('fixed_cued_feature_time', -1) >= 0:
+        parameters['cued_feature_time'] = parameters['fixed_cued_feature_time']
+    else:
+        parameters['cued_feature_time'] = parameters['T'] - 1
 
     # Build the random network
     random_network = init_random_network(parameters)

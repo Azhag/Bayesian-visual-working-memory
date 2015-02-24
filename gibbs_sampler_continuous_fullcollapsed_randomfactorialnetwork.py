@@ -187,7 +187,7 @@ class Sampler:
             Only one feature is cued, all others need to be sampled
         '''
 
-        print "-> init theta, feature %d cued" % self.data_gen.cued_features[0, 1]
+        print "-> init theta, feature %d cued, time %d" % (self.data_gen.cued_features[0, 0], self.data_gen.cued_features[0, 1] + 1)
 
         # Assign the cued ones now
         #   stimuli_correct: N x T x R

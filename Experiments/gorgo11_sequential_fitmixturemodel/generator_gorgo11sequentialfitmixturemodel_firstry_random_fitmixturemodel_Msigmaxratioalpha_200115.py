@@ -14,7 +14,7 @@ import getpass
 
 # Read from other scripts
 parameters_entryscript = dict(action_to_do='launcher_do_generate_submit_pbs_from_param_files', output_directory='.')
-submit_jobs = True
+submit_jobs = False
 
 parameter_generation = 'random'  ## !!!!!! RANDOM HERE   !!!!!
 num_random_samples = 5000
@@ -27,12 +27,13 @@ submit_cmd = 'sbatch'
 
 
 num_repetitions = 3
+T = 6
 
 run_label = 'gorgo11sequentialfitmixturemodel_firstry_random_fitmixturemodel_Msigmaxratioalpha_repetitions{num_repetitions}_200115'
 
-pbs_submission_infos = dict(description='Fitting of experimental data. Computes LL, BIC and LL90 for 3 datasets. Meant to run random sampling for a long while! Uses the new output noise process, varying sigma_output accordingly. Also use the new normalised sigma_x, which should behave better.',
+pbs_submission_infos = dict(description='Fitting of experimental data for Sequential Gorgo11. Computes LL, BIC and LL90 for 3 datasets. Meant to run random sampling for a long while! Use the new normalised sigma_x, better behaved. The sequential data is tried by fixing time_cued and recalling accordingly. Will require some post-processing in the reloader_',
                             command='python $WORKDIR/experimentlauncher.py',
-                            other_options=dict(action_to_do='launcher_do_fitexperiment_allT',
+                            other_options=dict(action_to_do='launcher_do_fit_mixturemodels_sequential_fixedtrecall',
                                                code_type='mixed',
                                                output_directory='.',
                                                ratio_conj=0.5,
@@ -42,10 +43,11 @@ pbs_submission_infos = dict(description='Fitting of experimental data. Computes 
                                                renormalize_sigmax=None,
                                                N=200,
                                                R=2,
-                                               T=6,
+                                               T=T,
+                                               fixed_cued_feature_time=0,
                                                sigmay=0.0001,
                                                sigma_output=0.0,
-                                               inference_method='none',
+                                               inference_method='sample',
                                                num_samples=200,
                                                selection_num_samples=1,
                                                selection_method='last',
@@ -66,7 +68,7 @@ pbs_submission_infos = dict(description='Fitting of experimental data. Computes 
                             simul_out_dir=os.path.join(os.getcwd(), run_label.format(**locals())),
                             pbs_submit_cmd=submit_cmd,
                             limit_max_queued_jobs=limit_max_queued_jobs,
-                            submit_label='fitex_sigxo_4d1',
+                            submit_label='seq_fitmixt_1st',
                             resource=resource,
                             qos='auto')
 
@@ -104,8 +106,9 @@ sigmax_range      =   dict(sampling_type='uniform', low=0.01, high=1.0, dtype=fl
 ratioconj_range   =   dict(sampling_type='uniform', low=0.01, high=1.0, dtype=float)
 alpha_range   =   dict(sampling_type='uniform', low=0.01, high=1.0, dtype=float)
 M_range           =   dict(sampling_type='randint', low=6, high=625, dtype=int)
+recall_time_range =  dict(sampling_type='randint', low=0, high=T, dtyp=int)
 
-dict_parameters_range =   dict(M=M_range, ratio_conj=ratioconj_range, sigmax=sigmax_range, alpha=alpha_range)
+dict_parameters_range =   dict(M=M_range, ratio_conj=ratioconj_range, sigmax=sigmax_range, alpha=alpha_range, fixed_cued_feature_time=recall_time_range)
 
 if __name__ == '__main__':
 
