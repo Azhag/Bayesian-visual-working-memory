@@ -342,27 +342,61 @@ def plots_gorgo11(dataset, dataio=None):
 
     plots_em_mixtures(dataset, dataio)
 
+
 def plots_gorgo11_sequential(dataset, dataio=None):
     '''
         Plots for Gorgo11 sequential, different
     '''
 
+    maxItems = 5
+    itemSpace = np.arange(maxItems)
+    itemIndices = np.arange(dataset['n_items_size']) < maxItems
+
     # Fig 6
     plt.figure()
-    plt.plot(np.nanmean(data_gorgo11_sequ['em_fits_subjects_nitems_arrays'], axis=0)[:5, 0])
+    plt.plot(np.nanmean(dataset['em_fits_subjects_nitems_arrays'], axis=0)[:maxItems, 0], 'o-', linewidth=2)
+    plt.title('kappa, across trecalls')
+    plt.xlabel('t_recall')
+    plt.xticks(itemSpace, itemSpace+1)
+
     plt.figure()
-    plt.plot(np.nanmean(data_gorgo11_sequ['em_fits_subjects_nitems_arrays'], axis=0)[:5, 1:4])
+    plt.plot(np.nanmean(dataset['em_fits_subjects_nitems_arrays'], axis=0)[:maxItems, 1:(maxItems-1)], 'o-', linewidth=2)
+    plt.title('mixture probs, across trecalls')
+    plt.xlabel('t_recall')
+    plt.xticks(itemSpace, itemSpace+1)
+    plt.legend(('target', 'nontarget', 'random'))
 
     # fig 7
     plt.figure()
-    plt.plot(utils.fliplr_nonan(data_gorgo11_sequ['em_fits_nitems_trecall_arrays'][:5, :5, 0]).T, 'o-')
+    plt.plot(utils.fliplr_nonan(dataset['em_fits_nitems_trecall_arrays'][:maxItems, :maxItems, 0]).T, 'o-', linewidth=2)
+    plt.title('EM kappa')
+    plt.xlabel('t_recall')
+    plt.xticks(itemSpace, itemSpace+1)
+    plt.legend([str(x) for x in itemSpace+1])
 
     plt.figure()
-    plt.plot(utils.fliplr_nonan(data_gorgo11_sequ['em_fits_nitems_trecall_arrays'][:5, :5, 1]).T, 'o-')
+    plt.plot(utils.fliplr_nonan(dataset['em_fits_nitems_trecall_arrays'][:maxItems, :maxItems, 1]).T, 'o-', linewidth=2)
+    plt.title('EM target')
+    plt.xlabel('t_recall')
+    plt.xticks(itemSpace, itemSpace+1)
+    plt.legend([str(x) for x in itemSpace+1])
+
     plt.figure()
-    plt.plot(utils.fliplr_nonan(data_gorgo11_sequ['em_fits_nitems_trecall_arrays'][:5, :5, 2]).T, 'o-')
+    plt.plot(utils.fliplr_nonan(dataset['em_fits_nitems_trecall_arrays'][:maxItems, :maxItems, 2]).T, 'o-', linewidth=2)
+    plt.title('EM nontarget')
+    plt.xlabel('t_recall')
+    plt.xticks(itemSpace, itemSpace+1)
+    plt.legend([str(x) for x in itemSpace+1])
+
     plt.figure()
-    plt.plot(utils.fliplr_nonan(data_gorgo11_sequ['em_fits_nitems_trecall_arrays'][:5, :5, 3]).T, 'o-')
+    plt.plot(utils.fliplr_nonan(dataset['em_fits_nitems_trecall_arrays'][:maxItems, :maxItems, 3]).T, 'o-', linewidth=2)
+    plt.title('EM random')
+    plt.xlabel('t_recall')
+    plt.xticks(itemSpace, itemSpace+1)
+    plt.legend([str(x) for x in itemSpace+1])
+
+    # Marginals
+    # utils.scatter_marginals(utils.dropnan(dataset['data_to_fit'][n_items]['item_features'][:, 0, 0]), utils.dropnan(dataset['data_to_fit'][n_items]['response']), xlabel ='Target angle', ylabel='Response angle', title='%s histogram responses, %d items' % (dataset['name'], n_items), figsize=(9, 9), factor_axis=1.1, bins=61)
 
 
 
