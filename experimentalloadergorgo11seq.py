@@ -14,6 +14,7 @@ import cPickle as pickle
 # import bottleneck as bn
 import em_circularmixture
 import em_circularmixture_allitems_uniquekappa
+import em_circularmixture_parametrickappa
 import pandas as pd
 
 em_circular_mixture_to_use = em_circularmixture
@@ -62,12 +63,16 @@ class ExperimentalLoaderGorgo11Sequential(ExperimentalLoader):
         # Create arrays per subject
         self.create_subject_arrays()
 
-
         # Fit the mixture model, and save the responsibilities per datapoint.
         if parameters.get('fit_mixture_model', False):
             self.fit_mixture_model_cached(caching_save_filename=parameters.get('mixture_model_cache', None), saved_keys=['em_fits', 'em_fits_nitems_mean_arrays', 'em_fits_nitems_trecall', 'em_fits_nitems_trecall_arrays', 'em_fits_nitems_trecall_mean', 'em_fits_nitems_trecall_mean_arrays', 'em_fits_subjects_nitems', 'em_fits_subjects_nitems_arrays', 'em_fits_subjects_nitems_trecall', 'em_fits_subjects_nitems_trecall_arrays',])
+
         ## Save item in a nice format for the model fit
         # self.generate_data_to_fit()
+
+        self.generate_data_subject_split()
+
+        self.fit_collapsed_mixture_model()
 
         # Perform Vtest for circular uniformity
         # self.compute_vtest()
@@ -331,4 +336,156 @@ class ExperimentalLoaderGorgo11Sequential(ExperimentalLoader):
             self.dataset['em_fits_nitems_mean_arrays']['std'] = np.std(self.dataset['em_fits_subjects_nitems_arrays'], axis=0)
             self.dataset['em_fits_nitems_mean_arrays']['sem'] = self.dataset['em_fits_nitems_mean_arrays']['std']/np.sqrt(self.dataset['subject_size'])
 
+
+
+    def generate_data_subject_split(self):
+        '''
+            Split the data to get per-subject fits:
+        '''
+
+        self.dataset['data_subject_split'] = {}
+        self.dataset['data_subject_split']['nitems_space'] = np.unique(self.dataset['n_items'])
+        self.dataset['data_subject_split']['subjects_space'] = np.unique(self.dataset['subject'])
+        self.dataset['data_subject_split']['data_subject_nitems'] = dict()
+        self.dataset['data_subject_split']['data_subject'] = dict()
+        self.dataset['data_subject_split']['data_subject_largest'] = dict()
+        self.dataset['data_subject_split']['subject_smallestN'] = dict()
+        self.dataset['data_subject_split']['subject_largestN'] = dict()
+
+        for subject_i, subject in enumerate(self.dataset['data_subject_split']['subjects_space']):
+
+            # Find the smallest number of samples for later
+            self.dataset['data_subject_split']['subject_smallestN'][subject] = np.inf
+
+            # Create dict(subject) -> dict(nitems_space, response, target, nontargets)
+            for n_items_i, n_items in enumerate(self.dataset['data_subject_split']['nitems_space']):
+                for trecall_i, trecall in enumerate(np.arange(1, n_items+1)):
+
+                    print "Splitting data up: subject %d, %d items, trecall %d, %d datapoints" % (subject, n_items, trecall, self.dataset['sizes_subject_nitems_trecall'][subject_i, n_items_i, trecall_i])
+
+                    # Create dict(subject) -> dict(n_items) -> dict(nitems_space, response, target, nontargets, N)
+                    self.dataset['data_subject_split']['data_subject_nitems'].setdefault(subject, dict())[n_items] = dict(
+                            N=self.dataset['sizes_subject_nitems_trecall'][subject_i][n_items_i][trecall_i],
+                            response=self.dataset['response_subject_nitems_trecall'][subject_i][n_items_i][trecall_i],
+                            target=self.dataset['target_subject_nitems_trecall'][subject_i][n_items_i][trecall_i],
+                            nontargets=self.dataset['nontargets_subject_nitems_trecall'][subject_i][n_items_i][trecall_i][..., :(n_items - 1)]
+                        )
+
+        # Find the smallest number of samples for later
+        self.dataset['data_subject_split']['subject_smallestN'] = np.nanmin(np.nanmin(self.dataset['sizes_subject_nitems_trecall'], axis=-1), axis=-1)
+
+        # Now redo a run through the data, but store everything per subject, in a matrix with TxTxN' (T objects, T recall times, N_small_sub datapoints).
+        # To be precise, only Tr <= T is there.
+        for subject_i, subject in enumerate(self.dataset['data_subject_split']['subjects_space']):
+
+            self.dataset['data_subject_split']['data_subject'][subject] = dict(
+                # Responses: TxTxN
+                responses = np.nan*np.empty((self.dataset['data_subject_split']['nitems_space'].size, self.dataset['data_subject_split']['nitems_space'].size, self.dataset['data_subject_split']['subject_smallestN'][subject_i])),
+                # Targets: TxTxN
+                targets = np.nan*np.empty((self.dataset['data_subject_split']['nitems_space'].size, self.dataset['data_subject_split']['nitems_space'].size, self.dataset['data_subject_split']['subject_smallestN'][subject_i])),
+                # Nontargets: TxTxNx(Tmax-1)
+                nontargets = np.nan*np.empty((self.dataset['data_subject_split']['nitems_space'].size, self.dataset['data_subject_split']['nitems_space'].size, self.dataset['data_subject_split']['subject_smallestN'][subject_i], self.dataset['data_subject_split']['nitems_space'].max()-1))
+            )
+
+            for n_items_i, n_items in enumerate(self.dataset['data_subject_split']['nitems_space']):
+                for trecall_i, trecall in enumerate(np.arange(1, n_items+1)):
+                    self.dataset['data_subject_split']['data_subject'][subject]['responses'][n_items_i, trecall_i] = self.dataset['response_subject_nitems_trecall'][subject_i][n_items_i][trecall_i][:self.dataset['data_subject_split']['subject_smallestN'][subject_i]]
+                    self.dataset['data_subject_split']['data_subject'][subject]['targets'][n_items_i, trecall_i] = self.dataset['target_subject_nitems_trecall'][subject_i][n_items_i][trecall_i][:self.dataset['data_subject_split']['subject_smallestN'][subject_i]]
+                    self.dataset['data_subject_split']['data_subject'][subject]['nontargets'][n_items_i, trecall_i, :, :(n_items - 1)] = self.dataset['nontargets_subject_nitems_trecall'][subject_i][n_items_i][trecall_i][..., :(n_items - 1)][:self.dataset['data_subject_split']['subject_smallestN'][subject_i]]
+
+        # Do the same, but try to keep as much of the data as possible
+        self.dataset['data_subject_split']['subject_largestN'] = np.nanmax(np.nanmax(self.dataset['sizes_subject_nitems_trecall'], axis=-1), axis=-1)
+
+        for subject_i, subject in enumerate(self.dataset['data_subject_split']['subjects_space']):
+
+            self.dataset['data_subject_split']['data_subject_largest'][subject] = dict(
+                # Responses: TxTxN
+                responses = np.nan*np.empty((self.dataset['data_subject_split']['nitems_space'].size, self.dataset['data_subject_split']['nitems_space'].size, self.dataset['data_subject_split']['subject_largestN'][subject_i])),
+                # Targets: TxTxN
+                targets = np.nan*np.empty((self.dataset['data_subject_split']['nitems_space'].size, self.dataset['data_subject_split']['nitems_space'].size, self.dataset['data_subject_split']['subject_largestN'][subject_i])),
+                # Nontargets: TxTxNx(Tmax-1)
+                nontargets = np.nan*np.empty((self.dataset['data_subject_split']['nitems_space'].size, self.dataset['data_subject_split']['nitems_space'].size, self.dataset['data_subject_split']['subject_largestN'][subject_i], self.dataset['data_subject_split']['nitems_space'].max()-1))
+            )
+
+            for n_items_i, n_items in enumerate(self.dataset['data_subject_split']['nitems_space']):
+                for trecall_i, trecall in enumerate(np.arange(1, n_items+1)):
+                    self.dataset['data_subject_split']['data_subject_largest'][subject]['responses'][n_items_i, trecall_i, :self.dataset['sizes_subject_nitems_trecall'][subject_i][n_items_i][trecall_i]] = self.dataset['response_subject_nitems_trecall'][subject_i][n_items_i][trecall_i]
+                    self.dataset['data_subject_split']['data_subject_largest'][subject]['targets'][n_items_i, trecall_i, :self.dataset['sizes_subject_nitems_trecall'][subject_i][n_items_i][trecall_i]] = self.dataset['target_subject_nitems_trecall'][subject_i][n_items_i][trecall_i]
+                    self.dataset['data_subject_split']['data_subject_largest'][subject]['nontargets'][n_items_i, trecall_i, :self.dataset['sizes_subject_nitems_trecall'][subject_i][n_items_i][trecall_i], :(n_items - 1)] = self.dataset['nontargets_subject_nitems_trecall'][subject_i][n_items_i][trecall_i][..., :(n_items - 1)]
+
+
+    def fit_collapsed_mixture_model(self):
+        '''
+            Fit the new Collapsed Mixture Model, using data created
+            just above in generate_data_subject_split.
+
+            Do:
+             * One fit per subject/nitems, using trecall as T_space
+             * One fit per subject/trecall, using nitems as T_space
+
+        '''
+        Tmax = self.dataset['data_subject_split']['nitems_space'].max()
+
+        self.dataset['collapsed_em_fits_subjects_nitems'] = dict()
+        self.dataset['collapsed_em_fits_nitems'] = dict()
+
+        self.dataset['collapsed_em_fits_subjects_trecall'] = dict()
+        self.dataset['collapsed_em_fits_trecall'] = dict()
+
+        for subject, subject_data_dict in self.dataset['data_subject_split']['data_subject'].iteritems():
+            print 'Fitting Collapsed Mixture model for subject %d' % subject
+
+            raise NotImplementedError('Watch out about ordering of trecall...')
+
+            # Use trecall as T_space, bit weird
+            for n_items_i, n_items in enumerate(self.dataset['data_subject_split']['nitems_space']):
+
+                print '%d nitems, using trecall as T_space' % n_items
+
+                params_fit = em_circularmixture_parametrickappa.fit(np.arange(1, n_items+1), subject_data_dict['responses'][n_items_i, :(n_items)], subject_data_dict['targets'][n_items_i, :(n_items)], subject_data_dict['nontargets'][n_items_i, :(n_items), :, :(n_items - 1)], debug=False)
+
+                self.dataset['collapsed_em_fits_subjects_nitems'].setdefault(subject, dict())[n_items] = params_fit
+
+            # Use nitems as T_space, as a function of trecall (be careful)
+            for trecall_i, trecall in enumerate(self.dataset['data_subject_split']['nitems_space']):
+
+                print 'trecall %d, using n_items as T_space' % trecall
+
+                params_fit = em_circularmixture_parametrickappa.fit(np.arange(trecall, Tmax+1), subject_data_dict['responses'][trecall_i:, trecall_i], subject_data_dict['targets'][trecall_i:, trecall_i], subject_data_dict['nontargets'][trecall_i:, trecall_i], debug=False)
+
+                self.dataset['collapsed_em_fits_subjects_trecall'].setdefault(subject, dict())[trecall] = params_fit
+
+        ## Now compute mean/std collapsed_em_fits_nitems
+        self.dataset['collapsed_em_fits_nitems']['mean'] = dict()
+        self.dataset['collapsed_em_fits_nitems']['std'] = dict()
+        self.dataset['collapsed_em_fits_nitems']['sem'] = dict()
+        self.dataset['collapsed_em_fits_nitems']['values'] = dict()
+
+        # Need to extract the values for a subject/nitems pair, for all keys of em_fits. Annoying dictionary indexing needed
+        emfits_keys = params_fit.keys()
+        for n_items_i, n_items in enumerate(self.dataset['data_subject_split']['nitems_space']):
+            for key in emfits_keys:
+                values_allsubjects = [self.dataset['collapsed_em_fits_subjects_nitems'][subject][n_items][key] for subject in self.dataset['data_subject_split']['subjects_space']]
+
+                self.dataset['collapsed_em_fits_nitems']['mean'].setdefault(n_items, dict())[key] = np.mean(values_allsubjects, axis=0)
+                self.dataset['collapsed_em_fits_nitems']['std'].setdefault(n_items, dict())[key] = np.std(values_allsubjects, axis=0)
+                self.dataset['collapsed_em_fits_nitems']['sem'].setdefault(n_items, dict())[key] = self.dataset['collapsed_em_fits_nitems']['std'][n_items][key]/np.sqrt(self.dataset['data_subject_split']['subjects_space'].size)
+                self.dataset['collapsed_em_fits_nitems']['values'].setdefault(n_items, dict())[key] = values_allsubjects
+
+        ## Same for the other ones
+        self.dataset['collapsed_em_fits_trecall']['mean'] = dict()
+        self.dataset['collapsed_em_fits_trecall']['std'] = dict()
+        self.dataset['collapsed_em_fits_trecall']['sem'] = dict()
+        self.dataset['collapsed_em_fits_trecall']['values'] = dict()
+
+        # Need to extract the values for a subject/nitems pair, for all keys of em_fits. Annoying dictionary indexing needed
+        emfits_keys = params_fit.keys()
+        for trecall_i, trecall in enumerate(self.dataset['data_subject_split']['nitems_space']):
+            for key in emfits_keys:
+                values_allsubjects = [self.dataset['collapsed_em_fits_subjects_trecall'][subject][trecall][key] for subject in self.dataset['data_subject_split']['subjects_space']]
+
+                self.dataset['collapsed_em_fits_trecall']['mean'].setdefault(trecall, dict())[key] = np.mean(values_allsubjects, axis=0)
+                self.dataset['collapsed_em_fits_trecall']['std'].setdefault(trecall, dict())[key] = np.std(values_allsubjects, axis=0)
+                self.dataset['collapsed_em_fits_trecall']['sem'].setdefault(trecall, dict())[key] = self.dataset['collapsed_em_fits_trecall']['std'][trecall][key]/np.sqrt(self.dataset['data_subject_split']['subjects_space'].size)
+                self.dataset['collapsed_em_fits_trecall']['values'].setdefault(trecall, dict())[key] = values_allsubjects
 

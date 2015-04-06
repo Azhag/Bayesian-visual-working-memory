@@ -213,6 +213,7 @@ def aic(K, LL):
 
     return 2*K - 2.*LL
 
+
 def bic(K, LL, N):
     '''
         Compute Bayesian Information Criterion
@@ -221,7 +222,7 @@ def bic(K, LL, N):
         LL: loglikelihood of model
     '''
 
-    return -LL + float(K)/2.*np.log(N)
+    return -2.*LL + float(K)/2.*np.log(N)
 
 
 def KL_div(P, Q, axis=None):

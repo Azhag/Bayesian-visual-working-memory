@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-from datagenerator import *
-from randomnetwork import *
+# from datagenerator import *
+# from randomnetwork import *
 from randomfactorialnetwork import *
 from statisticsmeasurer import *
 from slicesampler import *
@@ -112,23 +112,23 @@ def do_plot_effect_conj():
         if data_to_use == 1:
             # params = dict(label='T2_inabstract', files='Data/mixed_ratio_2scales_search/T2_N300_K100/ratioconj_2scales*.npy*', regexp='^[a-zA-Z_\/0-9]*-ratioconj([0-9.]*)T[0-9]*alpha[0-9.]*N[0-9.]*K[0-9]*numsamples[0-9]*nbrepeats([0-9.]*)nbexperiments([0-9.]*)mixed_two_scales-([0-9a-z\-]*).npy')
             params = dict(label='T2_newdata_n500', files='Data/mixed_ratio_2scales_search/new_datagen/N500/T2/ratioconj_2scales*.npy*', regexp='^[a-zA-Z_\/0-9]*-ratioconj([0-9.]*)T[0-9]*alpha[0-9.]*N[0-9.]*numsamples[0-9]*nbrepeats([0-9.]*)nbexperiments([0-9.]*)mixed_two_scales-([0-9a-z\-]*).npy')
-        
+
         # T3
         if data_to_use == 2:
             # params = dict(label='T3_inabstract', files='Data/mixed_ratio_2scales_search/T3/ratioconj_2scales*.npy*', regexp='^[a-zA-Z_\/0-9]*-ratioconj([0-9.]*)T[0-9]*alpha[0-9.]*N[0-9.]*K[0-9]*numsamples[0-9]*nbrepeats([0-9.]*)nbexperiments([0-9.]*)mixed_two_scales-([0-9a-z\-]*).npy')
 
             params = dict(label='T3_newdata_n500', files='Data/mixed_ratio_2scales_search/new_datagen/N500/T3/ratioconj_2scales*.npy*', regexp='^[a-zA-Z_\/0-9]*-ratioconj([0-9.]*)T[0-9]*alpha[0-9.]*N[0-9.]*numsamples[0-9]*nbrepeats([0-9.]*)nbexperiments([0-9.]*)mixed_two_scales-([0-9a-z\-]*).npy')
-        
+
         # T4
         if data_to_use == 3:
             # params = dict(label='T4_inabstract', files='Data/mixed_ratio_2scales_search/T4/ratioconj_2scales*.npy*', regexp='^[a-zA-Z_\/0-9]*-ratioconj([0-9.]*)T[0-9]*alpha[0-9.]*N[0-9.]*K[0-9]*numsamples[0-9]*nbrepeats([0-9.]*)nbexperiments([0-9.]*)mixed_two_scales-([0-9a-z\-]*).npy')
 
             params = dict(label='T4_newdata_n300', files='Data/mixed_ratio_2scales_search/new_datagen/N300/T4/ratioconj_2scales*.npy*', regexp='^[a-zA-Z_\/0-9]*-ratioconj([0-9.]*)T[0-9]*alpha[0-9.]*N[0-9.]*numsamples[0-9]*nbrepeats([0-9.]*)nbexperiments([0-9.]*)mixed_two_scales-([0-9a-z\-]*).npy')
-        
+
 
         # Get all output files
         all_output_files = glob.glob(params['files'])
-        
+
         assert len(all_output_files) > 0, "Wrong regular expression"
 
         # Iterate over them, load the corresponding signal and compute its metric
@@ -136,10 +136,10 @@ def do_plot_effect_conj():
         all_precisions = {}
 
         for curr_file in all_output_files:
-            
+
             # Do a nice regular expression to catch the parameters and remove the useless random unique string
             matched = re.search(params['regexp'], curr_file)
-                
+
             # Get ratioconj
             curr_ratioconj = float(matched.groups()[0])
             all_ratioconj.append(curr_ratioconj)
@@ -149,10 +149,10 @@ def do_plot_effect_conj():
             nb_experiments = int(len(all_output_files))
 
             print str(curr_ratioconj)
-            
+
             # Load the data
             curr_output = np.load(curr_file).item()
-            
+
             # Reload some things
             param1_space    = curr_output['param1_space']
             param2_space    = curr_output['param2_space']
@@ -164,9 +164,9 @@ def do_plot_effect_conj():
                 all_precisions[curr_ratioconj].append(curr_precisions)
             else:
                 all_precisions[curr_ratioconj] = [curr_precisions]
-        
+
         all_ratioconj = np.sort(np.unique(all_ratioconj))
-        
+
         nb_experiments /= all_ratioconj.size
 
         # nb_ratios = all_ratioconj.size
@@ -192,10 +192,10 @@ def do_plot_effect_conj():
         stdcurve = np.zeros(all_ratioconj.size)
         # optcurve = np.max(np.max(1./mean_invprecisions[:,:, 4:], 1), 1)
         optcurve = np.max(np.max(1./mean_invprecisions[:, :, 0:], 1), 1)
-    
+
         stdcurve /= np.max(optcurve)
         optcurve /= np.max(optcurve)
-    
+
         return (optcurve, stdcurve)
 
 
@@ -206,7 +206,7 @@ def do_plot_effect_conj():
 
     for i in xrange(T_max):
         (all_optcurve[i], all_optcurve_std[i]) = combine_mixed_two_scales(i, should_plot=False)
-        
+
     x = 0.1*np.arange(nb_ratios)
     f = plt.figure()
     ax = f.add_subplot(111)
@@ -215,13 +215,13 @@ def do_plot_effect_conj():
         # ax = plot_mean_std_area(x, all_optcurve[i], all_optcurve_std[i], ax_handle=ax)
     for i in xrange(T_max):
         ax.plot(x, all_optcurve[i], linewidth=2)
-    
+
     plt.rcParams['font.size'] = 17
     plt.rcParams['legend.fontsize'] = 20
-    
+
     legends=['%d items' % (x+1) for x in xrange(T_max)]
     legends[0] = '1 item'
-    
+
     # plt.legend(legends, loc='upper center', bbox_to_anchor=(0.5, 1.01), ncol=4, shadow=True)
     plt.legend(legends, loc='upper center', bbox_to_anchor=(0.5, 1.01), ncol=4, fancybox=True, borderpad=0.3, columnspacing=0.5, borderaxespad=0.7, handletextpad=0, handlelength=1.5)
     # plt.xlabel('Ratio conjunctive/feature cells', fontsize=17)
@@ -233,7 +233,7 @@ def do_plot_effect_conj():
 
     plt.show()
 
-    
+
 
 def plot_all_memory_curves():
     #%run gibbs_sampler_continuous_fullcollapsed_randomfactorialnetwork.py --action_to_do plot_multiple_memory_curve --input_filename /Users/loicmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/code/git-bayesian-visual-working-memory/Data/all_memories_conj_T5_alpha09_sigmax01_r30_memory_curve-dea28e17-7330-43a2-bda1-f54aa2f100c4.npy
@@ -257,7 +257,7 @@ def plot_probabilities_mixtures():
         selectnumsamples_space = data['selectnumsamples_space'].flatten()
         rcscale_space          = data['rcscale_space'].flatten()
         sigmax_space           = data['sigmax_space'].flatten()
-        
+
         median_fitted_models   = np.median(all_fitted_models, axis=5)  # Take the median between repeats.
         median_precisions      = np.median(all_precisions, axis=5)
 
@@ -285,7 +285,7 @@ def plot_probabilities_mixtures():
 
         # Best parameters:
         #   4, 3, 2, 0 => 200 samples, 50 selected, rc_scale 0.5, sigmax 0.01
-        #   4, 3, 3, 1 => 
+        #   4, 3, 3, 1 =>
         best_parameters = argmin_indices(mse_precisions)
         goodenough_mse = np.sort(mse_precisions[mse_precisions<5.0])
         # goodenough_mse = np.sort(mse_precisions[mse_precisions<5])
@@ -302,7 +302,7 @@ def plot_probabilities_mixtures():
         goodenough_parameters_values[:, 3] = sigmax_space[goodenough_indices[:, 3]]
 
         # Good fit:
-        #   "double" here means that the target_experimental is divided by 2 or not. As we have a double space, it's not 
+        #   "double" here means that the target_experimental is divided by 2 or not. As we have a double space, it's not
         #       entirely sure which one is the correct one. The plots for the poster where done for single, 8 chosen (not divided by 2)
         #   with double precision: 7
         #   with single precision: 8, 11
@@ -319,7 +319,7 @@ def plot_probabilities_mixtures():
         plt.yticks((0.25, 0.5, 0.75, 1.0))
         plt.xticks((1, 2, 3, 4, 5, 6))
         plt.legend(['Target', 'Non-target', 'Random'], loc='best', fancybox=True, borderpad=0.3)
-        
+
 
         f2 = plt.figure()
         ax2 = f2.add_subplot(111)
@@ -343,7 +343,7 @@ def plot_probabilities_mixtures():
         # Plot showing the dependence of the power law exponent on sigma (none) and rc_scale (quite nice).
         #  The number of samples has a weird effect.
         print "numsamples: %d, selection_numsamples: %d" % (numsamples_space[goodenough_indices[chosen_optimal_fit_index][0]], selectnumsamples_space[goodenough_indices[chosen_optimal_fit_index][1]])
-        
+
         plt.figure()
         plt.plot(rcscale_space, model_powerlaw_fits[goodenough_indices[chosen_optimal_fit_index][0], goodenough_indices[chosen_optimal_fit_index][1], :, :, 0])
         plt.legend(['Sigmax %.2f' % sigma for sigma in sigmax_space])
@@ -357,8 +357,8 @@ def plot_probabilities_mixtures():
         plt.title('Power law biases as function of rc_scale, for multiple sigma_x (if too small, bad sampling)')
         plt.xlabel('Rc_scale')
         plt.ylabel('Fitted power law bias')
-        
-        
+
+
         return 1./median_precisions[tuple(goodenough_indices[chosen_optimal_fit_index])][:-1]
 
     if False:
@@ -372,7 +372,7 @@ def plot_probabilities_mixtures():
         rcscale2_space       = data['rcscale2_space'].flatten()
         ratio_space          = data['ratio_space'].flatten()
         sigmax_space         = data['sigmax_space'].flatten()
-        
+
         median_fitted_models = np.median(all_fitted_models, axis=5)
         median_precisions    = np.median(all_precisions, axis=5)
 
@@ -383,12 +383,12 @@ def plot_probabilities_mixtures():
 
         # Best parameters:
         #   4, 3,2, 0 => 200 samples, 50 selected, rc_scale 0.5, sigmax 0.01
-        #   4, 3,3, 1 => 
+        #   4, 3,3, 1 =>
         best_parameters = argmin_indices(mse_precisions)
         goodenough_mse = np.sort(mse_precisions[mse_precisions<25])
         # goodenough_mse = np.sort(mse_precisions[mse_precisions<5])
         goodenough_indices_list = []
-        
+
         for ge_mse_i in xrange(goodenough_mse.size):
             goodenough_indices_list.append(np.nonzero(mse_precisions == goodenough_mse[ge_mse_i]))
         goodenough_indices = np.array(goodenough_indices_list)[:, :, 0]
@@ -409,7 +409,7 @@ def plot_probabilities_mixtures():
         plt.yticks((0.25, 0.5, 0.75, 1.0))
         plt.xticks((1, 2, 3, 4, 5))
         plt.legend(['Target', 'Non-target', 'Random'], loc='best', fancybox=True, borderpad=0.3)
-        
+
 
         f2 = plt.figure()
         ax2 = f2.add_subplot(111)
@@ -418,7 +418,7 @@ def plot_probabilities_mixtures():
         plt.ylim((1.2, 4))
         plt.xticks((1, 2, 3, 4, 5))
         plt.xlim((0.8, 5.5))
-    
+
     if False:
         # Mixed cells
         data = sio.loadmat('/Users/loicmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/experimental_data/fit_saveresponses_simult_mixed_search_sigmax_rcscale_numsamples_selectnumsamples_1702_biggersigma/all_fitted_results_bigsigma.mat')
@@ -442,12 +442,12 @@ def plot_probabilities_mixtures():
 
         # Best parameters:
         #   4, 3,2, 0 => 200 samples, 50 selected, rc_scale 0.5, sigmax 0.01
-        #   4, 3,3, 1 => 
+        #   4, 3,3, 1 =>
         # best_parameters = argmin_indices(mse_precisions)
         # goodenough_mse = np.sort(mse_precisions[mse_precisions<25])
         goodenough_mse = np.sort(mse_precisions[mse_precisions<5])
         goodenough_indices_list = []
-        
+
         for ge_mse_i in xrange(goodenough_mse.size):
             goodenough_indices_list.append(np.nonzero(mse_precisions == goodenough_mse[ge_mse_i]))
         goodenough_indices = np.array(goodenough_indices_list)[:, :, 0]
@@ -467,7 +467,7 @@ def plot_probabilities_mixtures():
         ax.set_xlim((0.8, 5.3))
         plt.yticks((0.25, 0.5, 0.75, 1.0))
         plt.xticks((1, 2, 3, 4, 5))
-        
+
 
         f2 = plt.figure()
         ax2 = f2.add_subplot(111)
@@ -484,8 +484,8 @@ def plot_probabilities_mixtures():
 
 
 if __name__ == '__main__':
-     
-    results = plot_probabilities_mixtures()    
+
+    results = plot_probabilities_mixtures()
 
     plt.show()
 

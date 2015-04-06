@@ -14,6 +14,8 @@ import cPickle as pickle
 # import bottleneck as bn
 import em_circularmixture
 import em_circularmixture_allitems_uniquekappa
+import em_circularmixture_parametrickappa
+
 import pandas as pd
 
 import dataio as DataIO
@@ -338,6 +340,143 @@ class ExperimentalLoader(object):
             self.dataset['data_to_fit'][n_items]['item_features'][..., 0] = self.dataset['item_angle'][ids_n_items, :n_items]
             self.dataset['data_to_fit'][n_items]['item_features'][..., 1] = self.dataset['item_colour'][ids_n_items, :n_items]
             self.dataset['data_to_fit'][n_items]['response'] = self.dataset['response'][ids_n_items].flatten()
+
+
+    def generate_data_subject_split(self):
+        '''
+            Split the data to get per-subject fits:
+
+             - response, target, nontargets per subject and per n_item
+             - nitems_space, response, target, nontargets per subject
+        '''
+
+        self.dataset['data_subject_split'] = {}
+        self.dataset['data_subject_split']['nitems_space'] = np.unique(self.dataset['n_items'])
+        self.dataset['data_subject_split']['subjects_space'] = np.unique(self.dataset['subject'])
+        self.dataset['data_subject_split']['data_subject_nitems'] = dict()
+        self.dataset['data_subject_split']['data_subject'] = dict()
+        self.dataset['data_subject_split']['subject_smallestN'] = dict()
+
+        for subject in np.unique(self.dataset['data_subject_split']['subjects_space']):
+
+            # Find the smallest number of samples for later
+            self.dataset['data_subject_split']['subject_smallestN'][subject] = np.inf
+
+            # Create dict(subject) -> dict(nitems_space, response, target, nontargets)
+            for n_items in np.unique(self.dataset['data_subject_split']['nitems_space']):
+
+                ids_filtered = (self.dataset['subject']==subject).flatten() & (self.dataset['n_items'] == n_items).flatten()
+                # print "Splitting data up: subject %d, %d items, %d datapoints" % (subject, n_items, np.sum(ids_filtered))
+
+                # Create dict(subject) -> dict(n_items) -> dict(nitems_space, response, target, nontargets, N)
+                self.dataset['data_subject_split']['data_subject_nitems'].setdefault(subject, dict())[n_items] = dict(
+                        N=np.sum(ids_filtered),
+                        response=self.dataset['response'][ids_filtered, 0],
+                        target=self.dataset['item_angle'][ids_filtered, 0],
+                        nontargets=self.dataset['item_angle'][ids_filtered, 1:n_items]
+                    )
+
+                # Find the smallest number of samples for later
+                self.dataset['data_subject_split']['subject_smallestN'][subject] = min(self.dataset['data_subject_split']['subject_smallestN'][subject], np.sum(ids_filtered))
+
+        # Now redo a run through the data, but store everything per subject, in a matrix with TxN (T objects, N datapoints).
+        for subject in np.unique(self.dataset['data_subject_split']['subjects_space']):
+
+            self.dataset['data_subject_split']['data_subject'][subject] = dict(
+                # Responses: TxN
+                responses = np.nan*np.empty((self.dataset['data_subject_split']['nitems_space'].size, self.dataset['data_subject_split']['subject_smallestN'][subject])),
+                # Targets: TxN
+                targets = np.nan*np.empty((self.dataset['data_subject_split']['nitems_space'].size, self.dataset['data_subject_split']['subject_smallestN'][subject])),
+                # Nontargets: TxNx(Tmax-1)
+                nontargets = np.nan*np.empty((self.dataset['data_subject_split']['nitems_space'].size, self.dataset['data_subject_split']['subject_smallestN'][subject], self.dataset['data_subject_split']['nitems_space'].max()-1))
+            )
+
+            for n_items_i, n_items in enumerate(np.unique(self.dataset['data_subject_split']['nitems_space'])):
+
+                ids_filtered = (self.dataset['subject']==subject).flatten() & (self.dataset['n_items'] == n_items).flatten()
+
+                # Assign data to:
+                # dict(subject) -> dict(responses TxN, targets TxN, nontargets TxNx(T-1) )
+                self.dataset['data_subject_split']['data_subject'][subject]['responses'][n_items_i] = self.dataset['response'][ids_filtered, 0][:self.dataset['data_subject_split']['subject_smallestN'][subject]]
+                self.dataset['data_subject_split']['data_subject'][subject]['targets'][n_items_i] = self.dataset['item_angle'][ids_filtered, 0][:self.dataset['data_subject_split']['subject_smallestN'][subject]]
+                self.dataset['data_subject_split']['data_subject'][subject]['nontargets'][n_items_i, :, :(n_items-1)] = self.dataset['item_angle'][ids_filtered, 1:n_items][:self.dataset['data_subject_split']['subject_smallestN'][subject]]
+
+
+    def fit_collapsed_mixture_model_cached(self, caching_save_filename=None, saved_keys=['collapsed_em_fits_subjects', 'collapsed_em_fits']):
+
+        should_fit_model = True
+        save_caching_file = False
+
+        if caching_save_filename is not None:
+            caching_save_filename = os.path.join(self.datadir, caching_save_filename)
+
+            if os.path.exists(caching_save_filename):
+                # Got file, open it and try to use its contents
+                try:
+                    with open(caching_save_filename, 'r') as file_in:
+                        # Load and assign values
+                        cached_data = pickle.load(file_in)
+                        self.dataset.update(cached_data)
+                        should_fit_model = False
+                        print "reloaded collapsed mixture model from cache", caching_save_filename
+
+                except:
+                    print "Error while loading ", caching_save_filename, "falling back to computing the Collapsed EM fits"
+            else:
+                # No file, create it after everything is computed
+                save_caching_file = True
+
+
+        if should_fit_model:
+            self.fit_collapsed_mixture_model()
+
+        if save_caching_file:
+            try:
+                with open(caching_save_filename, 'w') as filecache_out:
+                    data_em = dict((key, self.dataset[key]) for key in saved_keys)
+
+                    pickle.dump(data_em, filecache_out, protocol=2)
+
+            except IOError:
+                print "Error writing out to caching file ", caching_save_filename
+
+
+    def fit_collapsed_mixture_model(self):
+        '''
+            Fit the new Collapsed Mixture Model, using data created
+            just above in generate_data_subject_split.
+
+            One fit per subject, obtain parametric estimates of kappa.
+
+        '''
+
+        self.dataset['collapsed_em_fits_subjects'] = dict()
+        self.dataset['collapsed_em_fits'] = dict()
+
+        for subject, subject_data_dict in self.dataset['data_subject_split']['data_subject'].iteritems():
+            print 'Fitting Collapsed Mixture model for subject %d' % subject
+
+            # Bug here, fit is not using the good dimensionality for the number of Nontarget angles...
+            params_fit = em_circularmixture_parametrickappa.fit(self.dataset['data_subject_split']['nitems_space'], subject_data_dict['responses'], subject_data_dict['targets'], subject_data_dict['nontargets'], debug=False)
+
+            self.dataset['collapsed_em_fits_subjects'][subject] = params_fit
+
+        ## Now compute mean/std collapsed_em_fits
+
+        self.dataset['collapsed_em_fits']['mean'] = dict()
+        self.dataset['collapsed_em_fits']['std'] = dict()
+        self.dataset['collapsed_em_fits']['sem'] = dict()
+        self.dataset['collapsed_em_fits']['values'] = dict()
+
+        # Need to extract the values for a subject/nitems pair, for all keys of em_fits. Annoying dictionary indexing needed
+        emfits_keys = params_fit.keys()
+        for key in emfits_keys:
+            values_allsubjects = [self.dataset['collapsed_em_fits_subjects'][subject][key] for subject in self.dataset['data_subject_split']['subjects_space']]
+
+            self.dataset['collapsed_em_fits']['mean'][key] = np.mean(values_allsubjects, axis=0)
+            self.dataset['collapsed_em_fits']['std'][key] = np.std(values_allsubjects, axis=0)
+            self.dataset['collapsed_em_fits']['sem'][key] = self.dataset['collapsed_em_fits']['std'][key]/np.sqrt(self.dataset['data_subject_split']['subjects_space'].size)
+            self.dataset['collapsed_em_fits']['values'][key] = values_allsubjects
 
 
     def compute_average_histograms(self):

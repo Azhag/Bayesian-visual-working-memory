@@ -16,9 +16,10 @@ import matplotlib.patches as plt_patches
 import numpy as np
 from scipy.spatial.distance import pdist
 
-from populationcode import *
-from randomnetwork import *
-from randomfactorialnetwork import *
+# from populationcode import *
+# from randomnetwork import *
+# from randomfactorialnetwork import *
+from utils import *
 import datagenerator
 
 class DataGeneratorRFN(datagenerator.DataGenerator):

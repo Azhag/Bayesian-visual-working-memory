@@ -28,8 +28,8 @@ import os.path
 import argparse
 import pylab as plt
 
-from datagenerator import *
-from randomnetwork import *
+# from datagenerator import *
+# from randomnetwork import *
 from randomfactorialnetwork import *
 from statisticsmeasurer import *
 from slicesampler import *
@@ -43,20 +43,20 @@ def combine_pbs_effectT():
     """
         Combine simulation outputs from PBS
     """
-    
+
     # Get all output files
     # all_output_files = glob.glob('conj_effectT*.npy*')
     all_output_files = glob.glob('feat_effectT*.npy*')
-    
+
     # Iterate over them, load the corresponding signal and compute its metric
     all_T = []
     all_precisions = {}
 
     for curr_file in all_output_files:
-        
+
         # Do a nice regular expression to catch the parameters and remove the useless random unique string
         matched = re.search('^[a-zA-Z_]*-T([0-9]*)alpha[0-9.]*N[0-9.]*nbrepeats([0-9.]*)nbexperiments([0-9.]*)size_receptive_field_number_neurons-([0-9a-z\-]*).npy', curr_file)
-        
+
         # Get N
         curr_T = int(matched.groups()[0])
         all_T.append(curr_T)
@@ -64,12 +64,12 @@ def combine_pbs_effectT():
         # Get nbrepeats and nbexperiments
         nb_repeats = int(matched.groups()[1])
         nb_experiments = int(matched.groups()[2])
-        
+
         print str(curr_T)
-        
+
         # Load the data
         curr_output = np.load(curr_file).item()
-        
+
         # Reload some things
         param1_space = curr_output['param1_space']
         param2_space = curr_output['param2_space']
@@ -81,9 +81,9 @@ def combine_pbs_effectT():
             all_precisions[curr_T].append(curr_precisions)
         else:
             all_precisions[curr_T] = [curr_precisions]
-    
+
     all_T = np.sort(np.unique(all_T))
-    
+
     # Now have to put everything in a nice 4D array...
     results_array = np.zeros((all_T.size, param1_space.size, param2_space.size, nb_repeats*nb_experiments))
     for Ti in xrange(all_T.size):
@@ -95,7 +95,7 @@ def combine_pbs_effectT():
                     except IndexError:
                         pass
 
-    
+
     mean_precisions = np.mean(1./results_array, 3)
     var_precisions = np.std(1./results_array, 3)
 
@@ -115,21 +115,21 @@ def combine_pbs_effectT():
         f.colorbar(im)
         ax.set_title('Precision for T=%d' % all_T[t])
 
-    
+
 
 def combine_plot_size_receptive_field_number_neurons():
     # Get all output files
     all_output_files = glob.glob('Data/conj_T2_2011_r3*.npy*')
-    
+
     # Iterate over them, load the corresponding signal and compute its metric
     all_T = []
     all_precisions = {}
 
     for curr_file in all_output_files:
-        
+
         # Do a nice regular expression to catch the parameters and remove the useless random unique string
         matched = re.search('^[a-zA-Z_\/]*_T([0-9]*)_[0-9]*_r([0-9.]*)_size_receptive_field_number_neurons-([0-9a-z\-]*).npy', curr_file)
-        
+
         # Get N
         curr_T = int(matched.groups()[0])
         all_T.append(curr_T)
@@ -139,10 +139,10 @@ def combine_plot_size_receptive_field_number_neurons():
         nb_experiments = len(all_output_files)
 
         print str(curr_T)
-        
+
         # Load the data
         curr_output = np.load(curr_file).item()
-        
+
         # Reload some things
         param1_space = curr_output['param1_space']
         param2_space = curr_output['param2_space']
@@ -154,9 +154,9 @@ def combine_plot_size_receptive_field_number_neurons():
             all_precisions[curr_T].append(curr_precisions)
         else:
             all_precisions[curr_T] = [curr_precisions]
-    
+
     all_T = np.sort(np.unique(all_T))
-    
+
     # Now have to put everything in a nice 4D array...
     results_array = np.zeros((all_T.size, param1_space.size, param2_space.size, nb_repeats*nb_experiments))
     for Ti in xrange(all_T.size):
@@ -168,7 +168,7 @@ def combine_plot_size_receptive_field_number_neurons():
                     except IndexError:
                         pass
 
-    
+
     mean_precisions = np.mean(1./results_array, 3)
     var_precisions = np.std(1./results_array, 3)
 
@@ -216,7 +216,7 @@ def combine_mixed_two_scales(data_to_use = 0, should_plot=True):
 
         # New datagen, N500
         params = dict(label='T2_newdata_n500', files='Data/mixed_ratio_2scales_search/new_datagen/N500/T2/ratioconj_2scales*.npy*', regexp='^[a-zA-Z_\/0-9]*-ratioconj([0-9.]*)T[0-9]*alpha[0-9.]*N[0-9.]*numsamples[0-9]*nbrepeats([0-9.]*)nbexperiments([0-9.]*)mixed_two_scales-([0-9a-z\-]*).npy')
-    
+
     # T3
     if data_to_use == 2:
         # params = dict(label='T3_used_figures_collated_bis_2311_midnight', files='Data/mixed_ratio_2scales_search/T3/less_data/ratioconj_2scales*.npy*', regexp='^[a-zA-Z_\/0-9]*-ratioconj([0-9.]*)T[0-9]*alpha[0-9.]*N[0-9.]*K[0-9]*numsamples[0-9]*nbrepeats([0-9.]*)nbexperiments([0-9.]*)mixed_two_scales-([0-9a-z\-]*).npy')
@@ -228,7 +228,7 @@ def combine_mixed_two_scales(data_to_use = 0, should_plot=True):
 
         # New datagen, N500
         params = dict(label='T3_newdata_n500', files='Data/mixed_ratio_2scales_search/new_datagen/N500/T3/ratioconj_2scales*.npy*', regexp='^[a-zA-Z_\/0-9]*-ratioconj([0-9.]*)T[0-9]*alpha[0-9.]*N[0-9.]*numsamples[0-9]*nbrepeats([0-9.]*)nbexperiments([0-9.]*)mixed_two_scales-([0-9a-z\-]*).npy')
-    
+
     # T4
     if data_to_use == 3:
         # params = dict(label='T4_inabstract', files='Data/mixed_ratio_2scales_search/T4/ratioconj_2scales*.npy*', regexp='^[a-zA-Z_\/0-9]*-ratioconj([0-9.]*)T[0-9]*alpha[0-9.]*N[0-9.]*K[0-9]*numsamples[0-9]*nbrepeats([0-9.]*)nbexperiments([0-9.]*)mixed_two_scales-([0-9a-z\-]*).npy')
@@ -238,14 +238,14 @@ def combine_mixed_two_scales(data_to_use = 0, should_plot=True):
 
         # New datagen, N500
         # params = dict(label='T4_newdata_n500', files='Data/mixed_ratio_2scales_search/new_datagen/N500/T4/ratioconj_2scales*.npy*', regexp='^[a-zA-Z_\/0-9]*-ratioconj([0-9.]*)T[0-9]*alpha[0-9.]*N[0-9.]*numsamples[0-9]*nbrepeats([0-9.]*)nbexperiments([0-9.]*)mixed_two_scales-([0-9a-z\-]*).npy')
-    
+
 
     # Get all output files
     all_output_files = glob.glob(params['files'])
     # all_output_files = glob.glob('Data/mixed_ratio_2scales_search/T2/ratioconj_2scales*.npy*')
     # all_output_files = glob.glob('Data/mixed_ratio_2scales_search/T2_N300_K50/cpy/ratioconj_2scales*.npy*')
     # all_output_files = glob.glob('Data/mixed_ratio_2scales_search/T2_N300_K100/ratioconj_2scales*.npy*')
-    
+
     assert len(all_output_files) > 0, "Wrong regular expression"
 
     # Iterate over them, load the corresponding signal and compute its metric
@@ -253,13 +253,13 @@ def combine_mixed_two_scales(data_to_use = 0, should_plot=True):
     all_precisions = {}
 
     for curr_file in all_output_files:
-        
+
         # Do a nice regular expression to catch the parameters and remove the useless random unique string
         matched = re.search(params['regexp'], curr_file)
         # matched = re.search('^[a-zA-Z_\/0-9]*-ratioconj([0-9.]*)T[0-9]*alpha[0-9.]*N[0-9.]*numsamples[0-9]*nbrepeats([0-9.]*)nbexperiments([0-9.]*)mixed_two_scales-([0-9a-z\-]*).npy', curr_file)
         # matched = re.search('^[a-zA-Z_\/0-9]*-ratioconj([0-9.]*)T[0-9]*alpha[0-9.]*N[0-9.]*K[0-9]*numsamples[0-9]*nbrepeats([0-9.]*)nbexperiments([0-9.]*)mixed_two_scales-([0-9a-z\-]*).npy', curr_file)
-        
-        
+
+
         # Get ratioconj
         curr_ratioconj = float(matched.groups()[0])
         all_ratioconj.append(curr_ratioconj)
@@ -269,10 +269,10 @@ def combine_mixed_two_scales(data_to_use = 0, should_plot=True):
         nb_experiments = int(len(all_output_files))
 
         print str(curr_ratioconj)
-        
+
         # Load the data
         curr_output = np.load(curr_file).item()
-        
+
         # Reload some things
         param1_space    = curr_output['param1_space']
         param2_space    = curr_output['param2_space']
@@ -284,9 +284,9 @@ def combine_mixed_two_scales(data_to_use = 0, should_plot=True):
             all_precisions[curr_ratioconj].append(curr_precisions)
         else:
             all_precisions[curr_ratioconj] = [curr_precisions]
-    
+
     all_ratioconj = np.sort(np.unique(all_ratioconj))
-    
+
     nb_experiments /= all_ratioconj.size
 
     nb_ratios = all_ratioconj.size
@@ -325,9 +325,9 @@ def combine_mixed_two_scales(data_to_use = 0, should_plot=True):
             ax.set_ylabel('Scale of feature cells')
             f.colorbar(im)
             ax.set_title('Precision for Ratio conjunctive=%.3f' % all_ratioconj[ratioconj_i])
-     
+
     if True:
-           
+
         # Plots for abstract
         if False:
             optcurve = np.mean(np.min(mean_invprecisions,1),1)
@@ -361,7 +361,7 @@ def combine_mixed_two_scales(data_to_use = 0, should_plot=True):
             plt.figure()
             plt.plot(np.arange(nb_ratios), optcurve)
             plt.title('median median invprecision, full')
-            
+
             optcurve = np.median(np.min(mean_invprecisions,1),1)
             plt.figure()
             plt.plot(np.arange(nb_ratios), optcurve)
@@ -371,7 +371,7 @@ def combine_mixed_two_scales(data_to_use = 0, should_plot=True):
             plt.figure()
             plt.plot(np.arange(nb_ratios), optcurve)
             plt.title('mean mean invprecision, full')
-        
+
         if False:
             # Those are wrong averages
             optcurve = np.mean(np.max(1./mean_invprecisions,1),1)
@@ -385,7 +385,7 @@ def combine_mixed_two_scales(data_to_use = 0, should_plot=True):
             optcurve = np.median(np.median(1./mean_invprecisions,1),1)
             plot_mean_std_area(np.arange(nb_ratios), optcurve, np.std(np.std(mean_invprecisions - optcurve[:,np.newaxis, np.newaxis] ,1),1))
             plt.title('median median precision, full')
-            
+
             optcurve = np.mean(np.mean(1./mean_invprecisions,1),1)
             plot_mean_std_area(np.arange(nb_ratios), optcurve, np.std(np.std(mean_invprecisions - optcurve[:,np.newaxis, np.newaxis] ,1),1))
             plt.title('mean mean precision, full')
@@ -394,15 +394,15 @@ def combine_mixed_two_scales(data_to_use = 0, should_plot=True):
             optcurve = np.mean(np.max(mean_precisions,1),1)
             plot_mean_std_area(np.arange(nb_ratios), optcurve, np.std(np.std(mean_precisions-optcurve[:,np.newaxis, np.newaxis], 1),1))
             plt.title('Mean max precision, full')
-            
+
             optcurve = np.median(np.median(mean_precisions,1),1)
             plot_mean_std_area(np.arange(nb_ratios), optcurve, np.std(np.std(mean_precisions - optcurve[:,np.newaxis, np.newaxis] ,1),1))
             plt.title('median median precision, full')
-            
+
             optcurve = np.mean(np.mean(mean_precisions,1),1)
             plot_mean_std_area(np.arange(nb_ratios), optcurve, np.std(np.std(mean_precisions - optcurve[:,np.newaxis, np.newaxis] ,1),1))
             plt.title('mean mean precision, full')
-            
+
             optcurve = np.max(np.max(mean_precisions,1),1)
             plot_mean_std_area(np.arange(nb_ratios), optcurve, np.std(np.std(mean_precisions - optcurve[:,np.newaxis, np.newaxis] ,1),1))
             plt.title('max max precision, full')
@@ -416,11 +416,11 @@ def combine_mixed_two_scales(data_to_use = 0, should_plot=True):
             optcurve = np.mean(np.max(mean_precision_restr,1),1)
             plot_mean_std_area(np.arange(nb_ratios), optcurve, np.std(np.std(mean_precision_restr-optcurve[:,np.newaxis, np.newaxis], 1),1))
             plt.title('mean max precision, restricted to lower half')
-        
+
         stdcurve = np.zeros(all_ratioconj.size)
 
         # optcurve = np.mean(np.mean(mean_precisions,1),1)
-        
+
         # if args.T ==1:
         #     optcurve = np.max(np.max(mean_precisions[:,:,4:-1],1),1) # works
         # elif args.T == 2:
@@ -430,7 +430,7 @@ def combine_mixed_two_scales(data_to_use = 0, should_plot=True):
         # stdcurve = np.zeros(all_ratioconj.size)
 
         optcurve = np.max(np.max(1./mean_invprecisions[:, :, 0:], 1), 1)
-        
+
         # # plot_mean_std_area(np.arange(nb_ratios), optcurve, np.std(np.std(mean_precisions - optcurve[:,np.newaxis, np.newaxis] ,1),1))
         # plt.title('mean mean precision, full')
 
@@ -458,8 +458,8 @@ def combine_mixed_two_scales(data_to_use = 0, should_plot=True):
             plot_mean_std_area(np.arange(nb_ratios), optcurve, stdcurve)
             plt.title('max max precision, full')
             plt.show()
-        
-    
+
+
     return locals()
 
 
@@ -473,7 +473,7 @@ def plot_effect_ratioconj():
         all_vars = combine_mixed_two_scales(i, should_plot=False)
         all_optcurve[i] = all_vars['optcurve']
         all_optcurve_std[i] = all_vars['stdcurve']
-        
+
     x = 0.1*np.arange(nb_ratios)
     f = plt.figure()
     ax = f.add_subplot(111)
@@ -482,12 +482,12 @@ def plot_effect_ratioconj():
         # ax = plot_mean_std_area(x, all_optcurve[i], all_optcurve_std[i], ax_handle=ax)
     for i in xrange(T_max):
         ax.plot(x, all_optcurve[i], linewidth=2)
-    
+
     plt.rcParams['font.size'] = 17
-    
+
     legends=['%d items' % (x+1) for x in xrange(T_max)]
     legends[0] = '1 item'
-    
+
     # plt.legend(legends, loc='upper center', bbox_to_anchor=(0.5, 1.01), ncol=4, shadow=True)
     plt.legend(legends, loc='upper center', bbox_to_anchor=(0.5, 1.01), ncol=4, fancybox=True, borderpad=0.3, columnspacing=0.5, borderaxespad=0.7, handletextpad=0, handlelength=1.5)
     # plt.xlabel('Ratio conjunctive/feature cells')
@@ -504,14 +504,14 @@ def combine_multiple_memory_curve():
     # all_output_files = glob.glob('Data/memory_curves/conj/conj_multiple_memories-*.npy*')
     all_output_files = glob.glob('Data/memory_curves/cosyne_poster/conj_multiple_memories-*alpha0.89N*.npy*')
     # all_output_files = glob.glob('Data/memory_curves/cosyne_poster/sigmay0_1/conj_multiple_memories-*alpha0.92N*.npy*')
-    
+
     assert len(all_output_files) > 0, "Wrong regular expression"
 
     # Iterate over them, load the corresponding signal and compute its metric
     all_precisions = []
 
     for curr_file in all_output_files:
-        
+
         # Do a nice regular expression to catch the parameters and remove the useless random unique string
         # matched = re.search('^[a-zA-Z_\/0-9]*-T([0-9]*)alpha[0-9.]*M[0-9]*N[0-9.]*rcscale[0-9.]*sigmax[0-9.]*nbrepeats([0-9.]*)nbexperiments([0-9.]*)multiple_memory_curve-([0-9a-z\-]*).npy', curr_file)
         matched = re.search('^[a-zA-Z_\/0-9]*-T([0-9]*)alpha[0-9.]*N[0-9.]*rcscale[0-9.]*sigmax[0-9.]*nbrepeats([0-9.]*)nbexperiments([0-9.]*)multiple_memory_curve-([0-9a-z\-]*).npy', curr_file)
@@ -519,24 +519,24 @@ def combine_multiple_memory_curve():
 
         # Get T
         T = int(matched.groups()[0])
-                
+
         # Get nbrepeats and nbexperiments
         nb_repeats = int(matched.groups()[1])
         nb_experiments = int(len(all_output_files))
 
         print str(T)
-        
+
         # Load the data
         curr_output = np.load(curr_file).item()
-        
+
         # Reload some things
         args            = curr_output['args']
         curr_precisions = curr_output['all_precisions']
 
         # Store it
         all_precisions.append(curr_precisions)
-        
-    
+
+
     # nb_experiments /= all_ratioconj.size
 
     # Now have to put everything in a nice 4D array...
@@ -567,7 +567,7 @@ def combine_multiple_memory_curve():
 
 
     plt.rcParams['font.size'] = 17
-    
+
     f = plt.figure()
     ax = f.add_subplot(111)
     for t in xrange(T):
@@ -575,7 +575,7 @@ def combine_multiple_memory_curve():
         # plot_mean_std_area(t_space_aligned_right, np.mean(1./all_precisions[t],1)[:t+1], np.std(1./all_precisions[t],1)[:t+1], ax_handle=ax)
         # semilogy_mean_std_area(t_space_aligned_right, np.mean(1./all_precisions[t],1)[:t+1], np.std(1./all_precisions[t],1)[:t+1], ax_handle=ax)
         # plt.semilogy(t_space_aligned_right, np.mean(1./results_array[t],1)[:t+1], 'o-')
-        
+
         # plt.plot(t_space_aligned_right, np.mean(1./results_array[t],1)[:t+1], 'o-')
         plt.plot(t_space_aligned_right, mean_results[t, :t+1], 'o-', markersize=8, linewidth=2)
         # plot_mean_std_area(t_space_aligned_right, mean_precision[t, :t+1], std_precision[t, :t+1], ax_handle=ax)
@@ -650,11 +650,11 @@ def load_data_fromregexp(dataset_infos, debug=False):
     args_list = []
 
     for curr_file in all_output_files:
-        
+
         # Do a nice regular expression to catch the parameters and remove the useless random unique string
         # (advanced, uses named groups now)
         matched = re.search(dataset_infos['regexp'], curr_file)
-        
+
         if not matched:
             print curr_file
             print dataset_infos['regexp']
@@ -690,11 +690,11 @@ def load_data_fromregexp(dataset_infos, debug=False):
             print curr_file, curr_params
 
 
-    
+
     # Extract the unique parameter values
     for key, val in parameters_complete.items():
         parameters_uniques[key] = np.unique(val)
-    
+
     # Construct an indirection dictionary to give parameter index based on its value
     parameters_indirections = dict()
     for param in dataset_infos['parameters']:
@@ -741,7 +741,7 @@ def load_data_fromargs(dataset_infos, debug=False):
     args_list = []
 
     for curr_file in all_output_files:
-        
+
         # Load the data
         curr_dataset = np.load(curr_file).item()
         datasets_list.append(curr_dataset)
@@ -793,11 +793,11 @@ def load_data_fromargs(dataset_infos, debug=False):
             print curr_file, curr_args
 
 
-    
+
     # Extract the unique parameter values
     for key, val in parameters_complete.items():
         parameters_uniques[key] = np.unique(val)
-    
+
     # Construct an indirection dictionary to give parameter index based on its value
     parameters_indirections = dict()
     for param in dataset_infos['parameters']:
@@ -844,7 +844,7 @@ def construct_numpyarray_specified_output_from_datasetlists(loaded_data, output_
     fullarray_shape.extend(results_shape)
 
     print '%s dimensions: %s' % (output_variable_desired, fullarray_shape)
-    
+
     # Initialize with NaN.
     results_array = np.ones(fullarray_shape)*np.nan
 
@@ -957,7 +957,7 @@ def curves_memorypowerlaw_100712(loaded_data, all_results_array, parameters = No
             powerlaw_params:                Subplot showing the powerlaw fitted parameters, as fct of rcscale. One curve per numsample.
             powerlaw_imshow:                (same, but 2D, sometimes better.)
     '''
-    
+
     # Should extract the appropriate numselectedsamples points, the overall array is very sparse...
     # (done: numselectedsamples: 50, numsamples/2, numsamples)
     all_indices = all_results_array['all_precisions']['indices']
@@ -1072,24 +1072,24 @@ def curves_memorypowerlaw_100712(loaded_data, all_results_array, parameters = No
     ### Do the appropriate plots
     for data_filter in data_filters:
         if data_filter in do_plots:
-            
+
             #### Filter the data
             # all_precisions: rcscale . samples . numselectedsamples . number of objects . repetitions
             if data_filter == 'numselected50':
                 selectionnumsamples_filter = loaded_data['parameters_indirections']['selectionnumsamples'][50.0]
-                
+
                 title_label = 'selection_num_samples = 50'
 
             elif data_filter == 'numselectedall':
                 selectionnumsamples_filter = np.nonzero([x in loaded_data['parameters_uniques']['numsamples'] for x in loaded_data['parameters_uniques']['selectionnumsamples']])[0]
-                
+
                 title_label = 'selection_num_samples = num_samples'
 
             elif data_filter == 'numselectedhalf':
                 selectionnumsamples_filter = np.nonzero([x*2. in loaded_data['parameters_uniques']['numsamples'] for x in loaded_data['parameters_uniques']['selectionnumsamples']])[0]
-                
+
                 title_label = 'selection_num_samples = 0.5 * num_samples'
-            
+
             # Remove unfinished simulatons. Works, but looking for 0.0 values is easier and does the same...
             # if 'repet_i' in all_results_array:
             #     for curr_index in all_indices:
@@ -1103,10 +1103,10 @@ def curves_memorypowerlaw_100712(loaded_data, all_results_array, parameters = No
 
             # Assume that unfinished simulations got a result of 0.0 exactly. Works quite well.
             precisions_filtered[precisions_filtered == 0.0] = np.nan
-            
+
             mean_precisions_filtered = nanmean(precisions_filtered, axis=-1)
             std_precisions_filtered = nanstd(precisions_filtered, axis=-1)
-                
+
 
             ##### Do the appropriate plots.
             if 'precision_rcscale' in do_plots:
@@ -1115,7 +1115,7 @@ def curves_memorypowerlaw_100712(loaded_data, all_results_array, parameters = No
 
             if 'precision_samples' in do_plots:
                 plots_precision_numsamples(loaded_data, mean_precisions_filtered, std_precisions_filtered)
-        
+
             if 'precision_1obj_maxsamples' in do_plots:
                 plot_precision_1obj_maxsamples(loaded_data, mean_precisions_filtered, std_precisions_filtered, sqrt_x_values=sqrt_x_values)
 
@@ -1133,17 +1133,17 @@ def curves_memorypowerlaw_maxll_260712(loaded_data, all_results_array, parameter
     '''
         Similar to curves_memorypowerlaw_100712, but no samples and selectionnumsamples
     '''
-    
+
     # all_precisions: rcscale . number of objects . repetitions
     precision_results = all_results_array['all_precisions']['results']
     # power_law_params: rcscale . 2 (exponent, bias)
     power_law_params = all_results_array['power_law_params']['results']
 
     # all_indices = all_results_array['all_precisions']['indices']
-    
+
     # Now do the mean, but only take up to the computed values (the others are 0)
     # Try to use repet_i if available...
-    
+
     # Initialise the array with the good shapes
     mean_precisions = np.zeros(precision_results.shape[:-1])
     std_precisions = np.zeros(precision_results.shape[:-1])
@@ -1165,7 +1165,7 @@ def curves_memorypowerlaw_maxll_260712(loaded_data, all_results_array, parameter
     # Plot memory curves for different rcscales
     for rcscale_i in xrange(mean_precisions.shape[0]):
         plot_mean_std_area(np.arange(1, 7), mean_precisions[rcscale_i], std_precisions[rcscale_i])
-    
+
 
     # Plot
     plt.figure()
@@ -1178,7 +1178,7 @@ def curves_memorypowerlaw_maxll_260712(loaded_data, all_results_array, parameter
     plt.plot(loaded_data['parameters_uniques']['rcscale'], power_law_params[:, 1])
     # plt.xlim((loaded_data['parameters_uniques']['rcscale'].min(), loaded_data['parameters_uniques']['rcscale'].max()*1.1))
     plt.title('Powerlaw bias. Vary rcscale, selection_num_samples = 50 (or 10, 20 for smaller num_samples)')
-    
+
     return locals()
 
 
@@ -1362,7 +1362,7 @@ if __name__ == '__main__':
     # all_vars = combine_mixed_two_scales(3)
     # all_vars = combine_multiple_memory_curve()
     # plot_effect_ratioconj()
-    
+
     all_vars = combine_multiple_memory_curve_simult_powerlaw(data_index=data_index)
 
     plt.show()

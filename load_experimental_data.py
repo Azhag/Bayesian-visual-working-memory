@@ -38,7 +38,7 @@ def load_data_simult(data_dir='../../experimental_data/', fit_mixture_model=Fals
         experim_datadir = os.environ.get('WORKDIR_DROP', os.path.split(utils.__file__)[0])
         data_dir = os.path.normpath(os.path.join(experim_datadir, data_dir))
 
-    expLoader = ExperimentalLoaderGorgo11Simultaneous(dict(name='gorgo11', filename='Exp2_withcolours.mat', datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), parameters=dict(fit_mixture_model=fit_mixture_model, mixture_model_cache='em_simult.pickle')))
+    expLoader = ExperimentalLoaderGorgo11Simultaneous(dict(name='gorgo11', filename='Exp2_withcolours.mat', datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), parameters=dict(fit_mixture_model=fit_mixture_model, mixture_model_cache='em_simult.pickle', collapsed_mixture_model_cache='collapsed_em_simult.pickle')))
 
     return expLoader.dataset
 
@@ -60,7 +60,7 @@ def load_data_gorgo11_sequential(data_dir='../../experimental_data/', fit_mixtur
         experim_datadir = os.environ.get('WORKDIR_DROP', os.path.split(utils.__file__)[0])
         data_dir = os.path.normpath(os.path.join(experim_datadir, data_dir))
 
-    expLoader = ExperimentalLoaderGorgo11Sequential(dict(name='gorgo11seq', filename='Exp1.mat', datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), parameters=dict(fit_mixture_model=fit_mixture_model, mixture_model_cache='em_gorgo_seq.pickle')))
+    expLoader = ExperimentalLoaderGorgo11Sequential(dict(name='gorgo11seq', filename='Exp1.mat', datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), parameters=dict(fit_mixture_model=fit_mixture_model, mixture_model_cache='em_gorgo_seq.pickle', collapsed_mixture_model_cache='collapsed_em_gorgo_seq.pickle')))
 
     return expLoader.dataset
 
@@ -74,7 +74,7 @@ def load_data_bays09(data_dir='../../experimental_data/', fit_mixture_model=Fals
         experim_datadir = os.environ.get('WORKDIR_DROP', os.path.split(utils.__file__)[0])
         data_dir = os.path.normpath(os.path.join(experim_datadir, data_dir))
 
-    expLoader = ExperimentalLoaderBays09(dict(name='bays09', filename='colour_data.mat', datadir=os.path.join(data_dir, 'Bays2009'), parameters=dict(fit_mixture_model=fit_mixture_model, mixture_model_cache='em_bays_allitems.pickle')))
+    expLoader = ExperimentalLoaderBays09(dict(name='bays09', filename='colour_data.mat', datadir=os.path.join(data_dir, 'Bays2009'), parameters=dict(fit_mixture_model=fit_mixture_model, mixture_model_cache='em_bays_allitems.pickle', collapsed_mixture_model_cache='collapsed_em_bays.pickle')))
 
     return expLoader.dataset
 
@@ -89,7 +89,7 @@ def load_data_dualrecall(data_dir='../../experimental_data/', fit_mixture_model=
         experim_datadir = os.environ.get('WORKDIR_DROP', os.path.split(utils.__file__)[0])
         data_dir = os.path.normpath(os.path.join(experim_datadir, data_dir))
 
-    expLoader = ExperimentalLoaderDualRecall(dict(name='dualrecall', filename=os.path.join(data_dir, 'DualRecall_Bays', 'rate_data.mat'), parameters=dict(fit_mixture_model=fit_mixture_model, mixture_model_cache='em_dualrecall_allitems.pickle')))
+    expLoader = ExperimentalLoaderDualRecall(dict(name='dualrecall', filename=os.path.join(data_dir, 'DualRecall_Bays', 'rate_data.mat'), parameters=dict(fit_mixture_model=fit_mixture_model, mixture_model_cache='em_dualrecall_allitems.pickle', collapsed_mixture_model_cache='collapsed_em_dualrecall.pickle')))
 
     return expLoader.dataset
 
@@ -113,7 +113,7 @@ if __name__ == '__main__':
         # (data_bays2009, ) = load_multiple_datasets([dict(name='Bays2009', filename='colour_data.mat', parameters=dict(datadir=os.path.join(data_dir, 'Bays2009'), fit_mixture_model=True, mixture_model_cache='em_bays.pickle', should_compute_bootstrap=True, bootstrap_cache='bootstrap_1000samples.pickle'))])
 
         # data_bays2009 = load_data_bays09(data_dir=data_dir, fit_mixture_model=True)
-        # data_gorgo11 = load_data_gorgo11(data_dir=data_dir, fit_mixture_model=True)
+        data_gorgo11 = load_data_gorgo11(data_dir=data_dir, fit_mixture_model=True)
         # data_dualrecall = load_data_dualrecall(data_dir=data_dir, fit_mixture_model=True)
         data_gorgo11_sequ = load_data_gorgo11_sequential(data_dir=data_dir, fit_mixture_model=True)
 
@@ -153,7 +153,6 @@ if __name__ == '__main__':
     # plots_check_bias_nontarget(data_simult, dataio=dataio)
     # plots_check_bias_bestnontarget(data_simult, dataio=dataio)
     # plots_check_bias_nontarget_randomized(data_simult, dataio=dataio)
-
     # plots_bays2009(data_bays2009, dataio=dataio)
 
     # dataio = DataIO.DataIO(label='experiments_gorgo11')
@@ -167,6 +166,13 @@ if __name__ == '__main__':
 
     # dataio = DataIO.DataIO(label='experiments_gorgo11')
     # plot_bias_close_feature(data_gorgo11, dataio)
+
+    if False:
+        for subj in data_bays2009['data_subject_split']['subjects_space'][:5]:
+            for nitems_i, nitems in enumerate(data_bays2009['data_subject_split']['nitems_space']):
+                utils.scatter_marginals(data_bays2009['data_subject_split']['data_subject'][subj]['targets'][nitems_i], data_bays2009['data_subject_split']['data_subject'][subj]['responses'][nitems_i], title='Subject %d, %d items' % (subj, nitems))
+
+    plots_gorgo11_sequential(data_gorgo11_sequ)
 
     plt.show()
 

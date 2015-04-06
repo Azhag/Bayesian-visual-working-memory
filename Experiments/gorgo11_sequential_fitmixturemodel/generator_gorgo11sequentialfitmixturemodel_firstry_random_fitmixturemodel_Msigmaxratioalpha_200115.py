@@ -18,9 +18,12 @@ submit_jobs = True
 
 parameter_generation = 'random'  ## !!!!!! RANDOM HERE   !!!!!
 num_random_samples = 5000
-limit_max_queued_jobs = 70
+limit_max_queued_jobs = 50
 
 resource = ''
+# partition = 'wrkstn'
+# partition = 'test'
+# partition = 'intel-ivy'
 
 # submit_cmd = 'qsub'
 submit_cmd = 'sbatch'
@@ -70,6 +73,7 @@ pbs_submission_infos = dict(description='Fitting of experimental data for Sequen
                             limit_max_queued_jobs=limit_max_queued_jobs,
                             submit_label='seq_fitmixt_1st',
                             resource=resource,
+                            partition=partition,
                             qos='auto')
 
 if getpass.getuser() == 'dc-matt1':

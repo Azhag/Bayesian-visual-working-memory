@@ -331,6 +331,8 @@ def plots_bays2009(dataset, dataio=None):
 
     plots_em_mixtures(dataset, dataio)
 
+    plots_collapsed_em_mixtures(dataset, dataio)
+
 
 def plots_gorgo11(dataset, dataio=None):
     '''
@@ -341,6 +343,8 @@ def plots_gorgo11(dataset, dataio=None):
     plots_precision(dataset, dataio)
 
     plots_em_mixtures(dataset, dataio)
+
+    plots_collapsed_em_mixtures(dataset, dataio)
 
 
 def plots_gorgo11_sequential(dataset, dataio=None):
@@ -643,4 +647,87 @@ def plot_bias_close_feature(dataset, dataio=None):
     if dataio:
         f.set_size_inches(16, 16, forward=True)
         dataio.save_current_figure('plot_bias_close_feature_{label}_{unique_id}.pdf')
+
+
+
+def plot_compare_bic_collapsed_mixture_model(dataset, dataio=None):
+    '''
+        Check what models fits the data best using the BIC
+
+        As we have one BIC per subject (collapsed) and one BIC per subject / n_item (non-collapsed), we need to sum them properly somehow.
+    '''
+
+    collapsed_bic = np.empty((dataset['data_subject_split']['subjects_space'].size))
+    for subject, subject_data in dataset['collapsed_em_fits_subjects'].iteritems():
+        collapsed_bic[subject-1] = subject_data['bic']
+
+    separate_bic = np.empty((dataset['data_subject_split']['subjects_space'].size, dataset['data_subject_split']['nitems_space'].size))
+    for subject_i, subject_data in enumerate(dataset['em_fits_subjects_nitems'].values()):
+        for nitems_i, nitems_data in enumerate(subject_data.values()):
+            separate_bic[subject_i, nitems_i] = nitems_data['bic']
+
+
+    print 'Collapsed summed BIC: ', np.sum(collapsed_bic)
+    print 'Original non-collapsed BIC: ', np.sum(separate_bic)
+
+    f, ax = plt.subplots()
+    ax.plot(np.sum(separate_bic, axis=-1), collapsed_bic, 'x', markersize=10)
+
+    ixx = np.linspace(collapsed_bic.min()*0.95, collapsed_bic.max()*1.05, 100)
+    ax.plot(ixx, ixx, '--k')
+
+    ax.set_aspect('equal')
+    ax.set_xlabel('Non-collapsed BIC per subject')
+    ax.set_ylabel('Collapsed BIC per subject')
+    f.canvas.draw()
+
+
+def plots_collapsed_em_mixtures(dataset, dataio=None, use_sem=True):
+    '''
+        Do plots for the mixture models and kappa
+    '''
+    T_space_exp = dataset['data_subject_split']['nitems_space']
+
+    f, ax = plt.subplots()
+
+    if use_sem:
+        errorbars = 'sem'
+    else:
+        errorbars = 'std'
+
+    # Mixture probabilities
+    utils.plot_mean_std_area(T_space_exp, dataset['collapsed_em_fits']['mean']['mixt_target'], np.ma.masked_invalid(dataset['collapsed_em_fits'][errorbars]['mixt_target']).filled(0.0), xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Target')
+    utils.plot_mean_std_area(T_space_exp, np.ma.masked_invalid(dataset['collapsed_em_fits']['mean']['mixt_nontargets_sum']).filled(0.0), np.ma.masked_invalid(dataset['collapsed_em_fits'][errorbars]['mixt_nontargets_sum']).filled(0.0), xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Nontarget')
+    utils.plot_mean_std_area(T_space_exp, dataset['collapsed_em_fits']['mean']['mixt_random'], np.ma.masked_invalid(dataset['collapsed_em_fits'][errorbars]['mixt_random']).filled(0.0), xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Random')
+
+    ax.legend(prop={'size':15})
+
+    ax.set_title('Mixture model for Collapsed EM fit %s' % dataset['name'])
+    ax.set_xlim([1.0, T_space_exp.max()])
+    ax.set_ylim([0.0, 1.1])
+    ax.set_xticks(range(1, T_space_exp.max()+1))
+    ax.set_xticklabels(range(1, T_space_exp.max()+1))
+
+    f.canvas.draw()
+
+    if dataio is not None:
+        dataio.save_current_figure('collapsedemfits_mixtures_{label}_{unique_id}.pdf')
+
+    # Kappa
+    f, ax = plt.subplots()
+
+    ax = utils.plot_mean_std_area(T_space_exp,
+    dataset['collapsed_em_fits']['mean']['kappa'], np.ma.masked_invalid(dataset['collapsed_em_fits'][errorbars]['kappa']).filled(0.0), linewidth=3, fmt='o-', markersize=8, ylabel='Experimental data', ax_handle=ax)
+
+    ax.legend(prop={'size':15})
+    ax.set_title('Kappa for Collapsed EM fit %s' % dataset['name'])
+    ax.set_xlim([0.9, T_space_exp.max()+0.1])
+    ax.set_ylim([0.0, np.max(dataset['collapsed_em_fits']['mean']['kappa'])*1.1])
+    ax.set_xticks(range(1, T_space_exp.max()+1))
+    ax.set_xticklabels(range(1, T_space_exp.max()+1))
+    ax.get_figure().canvas.draw()
+
+    if dataio is not None:
+        dataio.save_current_figure('collapsedemfits_kappa_{label}_{unique_id}.pdf')
+
 

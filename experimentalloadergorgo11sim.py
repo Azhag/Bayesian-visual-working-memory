@@ -69,6 +69,13 @@ class ExperimentalLoaderGorgo11Simultaneous(ExperimentalLoader):
         ## Save item in a nice format for the model fit
         self.generate_data_to_fit()
 
+        # Save data in a better format to fit the new collapsed mixture model
+        self.generate_data_subject_split()
+
+        # Fit the new Collapsed mixture model
+        if parameters.get('fit_mixture_model', False):
+            self.fit_collapsed_mixture_model_cached(caching_save_filename=parameters.get('collapsed_mixture_model_cache', None))
+
         # Perform Vtest for circular uniformity
         self.compute_vtest()
 

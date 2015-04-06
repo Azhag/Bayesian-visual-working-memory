@@ -191,11 +191,15 @@ class SubmitPBS():
             jobname = self.submit_label[:max_name_length]
         elif self.pbs_submit_cmd == 'sbatch':
             # Using SLURM
-            queue_status = subprocess.Popen(['squeue', '-h', '-o', '%i %j %u'], stdout=subprocess.PIPE)
+            queue_status = subprocess.Popen(['squeue', '-h', '-o', '%i %j %u %P'], stdout=subprocess.PIPE)
             jobname = self.submit_label
 
         lines = queue_status.communicate()[0].splitlines()
-        self.num_queued_jobs = len([line for line in lines if username in line and jobname in line])
+
+        if self.partition:
+            self.num_queued_jobs = len([line for line in lines if username in line and jobname in line and self.partition in line])
+        else:
+            self.num_queued_jobs = len([line for line in lines if username in line and jobname in line])
 
 
     def wait_queue_not_full(self, sleeping_period=dict(min=30, max=180)):
