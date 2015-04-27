@@ -372,7 +372,7 @@ class ExperimentalLoaderGorgo11Sequential(ExperimentalLoader):
 
                     # Inverting indexing of trecall, to be more logical
                     trecall_i = n_items - trecall
-                    # print "Splitting data up: subject %d, %d items, trecall %d, %d datapoints" % (subject, n_items, trecall, self.dataset['sizes_subject_nitems_trecall'][subject_i, n_items_i, trecall_i])
+                    print "Splitting data up: subject %d, %d items, trecall %d, %d datapoints" % (subject, n_items, trecall, self.dataset['sizes_subject_nitems_trecall'][subject_i, n_items_i, trecall_i])
 
                     # Create dict(subject) -> dict(n_items) -> dict(trecall) -> dict(nitems_space, response, target, nontargets, N)
                     # Fix the trecall indexing along the way!

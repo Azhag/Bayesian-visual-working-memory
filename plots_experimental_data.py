@@ -1,3 +1,4 @@
+
 import sys
 import numpy as np
 import scipy.io as sio
@@ -782,6 +783,9 @@ def plot_compare_bic_collapsed_mixture_model_sequential(dataset, dataio=None):
     axes[1].set_ylabel('Collapsed nitems BIC, subject/nitem')
     f.canvas.draw()
 
+    if dataio is not None:
+        dataio.save_current_figure('bic_separate_vs_collapsed_subjnitems_{label}_{unique_id}.pdf')
+
     # Now do one summed BIC per subject
     bic_collapsed_subjects_trecall_sum = np.nansum(bic_collapsed_subjects_trecall, axis=-1)
     bic_collapsed_subjects_nitems_sum = np.nansum(bic_collapsed_subjects_nitems, axis=-1)
@@ -809,9 +813,12 @@ def plot_compare_bic_collapsed_mixture_model_sequential(dataset, dataio=None):
     axes[1].set_ylabel('Collapsed nitems BIC, subject')
     f.canvas.draw()
 
+    if dataio is not None:
+        dataio.save_current_figure('bic_separate_vs_collapsed_subjects_{label}_{unique_id}.pdf')
+
     plt.show()
 
-    # 26.04.2015: find that collapsed model is worst for Sequential... bad :/
+    # Works well. Overall quite a huge improvement in BIC, as I thought.
 
 
 
@@ -882,15 +889,24 @@ def plots_gorgo11_sequential_collapsed(dataset, dataio=None, use_sem=True):
 
     plot_kappa_mean_error(T_space_exp, dataset['collapsed_em_fits_trecall']['mean'][trecall_fixed]['kappa'], dataset['collapsed_em_fits_trecall'][errorbars][trecall_fixed]['kappa'], title='collapsed_trecall')
 
+    if dataio is not None:
+        dataio.save_current_figure('fig6_trecalllast_kappa_{label}_{unique_id}.pdf')
+
     # Mixture probabilities
     ax = plot_emmixture_mean_error(T_space_exp, dataset['collapsed_em_fits_trecall']['mean'][trecall_fixed]['mixt_target'], dataset['collapsed_em_fits_trecall'][errorbars][trecall_fixed]['mixt_target'], title='collapsed_trecall', label='Target')
     ax = plot_emmixture_mean_error(T_space_exp, dataset['collapsed_em_fits_trecall']['mean'][trecall_fixed]['mixt_nontargets_sum'], dataset['collapsed_em_fits_trecall'][errorbars][trecall_fixed]['mixt_nontargets_sum'], title='collapsed_trecall', label='Nontarget', ax=ax)
     ax = plot_emmixture_mean_error(T_space_exp, dataset['collapsed_em_fits_trecall']['mean'][trecall_fixed]['mixt_random'], dataset['collapsed_em_fits_trecall'][errorbars][trecall_fixed]['mixt_random'], title='collapsed_trecall', label='Random', ax=ax)
 
+    if dataio is not None:
+        dataio.save_current_figure('fig6_trecalllast_mixt_{label}_{unique_id}.pdf')
+
     # Now do for all possible trecall
     f, ax = plt.subplots()
     for trecall in xrange(1, 7):
         ax = plot_kappa_mean_error(T_space_exp[(trecall-1):], dataset['collapsed_em_fits_trecall']['mean'][trecall]['kappa'], dataset['collapsed_em_fits_trecall'][errorbars][trecall]['kappa'], title='collapsed_trecall', ax=ax, label='tr=-%d' % trecall, xlabel='nitems')
+
+    if dataio is not None:
+        dataio.save_current_figure('collapsed_trecall_kappa_{label}_{unique_id}.pdf')
 
     _, ax_target = plt.subplots()
     _, ax_nontarget = plt.subplots()
@@ -900,6 +916,15 @@ def plots_gorgo11_sequential_collapsed(dataset, dataio=None, use_sem=True):
         ax_nontarget = plot_emmixture_mean_error(T_space_exp[(trecall-1):], dataset['collapsed_em_fits_trecall']['mean'][trecall]['mixt_nontargets_sum'], dataset['collapsed_em_fits_trecall'][errorbars][trecall]['mixt_nontargets_sum'], title='Nontarget collapsed_trecall', ax=ax_nontarget, label='tr=-%d' % trecall, xlabel='nitems')
         ax_random = plot_emmixture_mean_error(T_space_exp[(trecall-1):], dataset['collapsed_em_fits_trecall']['mean'][trecall]['mixt_random'], dataset['collapsed_em_fits_trecall'][errorbars][trecall]['mixt_random'], title='Random collapsed_trecall', ax=ax_random, label='tr=-%d' % trecall, xlabel='nitems')
 
+    if dataio is not None:
+        plt.figure(ax_target.get_figure().number)
+        dataio.save_current_figure('collapsed_trecall_mixttarget_{label}_{unique_id}.pdf')
+
+        plt.figure(ax_nontarget.get_figure().number)
+        dataio.save_current_figure('collapsed_trecall_mixtnontarget_{label}_{unique_id}.pdf')
+
+        plt.figure(ax_random.get_figure().number)
+        dataio.save_current_figure('collapsed_trecall_mixtrandom_{label}_{unique_id}.pdf')
 
     ####### Fit per nitem, t_recall on the x-axis #####
     ##
@@ -907,6 +932,9 @@ def plots_gorgo11_sequential_collapsed(dataset, dataio=None, use_sem=True):
     f, ax = plt.subplots()
     for nitem in xrange(1, 7):
         ax = plot_kappa_mean_error(T_space_exp[:nitem], dataset['collapsed_em_fits_nitems']['mean'][nitem]['kappa'], dataset['collapsed_em_fits_nitems'][errorbars][nitem]['kappa'], title='collapsed_nitem', ax=ax, label='%d items' % nitem, xlabel='T_recall')
+
+    if dataio is not None:
+        dataio.save_current_figure('fig7_nitem_kappa_{label}_{unique_id}.pdf')
 
     _, ax_target = plt.subplots()
     _, ax_nontarget = plt.subplots()
@@ -916,6 +944,8 @@ def plots_gorgo11_sequential_collapsed(dataset, dataio=None, use_sem=True):
         ax_nontarget = plot_emmixture_mean_error(T_space_exp[:nitem], dataset['collapsed_em_fits_nitems']['mean'][nitem]['mixt_nontargets_sum'], dataset['collapsed_em_fits_nitems'][errorbars][nitem]['mixt_nontargets_sum'], title='Nontarget collapsed_nitem', ax=ax_nontarget, label='%d items' % nitem, xlabel='T_recall')
         ax_random = plot_emmixture_mean_error(T_space_exp[:nitem], dataset['collapsed_em_fits_nitems']['mean'][nitem]['mixt_random'], dataset['collapsed_em_fits_nitems'][errorbars][nitem]['mixt_random'], title='Random collapsed_nitem', ax=ax_random, label='%d items' % nitem, xlabel='T_recall')
 
+    if dataio is not None:
+        dataio.save_current_figure('fig7_nitem_mixt_{label}_{unique_id}.pdf')
 
     # Show BIC scores
     collapsed_trecall_bic = np.array([np.sum(dataset['collapsed_em_fits_trecall']['values'][trecall]['bic']) for trecall in T_space_exp])
@@ -941,7 +971,8 @@ def plots_gorgo11_sequential_collapsed(dataset, dataio=None, use_sem=True):
 
     f.canvas.draw()
 
-
+    if dataio is not None:
+        dataio.save_current_figure('bic_comparison_sequential_{label}_{unique_id}.pdf')
 
     # plt.figure()
     # plt.plot(utils.fliplr_nonan(dataset['em_fits_nitems_trecall_arrays'][:maxItems, :maxItems, 0]).T, 'o-', linewidth=2)
