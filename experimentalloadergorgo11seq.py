@@ -72,7 +72,8 @@ class ExperimentalLoaderGorgo11Sequential(ExperimentalLoader):
 
         self.generate_data_subject_split()
 
-        self.fit_collapsed_mixture_model()
+        if parameters.get('fit_mixture_model', False):
+            self.fit_collapsed_mixture_model_cached(caching_save_filename=parameters.get('collapsed_mixture_model_cache', None), saved_keys=['collapsed_em_fits_subjects_nitems', 'collapsed_em_fits_nitems', 'collapsed_em_fits_subjects_trecall', 'collapsed_em_fits_trecall'])
 
         # Perform Vtest for circular uniformity
         # self.compute_vtest()
@@ -150,6 +151,7 @@ class ExperimentalLoaderGorgo11Sequential(ExperimentalLoader):
 
 
                     # Get the responses and correct item angles
+                    # TODO (lmatthey) trecall here is inverted, should really fix it somehow...
                     self.dataset['response_subject_nitems_trecall'][subject_i, n_items_i, trecall_i] = self.dataset['response'][ids_filtered].flatten()
                     self.dataset['item_angle_subject_nitems_trecall'][subject_i, n_items_i, trecall_i] = self.dataset['item_angle'][ids_filtered]
 
@@ -340,13 +342,15 @@ class ExperimentalLoaderGorgo11Sequential(ExperimentalLoader):
 
     def generate_data_subject_split(self):
         '''
-            Split the data to get per-subject fits:
+            Split the data to get per-subject fits
+
+            Fix trecall so that trecall=0 last queried. trecall=1 second to last, etc...
         '''
 
         self.dataset['data_subject_split'] = {}
         self.dataset['data_subject_split']['nitems_space'] = np.unique(self.dataset['n_items'])
         self.dataset['data_subject_split']['subjects_space'] = np.unique(self.dataset['subject'])
-        self.dataset['data_subject_split']['data_subject_nitems'] = dict()
+        self.dataset['data_subject_split']['data_subject_nitems_trecall'] = dict()
         self.dataset['data_subject_split']['data_subject'] = dict()
         self.dataset['data_subject_split']['data_subject_largest'] = dict()
         self.dataset['data_subject_split']['subject_smallestN'] = dict()
@@ -354,20 +358,28 @@ class ExperimentalLoaderGorgo11Sequential(ExperimentalLoader):
 
         for subject_i, subject in enumerate(self.dataset['data_subject_split']['subjects_space']):
 
+            self.dataset['data_subject_split']['data_subject_nitems_trecall'][subject] = dict()
+
             # Find the smallest number of samples for later
             self.dataset['data_subject_split']['subject_smallestN'][subject] = np.inf
 
             # Create dict(subject) -> dict(nitems_space, response, target, nontargets)
-            for n_items_i, n_items in enumerate(self.dataset['data_subject_split']['nitems_space']):
-                for trecall_i, trecall in enumerate(np.arange(1, n_items+1)):
+            for n_items_i, n_items in enumerate(self.dataset['data_subject_split']['nitems_space'] ):
 
-                    print "Splitting data up: subject %d, %d items, trecall %d, %d datapoints" % (subject, n_items, trecall, self.dataset['sizes_subject_nitems_trecall'][subject_i, n_items_i, trecall_i])
+                self.dataset['data_subject_split']['data_subject_nitems_trecall'][subject][n_items] = dict()
 
-                    # Create dict(subject) -> dict(n_items) -> dict(nitems_space, response, target, nontargets, N)
-                    self.dataset['data_subject_split']['data_subject_nitems'].setdefault(subject, dict())[n_items] = dict(
+                for trecall in np.arange(1, n_items+1):
+
+                    # Inverting indexing of trecall, to be more logical
+                    trecall_i = n_items - trecall
+                    # print "Splitting data up: subject %d, %d items, trecall %d, %d datapoints" % (subject, n_items, trecall, self.dataset['sizes_subject_nitems_trecall'][subject_i, n_items_i, trecall_i])
+
+                    # Create dict(subject) -> dict(n_items) -> dict(trecall) -> dict(nitems_space, response, target, nontargets, N)
+                    # Fix the trecall indexing along the way!
+                    self.dataset['data_subject_split']['data_subject_nitems_trecall'][subject][n_items][trecall] = dict(
                             N=self.dataset['sizes_subject_nitems_trecall'][subject_i][n_items_i][trecall_i],
-                            response=self.dataset['response_subject_nitems_trecall'][subject_i][n_items_i][trecall_i],
-                            target=self.dataset['target_subject_nitems_trecall'][subject_i][n_items_i][trecall_i],
+                            responses=self.dataset['response_subject_nitems_trecall'][subject_i][n_items_i][trecall_i],
+                            targets=self.dataset['target_subject_nitems_trecall'][subject_i][n_items_i][trecall_i],
                             nontargets=self.dataset['nontargets_subject_nitems_trecall'][subject_i][n_items_i][trecall_i][..., :(n_items - 1)]
                         )
 
@@ -389,9 +401,12 @@ class ExperimentalLoaderGorgo11Sequential(ExperimentalLoader):
 
             for n_items_i, n_items in enumerate(self.dataset['data_subject_split']['nitems_space']):
                 for trecall_i, trecall in enumerate(np.arange(1, n_items+1)):
-                    self.dataset['data_subject_split']['data_subject'][subject]['responses'][n_items_i, trecall_i] = self.dataset['response_subject_nitems_trecall'][subject_i][n_items_i][trecall_i][:self.dataset['data_subject_split']['subject_smallestN'][subject_i]]
-                    self.dataset['data_subject_split']['data_subject'][subject]['targets'][n_items_i, trecall_i] = self.dataset['target_subject_nitems_trecall'][subject_i][n_items_i][trecall_i][:self.dataset['data_subject_split']['subject_smallestN'][subject_i]]
-                    self.dataset['data_subject_split']['data_subject'][subject]['nontargets'][n_items_i, trecall_i, :, :(n_items - 1)] = self.dataset['nontargets_subject_nitems_trecall'][subject_i][n_items_i][trecall_i][..., :(n_items - 1)][:self.dataset['data_subject_split']['subject_smallestN'][subject_i]]
+                    self.dataset['data_subject_split']['data_subject_nitems_trecall'][subject][n_items][trecall]['responses']
+
+                    self.dataset['data_subject_split']['data_subject'][subject]['responses'][n_items_i, trecall_i] = self.dataset['data_subject_split']['data_subject_nitems_trecall'][subject][n_items][trecall]['responses'][:self.dataset['data_subject_split']['subject_smallestN'][subject_i]]
+
+                    self.dataset['data_subject_split']['data_subject'][subject]['targets'][n_items_i, trecall_i] = self.dataset['data_subject_split']['data_subject_nitems_trecall'][subject][n_items][trecall]['targets'][:self.dataset['data_subject_split']['subject_smallestN'][subject_i]]
+                    self.dataset['data_subject_split']['data_subject'][subject]['nontargets'][n_items_i, trecall_i, :, :(n_items - 1)] = self.dataset['data_subject_split']['data_subject_nitems_trecall'][subject][n_items][trecall]['nontargets'][:self.dataset['data_subject_split']['subject_smallestN'][subject_i]]
 
         # Do the same, but try to keep as much of the data as possible
         self.dataset['data_subject_split']['subject_largestN'] = np.nanmax(np.nanmax(self.dataset['sizes_subject_nitems_trecall'], axis=-1), axis=-1)
@@ -409,9 +424,12 @@ class ExperimentalLoaderGorgo11Sequential(ExperimentalLoader):
 
             for n_items_i, n_items in enumerate(self.dataset['data_subject_split']['nitems_space']):
                 for trecall_i, trecall in enumerate(np.arange(1, n_items+1)):
-                    self.dataset['data_subject_split']['data_subject_largest'][subject]['responses'][n_items_i, trecall_i, :self.dataset['sizes_subject_nitems_trecall'][subject_i][n_items_i][trecall_i]] = self.dataset['response_subject_nitems_trecall'][subject_i][n_items_i][trecall_i]
-                    self.dataset['data_subject_split']['data_subject_largest'][subject]['targets'][n_items_i, trecall_i, :self.dataset['sizes_subject_nitems_trecall'][subject_i][n_items_i][trecall_i]] = self.dataset['target_subject_nitems_trecall'][subject_i][n_items_i][trecall_i]
-                    self.dataset['data_subject_split']['data_subject_largest'][subject]['nontargets'][n_items_i, trecall_i, :self.dataset['sizes_subject_nitems_trecall'][subject_i][n_items_i][trecall_i], :(n_items - 1)] = self.dataset['nontargets_subject_nitems_trecall'][subject_i][n_items_i][trecall_i][..., :(n_items - 1)]
+                    # Need to recorrect trecall for this one...
+                    curr_size = self.dataset['sizes_subject_nitems_trecall'][subject_i][n_items_i][n_items - trecall]
+
+                    self.dataset['data_subject_split']['data_subject_largest'][subject]['responses'][n_items_i, trecall_i, :curr_size] = self.dataset['data_subject_split']['data_subject_nitems_trecall'][subject][n_items][trecall]['responses']
+                    self.dataset['data_subject_split']['data_subject_largest'][subject]['targets'][n_items_i, trecall_i, :curr_size] = self.dataset['data_subject_split']['data_subject_nitems_trecall'][subject][n_items][trecall]['targets']
+                    self.dataset['data_subject_split']['data_subject_largest'][subject]['nontargets'][n_items_i, trecall_i, :curr_size, :(n_items - 1)] = self.dataset['data_subject_split']['data_subject_nitems_trecall'][subject][n_items][trecall]['nontargets']
 
 
     def fit_collapsed_mixture_model(self):
@@ -434,8 +452,6 @@ class ExperimentalLoaderGorgo11Sequential(ExperimentalLoader):
 
         for subject, subject_data_dict in self.dataset['data_subject_split']['data_subject'].iteritems():
             print 'Fitting Collapsed Mixture model for subject %d' % subject
-
-            raise NotImplementedError('Watch out about ordering of trecall...')
 
             # Use trecall as T_space, bit weird
             for n_items_i, n_items in enumerate(self.dataset['data_subject_split']['nitems_space']):
