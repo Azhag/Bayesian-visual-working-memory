@@ -188,6 +188,9 @@ class DataPBS:
         load_progress = progress.Progress(len(all_output_files))
 
         for curr_file_i, curr_file in enumerate(all_output_files):
+            # Stop importing if limit provided
+            if curr_file_i >= self.dataset_infos.get('limit_max_files', np.nan):
+                break
 
             # Load the data
             try:
