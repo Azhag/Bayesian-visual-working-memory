@@ -21,7 +21,7 @@ num_random_samples = 5000
 limit_max_queued_jobs = 50
 
 resource = ''
-# partition = 'wrkstn'
+partition = 'wrkstn'
 # partition = 'test'
 # partition = 'intel-ivy'
 
