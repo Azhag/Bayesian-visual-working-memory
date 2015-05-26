@@ -162,7 +162,21 @@ def launcher_do_fit_mixturemodels_sequential_fixedtrecall(args):
         - EM Mixture model distances to set of currently working datasets.
     '''
 
-    print "Doing a piece of work for launcher_do_fit_mixturemodels_sequential_fixedtrecall"
+    raise ValueError("You shouldn't run this, it's not really a useful thing..")
+
+
+
+def launcher_do_fit_mixturemodels_sequential_alltrecall(args):
+    '''
+        Run the model for 1..T items sequentially, for all possible trecall/T.
+        Compute:
+        - Precision of samples
+        - EM mixture model fits. Both independent and collapsed model.
+        - Theoretical Fisher Information
+        - EM Mixture model distances to set of currently working datasets.
+    '''
+
+    print "Doing a piece of work for launcher_do_fit_mixturemodels_sequential_alltrecall"
 
     all_parameters = utils.argparse_2_dict(args)
     print all_parameters
@@ -176,12 +190,8 @@ def launcher_do_fit_mixturemodels_sequential_fixedtrecall(args):
     save_every = 1
     run_counter = 0
 
-    fixed_cued_feature_time = all_parameters['fixed_cued_feature_time']
-
     # Load dataset to compare against
-    # Specifically restrict to the same cued_trecall (not completely sure about that)
     data_gorgo11_sequ = load_experimental_data.load_data_gorgo11_sequential(data_dir=all_parameters['experiment_data_dir'], fit_mixture_model=True)
-    gorgo11_sequ_mixtures_mean = data_gorgo11_sequ['em_fits_nitems_trecall_arrays'][:, fixed_cued_feature_time, :4].T
     gorgo11_sequ_T_space = np.unique(data_gorgo11_sequ['n_items'])
 
 
@@ -191,33 +201,38 @@ def launcher_do_fit_mixturemodels_sequential_fixedtrecall(args):
     repetitions_axis = -1
 
     # Result arrays
-    result_all_precisions = np.nan*np.empty((T_space.size, all_parameters['num_repetitions']))
-    result_fi_theo = np.nan*np.empty((T_space.size, all_parameters['num_repetitions']))
-    result_fi_theocov = np.nan*np.empty((T_space.size, all_parameters['num_repetitions']))
-    result_em_fits = np.nan*np.empty((T_space.size, 6, all_parameters['num_repetitions']))  # kappa, mixt_target, mixt_nontarget, mixt_random, ll, bic
-    result_em_fits_allnontargets = np.nan*np.empty((T_space.size, 5+(T_max-1), all_parameters['num_repetitions']))  # kappa, mixt_target, mixt_nontarget (T-1), mixt_random, ll, bic
-    result_dist_gorgo11_sequ = np.nan*np.empty((T_space.size, 4, all_parameters['num_repetitions']))  # kappa, mixt_target, mixt_nontarget, mixt_random
-    result_dist_gorgo11_sequ_emmixt_KL = np.nan*np.empty((T_space.size, all_parameters['num_repetitions']))
+    result_all_precisions = np.nan*np.empty((T_space.size, T_space.size, all_parameters['num_repetitions']))
+    result_fi_theo = np.nan*np.empty((T_space.size, T_space.size, all_parameters['num_repetitions']))
+    result_fi_theocov = np.nan*np.empty((T_space.size, T_space.size, all_parameters['num_repetitions']))
+    result_em_fits = np.nan*np.empty((T_space.size, T_space.size, 6, all_parameters['num_repetitions']))  # kappa, mixt_target, mixt_nontarget, mixt_random, ll, bic
+    result_em_fits_collapsed = np.nan*np.empty((T_space.size, T_space.size, 6 + (0), all_parameters['num_repetitions']))  # kappa, mixt_target, mixt_nontarget, mixt_random, ll, bic, ****TODO kappa_theta***
+
+    result_dist_gorgo11_sequ = np.nan*np.empty((T_space.size, T_space.size, 4, all_parameters['num_repetitions']))  # kappa, mixt_target, mixt_nontarget, mixt_random
+    result_dist_gorgo11_sequ_emmixt_KL = np.nan*np.empty((T_space.size, T_space.size, all_parameters['num_repetitions']))
+
+    result_dist_gorgo11_sequ_collapsed = np.nan*np.empty((T_space.size, T_space.size, 4, all_parameters['num_repetitions']))
+    result_dist_gorgo11_sequ_collapsed_emmixt_KL = np.nan*np.empty((T_space.size, T_space.size, all_parameters['num_repetitions']))
 
     # If desired, will automatically save all Model responses.
     if all_parameters['collect_responses']:
         print "--- Collecting all responses..."
-        result_responses = np.nan*np.ones((T_space.size, all_parameters['N'], all_parameters['num_repetitions']))
-        result_target = np.nan*np.ones((T_space.size, all_parameters['N'], all_parameters['num_repetitions']))
-        result_nontargets = np.nan*np.ones((T_space.size, all_parameters['N'], T_max-1, all_parameters['num_repetitions']))
+        result_responses = np.nan*np.empty((T_space.size, T_space.size, all_parameters['N'], all_parameters['num_repetitions']))
+        result_target = np.nan*np.empty((T_space.size, T_space.size, all_parameters['N'], all_parameters['num_repetitions']))
+        result_nontargets = np.nan*np.empty((T_space.size, T_space.size, all_parameters['N'], T_max-1, all_parameters['num_repetitions']))
 
-    search_progress = progress.Progress(T_space.size*all_parameters['num_repetitions'])
+    search_progress = progress.Progress(T_space.size*T_space.size*all_parameters['num_repetitions'])
 
     for repet_i in xrange(all_parameters['num_repetitions']):
         for T_i, T in enumerate(T_space):
-            print "%.2f%%, %s left - %s" % (search_progress.percentage(), search_progress.time_remaining_str(), search_progress.eta_str())
-
-            print "Fit for T=%d, %d/%d" % (T, repet_i+1, all_parameters['num_repetitions'])
-
-            if fixed_cued_feature_time <= T_i:
+            for trecall_i, trecall in enumerate(np.arange(T, 0, -1)):
+                # Inverting indexing of trecall, to be consistent. trecall_i 0 == last item.
+                # But trecall still means the actual time of recall!
+                print "%.2f%%, %s left - %s" % (search_progress.percentage(), search_progress.time_remaining_str(), search_progress.eta_str())
+                print "Fit for T=%d, tr=%d, %d/%d" % (T, trecall, repet_i+1, all_parameters['num_repetitions'])
 
                 # Update parameter
                 all_parameters['T'] = T
+                all_parameters['fixed_cued_feature_time'] = trecall - 1
 
                 ### WORK WORK WORK work? ###
                 # Instantiate
@@ -228,48 +243,55 @@ def launcher_do_fit_mixturemodels_sequential_fixedtrecall(args):
 
                 # Compute precision
                 print "get precision..."
-                result_all_precisions[T_i, repet_i] = sampler.get_precision()
+                result_all_precisions[T_i, trecall_i, repet_i] = sampler.get_precision()
 
-                # Fit mixture model
+                # Fit mixture model, independent
                 print "fit mixture model..."
                 curr_params_fit = sampler.fit_mixture_model(use_all_targets=False)
-                # curr_params_fit['mixt_nontargets_sum'] = np.sum(curr_params_fit['mixt_nontargets'])
-                result_em_fits[T_i, :, repet_i] = [curr_params_fit[key] for key in ['kappa', 'mixt_target', 'mixt_nontargets_sum', 'mixt_random', 'train_LL', 'bic']]
-                result_em_fits_allnontargets[T_i, :2, repet_i] = [curr_params_fit['kappa'], curr_params_fit['mixt_target']]
-                result_em_fits_allnontargets[T_i, 2:(2+T-1), repet_i] = curr_params_fit['mixt_nontargets']
-                result_em_fits_allnontargets[T_i, -3:, repet_i] = [curr_params_fit[key] for key in ('mixt_random', 'train_LL', 'bic')]
+                result_em_fits[T_i, trecall_i, :, repet_i] = [curr_params_fit[key] for key in ['kappa', 'mixt_target', 'mixt_nontargets_sum', 'mixt_random', 'train_LL', 'bic']]
 
                 # Compute fisher info
                 print "compute fisher info"
-                result_fi_theo[T_i, repet_i] = sampler.estimate_fisher_info_theocov(use_theoretical_cov=False)
-                result_fi_theocov[T_i, repet_i] = sampler.estimate_fisher_info_theocov(use_theoretical_cov=True)
+                result_fi_theo[T_i, trecall_i, repet_i] = sampler.estimate_fisher_info_theocov(use_theoretical_cov=False)
+                result_fi_theocov[T_i, trecall_i, repet_i] = sampler.estimate_fisher_info_theocov(use_theoretical_cov=True)
 
-                # Compute distances to datasets
+                # Compute distances to datasets (this is for the non-collapsed stuff, not the best)
                 if T in gorgo11_sequ_T_space:
-                    result_dist_gorgo11_sequ[T_i, :, repet_i] = (gorgo11_sequ_mixtures_mean[:, gorgo11_sequ_T_space==T].flatten() - result_em_fits[T_i, :4, repet_i])**2.
+                    gorgo11_sequ_mixtures_mean = data_gorgo11_sequ['em_fits_nitems_trecall_arrays'][gorgo11_sequ_T_space==T, trecall_i, :4].flatten()
 
-                    result_dist_gorgo11_sequ_emmixt_KL[T_i, repet_i] = utils.KL_div(result_em_fits[T_i, 1:4, repet_i], gorgo11_sequ_mixtures_mean[1:, gorgo11_sequ_T_space==T].flatten())
+                    result_dist_gorgo11_sequ[T_i, trecall_i, :, repet_i] = (gorgo11_sequ_mixtures_mean - result_em_fits[T_i, trecall_i, :4, repet_i])**2.
+                    result_dist_gorgo11_sequ_emmixt_KL[T_i, trecall_i, repet_i] = utils.KL_div(result_em_fits[T_i, trecall_i, 1:4, repet_i], gorgo11_sequ_mixtures_mean)
 
 
                 # If needed, store responses
                 if all_parameters['collect_responses']:
+                    print "collect responses"
                     (responses, target, nontarget) = sampler.collect_responses()
-                    result_responses[T_i, :, repet_i] = responses
-                    result_target[T_i, :, repet_i] = target
-                    result_nontargets[T_i, :, :T_i, repet_i] = nontarget
-
-                    print "collected responses"
+                    result_responses[T_i, trecall_i, :, repet_i] = responses
+                    result_target[T_i, trecall_i, :, repet_i] = target
+                    result_nontargets[T_i, trecall_i, :, :T_i, repet_i] = nontarget
 
 
-                print "CURRENT RESULTS:\n", result_all_precisions[T_i, repet_i], curr_params_fit, result_fi_theo[T_i, repet_i], result_fi_theocov[T_i, repet_i], np.sum(result_dist_gorgo11_sequ[T_i, :, repet_i]), np.sum(result_dist_gorgo11_sequ_emmixt_KL[T_i, repet_i]), "\n"
+                print "CURRENT RESULTS:\n", result_all_precisions[T_i, trecall_i, repet_i], curr_params_fit, result_fi_theo[T_i, trecall_i, repet_i], result_fi_theocov[T_i, trecall_i, repet_i], np.sum(result_dist_gorgo11_sequ[T_i, trecall_i, :, repet_i]), np.sum(result_dist_gorgo11_sequ_emmixt_KL[T_i, trecall_i, repet_i]), "\n"
                 ### /Work ###
-            else:
-                print "... cancelled... Fixed_cued_feature_time = %d" % fixed_cued_feature_time
 
-            search_progress.increment()
-            if run_counter % save_every == 0 or search_progress.done():
-                dataio.save_variables_default(locals())
-            run_counter += 1
+                search_progress.increment()
+                if run_counter % save_every == 0 or search_progress.done():
+                    dataio.save_variables_default(locals())
+                run_counter += 1
+
+        # Fit Collapsed mixture model
+        # TODO check dimensionality...
+        params_fit = em_circularmixture_parametrickappa.fit(T_space, result_responses[..., repet_i], result_target[..., repet_i], result_nontargets[..., repet_i], debug=False)
+        for i, key in enumerate(['kappa', 'mixt_target', 'mixt_nontargets_sum', 'mixt_random', 'train_LL', 'bic']):
+            result_em_fits_collapsed[..., i, repet_i] =  params_fit[key]
+
+        # Compute distances to dataset for collapsed model
+        raise ValueError('TODO Check dimensions')
+        gorgo11_sequ_collapsed_mixtmod_mean = data_gorgo11_sequ['collapsed_em_fits_nitems_trecall'][..., :4]
+        result_dist_gorgo11_sequ_collapsed[..., repet_i] = (gorgo11_sequ_collapsed_mixtmod_mean - result_collapsed_em_fits[:4, repet_i])**2.
+        result_dist_gorgo11_sequ_collapsed_emmixt_KL[..., repet_i] = utils.KL_div(result_collapsed_em_fits[1:4, repet_i], gorgo11_sequ_collapsed_mixtmod_mean)
+
 
     # Finished
     dataio.save_variables_default(locals())
