@@ -15,6 +15,7 @@ import cPickle as pickle
 import em_circularmixture
 import em_circularmixture_allitems_uniquekappa
 import em_circularmixture_parametrickappa
+import em_circularmixture_parametrickappa_doublepowerlaw
 import pandas as pd
 
 em_circular_mixture_to_use = em_circularmixture
@@ -73,7 +74,7 @@ class ExperimentalLoaderGorgo11Sequential(ExperimentalLoader):
         self.generate_data_subject_split()
 
         if parameters.get('fit_mixture_model', False):
-            self.fit_collapsed_mixture_model_cached(caching_save_filename=parameters.get('collapsed_mixture_model_cache', None), saved_keys=['collapsed_em_fits_subjects_nitems', 'collapsed_em_fits_nitems', 'collapsed_em_fits_subjects_trecall', 'collapsed_em_fits_trecall'])
+            self.fit_collapsed_mixture_model_cached(caching_save_filename=parameters.get('collapsed_mixture_model_cache', None), saved_keys=['collapsed_em_fits_subjects_nitems', 'collapsed_em_fits_nitems', 'collapsed_em_fits_subjects_trecall', 'collapsed_em_fits_trecall', 'collapsed_em_fits_doublepowerlaw', 'collapsed_em_fits_doublepowerlaw_subjects'])
 
         # Perform Vtest for circular uniformity
         # self.compute_vtest()
@@ -440,6 +441,7 @@ class ExperimentalLoaderGorgo11Sequential(ExperimentalLoader):
             Do:
              * One fit per subject/nitems, using trecall as T_space
              * One fit per subject/trecall, using nitems as T_space
+             * One fit per subject, using the double-powerlaw on nitems/trecall
 
         '''
         Tmax = self.dataset['data_subject_split']['nitems_space'].max()
@@ -450,58 +452,88 @@ class ExperimentalLoaderGorgo11Sequential(ExperimentalLoader):
         self.dataset['collapsed_em_fits_subjects_trecall'] = dict()
         self.dataset['collapsed_em_fits_trecall'] = dict()
 
+        self.dataset['collapsed_em_fits_doublepowerlaw_subjects'] = dict()
+        self.dataset['collapsed_em_fits_doublepowerlaw'] = dict()
+
+
         for subject, subject_data_dict in self.dataset['data_subject_split']['data_subject'].iteritems():
             print 'Fitting Collapsed Mixture model for subject %d' % subject
 
-            # Use trecall as T_space, bit weird
+            if True:
+                # Use trecall as T_space, bit weird
+                for n_items_i, n_items in enumerate(self.dataset['data_subject_split']['nitems_space']):
+
+                    print '%d nitems, using trecall as T_space' % n_items
+
+                    params_fit = em_circularmixture_parametrickappa.fit(np.arange(1, n_items+1), subject_data_dict['responses'][n_items_i, :(n_items)], subject_data_dict['targets'][n_items_i, :(n_items)], subject_data_dict['nontargets'][n_items_i, :(n_items), :, :(n_items - 1)], debug=False)
+
+                    self.dataset['collapsed_em_fits_subjects_nitems'].setdefault(subject, dict())[n_items] = params_fit
+
+                # Use nitems as T_space, as a function of trecall (be careful)
+                for trecall_i, trecall in enumerate(self.dataset['data_subject_split']['nitems_space']):
+
+                    print 'trecall %d, using n_items as T_space' % trecall
+
+                    params_fit = em_circularmixture_parametrickappa.fit(np.arange(trecall, Tmax+1), subject_data_dict['responses'][trecall_i:, trecall_i], subject_data_dict['targets'][trecall_i:, trecall_i], subject_data_dict['nontargets'][trecall_i:, trecall_i], debug=False)
+
+                    self.dataset['collapsed_em_fits_subjects_trecall'].setdefault(subject, dict())[trecall] = params_fit
+
+            # Now do the correct fit, with double powerlaw on nitems+trecall
+            print 'Double powerlaw fit'
+
+            params_fit_double = em_circularmixture_parametrickappa_doublepowerlaw.fit(self.dataset['data_subject_split']['nitems_space'], subject_data_dict['responses'], subject_data_dict['targets'], subject_data_dict['nontargets'], debug=False)
+            self.dataset['collapsed_em_fits_doublepowerlaw_subjects'][subject] = params_fit_double
+
+
+        if True:
+            ## Now compute mean/std collapsed_em_fits_nitems
+            self.dataset['collapsed_em_fits_nitems']['mean'] = dict()
+            self.dataset['collapsed_em_fits_nitems']['std'] = dict()
+            self.dataset['collapsed_em_fits_nitems']['sem'] = dict()
+            self.dataset['collapsed_em_fits_nitems']['values'] = dict()
+
+            # Need to extract the values for a subject/nitems pair, for all keys of em_fits. Annoying dictionary indexing needed
+            emfits_keys = params_fit.keys()
             for n_items_i, n_items in enumerate(self.dataset['data_subject_split']['nitems_space']):
+                for key in emfits_keys:
+                    values_allsubjects = [self.dataset['collapsed_em_fits_subjects_nitems'][subject][n_items][key] for subject in self.dataset['data_subject_split']['subjects_space']]
 
-                print '%d nitems, using trecall as T_space' % n_items
+                    self.dataset['collapsed_em_fits_nitems']['mean'].setdefault(n_items, dict())[key] = np.mean(values_allsubjects, axis=0)
+                    self.dataset['collapsed_em_fits_nitems']['std'].setdefault(n_items, dict())[key] = np.std(values_allsubjects, axis=0)
+                    self.dataset['collapsed_em_fits_nitems']['sem'].setdefault(n_items, dict())[key] = self.dataset['collapsed_em_fits_nitems']['std'][n_items][key]/np.sqrt(self.dataset['data_subject_split']['subjects_space'].size)
+                    self.dataset['collapsed_em_fits_nitems']['values'].setdefault(n_items, dict())[key] = values_allsubjects
 
-                params_fit = em_circularmixture_parametrickappa.fit(np.arange(1, n_items+1), subject_data_dict['responses'][n_items_i, :(n_items)], subject_data_dict['targets'][n_items_i, :(n_items)], subject_data_dict['nontargets'][n_items_i, :(n_items), :, :(n_items - 1)], debug=False)
+            ## Same for the other ones
+            self.dataset['collapsed_em_fits_trecall']['mean'] = dict()
+            self.dataset['collapsed_em_fits_trecall']['std'] = dict()
+            self.dataset['collapsed_em_fits_trecall']['sem'] = dict()
+            self.dataset['collapsed_em_fits_trecall']['values'] = dict()
 
-                self.dataset['collapsed_em_fits_subjects_nitems'].setdefault(subject, dict())[n_items] = params_fit
-
-            # Use nitems as T_space, as a function of trecall (be careful)
+            # Need to extract the values for a subject/nitems pair, for all keys of em_fits. Annoying dictionary indexing needed
+            emfits_keys = params_fit.keys()
             for trecall_i, trecall in enumerate(self.dataset['data_subject_split']['nitems_space']):
+                for key in emfits_keys:
+                    values_allsubjects = [self.dataset['collapsed_em_fits_subjects_trecall'][subject][trecall][key] for subject in self.dataset['data_subject_split']['subjects_space']]
 
-                print 'trecall %d, using n_items as T_space' % trecall
+                    self.dataset['collapsed_em_fits_trecall']['mean'].setdefault(trecall, dict())[key] = np.mean(values_allsubjects, axis=0)
+                    self.dataset['collapsed_em_fits_trecall']['std'].setdefault(trecall, dict())[key] = np.std(values_allsubjects, axis=0)
+                    self.dataset['collapsed_em_fits_trecall']['sem'].setdefault(trecall, dict())[key] = self.dataset['collapsed_em_fits_trecall']['std'][trecall][key]/np.sqrt(self.dataset['data_subject_split']['subjects_space'].size)
+                    self.dataset['collapsed_em_fits_trecall']['values'].setdefault(trecall, dict())[key] = values_allsubjects
 
-                params_fit = em_circularmixture_parametrickappa.fit(np.arange(trecall, Tmax+1), subject_data_dict['responses'][trecall_i:, trecall_i], subject_data_dict['targets'][trecall_i:, trecall_i], subject_data_dict['nontargets'][trecall_i:, trecall_i], debug=False)
-
-                self.dataset['collapsed_em_fits_subjects_trecall'].setdefault(subject, dict())[trecall] = params_fit
-
-        ## Now compute mean/std collapsed_em_fits_nitems
-        self.dataset['collapsed_em_fits_nitems']['mean'] = dict()
-        self.dataset['collapsed_em_fits_nitems']['std'] = dict()
-        self.dataset['collapsed_em_fits_nitems']['sem'] = dict()
-        self.dataset['collapsed_em_fits_nitems']['values'] = dict()
-
-        # Need to extract the values for a subject/nitems pair, for all keys of em_fits. Annoying dictionary indexing needed
-        emfits_keys = params_fit.keys()
-        for n_items_i, n_items in enumerate(self.dataset['data_subject_split']['nitems_space']):
-            for key in emfits_keys:
-                values_allsubjects = [self.dataset['collapsed_em_fits_subjects_nitems'][subject][n_items][key] for subject in self.dataset['data_subject_split']['subjects_space']]
-
-                self.dataset['collapsed_em_fits_nitems']['mean'].setdefault(n_items, dict())[key] = np.mean(values_allsubjects, axis=0)
-                self.dataset['collapsed_em_fits_nitems']['std'].setdefault(n_items, dict())[key] = np.std(values_allsubjects, axis=0)
-                self.dataset['collapsed_em_fits_nitems']['sem'].setdefault(n_items, dict())[key] = self.dataset['collapsed_em_fits_nitems']['std'][n_items][key]/np.sqrt(self.dataset['data_subject_split']['subjects_space'].size)
-                self.dataset['collapsed_em_fits_nitems']['values'].setdefault(n_items, dict())[key] = values_allsubjects
-
-        ## Same for the other ones
-        self.dataset['collapsed_em_fits_trecall']['mean'] = dict()
-        self.dataset['collapsed_em_fits_trecall']['std'] = dict()
-        self.dataset['collapsed_em_fits_trecall']['sem'] = dict()
-        self.dataset['collapsed_em_fits_trecall']['values'] = dict()
+        # Collapsed full double powerlaw model across subjects
+        self.dataset['collapsed_em_fits_doublepowerlaw']['mean'] = dict()
+        self.dataset['collapsed_em_fits_doublepowerlaw']['std'] = dict()
+        self.dataset['collapsed_em_fits_doublepowerlaw']['sem'] = dict()
+        self.dataset['collapsed_em_fits_doublepowerlaw']['values'] = dict()
 
         # Need to extract the values for a subject/nitems pair, for all keys of em_fits. Annoying dictionary indexing needed
-        emfits_keys = params_fit.keys()
-        for trecall_i, trecall in enumerate(self.dataset['data_subject_split']['nitems_space']):
-            for key in emfits_keys:
-                values_allsubjects = [self.dataset['collapsed_em_fits_subjects_trecall'][subject][trecall][key] for subject in self.dataset['data_subject_split']['subjects_space']]
+        emfits_keys = params_fit_double.keys()
+        for key in emfits_keys:
+            values_allsubjects = [self.dataset['collapsed_em_fits_doublepowerlaw_subjects'][subject][key] for subject in self.dataset['data_subject_split']['subjects_space']]
 
-                self.dataset['collapsed_em_fits_trecall']['mean'].setdefault(trecall, dict())[key] = np.mean(values_allsubjects, axis=0)
-                self.dataset['collapsed_em_fits_trecall']['std'].setdefault(trecall, dict())[key] = np.std(values_allsubjects, axis=0)
-                self.dataset['collapsed_em_fits_trecall']['sem'].setdefault(trecall, dict())[key] = self.dataset['collapsed_em_fits_trecall']['std'][trecall][key]/np.sqrt(self.dataset['data_subject_split']['subjects_space'].size)
-                self.dataset['collapsed_em_fits_trecall']['values'].setdefault(trecall, dict())[key] = values_allsubjects
+            self.dataset['collapsed_em_fits_doublepowerlaw']['mean'][key] = np.mean(values_allsubjects, axis=0)
+            self.dataset['collapsed_em_fits_doublepowerlaw']['std'][key] = np.std(values_allsubjects, axis=0)
+            self.dataset['collapsed_em_fits_doublepowerlaw']['sem'][key] = self.dataset['collapsed_em_fits_doublepowerlaw']['std'][key]/np.sqrt(self.dataset['data_subject_split']['subjects_space'].size)
+            self.dataset['collapsed_em_fits_doublepowerlaw']['values'][key] = values_allsubjects
+
 
