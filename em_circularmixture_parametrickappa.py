@@ -87,7 +87,7 @@ def fit(T_space, responses, targets_angle, nontargets_angles=np.array([[]]), ini
             for T_i, T in enumerate(T_space):
                 resp_nik[T_i, :, 0] = mixt_target[T_i]*vonmisespdf(error_to_target[T_i], 0.0, compute_kappa(T, alpha, beta))
 
-                resp_nik[T_i, :, 1:T] = mixt_nontargets[T_i, :(T-1)]*vonmisespdf(error_to_nontargets[T_i, :, :(T-1)], 0.0, compute_kappa(T, alpha, beta))
+                resp_nik[T_i, :, 1:T] = mixt_nontargets[T_i]/(T - 1.0)*vonmisespdf(error_to_nontargets[T_i, :, :(T-1)], 0.0, compute_kappa(T, alpha, beta))
             resp_random = mixt_random/(2.*np.pi)
 
             W = np.nansum(resp_nik, axis=-1) + resp_random[:, np.newaxis]
@@ -96,7 +96,8 @@ def fit(T_space, responses, targets_angle, nontargets_angles=np.array([[]]), ini
             resp_r = resp_random[:, np.newaxis] / W
 
             # Compute likelihood
-            LL = np.nansum(np.log(W))
+            LL_all = np.log(W)
+            LL = np.nansum(LL_all[np.isfinite(LL_all)])
             dLL = LL - old_LL
             old_LL = LL
 
@@ -105,8 +106,8 @@ def fit(T_space, responses, targets_angle, nontargets_angles=np.array([[]]), ini
                 break
 
             # M-step
-            mixt_target = np.nansum(resp_nik[..., 0], axis=1)/N
-            mixt_nontargets = np.nansum(resp_nik[..., 1:], axis=1)/N
+            mixt_target = np.nansum(resp_nik[..., 0], axis=-1)/N
+            mixt_nontargets = np.nansum(np.nansum(resp_nik[..., 1:], axis=-1), axis=-1)/N
             mixt_random = np.nansum(resp_r, axis=-1)/N
 
             # Update kappa
@@ -151,10 +152,10 @@ def fit(T_space, responses, targets_angle, nontargets_angles=np.array([[]]), ini
 
         initial_i += 1
 
-    result_dict = dict(alpha=best_alpha, beta=best_beta, kappa=compute_kappa(T_space, best_alpha, best_beta), mixt_target=best_mixt_target, mixt_nontargets=best_mixt_nontargets, mixt_nontargets_sum=np.sum(best_mixt_nontargets, axis=-1), mixt_random=best_mixt_random, train_LL=overall_LL, T_space=T_space)
+    result_dict = dict(alpha=best_alpha, beta=best_beta, kappa=compute_kappa(T_space, best_alpha, best_beta), mixt_target=best_mixt_target, mixt_nontargets=best_mixt_nontargets, mixt_random=best_mixt_random, train_LL=overall_LL, T_space=T_space)
 
     # Compute BIC and AIC scores
-    result_dict['bic'] = bic(result_dict, N)
+    result_dict['bic'] = bic(result_dict, np.log(W))
     result_dict['aic'] = aic(result_dict)
 
     return result_dict
@@ -346,17 +347,14 @@ def initialise_parameters_random(N, T_space, nb_initialisations=10):
 
         # Force a strong on-target prior...
         mixt_target = (np.random.rand(Tnum)*0.5 + 0.5)*1.5
-        mixt_nontargets = np.random.rand(Tnum, Tmax-1)*(0.5/T_space[:, np.newaxis])
-
-        for T_i, T in enumerate(T_space):
-            mixt_nontargets[T_i, (T-1):] = np.nan
+        mixt_nontargets = np.random.rand(Tnum)*0.3
 
         mixt_random = np.random.rand(Tnum)*0.2
 
-        mixt_sum = mixt_target + np.nansum(mixt_nontargets, axis=-1) + mixt_random
+        mixt_sum = mixt_target + mixt_nontargets + mixt_random
 
         mixt_target /= mixt_sum
-        mixt_nontargets /= mixt_sum[:, np.newaxis]
+        mixt_nontargets /= mixt_sum
         mixt_random /= mixt_sum
 
         all_params.append((alpha, beta, mixt_target, mixt_random, mixt_nontargets, resp_nik))
@@ -488,15 +486,15 @@ def aic(em_fit_result_dict):
     # Number of parameters:
     # - mixt_target: Tnum
     # - mixt_random: Tnum
-    # - mixt_nontarget: sum(T_space - 1)
+    # - mixt_nontargets: Tnum
     # - alpha: 1
     # - beta: 1
-    K = em_fit_result_dict['mixt_target'].size + em_fit_result_dict['mixt_random'].size + np.sum(em_fit_result_dict['T_space'] - 1) + 2
+    K = em_fit_result_dict['mixt_target'].size + em_fit_result_dict['mixt_random'].size + em_fit_result_dict['mixt_nontargets'].size + 2
 
     return utils.aic(K, em_fit_result_dict['train_LL'])
 
 
-def bic(em_fit_result_dict, N):
+def bic(em_fit_result_dict, LL_all):
     '''
         Compute the Bayesian Information Criterion score
     '''
@@ -504,12 +502,24 @@ def bic(em_fit_result_dict, N):
     # Number of parameters:
     # - mixt_target: Tnum
     # - mixt_random: Tnum
-    # - mixt_nontarget: sum(T_space - 1)
+    # - mixt_nontargets: Tnum
     # - alpha: 1
     # - beta: 1
-    K = em_fit_result_dict['mixt_target'].size + em_fit_result_dict['mixt_random'].size + np.sum(em_fit_result_dict['T_space'] - 1) + 2
 
-    return utils.bic(K, em_fit_result_dict['train_LL'], N)
+    # First count the Loglikelihood
+    bic_tot = -2.*np.nansum(LL_all[np.isfinite(LL_all)])
+
+    # Then count alpha, beta appropriately
+    K = 2
+    bic_tot += K*np.log(np.nansum(np.isfinite(LL_all)))
+
+    # Finally, the mixture proportions per condition
+    for T_i, T in enumerate(em_fit_result_dict['T_space']):
+        # K = 2. + (T-1)
+        K = 3
+        bic_tot += K*np.log(np.nansum(np.isfinite(LL_all[T_i])))
+
+    return bic_tot
 
 
 def sample_from_fit(em_fit_result_dict, targets, nontargets):

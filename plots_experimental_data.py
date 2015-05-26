@@ -13,6 +13,10 @@ import em_circularmixture
 import em_circularmixture_allitems_uniquekappa
 import pandas as pd
 
+import matplotlib.cm as cmx
+import matplotlib.colors as mcolors
+from mpl_toolkits.mplot3d import Axes3D
+
 import dataio as DataIO
 
 import utils

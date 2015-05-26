@@ -420,6 +420,40 @@ def bic(em_fit_result_dict, N):
     return utils.bic(K, em_fit_result_dict['train_LL'], N)
 
 
+def sample_from_fit(em_fit_result_dict, targets, nontargets):
+    '''
+        Get N samples from the Mixture model defined by em_fit_result_dict
+    '''
+
+    N = targets.size
+    K = nontargets.shape[1]
+
+    # Pre-sample items on target
+    responses = spst.vonmises.rvs(em_fit_result_dict['kappa'], size=(N))
+
+    # Randomly flip some to nontargets or random component, depending on a random coin toss (classical cumulative prob trick)
+    samples_rand_N = np.random.random((N, 1))
+
+    probs_components = np.r_[np.array([em_fit_result_dict['mixt_target']]), np.array([em_fit_result_dict['mixt_nontargets']]*K)/K, em_fit_result_dict['mixt_random']]
+    cumprobs_components = np.cumsum(probs_components)
+
+    samples_components = samples_rand_N < cumprobs_components
+
+    # Move the targets
+    responses += samples_components[:, 0]*targets
+    samples_components *= ~samples_components[:, 0][:, np.newaxis]
+
+    # Move the nontargets
+    for k in xrange(K):
+        responses += samples_components[:, k+1]*nontargets[:, k]
+        samples_components *= ~samples_components[:, k+1][:, np.newaxis]
+
+    # Resample randomly the random ones
+    responses[samples_components[:, -1]] = utils.sample_angle(size=np.sum(samples_components[:, -1]))
+
+    return responses
+
+
 def test():
     '''
         Does a Unit test, samples data from a mixture of one Von mises and random perturbations. Then fits the model and check if everything works.

@@ -417,6 +417,7 @@ def bic(em_fit_result_dict, N):
     return utils.bic(K, em_fit_result_dict['train_LL'], N)
 
 
+
 def sample_from_fit(em_fit_result_dict, targets, nontargets):
     '''
         Get N samples from the Mixture model defined by em_fit_result_dict

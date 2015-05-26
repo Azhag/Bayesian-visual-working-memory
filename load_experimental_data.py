@@ -167,8 +167,8 @@ if __name__ == '__main__':
     # dataio = DataIO.DataIO(label='experiments_gorgo11')
     # plot_bias_close_feature(data_gorgo11, dataio)
 
-    plot_compare_bic_collapsed_mixture_model(data_bays2009, dataio)
-    plot_compare_bic_collapsed_mixture_model(data_gorgo11, dataio)
+    # plot_compare_bic_collapsed_mixture_model(data_bays2009, dataio)
+    # plot_compare_bic_collapsed_mixture_model(data_gorgo11, dataio)
 
     if False:
         for subj in data_bays2009['data_subject_split']['subjects_space'][:5]:

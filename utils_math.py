@@ -222,7 +222,7 @@ def bic(K, LL, N):
         LL: loglikelihood of model
     '''
 
-    return -2.*LL + float(K)/2.*np.log(N)
+    return -2.*LL + K*np.log(N)
 
 
 def KL_div(P, Q, axis=None):
