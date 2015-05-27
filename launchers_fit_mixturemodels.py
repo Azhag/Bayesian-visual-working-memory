@@ -20,6 +20,7 @@ import progress
 import launchers
 
 import load_experimental_data
+import em_circularmixture_parametrickappa_doublepowerlaw
 
 
 def launcher_do_fit_mixturemodels(args):
@@ -205,13 +206,17 @@ def launcher_do_fit_mixturemodels_sequential_alltrecall(args):
     result_fi_theo = np.nan*np.empty((T_space.size, T_space.size, all_parameters['num_repetitions']))
     result_fi_theocov = np.nan*np.empty((T_space.size, T_space.size, all_parameters['num_repetitions']))
     result_em_fits = np.nan*np.empty((T_space.size, T_space.size, 6, all_parameters['num_repetitions']))  # kappa, mixt_target, mixt_nontarget, mixt_random, ll, bic
-    result_em_fits_collapsed = np.nan*np.empty((T_space.size, T_space.size, 6 + (0), all_parameters['num_repetitions']))  # kappa, mixt_target, mixt_nontarget, mixt_random, ll, bic, ****TODO kappa_theta***
+    result_em_fits_collapsed_tr = np.nan*np.empty((T_space.size, T_space.size, 4, all_parameters['num_repetitions']))  # kappa_tr, mixt_target_tr, mixt_nontarget_tr, mixt_random_tr
+    result_em_fits_collapsed_summary = np.nan*np.empty((5, all_parameters['num_repetitions'])) # bic, ll, kappa_theta
 
     result_dist_gorgo11_sequ = np.nan*np.empty((T_space.size, T_space.size, 4, all_parameters['num_repetitions']))  # kappa, mixt_target, mixt_nontarget, mixt_random
     result_dist_gorgo11_sequ_emmixt_KL = np.nan*np.empty((T_space.size, T_space.size, all_parameters['num_repetitions']))
 
     result_dist_gorgo11_sequ_collapsed = np.nan*np.empty((T_space.size, T_space.size, 4, all_parameters['num_repetitions']))
     result_dist_gorgo11_sequ_collapsed_emmixt_KL = np.nan*np.empty((T_space.size, T_space.size, all_parameters['num_repetitions']))
+
+    gorgo11_sequ_collapsed_mixtmod_mean = data_gorgo11_sequ['collapsed_em_fits_doublepowerlaw_array']
+
 
     # If desired, will automatically save all Model responses.
     if all_parameters['collect_responses']:
@@ -220,7 +225,7 @@ def launcher_do_fit_mixturemodels_sequential_alltrecall(args):
         result_target = np.nan*np.empty((T_space.size, T_space.size, all_parameters['N'], all_parameters['num_repetitions']))
         result_nontargets = np.nan*np.empty((T_space.size, T_space.size, all_parameters['N'], T_max-1, all_parameters['num_repetitions']))
 
-    search_progress = progress.Progress(T_space.size*T_space.size*all_parameters['num_repetitions'])
+    search_progress = progress.Progress(T_space.size*(T_space.size + 1)/2.*all_parameters['num_repetitions'])
 
     for repet_i in xrange(all_parameters['num_repetitions']):
         for T_i, T in enumerate(T_space):
@@ -260,7 +265,7 @@ def launcher_do_fit_mixturemodels_sequential_alltrecall(args):
                     gorgo11_sequ_mixtures_mean = data_gorgo11_sequ['em_fits_nitems_trecall_arrays'][gorgo11_sequ_T_space==T, trecall_i, :4].flatten()
 
                     result_dist_gorgo11_sequ[T_i, trecall_i, :, repet_i] = (gorgo11_sequ_mixtures_mean - result_em_fits[T_i, trecall_i, :4, repet_i])**2.
-                    result_dist_gorgo11_sequ_emmixt_KL[T_i, trecall_i, repet_i] = utils.KL_div(result_em_fits[T_i, trecall_i, 1:4, repet_i], gorgo11_sequ_mixtures_mean)
+                    result_dist_gorgo11_sequ_emmixt_KL[T_i, trecall_i, repet_i] = utils.KL_div(result_em_fits[T_i, trecall_i, 1:4, repet_i], gorgo11_sequ_mixtures_mean[1:])
 
 
                 # If needed, store responses
@@ -282,15 +287,21 @@ def launcher_do_fit_mixturemodels_sequential_alltrecall(args):
 
         # Fit Collapsed mixture model
         # TODO check dimensionality...
-        params_fit = em_circularmixture_parametrickappa.fit(T_space, result_responses[..., repet_i], result_target[..., repet_i], result_nontargets[..., repet_i], debug=False)
-        for i, key in enumerate(['kappa', 'mixt_target', 'mixt_nontargets_sum', 'mixt_random', 'train_LL', 'bic']):
-            result_em_fits_collapsed[..., i, repet_i] =  params_fit[key]
+        print 'Fitting Collapsed double powerlaw mixture model...'
+        params_fit = em_circularmixture_parametrickappa_doublepowerlaw.fit(T_space, result_responses[..., repet_i], result_target[..., repet_i], result_nontargets[..., repet_i], debug=False)
+
+        # First store the parameters that depend on T/trecall
+        for i, key in enumerate(['kappa', 'mixt_target_tr', 'mixt_nontargets_tr', 'mixt_random_tr']):
+            result_em_fits_collapsed_tr[..., i, repet_i] =  params_fit[key]
+
+        # Then the ones that do not, only one per full collapsed fit.
+        result_em_fits_collapsed_summary[0, repet_i] = params_fit['bic']
+        result_em_fits_collapsed_summary[1, repet_i] = params_fit['train_LL']
+        result_em_fits_collapsed_summary[2:, repet_i] = params_fit['kappa_theta']
 
         # Compute distances to dataset for collapsed model
-        raise ValueError('TODO Check dimensions')
-        gorgo11_sequ_collapsed_mixtmod_mean = data_gorgo11_sequ['collapsed_em_fits_nitems_trecall'][..., :4]
-        result_dist_gorgo11_sequ_collapsed[..., repet_i] = (gorgo11_sequ_collapsed_mixtmod_mean - result_collapsed_em_fits[:4, repet_i])**2.
-        result_dist_gorgo11_sequ_collapsed_emmixt_KL[..., repet_i] = utils.KL_div(result_collapsed_em_fits[1:4, repet_i], gorgo11_sequ_collapsed_mixtmod_mean)
+        result_dist_gorgo11_sequ_collapsed[..., repet_i] = (gorgo11_sequ_collapsed_mixtmod_mean - result_em_fits_collapsed_tr[..., repet_i])**2.
+        result_dist_gorgo11_sequ_collapsed_emmixt_KL[..., repet_i] = utils.KL_div(result_em_fits_collapsed_tr[..., 1:4, repet_i], gorgo11_sequ_collapsed_mixtmod_mean[..., 1:])
 
 
     # Finished
