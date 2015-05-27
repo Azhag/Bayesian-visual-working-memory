@@ -20,19 +20,19 @@ import utils
 
 import progress
 
-def fit(T_space, responses, targets_angle, nontargets_angles=np.array([[]]), initialisation_method='random', nb_initialisations=5, debug=False, force_random_less_than=None):
+def fit(T_space, responses, targets_angle, nontargets_angles=np.array([[]]), initialisation_method='random', nb_initialisations=10, debug=False, force_random_less_than=None):
     '''
         Modified mixture model where we fit a parametric power law to kappa as a function of number of items.
         Assumes that we gather samples across samples N, times T and time of recall trecall.
 
         This uses two powerlaws:
-        kappa = alpha t**beta tr**gamma
+        kappa = theta_0 t**theta_1 tr**theta_2
 
         Return maximum likelihood values for a mixture model, with:
             - 1 probability of target
             - 1 probability of nontarget
             - 1 probability of random circular
-            - alpha, beta, gamma parameters of alpha t**beta tr**gamma, where t=number of items, tr = time of recall
+            - kappa_theta parameters of theta_0 t**theta_1 tr**theta_2, where t=number of items, tr = time of recall
         Inputs in radian, in the -pi:pi range.
             - responses: TxTxN
             - targets_angle: TxTxN
@@ -66,15 +66,15 @@ def fit(T_space, responses, targets_angle, nontargets_angles=np.array([[]]), ini
     overall_LL = -np.inf
     LL = np.nan
     initial_i = 0
-    best_alpha, best_beta, best_gamma, best_mixt_target, best_mixt_random_tr, best_mixt_nontargets_tr = (np.nan, np.nan, np.nan, np.nan, np.nan, np.nan)
+    best_kappa_theta, best_mixt_target, best_mixt_random_tr, best_mixt_nontargets_tr = (np.nan, np.nan, np.nan, np.nan)
 
-    for (alpha, beta, gamma, mixt_target_tr, mixt_random_tr, mixt_nontargets_tr, resp_trnk) in initial_parameters_list:
+    for (kappa_theta, mixt_target_tr, mixt_random_tr, mixt_nontargets_tr, resp_trnk) in progress.ProgressDisplay(initial_parameters_list):
         # mixt_target_tr: t, r
         # mixt_nontargets_tr: t, r
         # mixt_random_tr: t, r
 
         if debug:
-            print "New initialisation point: ", (alpha, beta, mixt_target_tr, mixt_random_tr, mixt_nontargets_tr)
+            print "New initialisation point: ", (kappa_theta, mixt_target_tr, mixt_random_tr, mixt_nontargets_tr)
 
         old_LL = -np.inf
 
@@ -92,13 +92,13 @@ def fit(T_space, responses, targets_angle, nontargets_angles=np.array([[]]), ini
 
             # E-step
             if debug:
-                print "E", i, LL, dLL, alpha, beta, gamma, mixt_target_tr, mixt_nontargets_tr, mixt_random_tr
+                print "E", i, LL, dLL, kappa_theta, gamma, mixt_target_tr, mixt_nontargets_tr, mixt_random_tr
             for T_i, T in enumerate(T_space):
                 for trecall_i, trecall in enumerate(T_space):
                     if trecall <= T:
-                        resp_trnk[T_i, trecall_i, :, 0] = mixt_target_tr[T_i, trecall_i]*vonmisespdf(error_to_target_trn[T_i, trecall_i], 0.0, compute_kappa(T, trecall, alpha, beta, gamma))
+                        resp_trnk[T_i, trecall_i, :, 0] = mixt_target_tr[T_i, trecall_i]*vonmisespdf(error_to_target_trn[T_i, trecall_i], 0.0, compute_kappa(T, trecall, kappa_theta))
 
-                        resp_trnk[T_i, trecall_i, :, 1:T] = mixt_nontargets_tr[T_i, trecall_i]/(T - 1.0)*vonmisespdf(error_to_nontargets_trnk[T_i, trecall_i, :, :(T-1)], 0.0, compute_kappa(T, trecall, alpha, beta, gamma))
+                        resp_trnk[T_i, trecall_i, :, 1:T] = mixt_nontargets_tr[T_i, trecall_i]/(T - 1.0)*vonmisespdf(error_to_nontargets_trnk[T_i, trecall_i, :, :(T-1)], 0.0, compute_kappa(T, trecall, kappa_theta))
             resp_random_tr1 = mixt_random_tr[:, :, np.newaxis]/(2.*np.pi)
 
             W_trn = np.nansum(resp_trnk, axis=-1) + resp_random_tr1
@@ -123,22 +123,20 @@ def fit(T_space, responses, targets_angle, nontargets_angles=np.array([[]]), ini
             # Update kappa
             if np.abs(np.nanmean(resp_trnk)) < 1e-10 or np.all(np.isnan(resp_trnk)):
                 if debug:
-                    print "Kappas diverged:", alpha, beta, gamma, np.nanmean(resp_trnk)
-                alpha = 0
-                beta = 0
-                gamma = 0
+                    print "Kappas diverged:", kappa_theta, np.nanmean(resp_trnk)
+                kappa_theta[:] = 0
                 break
             else:
-                # Estimate alpha, beta and gamma with a numerical M-step, 3D optimisaiton over the loglikelihood.
+                # Estimate kappa_theta with a numerical M-step, 3D optimisaiton over the loglikelihood.
                 # Combine all samples, nitems and recall times.
-                alpha, beta, gamma = numerical_M_step(T_space, resp_trnk, errors_all_trnk, alpha, beta, gamma)
+                kappa_theta = numerical_M_step(T_space, resp_trnk, errors_all_trnk, kappa_theta)
 
             # BIC
-            result_dict = dict(alpha=alpha, beta=beta, gamma=gamma, kappa=compute_kappa_all(T_space, alpha, beta, gamma), mixt_target_tr=mixt_target_tr, mixt_nontargets_tr=mixt_nontargets_tr, mixt_random_tr=mixt_random_tr, train_LL=LL, T_space=T_space)
+            result_dict = dict(kappa_theta=kappa_theta, kappa=compute_kappa_all(T_space, kappa_theta), mixt_target_tr=mixt_target_tr, mixt_nontargets_tr=mixt_nontargets_tr, mixt_random_tr=mixt_random_tr, train_LL=LL, T_space=T_space)
             bic_curr = bic(result_dict, np.log(W_trn))
 
             if debug:
-                print "M", i, LL, dLL, alpha, beta, gamma, mixt_target_tr, mixt_nontargets_tr, mixt_random_tr, bic_curr
+                print "M", i, LL, dLL, kappa_theta, mixt_target_tr, mixt_nontargets_tr, mixt_random_tr, bic_curr
 
             i += 1
 
@@ -156,7 +154,7 @@ def fit(T_space, responses, targets_angle, nontargets_angles=np.array([[]]), ini
             if debug:
                 print "New best!", initial_i, overall_LL, LL
             overall_LL = LL
-            (best_alpha, best_beta, best_gamma, best_mixt_target_tr, best_mixt_nontargets_tr, best_mixt_random_tr) = (alpha, beta, gamma, mixt_target_tr, mixt_nontargets_tr, mixt_random_tr)
+            (best_kappa_theta, best_mixt_target_tr, best_mixt_nontargets_tr, best_mixt_random_tr) = (kappa_theta, mixt_target_tr, mixt_nontargets_tr, mixt_random_tr)
 
         initial_i += 1
 
@@ -168,16 +166,16 @@ def fit(T_space, responses, targets_angle, nontargets_angles=np.array([[]]), ini
     return result_dict
 
 
-def compute_kappa(t, r, alpha, beta, gamma):
+def compute_kappa(t, r, kappa_theta):
     '''
-        Compute kappa given alpha, beta and gamma
+        Compute kappa given kappa_theta
 
-        kappa = alpha * t**beta * r**gamma
+        kappa = theta[0] * t**theta[1] * r**theta[2]
     '''
-    return alpha*t**beta*r**gamma
+    return kappa_theta[0]*t**kappa_theta[1]*r**kappa_theta[2]
 
 
-def compute_kappa_all(T_space, alpha, beta, gamma):
+def compute_kappa_all(T_space, kappa_theta):
     '''
         Compute kappa for all (T, trecall)
     '''
@@ -185,28 +183,28 @@ def compute_kappa_all(T_space, alpha, beta, gamma):
     for T_i, T in enumerate(T_space):
         for trecall_i, trecall in enumerate(T_space):
             if trecall <= T:
-                kappa_all[T_i, trecall_i] = compute_kappa(T, trecall, alpha, beta, gamma)
+                kappa_all[T_i, trecall_i] = compute_kappa(T, trecall, kappa_theta)
 
     return kappa_all
 
 
-def numerical_M_step(T_space, resp_trnk, errors_all_trnk, alpha, beta, gamma):
+def numerical_M_step(T_space, resp_trnk, errors_all_trnk, kappa_theta):
     '''
-        Perform a numerical M-step, optimizing the loglikelihood over alpha, beta and gamma
+        Perform a numerical M-step, optimizing the loglikelihood over kappa_theta
 
     '''
 
     def loglikelihood_closure(params, args):
         '''
-            params: (alpha, beta, gamma)
+            params: kappa_theta = (alpha, beta, gamma)
             args: (T_space, resp_trnk, errors_all_trnk)
         '''
         LL_tot = 0
         for T_i, T in enumerate(args['T_space']):
             for trecall_i, trecall in enumerate(args['T_space']):
                 if trecall <= T:
-                    LL_tot += np.nansum(args['resp_trnk'][T_i, trecall_i]*compute_kappa(T, trecall, params[0], params[1], params[2])*np.cos(args['errors_all_trnk'][T_i, trecall_i])) \
-                                    -np.nansum(args['resp_trnk'][T_i, trecall_i])*np.log(spsp.i0(compute_kappa(T, trecall, params[0], params[1], params[2])))
+                    LL_tot += np.nansum(args['resp_trnk'][T_i, trecall_i]*compute_kappa(T, trecall, params)*np.cos(args['errors_all_trnk'][T_i, trecall_i])) \
+                                    -np.nansum(args['resp_trnk'][T_i, trecall_i])*np.log(spsp.i0(compute_kappa(T, trecall, params)))
 
         if np.isnan(LL_tot):
             LL_tot = np.inf
@@ -215,7 +213,7 @@ def numerical_M_step(T_space, resp_trnk, errors_all_trnk, alpha, beta, gamma):
 
     args = dict(T_space=T_space, resp_trnk=resp_trnk, errors_all_trnk=errors_all_trnk)
 
-    res = spopt.minimize(loglikelihood_closure, (alpha, beta, gamma), args=args, bounds=((0, 100), (-2.0, 0.0), (-2.0, 0.0)), options=dict(disp=False))
+    res = spopt.minimize(loglikelihood_closure, kappa_theta, args=args, bounds=((0, 100), (-2.0, 0.0), (-2.0, 0.0)), options=dict(disp=False))
     # print res['x']
 
     #  Plots to check optimisation surface
@@ -229,7 +227,7 @@ def numerical_M_step(T_space, resp_trnk, errors_all_trnk, alpha, beta, gamma):
     # utils.pcolor_2d_data(fit, gamma_space, beta_space)
     # plt.show()
 
-    return res['x'][0], res['x'][1], res['x'][2]
+    return res['x']
 
 
 
@@ -272,9 +270,10 @@ def initialise_parameters_random(N, T_space, nb_initialisations=10):
     resp_trnk = np.nan*np.empty((Tnum, Tnum, int(N), Tmax))
 
     for i in xrange(nb_initialisations):
-        alpha = np.random.rand()*30.
-        beta = -np.random.rand()*1
-        gamma = -np.random.rand()*1
+        kappa_theta = np.empty(3)
+        kappa_theta[0] = np.random.rand()*30.
+        kappa_theta[1] = -np.random.rand()*1
+        kappa_theta[2] = -np.random.rand()*1
 
         # Force a strong on-target prior...
         mixt_target_tr = (np.random.rand(Tnum, Tnum)*0.5 + 0.5)*1.5
@@ -295,7 +294,7 @@ def initialise_parameters_random(N, T_space, nb_initialisations=10):
         mixt_nontargets_tr /= mixt_sum_tr
         mixt_random_tr /= mixt_sum_tr
 
-        all_params.append((alpha, beta, gamma, mixt_target_tr, mixt_random_tr, mixt_nontargets_tr, resp_trnk))
+        all_params.append((kappa_theta, mixt_target_tr, mixt_random_tr, mixt_nontargets_tr, resp_trnk))
 
     return all_params
 
@@ -404,10 +403,7 @@ def test_simple():
     Tmax = 5
     T_space = np.arange(1, Tmax+1)
 
-    alpha = 9.8
-    beta = -0.7
-    gamma = -0.9
-
+    kappa_theta = np.array([10., -0.7, -0.3])
     angles_nontargets = utils.sample_angle((Tmax, Tmax, Tmax-1))
 
     targets = np.zeros((Tmax, Tmax, N))
@@ -428,7 +424,7 @@ def test_simple():
     for T_i, T in enumerate(T_space):
         for trecall_i, trecall in enumerate(T_space):
             if trecall <= T:
-                kappa_target = compute_kappa(T, trecall, alpha, beta, gamma)
+                kappa_target = compute_kappa(T, trecall, kappa_theta)
                 em_fit_target = dict(kappa=kappa_target, mixt_target=0.75, mixt_nontargets=0.15, mixt_random=0.1)
 
                 # Sample from Von Mises
@@ -446,58 +442,6 @@ def test_simple():
 
     return T_space, responses, targets, nontargets
     # Check if estimated kappa is within 20% of target one
-
-
-def test_bays09like():
-    '''
-        Uses kappa and prob mixtures from Bays09
-    '''
-
-    import em_circularmixture
-
-    N = 2000
-
-    T_space = np.array([1, 2, 4, 6])
-    Tnum = T_space.size
-    Tmax = T_space.max()
-    kappa_space = np.array([ 19.76349326,  11.2619971 ,   9.22001848,   8.30524648])
-    probtarget_space = np.array([ 0.98688956,  0.92068596,  0.71474023,  0.5596124 ])
-    probnontarget_space = np.array([ 0.        ,  0.02853913,  0.10499085,  0.28098455])
-    probrandom_space = np.array([ 0.01311044,  0.05077492,  0.18026892,  0.15940305])
-
-    beta, alpha = utils.fit_powerlaw(T_space, kappa_space)
-
-
-    angles_nontargets = utils.sample_angle((Tnum, Tmax-1))
-    targets = np.zeros((Tnum, N))
-
-    nontargets = np.ones((Tnum, N, Tmax-1))*angles_nontargets[:, np.newaxis, :]
-    responses = np.zeros((Tnum, N))
-
-    for K_i, K in enumerate(T_space):
-        nontargets[K_i, :, (K-1):] = np.nan
-
-
-    for T_i, T in enumerate(T_space):
-        kappa_target = alpha*(T)**beta
-
-        em_fit_target = dict(kappa=kappa_target, alpha=alpha, beta=beta, mixt_target=probtarget_space[T_i], mixt_nontargets=probnontarget_space[T_i], mixt_random=probrandom_space[T_i])
-
-        # Sample from Von Mises
-        responses[T_i] = em_circularmixture.sample_from_fit(em_fit_target, targets[T_i], nontargets[T_i, :, :T_i])
-
-
-        em_fit = em_circularmixture.fit(responses[T_i], targets[T_i], nontargets[T_i, :, :(T-1)])
-
-        print "True: kappa={kappa:.5}, pt={mixt_target:.3}, pnt={mixt_nontargets:.3}, pr={mixt_random:.3}".format(**em_fit_target)
-        print "Fitted: kappa={kappa:.5}, pt={mixt_target:.3}, pnt={mixt_nontargets:.3}, pr={mixt_random:.3}".format(**em_fit)
-
-    # Now try full fit with alpha/beta
-    # em_fit = fit(responses, targets, nontargets)
-
-    return T_space, responses, targets, nontargets
-
-
 
 
 
