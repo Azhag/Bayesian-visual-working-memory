@@ -702,7 +702,7 @@ def plots_collapsed_em_mixtures(dataset, dataio=None, use_sem=True):
 
     # Mixture probabilities
     utils.plot_mean_std_area(T_space_exp, dataset['collapsed_em_fits']['mean']['mixt_target'], np.ma.masked_invalid(dataset['collapsed_em_fits'][errorbars]['mixt_target']).filled(0.0), xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Target')
-    utils.plot_mean_std_area(T_space_exp, np.ma.masked_invalid(dataset['collapsed_em_fits']['mean']['mixt_nontargets_sum']).filled(0.0), np.ma.masked_invalid(dataset['collapsed_em_fits'][errorbars]['mixt_nontargets_sum']).filled(0.0), xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Nontarget')
+    utils.plot_mean_std_area(T_space_exp, np.ma.masked_invalid(dataset['collapsed_em_fits']['mean']['mixt_nontargets']).filled(0.0), np.ma.masked_invalid(dataset['collapsed_em_fits'][errorbars]['mixt_nontargets']).filled(0.0), xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Nontarget')
     utils.plot_mean_std_area(T_space_exp, dataset['collapsed_em_fits']['mean']['mixt_random'], np.ma.masked_invalid(dataset['collapsed_em_fits'][errorbars]['mixt_random']).filled(0.0), xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Random')
 
     ax.legend(prop={'size':15})
@@ -923,7 +923,7 @@ def plots_gorgo11_sequential_collapsed(dataset, dataio=None, use_sem=True):
 
         # Mixture probabilities
         ax = plot_emmixture_mean_error(T_space_exp, dataset['collapsed_em_fits_trecall']['mean'][trecall_fixed]['mixt_target'], dataset['collapsed_em_fits_trecall'][errorbars][trecall_fixed]['mixt_target'], title='collapsed_trecall', label='Target')
-        ax = plot_emmixture_mean_error(T_space_exp, dataset['collapsed_em_fits_trecall']['mean'][trecall_fixed]['mixt_nontargets_sum'], dataset['collapsed_em_fits_trecall'][errorbars][trecall_fixed]['mixt_nontargets_sum'], title='collapsed_trecall', label='Nontarget', ax=ax)
+        ax = plot_emmixture_mean_error(T_space_exp, dataset['collapsed_em_fits_trecall']['mean'][trecall_fixed]['mixt_nontargets'], dataset['collapsed_em_fits_trecall'][errorbars][trecall_fixed]['mixt_nontargets'], title='collapsed_trecall', label='Nontarget', ax=ax)
         ax = plot_emmixture_mean_error(T_space_exp, dataset['collapsed_em_fits_trecall']['mean'][trecall_fixed]['mixt_random'], dataset['collapsed_em_fits_trecall'][errorbars][trecall_fixed]['mixt_random'], title='collapsed_trecall', label='Random', ax=ax)
 
         if dataio is not None:
@@ -943,7 +943,7 @@ def plots_gorgo11_sequential_collapsed(dataset, dataio=None, use_sem=True):
         _, ax_random = plt.subplots()
         for trecall in xrange(1, 7):
             ax_target = plot_emmixture_mean_error(T_space_exp[(trecall-1):], dataset['collapsed_em_fits_trecall']['mean'][trecall]['mixt_target'], dataset['collapsed_em_fits_trecall'][errorbars][trecall]['mixt_target'], title='Target collapsed_trecall', ax=ax_target, label='tr=-%d' % trecall, xlabel='nitems')
-            ax_nontarget = plot_emmixture_mean_error(T_space_exp[(trecall-1):], dataset['collapsed_em_fits_trecall']['mean'][trecall]['mixt_nontargets_sum'], dataset['collapsed_em_fits_trecall'][errorbars][trecall]['mixt_nontargets_sum'], title='Nontarget collapsed_trecall', ax=ax_nontarget, label='tr=-%d' % trecall, xlabel='nitems')
+            ax_nontarget = plot_emmixture_mean_error(T_space_exp[(trecall-1):], dataset['collapsed_em_fits_trecall']['mean'][trecall]['mixt_nontargets'], dataset['collapsed_em_fits_trecall'][errorbars][trecall]['mixt_nontargets'], title='Nontarget collapsed_trecall', ax=ax_nontarget, label='tr=-%d' % trecall, xlabel='nitems')
             ax_random = plot_emmixture_mean_error(T_space_exp[(trecall-1):], dataset['collapsed_em_fits_trecall']['mean'][trecall]['mixt_random'], dataset['collapsed_em_fits_trecall'][errorbars][trecall]['mixt_random'], title='Random collapsed_trecall', ax=ax_random, label='tr=-%d' % trecall, xlabel='nitems')
 
         if dataio is not None:
@@ -972,7 +972,7 @@ def plots_gorgo11_sequential_collapsed(dataset, dataio=None, use_sem=True):
         _, ax_random = plt.subplots()
         for nitem in xrange(1, 7):
             ax_target = plot_emmixture_mean_error(T_space_exp[:nitem], dataset['collapsed_em_fits_nitems']['mean'][nitem]['mixt_target'], dataset['collapsed_em_fits_nitems'][errorbars][nitem]['mixt_target'], title='Target collapsed_nitem', ax=ax_target, label='%d items' % nitem, xlabel='T_recall')
-            ax_nontarget = plot_emmixture_mean_error(T_space_exp[:nitem], dataset['collapsed_em_fits_nitems']['mean'][nitem]['mixt_nontargets_sum'], dataset['collapsed_em_fits_nitems'][errorbars][nitem]['mixt_nontargets_sum'], title='Nontarget collapsed_nitem', ax=ax_nontarget, label='%d items' % nitem, xlabel='T_recall')
+            ax_nontarget = plot_emmixture_mean_error(T_space_exp[:nitem], dataset['collapsed_em_fits_nitems']['mean'][nitem]['mixt_nontargets'], dataset['collapsed_em_fits_nitems'][errorbars][nitem]['mixt_nontargets'], title='Nontarget collapsed_nitem', ax=ax_nontarget, label='%d items' % nitem, xlabel='T_recall')
             ax_random = plot_emmixture_mean_error(T_space_exp[:nitem], dataset['collapsed_em_fits_nitems']['mean'][nitem]['mixt_random'], dataset['collapsed_em_fits_nitems'][errorbars][nitem]['mixt_random'], title='Random collapsed_nitem', ax=ax_random, label='%d items' % nitem, xlabel='T_recall')
 
         if dataio is not None:
@@ -1007,7 +1007,18 @@ def plots_gorgo11_sequential_collapsed(dataset, dataio=None, use_sem=True):
             dataio.save_current_figure('bic_comparison_sequential_{label}_{unique_id}.pdf')
 
     ######## Double powerlaw collapsed model
-    # Fig 7
+    # Fig 6, trecall=last, nitems on the x-axis
+    f, axes = plt.subplots(1, 2)
+    axes[0] = plot_kappa_mean_error(T_space_exp, dataset['collapsed_em_fits_doublepowerlaw']['mean']['kappa'][:, 0], dataset['collapsed_em_fits_doublepowerlaw'][errorbars]['kappa'][:, 0], title='Kappa', ax=axes[0], xlabel='items', ylabel='Kappa')
+    axes[1] = plot_emmixture_mean_error(T_space_exp, dataset['collapsed_em_fits_doublepowerlaw']['mean']['mixt_target_tr'][:, 0], dataset['collapsed_em_fits_doublepowerlaw'][errorbars]['mixt_target_tr'][:, 0], title='Mixture proportions', ax=axes[1], label='Target', xlabel='items', ylabel='Mixture proportions')
+    axes[1] = plot_emmixture_mean_error(T_space_exp, dataset['collapsed_em_fits_doublepowerlaw']['mean']['mixt_nontargets_tr'][:, 0], dataset['collapsed_em_fits_doublepowerlaw'][errorbars]['mixt_nontargets_tr'][:, 0], title='Mixture proportions', ax=axes[1], label='Nontargets', xlabel='items', ylabel='Mixture proportions')
+    axes[1] = plot_emmixture_mean_error(T_space_exp, dataset['collapsed_em_fits_doublepowerlaw']['mean']['mixt_random_tr'][:, 0], dataset['collapsed_em_fits_doublepowerlaw'][errorbars]['mixt_random_tr'][:, 0], title='Mixture proportions', ax=axes[1], label='Random', xlabel='items', ylabel='Mixture proportions')
+    f.suptitle('Fig 6: Last trecall')
+
+    if dataio is not None:
+        dataio.save_current_figure('fig6_doublepowerlaw_{label}_{unique_id}.pdf')
+
+    # Fig 7, kappa and mixtures, one plot per nitems, trecall on the x-axis
     f, ax = plt.subplots()
     for nitems_i, nitems in enumerate(xrange(1, 7)):
         ax = plot_kappa_mean_error(T_space_exp[:nitems], dataset['collapsed_em_fits_doublepowerlaw']['mean']['kappa'][nitems_i, :nitems], dataset['collapsed_em_fits_doublepowerlaw'][errorbars]['kappa'][nitems_i, :nitems], title='collapsed_doublepowerlaw', ax=ax, label='%d items' % nitems, xlabel='T_recall')
@@ -1026,17 +1037,19 @@ def plots_gorgo11_sequential_collapsed(dataset, dataio=None, use_sem=True):
     if dataio is not None:
         dataio.save_current_figure('fig7_doublepowerlaw_mixt_{label}_{unique_id}.pdf')
 
-    # Checking parameters of kappa()
+    ## Checking parameters of kappa()
+    kappa_theta_all = np.array(dataset['collapsed_em_fits_doublepowerlaw']['values']['kappa_theta'])
+
     f, axes = plt.subplots(2, 2)
-    axes[0, 0].plot(dataset['collapsed_em_fits_doublepowerlaw']['values']['beta'], dataset['collapsed_em_fits_doublepowerlaw']['values']['gamma'], 'x', markersize=10)
+    axes[0, 0].plot(kappa_theta_all[:, 1], kappa_theta_all[:, 2], 'x', markersize=10)
     axes[0, 0].set_xlabel('beta [nitems]')
     axes[0, 0].set_ylabel('gamma [trecall]')
 
-    axes[1, 0].plot(dataset['collapsed_em_fits_doublepowerlaw']['values']['alpha'], dataset['collapsed_em_fits_doublepowerlaw']['values']['beta'], 'x', markersize=10)
+    axes[1, 0].plot(kappa_theta_all[:, 0], kappa_theta_all[:, 1], 'x', markersize=10)
     axes[1, 0].set_xlabel('alpha [kappa max]')
     axes[1, 0].set_ylabel('beta [nitems]')
 
-    axes[1, 1].plot(dataset['collapsed_em_fits_doublepowerlaw']['values']['alpha'], dataset['collapsed_em_fits_doublepowerlaw']['values']['gamma'], 'x', markersize=10)
+    axes[1, 1].plot(kappa_theta_all[:, 0], kappa_theta_all[:, 2], 'x', markersize=10)
     axes[1, 1].set_xlabel('alpha [kappa max]')
     axes[1, 1].set_ylabel('gamma [trecall]')
     f.suptitle('Powerlaw exponents, per subject')
@@ -1047,7 +1060,7 @@ def plots_gorgo11_sequential_collapsed(dataset, dataio=None, use_sem=True):
     #  Same but 3D
     fig = plt.figure()
     ax = Axes3D(fig)
-    utils.scatter3d(dataset['collapsed_em_fits_doublepowerlaw']['values']['beta'], dataset['collapsed_em_fits_doublepowerlaw']['values']['gamma'], dataset['collapsed_em_fits_doublepowerlaw']['values']['alpha'], s=50, c=dataset['data_subject_split']['subjects_space'], xlabel='beta [nitems]', ylabel='gamma [trecall]',  zlabel='alpha [kappa max]', title='Kappa parameters per subject', ax_handle=ax)
+    utils.scatter3d(kappa_theta_all[:, 1], kappa_theta_all[:, 2], kappa_theta_all[:, 0], s=50, c=dataset['data_subject_split']['subjects_space'], xlabel='beta [nitems]', ylabel='gamma [trecall]',  zlabel='alpha [kappa max]', title='Kappa parameters per subject', ax_handle=ax)
 
     # Now kappa directly
     fig = plt.figure()
@@ -1072,7 +1085,7 @@ def plots_gorgo11_sequential_collapsed(dataset, dataio=None, use_sem=True):
         for subject_i, subject in enumerate(dataset['data_subject_split']['subjects_space']):
             f, axes = plt.subplots(2, 2)
             for nitems_i, nitems in enumerate(xrange(1, 7)):
-                axes[0, 0] = plot_kappa_mean_error(T_space_exp[:nitems], dataset['collapsed_em_fits_doublepowerlaw_subjects'][subject]['kappa'][nitems_i, :nitems], dataset['collapsed_em_fits_doublepowerlaw_subjects'][subject]['kappa'][nitems_i, :nitems]*0.0, title='Subject %d \nbeta %.1f, gamma %.1f, alpha %d' % (subject, dataset['collapsed_em_fits_doublepowerlaw_subjects'][subject]['beta'], dataset['collapsed_em_fits_doublepowerlaw_subjects'][subject]['gamma'], dataset['collapsed_em_fits_doublepowerlaw_subjects'][subject]['alpha']), ax=axes[0, 0], label='%d items' % nitems, xlabel='T_recall')
+                axes[0, 0] = plot_kappa_mean_error(T_space_exp[:nitems], dataset['collapsed_em_fits_doublepowerlaw_subjects'][subject]['kappa'][nitems_i, :nitems], dataset['collapsed_em_fits_doublepowerlaw_subjects'][subject]['kappa'][nitems_i, :nitems]*0.0, title='Subject %d \nbeta %.1f, gamma %.1f, alpha %d' % (subject, dataset['collapsed_em_fits_doublepowerlaw_subjects'][subject]['kappa_theta'][1], dataset['collapsed_em_fits_doublepowerlaw_subjects'][subject]['kappa_theta'][2], dataset['collapsed_em_fits_doublepowerlaw_subjects'][subject]['kappa_theta'][0]), ax=axes[0, 0], label='%d items' % nitems, xlabel='T_recall')
                 axes[0, 0].set_ylim((0.0, 15.5))
 
             for nitems_i, nitems in enumerate(xrange(1, 7)):
