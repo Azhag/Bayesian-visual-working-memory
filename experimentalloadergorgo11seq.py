@@ -74,7 +74,7 @@ class ExperimentalLoaderGorgo11Sequential(ExperimentalLoader):
         self.generate_data_subject_split()
 
         if parameters.get('fit_mixture_model', False):
-            self.fit_collapsed_mixture_model_cached(caching_save_filename=parameters.get('collapsed_mixture_model_cache', None), saved_keys=['collapsed_em_fits_subjects_nitems', 'collapsed_em_fits_nitems', 'collapsed_em_fits_subjects_trecall', 'collapsed_em_fits_trecall', 'collapsed_em_fits_doublepowerlaw', 'collapsed_em_fits_doublepowerlaw_subjects'])
+            self.fit_collapsed_mixture_model_cached(caching_save_filename=parameters.get('collapsed_mixture_model_cache', None), saved_keys=['collapsed_em_fits_subjects_nitems', 'collapsed_em_fits_nitems', 'collapsed_em_fits_subjects_trecall', 'collapsed_em_fits_trecall', 'collapsed_em_fits_doublepowerlaw', 'collapsed_em_fits_doublepowerlaw_subjects', 'collapsed_em_fits_doublepowerlaw_array'])
 
         # Perform Vtest for circular uniformity
         # self.compute_vtest()
@@ -445,6 +445,8 @@ class ExperimentalLoaderGorgo11Sequential(ExperimentalLoader):
 
         '''
         Tmax = self.dataset['data_subject_split']['nitems_space'].max()
+        Tnum = self.dataset['data_subject_split']['nitems_space'].size
+
 
         self.dataset['collapsed_em_fits_subjects_nitems'] = dict()
         self.dataset['collapsed_em_fits_nitems'] = dict()
@@ -454,6 +456,7 @@ class ExperimentalLoaderGorgo11Sequential(ExperimentalLoader):
 
         self.dataset['collapsed_em_fits_doublepowerlaw_subjects'] = dict()
         self.dataset['collapsed_em_fits_doublepowerlaw'] = dict()
+        self.dataset['collapsed_em_fits_doublepowerlaw_array'] = np.nan*np.empty((Tnum, Tnum, 4))
 
 
         for subject, subject_data_dict in self.dataset['data_subject_split']['data_subject'].iteritems():
@@ -535,5 +538,12 @@ class ExperimentalLoaderGorgo11Sequential(ExperimentalLoader):
             self.dataset['collapsed_em_fits_doublepowerlaw']['std'][key] = np.std(values_allsubjects, axis=0)
             self.dataset['collapsed_em_fits_doublepowerlaw']['sem'][key] = self.dataset['collapsed_em_fits_doublepowerlaw']['std'][key]/np.sqrt(self.dataset['data_subject_split']['subjects_space'].size)
             self.dataset['collapsed_em_fits_doublepowerlaw']['values'][key] = values_allsubjects
+
+        # Construct some easy arrays to compare the fit to the dataset
+        self.dataset['collapsed_em_fits_doublepowerlaw_array'][..., 0] = self.dataset['collapsed_em_fits_doublepowerlaw']['mean']['kappa']
+        self.dataset['collapsed_em_fits_doublepowerlaw_array'][..., 1] = self.dataset['collapsed_em_fits_doublepowerlaw']['mean']['mixt_target_tr']
+        self.dataset['collapsed_em_fits_doublepowerlaw_array'][..., 2] = self.dataset['collapsed_em_fits_doublepowerlaw']['mean']['mixt_nontargets_tr']
+        self.dataset['collapsed_em_fits_doublepowerlaw_array'][..., 3] = self.dataset['collapsed_em_fits_doublepowerlaw']['mean']['mixt_random_tr']
+
 
 
