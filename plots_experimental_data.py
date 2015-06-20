@@ -1035,7 +1035,14 @@ def plots_gorgo11_sequential_collapsed(dataset, dataio=None, use_sem=True):
         ax_random = plot_emmixture_mean_error(T_space_exp[:nitems], dataset['collapsed_em_fits_doublepowerlaw']['mean']['mixt_random_tr'][nitems_i, :nitems], dataset['collapsed_em_fits_doublepowerlaw'][errorbars]['mixt_random_tr'][nitems_i, :nitems], title='Random collapsed_doublepowerlaw', ax=ax_random, label='%d items' % nitems, xlabel='T_recall')
 
     if dataio is not None:
-        dataio.save_current_figure('fig7_doublepowerlaw_mixt_{label}_{unique_id}.pdf')
+        plt.figure(ax_target.get_figure().number)
+        dataio.save_current_figure('fig7_doublepowerlaw_mixttarget_{label}_{unique_id}.pdf')
+
+        plt.figure(ax_nontarget.get_figure().number)
+        dataio.save_current_figure('fig7_doublepowerlaw_mixtnontarget_{label}_{unique_id}.pdf')
+
+        plt.figure(ax_random.get_figure().number)
+        dataio.save_current_figure('fig7_doublepowerlaw_mixtrandom_{label}_{unique_id}.pdf')
 
     ## Checking parameters of kappa()
     kappa_theta_all = np.array(dataset['collapsed_em_fits_doublepowerlaw']['values']['kappa_theta'])
