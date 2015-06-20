@@ -45,3 +45,32 @@ def interpolate_data_2d(all_points, data, param1_space_int=None, param2_space_in
     return data_interpol
 
 
+def gridify(parameters_flat, bins=100, parameter_linspace=None):
+    '''
+        Given a flat array of parameter values, will generate a new indexing that collapses over a finite number of intervals over the parameter space
+
+        Useful to convert random samples to a grid-like representation.
+
+        Still need to use this indexing later, for each to avg stuff or select them.
+    '''
+
+    if parameter_linspace is None:
+        # Split up the parameter space according to the bins we want
+        params_unique = np.unique(parameters_flat)
+        parameter_linspace = np.linspace(params_unique.min(), params_unique.max(), bins + 1)
+    else:
+        bins = parameter_linspace.size - 1
+
+    result_index = np.empty((bins, parameters_flat.shape[0]), dtype=bool)
+
+    for x_i, x in enumerate(parameter_linspace[:-1]):
+        result_index[x_i] = (parameters_flat > x) & (parameters_flat <= parameter_linspace[x_i + 1])
+
+    return result_index, parameter_linspace
+
+
+
+
+
+
+
