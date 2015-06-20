@@ -296,12 +296,12 @@ def launcher_do_fit_mixturemodels_sequential_alltrecall(args):
 
         # Then the ones that do not, only one per full collapsed fit.
         result_em_fits_collapsed_summary[0, repet_i] = params_fit['bic']
-        result_em_fits_collapsed_summary[1, repet_i] = params_fit['train_LL']
+        # result_em_fits_collapsed_summary[1, repet_i] = params_fit['train_LL']
         result_em_fits_collapsed_summary[2:, repet_i] = params_fit['kappa_theta']
 
         # Compute distances to dataset for collapsed model
         result_dist_gorgo11_sequ_collapsed[..., repet_i] = (gorgo11_sequ_collapsed_mixtmod_mean - result_em_fits_collapsed_tr[..., repet_i])**2.
-        result_dist_gorgo11_sequ_collapsed_emmixt_KL[..., repet_i] = utils.KL_div(result_em_fits_collapsed_tr[..., 1:4, repet_i], gorgo11_sequ_collapsed_mixtmod_mean[..., 1:])
+        result_dist_gorgo11_sequ_collapsed_emmixt_KL[..., repet_i] = utils.KL_div(result_em_fits_collapsed_tr[..., 1:4, repet_i], gorgo11_sequ_collapsed_mixtmod_mean[..., 1:], axis=-1)
 
 
     # Finished
