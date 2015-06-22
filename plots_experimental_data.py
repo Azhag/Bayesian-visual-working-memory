@@ -753,20 +753,26 @@ def plot_compare_bic_collapsed_mixture_model_sequential(dataset, dataio=None):
     # em_fits_nitems_trecall
     # em_fits_subjects_nitems
     bic_separate_subjects_nitems_trecall = np.nan*np.empty((dataset['subject_size'], dataset['n_items_size'], dataset['n_items_size']))
+    ll_separate_subjects_nitems_trecall = np.nan*np.empty((dataset['subject_size'], dataset['n_items_size'], dataset['n_items_size']))
 
     for subject_i, subject in enumerate(dataset['data_subject_split']['subjects_space']):
         for n_items_i, n_items in enumerate(dataset['data_subject_split']['nitems_space']):
             for t_i, trecall in enumerate(np.arange(1, n_items + 1)):
                 trecall_i = n_items - trecall
                 bic_separate_subjects_nitems_trecall[subject_i, n_items_i, t_i] =dataset['em_fits_subjects_nitems_trecall'][subject_i, n_items_i, trecall_i]['bic']
+                ll_separate_subjects_nitems_trecall[subject_i, n_items_i, t_i] =dataset['em_fits_subjects_nitems_trecall'][subject_i, n_items_i, trecall_i]['train_LL']
 
     # Full double powerlaw model
     bic_collapsed_subjects_doublepowerlaw = np.array([dataset['collapsed_em_fits_doublepowerlaw_subjects'][subj]['bic'] for subj in dataset['data_subject_split']['subjects_space']]).T
+    ll_collapsed_subjects_doublepowerlaw = np.array([dataset['collapsed_em_fits_doublepowerlaw_subjects'][subj]['train_LL'] for subj in dataset['data_subject_split']['subjects_space']]).T
 
     print 'Collapsed trecall summed BIC: ', np.sum(bic_collapsed_subjects_trecall)
     print 'Collapsed nitems summed BIC: ', np.sum(bic_collapsed_subjects_nitems)
-    print 'Collapsed double powerlaw BIC: ', np.sum(bic_collapsed_subjects_doublepowerlaw)
+    print '\n\nCollapsed double powerlaw BIC: ', np.sum(bic_collapsed_subjects_doublepowerlaw)
     print 'Original non-collapsed BIC: ', np.nansum(bic_separate_subjects_nitems_trecall)
+    print 'Collapsed double powerlaw LL: ', np.sum(ll_collapsed_subjects_doublepowerlaw)
+    print 'Original non-collapsed LL: ', np.nansum(ll_separate_subjects_nitems_trecall)
+
 
     bic_separate_subjects_trecall = np.nansum(bic_separate_subjects_nitems_trecall, axis=-2)
     bic_separate_subjects_nitems = np.nansum(bic_separate_subjects_nitems_trecall, axis=-1)
