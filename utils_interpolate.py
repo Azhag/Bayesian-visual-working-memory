@@ -66,7 +66,9 @@ def gridify(parameters_flat, bins=100, parameter_linspace=None):
     for x_i, x in enumerate(parameter_linspace[:-1]):
         result_index[x_i] = (parameters_flat > x) & (parameters_flat <= parameter_linspace[x_i + 1])
 
-    return result_index, parameter_linspace
+    parameters_midspace = parameter_linspace[:-1] + np.diff(parameter_linspace)[0]/2.
+
+    return result_index, parameter_linspace, parameters_midspace
 
 
 
