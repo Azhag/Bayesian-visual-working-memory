@@ -92,58 +92,8 @@ class ExperimentalLoaderDualRecall(ExperimentalLoader):
 
         ### Fit the mixture model
         if parameters['fit_mixture_model']:
+            self.fit_mixture_model_cached(caching_save_filename=parameters.get('mixture_model_cache', None), saved_keys=['em_fits', 'em_fits_nitems', 'em_fits_angle_nitems_subjects', 'em_fits_angle_nitems', 'em_fits_colour_nitems_subjects', 'em_fits_colour_nitems'])
 
-            self.dataset['em_fits'] = dict(kappa=np.empty(self.dataset['probe_angle'].size), mixt_target=np.empty(self.dataset['probe_angle'].size), mixt_nontarget=np.empty(self.dataset['probe_angle'].size), mixt_random=np.empty(self.dataset['probe_angle'].size), resp_target=np.empty(self.dataset['probe_angle'].size), resp_nontarget=np.empty(self.dataset['probe_angle'].size), resp_random=np.empty(self.dataset['probe_angle'].size), train_LL=np.empty(self.dataset['probe_angle'].size), test_LL=np.empty(self.dataset['probe_angle'].size))
-            for key in self.dataset['em_fits']:
-                self.dataset['em_fits'][key].fill(np.nan)
-
-            # Angles trials
-            for n_items in np.unique(self.dataset['n_items']):
-                ids_n_items = (self.dataset['n_items'] == n_items).flatten()
-                ids_filtered = self.dataset['angle_trials'] & ids_n_items
-
-                self.dataset['target'][ids_filtered] = self.dataset['item_angle'][ids_filtered, 0]
-                self.dataset['response'][ids_filtered] = self.dataset['probe_angle'][ids_filtered]
-
-                # params_fit = em_circularmixture.fit(self.dataset['probe_angle'][ids_filtered, 0], self.dataset['item_angle'][ids_filtered, 0], self.dataset['item_angle'][ids_filtered, 1:])
-                print self.dataset['probe_angle'][ids_filtered, 0].shape, self.dataset['item_angle'][ids_filtered, 0].shape, self.dataset['item_angle'][ids_filtered, 1:].shape
-
-                cross_valid_outputs = em_circularmixture.cross_validation_kfold(self.dataset['probe_angle'][ids_filtered, 0], self.dataset['item_angle'][ids_filtered, 0], self.dataset['item_angle'][ids_filtered, 1:], K=10, shuffle=True, debug=False)
-                params_fit = cross_valid_outputs['best_fit']
-                resp = em_circularmixture.compute_responsibilities(self.dataset['probe_angle'][ids_filtered, 0], self.dataset['item_angle'][ids_filtered, 0], self.dataset['item_angle'][ids_filtered, 1:], params_fit)
-
-                self.dataset['em_fits']['kappa'][ids_filtered] = params_fit['kappa']
-                self.dataset['em_fits']['mixt_target'][ids_filtered] = params_fit['mixt_target']
-                self.dataset['em_fits']['mixt_nontarget'][ids_filtered] = params_fit['mixt_nontargets']
-                self.dataset['em_fits']['mixt_random'][ids_filtered] = params_fit['mixt_random']
-                self.dataset['em_fits']['resp_target'][ids_filtered] = resp['target']
-                self.dataset['em_fits']['resp_nontarget'][ids_filtered] = np.sum(resp['nontargets'], axis=1)
-                self.dataset['em_fits']['resp_random'][ids_filtered] = resp['random']
-                self.dataset['em_fits']['train_LL'][ids_filtered] = params_fit['train_LL']
-                self.dataset['em_fits']['test_LL'][ids_filtered] = cross_valid_outputs['best_test_LL']
-
-            # Colour trials
-            for n_items in np.unique(self.dataset['n_items']):
-                ids_n_items = (self.dataset['n_items'] == n_items).flatten()
-                ids_filtered = self.dataset['colour_trials'] & ids_n_items
-
-                self.dataset['target'][ids_filtered] = self.dataset['item_colour'][ids_filtered, 0]
-                self.dataset['response'][ids_filtered] = self.dataset['probe_colour'][ids_filtered]
-
-                # params_fit = em_circularmixture.fit(self.dataset['probe_colour'][ids_filtered, 0], self.dataset['item_colour'][ids_filtered, 0], self.dataset['item_colour'][ids_filtered, 1:])
-                cross_valid_outputs = em_circularmixture.cross_validation_kfold(self.dataset['probe_colour'][ids_filtered, 0], self.dataset['item_colour'][ids_filtered, 0], self.dataset['item_colour'][ids_filtered, 1:], K=10, shuffle=True, debug=False)
-                params_fit = cross_valid_outputs['best_fit']
-                resp = em_circularmixture.compute_responsibilities(self.dataset['probe_colour'][ids_filtered, 0], self.dataset['item_colour'][ids_filtered, 0], self.dataset['item_colour'][ids_filtered, 1:], params_fit)
-
-                self.dataset['em_fits']['kappa'][ids_filtered] = params_fit['kappa']
-                self.dataset['em_fits']['mixt_target'][ids_filtered] = params_fit['mixt_target']
-                self.dataset['em_fits']['mixt_nontarget'][ids_filtered] = params_fit['mixt_nontargets']
-                self.dataset['em_fits']['mixt_random'][ids_filtered] = params_fit['mixt_random']
-                self.dataset['em_fits']['resp_target'][ids_filtered] = resp['target']
-                self.dataset['em_fits']['resp_nontarget'][ids_filtered] = np.sum(resp['nontargets'], axis=1)
-                self.dataset['em_fits']['resp_random'][ids_filtered] = resp['random']
-                self.dataset['em_fits']['train_LL'][ids_filtered] = params_fit['train_LL']
-                self.dataset['em_fits']['test_LL'][ids_filtered] = cross_valid_outputs['best_test_LL']
 
         ## Save item in a nice format for the model fit
         self.dataset['data_to_fit'] = {}
@@ -165,9 +115,137 @@ class ExperimentalLoaderDualRecall(ExperimentalLoader):
 
         # Try with Pandas for some advanced plotting
         dataset_filtered = dict((k, self.dataset[k].flatten()) for k in ('n_items', 'trial', 'subject', 'reject', 'rating', 'probe_colour', 'probe_angle', 'cond', 'error', 'error_angle', 'error_colour', 'response', 'target'))
-
         if parameters['fit_mixture_model']:
             dataset_filtered.update(self.dataset['em_fits'])
 
         self.dataset['panda'] = pd.DataFrame(dataset_filtered)
+
+
+    def fit_mixture_model(self):
+        '''
+            Special fitting for this dual recall dataset
+        '''
+
+        self.dataset['em_fits'] = dict(kappa=np.empty(self.dataset['probe_angle'].size), mixt_target=np.empty(self.dataset['probe_angle'].size), mixt_nontarget=np.empty(self.dataset['probe_angle'].size), mixt_random=np.empty(self.dataset['probe_angle'].size), resp_target=np.empty(self.dataset['probe_angle'].size), resp_nontarget=np.empty(self.dataset['probe_angle'].size), resp_random=np.empty(self.dataset['probe_angle'].size), train_LL=np.empty(self.dataset['probe_angle'].size), test_LL=np.empty(self.dataset['probe_angle'].size))
+        for key in self.dataset['em_fits']:
+            self.dataset['em_fits'][key].fill(np.nan)
+
+        self.dataset['em_fits_angle_nitems_subjects'] = dict()
+        self.dataset['em_fits_angle_nitems'] = dict(mean=dict(), std=dict(), values=dict())
+        self.dataset['em_fits_colour_nitems_subjects'] = dict()
+        self.dataset['em_fits_colour_nitems'] = dict(mean=dict(), std=dict(), values=dict())
+
+        unique_n_items = np.unique(self.dataset['n_items'])
+        unique_subjects = np.unique(self.dataset['subject'])
+
+        # This dataset is a bit special with regards to subjects, it's a conditional design:
+        # 8 Subjects (1 - 8) only did 6 items, both angle/colour trials
+        # 6 Subjects (9 - 14) did 3 items, both angle/colour trials.
+        # We have 160 trials per (subject, n_item, condition).
+
+        # Angles trials
+        for n_items_i, n_items in enumerate(unique_n_items):
+            for subject_i, subject in enumerate(unique_subjects):
+                ids_filtered = ((self.dataset['subject']==subject) & (self.dataset['n_items'] == n_items) & (self.dataset.get('masked', False) == False)).flatten()
+
+                ids_filtered = self.dataset['angle_trials'] & ids_filtered
+
+                if ids_filtered.sum() > 0:
+                    self.dataset['target'][ids_filtered] = self.dataset['item_angle'][ids_filtered, 0]
+                    self.dataset['response'][ids_filtered] = self.dataset['probe_angle'][ids_filtered]
+
+                    print n_items, subject, self.dataset['probe_angle'][ids_filtered, 0].shape, self.dataset['item_angle'][ids_filtered, 0].shape, self.dataset['item_angle'][ids_filtered, 1:].shape
+
+                    # params_fit = em_circularmixture.fit(self.dataset['probe_angle'][ids_filtered, 0], self.dataset['item_angle'][ids_filtered, 0], self.dataset['item_angle'][ids_filtered, 1:])
+
+                    cross_valid_outputs = em_circularmixture.cross_validation_kfold(self.dataset['probe_angle'][ids_filtered, 0], self.dataset['item_angle'][ids_filtered, 0], self.dataset['item_angle'][ids_filtered, 1:], K=10, shuffle=True, debug=False)
+                    params_fit = cross_valid_outputs['best_fit']
+                    resp = em_circularmixture.compute_responsibilities(self.dataset['probe_angle'][ids_filtered, 0], self.dataset['item_angle'][ids_filtered, 0], self.dataset['item_angle'][ids_filtered, 1:], params_fit)
+
+                    self.dataset['em_fits']['kappa'][ids_filtered] = params_fit['kappa']
+                    self.dataset['em_fits']['mixt_target'][ids_filtered] = params_fit['mixt_target']
+                    self.dataset['em_fits']['mixt_nontarget'][ids_filtered] = params_fit['mixt_nontargets']
+                    self.dataset['em_fits']['mixt_random'][ids_filtered] = params_fit['mixt_random']
+                    self.dataset['em_fits']['resp_target'][ids_filtered] = resp['target']
+                    self.dataset['em_fits']['resp_nontarget'][ids_filtered] = np.sum(resp['nontargets'], axis=1)
+                    self.dataset['em_fits']['resp_random'][ids_filtered] = resp['random']
+                    self.dataset['em_fits']['train_LL'][ids_filtered] = params_fit['train_LL']
+                    self.dataset['em_fits']['test_LL'][ids_filtered] = cross_valid_outputs['best_test_LL']
+
+                    self.dataset['em_fits_angle_nitems_subjects'].setdefault(n_items, dict())[subject] = params_fit
+
+            ## Now compute mean/std em_fits per n_items
+            self.dataset['em_fits_angle_nitems']['mean'][n_items] = dict()
+            self.dataset['em_fits_angle_nitems']['std'][n_items] = dict()
+            self.dataset['em_fits_angle_nitems']['values'][n_items] = dict()
+
+            # Need to extract the values for a subject/nitems pair, for all keys of em_fits. Annoying dictionary indexing needed
+            emfits_keys = params_fit.keys()
+            for key in emfits_keys:
+                values_allsubjects = [self.dataset['em_fits_angle_nitems_subjects'][n_items][subject][key] for subject in self.dataset['em_fits_angle_nitems_subjects'][n_items]]
+
+                self.dataset['em_fits_angle_nitems']['mean'][n_items][key] = np.mean(values_allsubjects)
+                self.dataset['em_fits_angle_nitems']['std'][n_items][key] = np.std(values_allsubjects)
+                self.dataset['em_fits_angle_nitems']['values'][n_items][key] = values_allsubjects
+
+
+        # Colour trials
+        for n_items_i, n_items in enumerate(unique_n_items):
+            for subject_i, subject in enumerate(unique_subjects):
+                ids_filtered = ((self.dataset['subject']==subject) & (self.dataset['n_items'] == n_items) & (self.dataset.get('masked', False) == False)).flatten()
+
+                ids_filtered = self.dataset['colour_trials'] & ids_filtered
+
+                if ids_filtered.sum() > 0:
+                    self.dataset['target'][ids_filtered] = self.dataset['item_colour'][ids_filtered, 0]
+                    self.dataset['response'][ids_filtered] = self.dataset['probe_colour'][ids_filtered]
+
+                    print n_items, subject, self.dataset['probe_angle'][ids_filtered, 0].shape, self.dataset['item_angle'][ids_filtered, 0].shape, self.dataset['item_angle'][ids_filtered, 1:].shape
+
+                    # params_fit = em_circularmixture.fit(self.dataset['probe_colour'][ids_filtered, 0], self.dataset['item_colour'][ids_filtered, 0], self.dataset['item_colour'][ids_filtered, 1:])
+                    cross_valid_outputs = em_circularmixture.cross_validation_kfold(self.dataset['probe_colour'][ids_filtered, 0], self.dataset['item_colour'][ids_filtered, 0], self.dataset['item_colour'][ids_filtered, 1:], K=10, shuffle=True, debug=False)
+                    params_fit = cross_valid_outputs['best_fit']
+                    resp = em_circularmixture.compute_responsibilities(self.dataset['probe_colour'][ids_filtered, 0], self.dataset['item_colour'][ids_filtered, 0], self.dataset['item_colour'][ids_filtered, 1:], params_fit)
+
+                    self.dataset['em_fits']['kappa'][ids_filtered] = params_fit['kappa']
+                    self.dataset['em_fits']['mixt_target'][ids_filtered] = params_fit['mixt_target']
+                    self.dataset['em_fits']['mixt_nontarget'][ids_filtered] = params_fit['mixt_nontargets']
+                    self.dataset['em_fits']['mixt_random'][ids_filtered] = params_fit['mixt_random']
+                    self.dataset['em_fits']['resp_target'][ids_filtered] = resp['target']
+                    self.dataset['em_fits']['resp_nontarget'][ids_filtered] = np.sum(resp['nontargets'], axis=1)
+                    self.dataset['em_fits']['resp_random'][ids_filtered] = resp['random']
+                    self.dataset['em_fits']['train_LL'][ids_filtered] = params_fit['train_LL']
+                    self.dataset['em_fits']['test_LL'][ids_filtered] = cross_valid_outputs['best_test_LL']
+
+                    self.dataset['em_fits_colour_nitems_subjects'].setdefault(n_items, dict())[subject] = params_fit
+
+            ## Now compute mean/std em_fits per n_items
+            self.dataset['em_fits_colour_nitems']['mean'][n_items] = dict()
+            self.dataset['em_fits_colour_nitems']['std'][n_items] = dict()
+            self.dataset['em_fits_colour_nitems']['values'][n_items] = dict()
+
+            # Need to extract the values for a subject/nitems pair, for all keys of em_fits. Annoying dictionary indexing needed
+            emfits_keys = params_fit.keys()
+            for key in emfits_keys:
+                values_allsubjects = [self.dataset['em_fits_colour_nitems_subjects'][n_items][subject][key] for subject in self.dataset['em_fits_colour_nitems_subjects'][n_items]]
+
+                self.dataset['em_fits_colour_nitems']['mean'][n_items][key] = np.mean(values_allsubjects)
+                self.dataset['em_fits_colour_nitems']['std'][n_items][key] = np.std(values_allsubjects)
+                self.dataset['em_fits_colour_nitems']['values'][n_items][key] = values_allsubjects
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
