@@ -89,7 +89,7 @@ def load_data_dualrecall(data_dir='../../experimental_data/', fit_mixture_model=
         experim_datadir = os.environ.get('WORKDIR_DROP', os.path.split(utils.__file__)[0])
         data_dir = os.path.normpath(os.path.join(experim_datadir, data_dir))
 
-    expLoader = ExperimentalLoaderDualRecall(dict(name='dualrecall', filename=os.path.join(data_dir, 'DualRecall_Bays', 'rate_data.mat'), parameters=dict(fit_mixture_model=fit_mixture_model, mixture_model_cache='em_dualrecall_allitems.pickle', collapsed_mixture_model_cache='collapsed_em_dualrecall.pickle')))
+    expLoader = ExperimentalLoaderDualRecall(dict(name='dualrecall', filename='rate_data.mat', datadir=os.path.join(data_dir, 'DualRecall_Bays'), parameters=dict(fit_mixture_model=fit_mixture_model, mixture_model_cache='em_dualrecall_allitems.pickle', collapsed_mixture_model_cache='collapsed_em_dualrecall.pickle')))
 
     return expLoader.dataset
 
@@ -112,9 +112,9 @@ if __name__ == '__main__':
         # (data_simult,) = load_multiple_datasets([dict(name='Gorgo_simult', filename='Exp2_withcolours.mat',  parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), fit_mixture_model=True, mixture_model_cache='em_simult.pickle'))])
         # (data_bays2009, ) = load_multiple_datasets([dict(name='Bays2009', filename='colour_data.mat', parameters=dict(datadir=os.path.join(data_dir, 'Bays2009'), fit_mixture_model=True, mixture_model_cache='em_bays.pickle', should_compute_bootstrap=True, bootstrap_cache='bootstrap_1000samples.pickle'))])
 
-        data_bays2009 = load_data_bays09(data_dir=data_dir, fit_mixture_model=True)
-        data_gorgo11 = load_data_gorgo11(data_dir=data_dir, fit_mixture_model=True)
-        # data_dualrecall = load_data_dualrecall(data_dir=data_dir, fit_mixture_model=True)
+        # data_bays2009 = load_data_bays09(data_dir=data_dir, fit_mixture_model=True)
+        # data_gorgo11 = load_data_gorgo11(data_dir=data_dir, fit_mixture_model=True)
+        data_dualrecall = load_data_dualrecall(data_dir=data_dir, fit_mixture_model=True)
         data_gorgo11_sequ = load_data_gorgo11_sequential(data_dir=data_dir, fit_mixture_model=True)
 
 
@@ -177,9 +177,9 @@ if __name__ == '__main__':
 
     dataio = DataIO.DataIO(label='experiments_gorgo11_seq')
     # plots_gorgo11_sequential(data_gorgo11_sequ, dataio)
-    plots_gorgo11_sequential_collapsed(data_gorgo11_sequ, dataio)
+    # plots_gorgo11_sequential_collapsed(data_gorgo11_sequ, dataio)
 
-    plot_compare_bic_collapsed_mixture_model_sequential(data_gorgo11_sequ, dataio)
+    # plot_compare_bic_collapsed_mixture_model_sequential(data_gorgo11_sequ, dataio)
 
     plt.show()
 

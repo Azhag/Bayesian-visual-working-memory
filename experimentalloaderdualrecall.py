@@ -92,7 +92,7 @@ class ExperimentalLoaderDualRecall(ExperimentalLoader):
 
         ### Fit the mixture model
         if parameters['fit_mixture_model']:
-            self.fit_mixture_model_cached(caching_save_filename=parameters.get('mixture_model_cache', None), saved_keys=['em_fits', 'em_fits_nitems', 'em_fits_angle_nitems_subjects', 'em_fits_angle_nitems', 'em_fits_colour_nitems_subjects', 'em_fits_colour_nitems'])
+            self.fit_mixture_model_cached(caching_save_filename=parameters.get('mixture_model_cache', None), saved_keys=['em_fits', 'em_fits_angle_nitems_subjects', 'em_fits_angle_nitems', 'em_fits_colour_nitems_subjects', 'em_fits_colour_nitems', 'em_fits_angle_nitems_arrays', 'em_fits_colour_nitems'])
 
 
         ## Save item in a nice format for the model fit
@@ -154,7 +154,7 @@ class ExperimentalLoaderDualRecall(ExperimentalLoader):
                     self.dataset['target'][ids_filtered] = self.dataset['item_angle'][ids_filtered, 0]
                     self.dataset['response'][ids_filtered] = self.dataset['probe_angle'][ids_filtered]
 
-                    print n_items, subject, self.dataset['probe_angle'][ids_filtered, 0].shape, self.dataset['item_angle'][ids_filtered, 0].shape, self.dataset['item_angle'][ids_filtered, 1:].shape
+                    print 'Angle trials, %d items, subject %d, %d datapoints' % (n_items, subject, self.dataset['probe_angle'][ids_filtered, 0].size)
 
                     # params_fit = em_circularmixture.fit(self.dataset['probe_angle'][ids_filtered, 0], self.dataset['item_angle'][ids_filtered, 0], self.dataset['item_angle'][ids_filtered, 1:])
 
@@ -200,7 +200,7 @@ class ExperimentalLoaderDualRecall(ExperimentalLoader):
                     self.dataset['target'][ids_filtered] = self.dataset['item_colour'][ids_filtered, 0]
                     self.dataset['response'][ids_filtered] = self.dataset['probe_colour'][ids_filtered]
 
-                    print n_items, subject, self.dataset['probe_angle'][ids_filtered, 0].shape, self.dataset['item_angle'][ids_filtered, 0].shape, self.dataset['item_angle'][ids_filtered, 1:].shape
+                    print 'Colour trials, %d items, subject %d, %d datapoints' % (n_items, subject, self.dataset['probe_angle'][ids_filtered, 0].size)
 
                     # params_fit = em_circularmixture.fit(self.dataset['probe_colour'][ids_filtered, 0], self.dataset['item_colour'][ids_filtered, 0], self.dataset['item_colour'][ids_filtered, 1:])
                     cross_valid_outputs = em_circularmixture.cross_validation_kfold(self.dataset['probe_colour'][ids_filtered, 0], self.dataset['item_colour'][ids_filtered, 0], self.dataset['item_colour'][ids_filtered, 1:], K=10, shuffle=True, debug=False)
@@ -233,8 +233,28 @@ class ExperimentalLoaderDualRecall(ExperimentalLoader):
                 self.dataset['em_fits_colour_nitems']['std'][n_items][key] = np.std(values_allsubjects)
                 self.dataset['em_fits_colour_nitems']['values'][n_items][key] = values_allsubjects
 
+        ## Construct array versions of the em_fits_nitems mixture proportions, for convenience
+        self.construct_arrays_em_fits()
 
 
+    def construct_arrays_em_fits(self):
+        if 'em_fits_angle_nitems_arrays' not in self.dataset:
+            self.dataset['em_fits_angle_nitems_arrays'] = dict()
+
+            self.dataset['em_fits_angle_nitems_arrays']['mean'] = np.array([[self.dataset['em_fits_angle_nitems']['mean'][item][em_key] for item in np.unique(self.dataset['n_items'])] for em_key in ['kappa', 'mixt_target', 'mixt_nontargets', 'mixt_random']])
+            self.dataset['em_fits_angle_nitems_arrays']['std'] = np.array([[self.dataset['em_fits_angle_nitems']['std'][item][em_key] for item in np.unique(self.dataset['n_items'])] for em_key in ['kappa', 'mixt_target', 'mixt_nontargets', 'mixt_random']])
+
+        if 'sem' not in self.dataset['em_fits_angle_nitems_arrays']:
+            self.dataset['em_fits_angle_nitems_arrays']['sem'] = self.dataset['em_fits_angle_nitems_arrays']['std']/np.sqrt(self.dataset['subject_size'])
+
+        if 'em_fits_colour_nitems_arrays' not in self.dataset:
+            self.dataset['em_fits_colour_nitems_arrays'] = dict()
+
+            self.dataset['em_fits_colour_nitems_arrays']['mean'] = np.array([[self.dataset['em_fits_colour_nitems']['mean'][item][em_key] for item in np.unique(self.dataset['n_items'])] for em_key in ['kappa', 'mixt_target', 'mixt_nontargets', 'mixt_random']])
+            self.dataset['em_fits_colour_nitems_arrays']['std'] = np.array([[self.dataset['em_fits_colour_nitems']['std'][item][em_key] for item in np.unique(self.dataset['n_items'])] for em_key in ['kappa', 'mixt_target', 'mixt_nontargets', 'mixt_random']])
+
+        if 'sem' not in self.dataset['em_fits_colour_nitems_arrays']:
+            self.dataset['em_fits_colour_nitems_arrays']['sem'] = self.dataset['em_fits_colour_nitems_arrays']['std']/np.sqrt(self.dataset['subject_size'])
 
 
 
