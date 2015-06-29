@@ -61,7 +61,7 @@ class SubmitPBS():
         Adapted from J. Gasthaus's run_pbs script.
     """
 
-    def __init__(self, pbs_submission_infos=None, working_directory=None, memory='2gb', walltime='1:00:00', set_env=True, scripts_dir='pbs_scripts', output_dir='pbs_output', wait_submitting=False, submit_label='', pbs_submit_cmd='qsub', limit_max_queued_jobs=0, debug=False):
+    def __init__(self, pbs_submission_infos=None, working_directory=None, memory='2gb', walltime='1:00:00', set_env=True, scripts_dir='pbs_scripts', output_dir='pbs_output', wait_submitting=False, submit_label='', pbs_submit_cmd='qsub', limit_max_queued_jobs=0, source_dir=None, debug=False):
 
         self.debug = debug
         logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
@@ -76,6 +76,8 @@ class SubmitPBS():
             wait_submitting = pbs_submission_infos.get('wait_submitting', wait_submitting)
 
             submit_label = pbs_submission_infos.get('submit_label', submit_label)
+
+            source_dir = pbs_submission_infos.get('source_dir', None)
 
             pbs_submit_cmd = pbs_submission_infos.get('pbs_submit_cmd', pbs_submit_cmd)
 
@@ -140,7 +142,10 @@ class SubmitPBS():
             self.logger.info("SubmitPBS initialised:\n %s, %s, %s, %s" % (self.working_directory, self.scripts_dir, self.output_dir, self.pbs_options))
 
         # Force pre-compilation of everything
-        compileall.compile_dir(os.environ['WORKDIR'], quiet=True)
+        if source_dir:
+            compileall.compile_dir(source_dir, quiet=True)
+        else:
+            compileall.compile_dir(os.environ['WORKDIR'], quiet=True)
 
 
     def getEnvCommandString(self, command="export", env_keys_to_capture=frozenset(["PATH", "PYTHONPATH", "LD_LIBRARY_PATH"])):
@@ -193,6 +198,9 @@ class SubmitPBS():
             # Using SLURM
             queue_status = subprocess.Popen(['squeue', '-h', '-o', '%i %j %u %P'], stdout=subprocess.PIPE)
             jobname = self.submit_label
+        else:
+            self.num_queued_jobs = 0
+            return 0
 
         lines = queue_status.communicate()[0].splitlines()
 
@@ -389,8 +397,10 @@ class SubmitPBS():
         utils.chdir_safe(self.output_dir)
 
         # Submit the job
-        # subprocess.Popen([self.pbs_submit_cmd, new_script_filename], shell=True, env=os.environ, stderr=subprocess.STDOUT, stdout=subprocess.STDOUT)
-        os.popen(self.pbs_submit_cmd + " " + new_script_filename)
+        if self.pbs_submit_cmd == 'sh':
+            subprocess.call("sh " + new_script_filename, shell=True)
+        else:
+            os.popen(self.pbs_submit_cmd + " " + new_script_filename)
 
         # Change back to the working directory
         utils.chdir_safe(self.working_directory)
