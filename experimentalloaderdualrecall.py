@@ -92,7 +92,7 @@ class ExperimentalLoaderDualRecall(ExperimentalLoader):
 
         ### Fit the mixture model
         if parameters['fit_mixture_model']:
-            self.fit_mixture_model_cached(caching_save_filename=parameters.get('mixture_model_cache', None), saved_keys=['em_fits', 'em_fits_angle_nitems_subjects', 'em_fits_angle_nitems', 'em_fits_colour_nitems_subjects', 'em_fits_colour_nitems', 'em_fits_angle_nitems_arrays', 'em_fits_colour_nitems'])
+            self.fit_mixture_model_cached(caching_save_filename=parameters.get('mixture_model_cache', None), saved_keys=['em_fits', 'em_fits_angle_nitems_subjects', 'em_fits_angle_nitems', 'em_fits_colour_nitems_subjects', 'em_fits_colour_nitems', 'em_fits_angle_nitems_arrays', 'em_fits_colour_nitems_arrays'])
 
 
         ## Save item in a nice format for the model fit
