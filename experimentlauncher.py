@@ -213,6 +213,10 @@ class ExperimentLauncher(object):
         parser.add_argument('--load_all_from_parameters_file', default=False, action='store_true', help='If a best parameter file is given, should we force all used parameters or just the optimized/best ones?')
         parser.add_argument('--plot_while_running', dest='plot_while_running', default=False, action='store_true', help='If set, will plot while the simulation is going for chosen launchers.')
 
+        # Ipython notebook compatibility stuff
+        parser.add_argument('-f')
+        parser.add_argument('--profile-dir')
+
 
         self.args = parser.parse_args()
         self.args_dict = self.args.__dict__
