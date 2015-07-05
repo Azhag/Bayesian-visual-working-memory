@@ -60,7 +60,7 @@ class Sampler:
         y_t | x_t, y_{t-1} ~ Normal
 
     '''
-    def __init__(self, data_gen, tc=None, theta_prior_dict=dict(kappa=0.01, gamma=0.0), n_parameters = dict(), sigma_output=0.0, parameters_dict=None):
+    def __init__(self, data_gen, tc=None, theta_prior_dict=dict(kappa=0.01, gamma=0.0), n_parameters = dict(), sigma_output=0.0, parameters_dict=None, renormalize_sigma_output=False):
         '''
             Initialise the sampler
 
@@ -75,11 +75,12 @@ class Sampler:
         # Initialise noise parameters
         self.set_noise_parameters(n_parameters)
 
-        # Setup output noise
-        self.init_output_noise(sigma_output)
-
         # Get the data
         self.init_from_data_gen(data_gen, tc=tc)
+
+        # Setup output noise
+        self.init_output_noise(sigma_output, renormalize=renormalize_sigma_output)
+
 
 
     def set_noise_parameters(self, n_parameters):
@@ -245,15 +246,20 @@ class Sampler:
         self.compute_normalization()
 
 
-    def init_output_noise(self, sigma_output):
+    def init_output_noise(self, sigma_output, renormalize=True):
         '''
             The output noise is added after samples from the posterior are taken. Adds another level of randomness. Should count it in the BIC.
 
-            Given a level of output noise, as sigma_sigma, stores the corresponding kappa_output.
+            Given a level of output noise (sigma_output), stores the corresponding kappa_output.
 
         '''
 
-        self.sigma_output = sigma_output
+        if renormalize:
+            max_network_activation = self.random_network.compute_maximum_activation_network()
+            self.sigma_output = max_network_activation*sigma_output
+        else:
+            self.sigma_output = sigma_output
+
         self.kappa_output = stddev_to_kappa_single(sigma_output)
 
         # Add the precomputation of the new convolved posteriors here

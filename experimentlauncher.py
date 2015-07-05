@@ -178,6 +178,7 @@ class ExperimentLauncher(object):
         parser.add_argument('--sigma_output', type=float, default=0.0,
             help='Noise added when outputting samples. Cheap lapse-like process')
         parser.add_argument('--renormalize_sigmax', action='store_true', default=False, help='If set, sigmax is considered a proportion of the maximum activation of the network. Best for R>2.')
+        parser.add_argument('--renormalize_sigma_output', action='store_true', default=False, help='If set, sigma_output is considered a proportion of the maximum activation of the network. Not sure if really meaningful actually.')
         parser.add_argument('--ratio_conj', type=float, default=0.2,
             help='Ratio of conjunctive/field subpopulations for mixed network')
         parser.add_argument('--ratio_hierarchical', type=float, default=None,
