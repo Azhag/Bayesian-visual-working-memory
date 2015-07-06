@@ -43,15 +43,17 @@ class ExperimentalLoaderDualRecall(ExperimentalLoader):
         # Make some aliases
         self.dataset['item_angle'] = self.dataset['item_location']
         self.dataset['probe_angle'] = self.dataset['probe_location']
-        self.dataset['response'] = np.empty((self.dataset['probe_angle'].size, 1))
-        self.dataset['target'] = np.empty(self.dataset['probe_angle'].size)
-        self.dataset['probe'] = np.zeros(self.dataset['probe_angle'].shape, dtype= int)
-
         self.dataset['n_items'] = self.dataset['n_items'].astype(int)
         self.dataset['cond'] = self.dataset['cond'].astype(int)
+        self.dataset['subject'] = self.dataset['subject'].astype(int)
 
-        self.dataset['n_items_size'] = np.unique(self.dataset['n_items']).size
-        self.dataset['subject_size'] = np.unique(self.dataset['subject']).size
+        self.dataset['probe'] = np.zeros(self.dataset['probe_angle'].shape[0], dtype=int)
+
+        self.dataset['n_items_space'] = np.unique(self.dataset['n_items'])
+        self.dataset['n_items_size'] = self.dataset['n_items_space'].size
+
+        self.dataset['subject_space'] = np.unique(self.dataset['subject'])
+        self.dataset['subject_size'] = self.dataset['subject_space'].size
 
         # Get shortcuts for colour and orientation trials
         self.dataset['colour_trials'] = (self.dataset['cond'] == 1).flatten()
@@ -90,28 +92,12 @@ class ExperimentalLoaderDualRecall(ExperimentalLoader):
             ] = self.dataset['errors_angle_all'][ids_filtered]
 
 
+        ### Split the data up
+        self.generate_data_to_fit()
+
         ### Fit the mixture model
         if parameters['fit_mixture_model']:
             self.fit_mixture_model_cached(caching_save_filename=parameters.get('mixture_model_cache', None), saved_keys=['em_fits', 'em_fits_angle_nitems_subjects', 'em_fits_angle_nitems', 'em_fits_colour_nitems_subjects', 'em_fits_colour_nitems', 'em_fits_angle_nitems_arrays', 'em_fits_colour_nitems_arrays'])
-
-
-        ## Save item in a nice format for the model fit
-        self.dataset['data_to_fit'] = {}
-        self.dataset['data_to_fit']['n_items'] = np.unique(self.dataset['n_items'])
-        for n_items in self.dataset['data_to_fit']['n_items']:
-            ids_n_items = (self.dataset['n_items'] == n_items).flatten()
-            ids_filtered = self.dataset['angle_trials'] & ids_n_items
-
-            if n_items not in self.dataset['data_to_fit']:
-                self.dataset['data_to_fit'][n_items] = {}
-                self.dataset['data_to_fit'][n_items]['N'] = np.sum(ids_filtered)
-                self.dataset['data_to_fit'][n_items]['probe'] = np.unique(self.dataset['probe'][ids_filtered])
-                self.dataset['data_to_fit'][n_items]['item_features'] = np.empty((self.dataset['data_to_fit'][n_items]['N'], n_items, 2))
-                self.dataset['data_to_fit'][n_items]['response'] = np.empty((self.dataset['data_to_fit'][n_items]['N'], 1))
-
-            self.dataset['data_to_fit'][n_items]['item_features'][..., 0] = self.dataset['item_angle'][ids_filtered, :n_items]
-            self.dataset['data_to_fit'][n_items]['item_features'][..., 1] = self.dataset['item_colour'][ids_filtered, :n_items]
-            self.dataset['data_to_fit'][n_items]['response'] = self.dataset['probe_angle'][ids_filtered].flatten()
 
         # Try with Pandas for some advanced plotting
         dataset_filtered = dict((k, self.dataset[k].flatten()) for k in ('n_items', 'trial', 'subject', 'reject', 'rating', 'probe_colour', 'probe_angle', 'cond', 'error', 'error_angle', 'error_colour', 'response', 'target'))
@@ -135,25 +121,19 @@ class ExperimentalLoaderDualRecall(ExperimentalLoader):
         self.dataset['em_fits_colour_nitems_subjects'] = dict()
         self.dataset['em_fits_colour_nitems'] = dict(mean=dict(), std=dict(), values=dict())
 
-        unique_n_items = np.unique(self.dataset['n_items'])
-        unique_subjects = np.unique(self.dataset['subject'])
-
         # This dataset is a bit special with regards to subjects, it's a conditional design:
         # 8 Subjects (1 - 8) only did 6 items, both angle/colour trials
         # 6 Subjects (9 - 14) did 3 items, both angle/colour trials.
         # We have 160 trials per (subject, n_item, condition).
 
         # Angles trials
-        for n_items_i, n_items in enumerate(unique_n_items):
-            for subject_i, subject in enumerate(unique_subjects):
+        for n_items_i, n_items in enumerate(self.dataset['n_items_space']):
+            for subject_i, subject in enumerate(self.dataset['subject_space']):
                 ids_filtered = ((self.dataset['subject']==subject) & (self.dataset['n_items'] == n_items) & (self.dataset.get('masked', False) == False)).flatten()
 
                 ids_filtered = self.dataset['angle_trials'] & ids_filtered
 
                 if ids_filtered.sum() > 0:
-                    self.dataset['target'][ids_filtered] = self.dataset['item_angle'][ids_filtered, 0]
-                    self.dataset['response'][ids_filtered] = self.dataset['probe_angle'][ids_filtered]
-
                     print 'Angle trials, %d items, subject %d, %d datapoints' % (n_items, subject, self.dataset['probe_angle'][ids_filtered, 0].size)
 
                     # params_fit = em_circularmixture.fit(self.dataset['probe_angle'][ids_filtered, 0], self.dataset['item_angle'][ids_filtered, 0], self.dataset['item_angle'][ids_filtered, 1:])
@@ -190,19 +170,15 @@ class ExperimentalLoaderDualRecall(ExperimentalLoader):
 
 
         # Colour trials
-        for n_items_i, n_items in enumerate(unique_n_items):
-            for subject_i, subject in enumerate(unique_subjects):
+        for n_items_i, n_items in enumerate(self.dataset['n_items_space']):
+            for subject_i, subject in enumerate(self.dataset['subject_space']):
                 ids_filtered = ((self.dataset['subject']==subject) & (self.dataset['n_items'] == n_items) & (self.dataset.get('masked', False) == False)).flatten()
 
                 ids_filtered = self.dataset['colour_trials'] & ids_filtered
 
                 if ids_filtered.sum() > 0:
-                    self.dataset['target'][ids_filtered] = self.dataset['item_colour'][ids_filtered, 0]
-                    self.dataset['response'][ids_filtered] = self.dataset['probe_colour'][ids_filtered]
-
                     print 'Colour trials, %d items, subject %d, %d datapoints' % (n_items, subject, self.dataset['probe_angle'][ids_filtered, 0].size)
 
-                    # params_fit = em_circularmixture.fit(self.dataset['probe_colour'][ids_filtered, 0], self.dataset['item_colour'][ids_filtered, 0], self.dataset['item_colour'][ids_filtered, 1:])
                     cross_valid_outputs = em_circularmixture.cross_validation_kfold(self.dataset['probe_colour'][ids_filtered, 0], self.dataset['item_colour'][ids_filtered, 0], self.dataset['item_colour'][ids_filtered, 1:], K=10, shuffle=True, debug=False)
                     params_fit = cross_valid_outputs['best_fit']
                     resp = em_circularmixture.compute_responsibilities(self.dataset['probe_colour'][ids_filtered, 0], self.dataset['item_colour'][ids_filtered, 0], self.dataset['item_colour'][ids_filtered, 1:], params_fit)
@@ -255,6 +231,84 @@ class ExperimentalLoaderDualRecall(ExperimentalLoader):
 
         if 'sem' not in self.dataset['em_fits_colour_nitems_arrays']:
             self.dataset['em_fits_colour_nitems_arrays']['sem'] = self.dataset['em_fits_colour_nitems_arrays']['std']/np.sqrt(self.dataset['subject_size'])
+
+
+    def generate_data_to_fit(self):
+        '''
+            Split the data up nicely, used in FitExperiment as well
+        '''
+
+        self.dataset['response'] = np.nan*np.empty((self.dataset['probe_angle'].size, 1))
+        self.dataset['target'] = np.nan*np.empty(self.dataset['probe_angle'].size)
+        self.dataset['nontargets'] = np.nan*np.empty((self.dataset['probe_angle'].size, self.dataset['n_items_space'][-1] - 1))
+        self.dataset['data_split_nitems_subjects'] = {
+            'angle_trials': dict(),
+            'colour_trials': dict(),
+            'n_items': self.dataset['n_items_space']
+        }
+
+        for n_items_i, n_items in enumerate(self.dataset['n_items_space']):
+            for subject_i, subject in enumerate(self.dataset['subject_space']):
+
+                ids_filtered = ((self.dataset['subject']==subject) & (self.dataset['n_items'] == n_items) & (self.dataset.get('masked', False) == False)).flatten()
+
+                # Angle trial
+                ids_filtered_angle = self.dataset['angle_trials'] & ids_filtered
+                if ids_filtered_angle.sum() > 0:
+                    self.dataset['target'][ids_filtered_angle] = self.dataset['item_angle'][ids_filtered_angle, 0]
+                    self.dataset['nontargets'][ids_filtered_angle] = self.dataset['item_angle'][ids_filtered_angle, 1:]
+                    self.dataset['response'][ids_filtered_angle] = self.dataset['probe_angle'][ids_filtered_angle]
+
+                    self.dataset['data_split_nitems_subjects']['angle_trials'].setdefault(n_items, dict())[subject] = dict(
+                            target=self.dataset['target'][ids_filtered_angle],
+                            nontargets=self.dataset['nontargets'][ids_filtered_angle],
+                            response=self.dataset['response'][ids_filtered_angle],
+                            item_features=self.dataset['item_angle'][ids_filtered_angle],
+                            probe=self.dataset['probe'][ids_filtered_angle],
+                            N=np.sum(ids_filtered_angle)
+                        )
+
+                # Colour trial
+                ids_filtered_colour = self.dataset['colour_trials'] & ids_filtered
+                if ids_filtered_colour.sum() > 0:
+                    self.dataset['target'][ids_filtered_colour] = self.dataset['item_colour'][ids_filtered_colour, 0]
+                    self.dataset['nontargets'][ids_filtered_colour] = self.dataset['item_colour'][ids_filtered_colour, 1:]
+                    self.dataset['response'][ids_filtered_colour] = self.dataset['probe_colour'][ids_filtered_colour]
+
+                    self.dataset['data_split_nitems_subjects']['colour_trials'].setdefault(n_items, dict())[subject] = dict(
+                            target=self.dataset['target'][ids_filtered_colour],
+                            nontargets=self.dataset['nontargets'][ids_filtered_colour],
+                            response=self.dataset['response'][ids_filtered_colour],
+                            item_features=self.dataset['item_colour'][ids_filtered_colour],
+                            probe=self.dataset['probe'][ids_filtered_colour],
+                            N=np.sum(ids_filtered_colour)
+                        )
+
+            # Also store a version collating subjects across
+            self.dataset['data_split_nitems'] = dict(colour_trials=dict(), angle_trials=dict())
+
+            ids_filtered = ((self.dataset['n_items'] == n_items) & (self.dataset.get('masked', False) == False)).flatten()
+            ids_filtered_angle = self.dataset['angle_trials'] & ids_filtered
+            self.dataset['data_split_nitems']['angle_trials'][n_items] = dict(
+                            target=self.dataset['target'][ids_filtered_angle],
+                            nontargets=self.dataset['nontargets'][ids_filtered_angle],
+                            response=self.dataset['response'][ids_filtered_angle],
+                            item_features=self.dataset['item_angle'][ids_filtered_angle],
+                            probe=self.dataset['probe'][ids_filtered_angle],
+                            N=np.sum(ids_filtered_angle)
+                        )
+            ids_filtered_colour = self.dataset['colour_trials'] & ids_filtered
+            self.dataset['data_split_nitems']['colour_trials'][n_items] = dict(
+                            target=self.dataset['target'][ids_filtered_colour],
+                            nontargets=self.dataset['nontargets'][ids_filtered_colour],
+                            response=self.dataset['response'][ids_filtered_colour],
+                            item_features=self.dataset['item_colour'][ids_filtered_colour],
+                            probe=self.dataset['probe'][ids_filtered_colour],
+                            N=np.sum(ids_filtered_colour)
+                        )
+
+
+
 
 
 
