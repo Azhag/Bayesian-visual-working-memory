@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-fitexperiment.py
+fitexperimentSingleT.py
 
 Created by Loic Matthey on 2013-09-26.
 Copyright (c) 2013 Gatsby Unit. All rights reserved.
@@ -26,14 +26,16 @@ import load_experimental_data
 # import utils
 
 
-class FitExperiment:
+class FitExperimentSingleT:
     '''
-        Loads experimental data, set up DataGenerator and associated RFN, Sampler to optimize parameters
+        Loads experimental data, set up DataGenerator and associated RFN, Sampler to optimize parameters.
+
+        This version expects a unique time/index of recall T and handles multiple datasets simultaneously.
     '''
 
     def __init__(self, sampler, parameters={}, debug=True):
         '''
-            FitExperiment takes a sampler and a parameters dict as input
+            FitExperimentSingleT takes a sampler and a parameters dict as input
             Specific fields:
             - experiment_ids:  list of identifiers for experiments to fit.
             - experiment_params:  extra parameters dict
@@ -338,9 +340,9 @@ def test_fit_experiment():
 
     sampler = experiment_launcher.all_vars['sampler']
 
-    # Now let's build a FitExperiment
+    # Now let's build a FitExperimentSingleT
     parameters = dict(experiment_ids=['gorgo11', 'bays09','dualrecall'], fit_mixture_model=True)
-    fit_exp = FitExperiment(sampler, parameters)
+    fit_exp = FitExperimentSingleT(sampler, parameters)
 
     # Now compute some loglikelihoods
     # print fit_exp.compute_loglik_all_datasets()
@@ -438,9 +440,9 @@ def test_noiseoutput_loglike():
     experiment_launcher = experimentlauncher.ExperimentLauncher(run=True, arguments_dict=experiment_parameters)
     sampler = experiment_launcher.all_vars['sampler']
 
-    # Now let's build a FitExperiment
+    # Now let's build a FitExperimentSingleT
     parameters = dict(experiment_ids=['gorgo11', 'bays09'], fit_mixture_model=True)
-    fit_exp = FitExperiment(sampler, parameters)
+    fit_exp = FitExperimentSingleT(sampler, parameters)
 
     if False:
         ## Check precision required for the convolved likelihood
