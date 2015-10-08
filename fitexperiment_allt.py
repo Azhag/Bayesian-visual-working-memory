@@ -210,28 +210,35 @@ def test_fit_experimentallt():
     return locals()
 
 
-def test_loglike_fit():
+def test_loglike_modelselection():
     '''
-        Check if the LL computation is correct
+        Check if the LL computation is correct for model selection
 
         Use specific data, generated from a given model. This model should then have max LL.
     '''
 
-    # Get a specific model, with given ratio and sigmax
+    # Set some parameters and let the others default
     experiment_parameters = dict(action_to_do='launcher_do_simple_run',
-                                  inference_method='sample',
-                                  T=2,
-                                  M=200,
-                                  N=400,
-                                  num_samples=500,
-                                  selection_method='last',
-                                  sigmax=0.15,
-                                  sigmay=0.0001,
-                                  code_type='mixed',
-                                  ratio_conj=0.6,
-                                  output_directory='.',
-                                  stimuli_generation_recall='random',
-                                  autoset_parameters=None)
+                                inference_method='sample',
+                                experiment_id='bays09',
+                                M=100,
+                                N=500,
+                                filter_datapoints_size=500,
+                                filter_datapoints_selection='random',
+                                num_samples=500,
+                                selection_method='last',
+                                sigmax=0.1,
+                                sigma_output=0.5,
+                                renormalize_sigmax=None,
+                                sigmay=0.0001,
+                                code_type='mixed',
+                                slice_width=0.07,
+                                burn_samples=200,
+                                ratio_conj=0.7,
+                                stimuli_generation_recall='random',
+                                autoset_parameters=None,
+                                label='test_fit_experimentallt'
+                                )
     experiment_launcher = experimentlauncher.ExperimentLauncher(run=True, arguments_dict=experiment_parameters)
     experiment_parameters_full = experiment_launcher.args_dict
     sampler = experiment_launcher.all_vars['sampler']
@@ -243,29 +250,32 @@ def test_loglike_fit():
 
     experiment_parameters_full['stimuli_to_use'] = stimuli_correct_to_force
 
-    ratio_space = np.linspace(0.0, 1.0, 31.)
+    sigmaoutput_space = np.linspace(0.0, 1.0, 10)
 
-    LL_all_new = np.zeros(ratio_space.shape)
+    LL_all_new = np.empty(sigmaoutput_space.size)
+    LL_all_conv_new = np.empty(sigmaoutput_space.size)
 
-    for ratio_conj_i, ratio_conj in enumerate(ratio_space):
+    for sigmaout_i, sigma_output in enumerate(sigmaoutput_space):
 
-        experiment_parameters_full['ratio_conj'] = ratio_conj
+        experiment_parameters_full['sigma_output'] = sigma_output
 
-        _, _, _, sampler = launchers.init_everything(experiment_parameters_full)
+        _, _, _, samplerbis = launchers.init_everything(experiment_parameters_full)
 
         # Set responses
-        sampler.set_theta(response_to_force)
+        samplerbis.set_theta(response_to_force)
 
         # Compute LL
-        # LL_all_new[ratio_conj_i] = sampler.compute_loglikelihood()
-        LL_all_new[ratio_conj_i] = sampler.compute_loglikelihood_top90percent()
+        LL_all_new[sigmaout_i] = samplerbis.compute_loglikelihood()
+        LL_all_conv_new[sigmaout_i] = samplerbis.compute_loglikelihood_convolved_output_noise()
+
 
         # Print result
-        print LL_all_new[ratio_conj_i]
+        print LL_all_new[sigmaout_i], LL_all_conv_new[sigmaout_i]
 
     print LL_target
-    print ratio_space, LL_all_new
-    print ratio_space[np.argmax(LL_all_new)]
+    print sigma_output, LL_all_new, LL_all_conv_new
+    print sigmaoutput_space[np.argmax(LL_all_new)]
+    print sigmaoutput_space[np.argmax(LL_all_conv_new)]
 
     return locals()
 
@@ -324,9 +334,9 @@ def test_noiseoutput_loglike():
 if __name__ == '__main__':
     if False:
         all_vars = test_fit_experimentallt()
-    if False:
-        all_vars = test_loglike_fit()
     if True:
+        all_vars = test_loglike_modelselection()
+    if False:
         all_vars = test_noiseoutput_loglike()
 
 
