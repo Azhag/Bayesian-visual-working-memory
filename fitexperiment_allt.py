@@ -275,60 +275,58 @@ def test_noiseoutput_loglike():
         Check if the LL computation given noise output is correct
     '''
 
-    # Get a specific model, with given ratio and sigmax
+    # Set some parameters and let the others default
     experiment_parameters = dict(action_to_do='launcher_do_simple_run',
-                                  inference_method='none',
-                                  T=2,
-                                  M=200,
-                                  N=400,
-                                  num_samples=500,
-                                  selection_method='last',
-                                  sigmax=0.15,
-                                  sigmay=0.0001,
-                                  code_type='mixed',
-                                  ratio_conj=0.6,
-                                  output_directory='.',
-                                  sigma_output=0.1,
-                                  stimuli_generation_recall='random',
-                                  autoset_parameters=None)
+                                inference_method='none',
+                                experiment_id='bays09',
+                                M=100,
+                                filter_datapoints_size=500,
+                                filter_datapoints_selection='random',
+                                num_samples=500,
+                                selection_method='last',
+                                sigmax=0.1,
+                                sigma_output=0.5,
+                                renormalize_sigmax=None,
+                                sigmay=0.0001,
+                                code_type='mixed',
+                                slice_width=0.07,
+                                burn_samples=200,
+                                ratio_conj=0.7,
+                                stimuli_generation_recall='random',
+                                autoset_parameters=None,
+                                label='test_fit_experimentallt'
+                                )
     experiment_launcher = experimentlauncher.ExperimentLauncher(run=True, arguments_dict=experiment_parameters)
-    sampler = experiment_launcher.all_vars['sampler']
+    experiment_parameters_full = experiment_launcher.args_dict
 
     # Now let's build a FitExperimentAllT
-    parameters = dict(experiment_ids=['gorgo11', 'bays09'], fit_mixture_model=True)
-    fit_exp = FitExperimentAllT(parameters)
+    fit_exp = FitExperimentAllT(experiment_parameters_full)
 
-    if False:
-        ## Check precision required for the convolved likelihood
-        precision_space = np.linspace(50, 500, 7)
-        convolved_ll = np.empty(precision_space.size)
+    # Now compute some loglikelihoods
+    def compute_stats(self, params):
+        loglik_N = self.sampler.compute_loglikelihood_N()
+        loglik_conv_N = self.sampler.compute_loglikelihood_N_convolved_output_noise(precision=100)
+        return np.array([loglik_N, loglik_conv_N])
 
-        fit_exp.force_experimental_stimuli(experiment_id='bays09')
 
-        for precision_i, precision in enumerate(precision_space):
-            convolved_ll[precision_i] = fit_exp.sampler.compute_loglikelihood_convolved_output_noise(precision=precision)
-        plt.plot(precision_space, convolved_ll, precision_space, np.ones(precision_space.size)*fit_exp.sampler.compute_loglikelihood())
-        plt.legend(('Convolved', 'Classic'))
-        plt.xlabel('Size of finite support')
+    fct_infos = dict(fct = compute_stats)
 
-    if True:
-        # Now compute everything!
-        logliks_nonoise = fit_exp.compute_bic_loglik_all_datasets()
-        logliks_noise = fit_exp.compute_bic_loglik_noise_convolved_all_datasets()
+    ll_outs = fit_exp.apply_fct_datasets_allT(fct_infos)
+    print ll_outs.shape
 
-        print "No noise: ", logliks_nonoise
-        print "Noise convolved:", logliks_noise
+    print "No noise: ", ll_outs[:, 0]
+    print "Noise convolved:", ll_outs[:, 1]
 
     return locals()
 
 
 
 if __name__ == '__main__':
-    if True:
+    if False:
         all_vars = test_fit_experimentallt()
     if False:
         all_vars = test_loglike_fit()
-    if False:
+    if True:
         all_vars = test_noiseoutput_loglike()
 
 
