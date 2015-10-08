@@ -212,8 +212,13 @@ class ExperimentLauncher(object):
             help='Reload parameters from a .npy file, created from PBS/SLURM runs. Expects some known dictionaries.')
         parser.add_argument('--load_all_from_parameters_file', default=False, action='store_true', help='If a best parameter file is given, should we force all used parameters or just the optimized/best ones?')
         parser.add_argument('--plot_while_running', dest='plot_while_running', default=False, action='store_true', help='If set, will plot while the simulation is going for chosen launchers.')
+
         parser.add_argument('--experiment_id', dest='experiment_id', choices=['bays09', 'gorgo11', 'gorgo11_sequential', 'dualrecall'], default='bays09',
             help='Experiment id to use for FitExperimentAllT (or possibly ExperimentalLoader)')
+        parser.add_argument('--filter_datapoints_size', type=float, default=-1,
+            help='If >0, will limit the number of datapoints used in FitExperiments. [0-1] uses percent total data, >1 use absolute number of samples.')
+        parser.add_argument('--filter_datapoints_selection', dest='filter_datapoints_selection', choices=['sequential', 'random'], default='sequential',
+            help='If filter_datapoints_size > 0, sets the method to choose which datapoints to use.')
 
         # Ipython notebook compatibility stuff
         parser.add_argument('-f')

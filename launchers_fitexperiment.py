@@ -15,7 +15,8 @@ import launchers
 
 from utils import *
 from dataio import *
-from fitexperiment import *
+from fitexperiment_singlet import *
+from fitexperiment_allt import *
 import progress
 
 
@@ -74,7 +75,7 @@ def launcher_do_fitexperiment(args):
         (_, _, _, sampler) = launchers.init_everything(all_parameters)
 
         ### Do the actual FitExperiment computations
-        fit_exp = FitExperiment(sampler, fitexperiment_parameters)
+        fit_exp = FitExperimentSingleT(sampler, fitexperiment_parameters)
 
         ## Compute and store the BIC and LL
         if all_parameters['code_type'] == 'mixed':
@@ -232,7 +233,7 @@ def launcher_do_fitexperiment_allT(args):
             (_, _, _, sampler) = launchers.init_everything(all_parameters)
 
             ### Do the actual FitExperiment computations
-            fit_exp = FitExperiment(sampler, fitexperiment_parameters)
+            fit_exp = FitExperimentSingleT(sampler, fitexperiment_parameters)
 
             ## Compute and store the BIC and LL
             print ">> Computing BIC and LL..."
@@ -358,7 +359,7 @@ def launcher_do_fitexperiment_mixed_tworcscale(args):
     run_counter = 0
 
     # Initialize FitExperiment
-    fit_exp = FitExperiment(all_parameters)
+    fit_exp = FitExperimentSingleT(all_parameters)
 
     # Parameters to vary
     param1_space = np.linspace(0.01, 10, 15)    # kappa conj

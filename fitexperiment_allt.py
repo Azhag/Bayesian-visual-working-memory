@@ -33,325 +33,179 @@ class FitExperimentAllT:
         This version loads a unique dataset and will automatically run processings over all the possible nitems in it.
     '''
 
-    def __init__(self, sampler, parameters={}, debug=True):
+    def __init__(self, parameters={}, debug=True):
         '''
-            FitExperimentAllT takes a sampler and a parameters dict as input
-            Specific fields:
-            - experiment_ids:  list of identifiers for experiments to fit.
-            - experiment_params:  extra parameters dict
+            FitExperimentAllT takes a parameters dict, same as a full launcher_
+
+            Will then instantiate a Sampler and force a specific DataGenerator with constrained data from human experimental data.
+
+            Requires experiment_id to be set.
         '''
-        self.sampler = sampler
+
         self.parameters = parameters
         self.debug = debug
 
-        self.experiment_ids = parameters.get('experiment_ids', [])
+        self.experiment_id = parameters.get('experiment_id', '')
         self.data_dir = parameters.get('experiment_data_dir', os.path.normpath(os.path.join(os.environ['WORKDIR_DROP'], '../../experimental_data/')))
 
-        self.experimental_datasets = dict()
-        self.experiment_enforced = ''
-        self.data_responses = None
+        self.experimental_dataset = load_experimental_data.load_data(experiment_id=self.experiment_id, data_dir=self.data_dir, fit_mixture_model=True)
+        self.experiment_data_to_fit = self.experimental_dataset['data_to_fit']
+        self.T_space = self.experiment_data_to_fit['n_items']
+        self.enforced_T = -1
+        self.num_datapoints = self.experiment_data_to_fit['N_smallest']
 
-        # Load experimental data
-        self.load_experiments()
+        # Handle limiting the number of datapoints
+        self.init_filter_datapoints()
+
+        if self.debug:
+            print "Loaded %s dataset. %d datapoints" % (self.experiment_id, self.num_datapoints)
 
 
-    def load_experiments(self):
+    def init_filter_datapoints(self):
         '''
-            Load a specific human experiment.
-        '''
+            To speed things up, we may want to limit how many datapoints we actually use (per T/n_items).
 
-        fit_mixture_model = self.parameters.get('fit_mixturemodel', False)
-
-        # Load each experimental dataset
-        for experiment_id in self.experiment_ids:
-            if experiment_id == 'bays09':
-                self.experimental_datasets[experiment_id] = load_experimental_data.load_data_bays09(data_dir=self.data_dir, fit_mixture_model=fit_mixture_model)
-
-                if self.debug:
-                    print "Loading Bays09 dataset"
-
-            elif experiment_id == 'dualrecall':
-                self.experimental_datasets[experiment_id] = load_experimental_data.load_data_dualrecall(data_dir=self.data_dir)
-
-                if self.debug:
-                    print "Loading double Recall dataset"
-
-            elif experiment_id == 'gorgo11':
-                self.experimental_datasets[experiment_id] = load_experimental_data.load_data_simult(data_dir=self.data_dir, fit_mixture_model=fit_mixture_model)
-
-                if self.debug:
-                    print "Loading Gorgo11 simult dataset"
-
-
-    def force_experimental_stimuli(self, experiment_id):
-        '''
-            Will create a DataGenerator that uses the experimental data, in order to evaluate the model.
+            Check in the parameters dict:
+            1) filter_datapoints_size [float] [if <= 1, treated as percent of total dataset size for given item]
+            2) filter_datapoints_selection: {random, sequential}
+            3) filter_datapoints_mask [array] direct mask to use. (If another FitExperiment already exist?)
         '''
 
-        print "Using {} dataset".format(experiment_id)
+        if 'filter_datapoints_mask' in self.parameters:
+            self.filter_datapoints_mask = self.parameters['filter_datapoints_mask']
+            self.num_datapoints = self.filter_datapoints_mask.size
+        elif self.parameters.get('filter_datapoints_size', -1) > 0:
+            selection_method = self.parameters.get('filter_datapoints_selection', 'sequential')
+            selection_size = self.parameters.get('filter_datapoints_size', 1.)
 
-        if self.experiment_enforced != experiment_id:
+            if selection_method == 'sequential':
+                if selection_size > 1:
+                    self.filter_datapoints_mask = np.arange(min(self.num_datapoints, selection_size))
+                else:
+                    self.filter_datapoints_mask = np.arange(np.floor(self.num_datapoints*selection_size))
+            elif selection_method == 'random':
+                if selection_size > 1:
+                    self.filter_datapoints_mask = np.random.permutation(np.arange(self.num_datapoints))[:int(selection_size)]
+                else:
+                    self.filter_datapoints_mask = np.random.permutation(np.arange(self.num_datapoints))[:np.floor(self.num_datapoints*selection_size)]
 
-            # Use this cued feature time (should be scalar)
-            cued_feature_time = self.experimental_datasets[experiment_id]['data_to_fit'][self.sampler.T]['probe'][0]
-
-            # Specifically force the stimuli to be the human experimental ones
-            data_gen = datagenerator.DataGeneratorRFN(self.experimental_datasets[experiment_id]['data_to_fit'][self.sampler.T]['N'], self.sampler.T, self.sampler.random_network, sigma_y=self.sampler.data_gen.sigma_y, sigma_x=self.sampler.data_gen.sigma_x, time_weights=self.sampler.time_weights, cued_feature_time=cued_feature_time, stimuli_to_use=self.experimental_datasets[experiment_id]['data_to_fit'][self.sampler.T]['item_features'])
-
-            # Use this new Data_gen, reinit a few things, hopefully it works..
-            self.sampler.init_from_data_gen(data_gen, tc=cued_feature_time)
-
-            # Set responses
-            self.data_responses = self.experimental_datasets[experiment_id]['data_to_fit'][self.sampler.T]['response']
-            self.sampler.set_theta(self.data_responses)
-
-            self.experiment_enforced = experiment_id
+            self.num_datapoints = self.filter_datapoints_mask.size
 
 
-    #####
+    def setup_experimental_stimuli_T(self, T):
+        '''
+            Setup everything needed (Sampler, etc) and then force a human experimental dataset.
 
-    def apply_fct_dataset(self, experiment_id, fct_infos):
+            If already setup correctly, do nothing.
+        '''
+
+        print "Using {} nitems, %d datapoints".format(T, )
+
+        if self.enforced_T != T:
+            # Update parameters
+            self.parameters['T'] = T
+            self.parameters['N'] = self.num_datapoints
+            self.parameters['fixed_cued_feature_time'] = self.experiment_data_to_fit[T]['probe'][0] #should be scalar
+
+            if self.filter_datapoints_mask is None:
+                self.parameters['stimuli_to_use'] = self.experiment_data_to_fit[T]['item_features']
+            else:
+                self.parameters['stimuli_to_use'] = self.experiment_data_to_fit[T]['item_features'][self.filter_datapoints_mask]
+
+            # Instantiate everything
+            (_, _, _, self.sampler) = launchers.init_everything(self.parameters)
+
+            # Fix responses to the human ones
+            if self.filter_datapoints_mask is None:
+                self.sampler.set_theta(self.experiment_data_to_fit[T]['response'])
+            else:
+                self.sampler.set_theta(self.experiment_data_to_fit[T]['response'][self.filter_datapoints_mask])
+
+            self.enforced_T = T
+
+
+    def apply_fct_dataset_T(self, T, fct_infos):
         '''
             Apply a function after having forced a specific dataset
+            The function will be called as follows:
 
-            the function will be called as follows:
-
-            result = fct_infos['fct'](sampler, fct_infos['parameters'])
+            result = fct_infos['fct'](self, fct_infos['parameters'])
         '''
 
-        if self.sampler.T not in self.experimental_datasets[experiment_id]['data_to_fit']['n_items']:
-            # This dataset does not have sampler.T items
-            return np.nan
-
         # Set dataset
-        self.force_experimental_stimuli(experiment_id)
+        self.setup_experimental_stimuli_T(T)
 
         # Apply function
-        result = fct_infos['fct'](self.sampler, fct_infos['parameters'])
+        result = fct_infos['fct'](self, fct_infos.get('parameters', {}))
 
         return result
 
 
-    def apply_fct_all_datasets(self, fct_infos):
+    def apply_fct_datasets_allT(self, fct_infos, return_array=True):
         '''
             Apply a function on all datasets
 
-            result = fct_infos['fct'](sampler, fct_infos['parameters'])
+            TODO(lmatthey) if setting up dataset is costly, might need to provide a list of fcts and avoid reconstructing the DataGenerator each time.
+
+            result = fct_infos['fct'](self, fct_infos['parameters'])
         '''
 
-        result_all = dict()
-        for experiment_id in self.experimental_datasets:
-            result_all[experiment_id] = self.apply_fct_dataset(experiment_id, fct_infos)
+        result_allT = dict()
+        for T in self.T_space:
+            result_allT[T] = self.apply_fct_dataset_T(T, fct_infos)
 
-        return result_all
+        if return_array:
+            # Should adapt itself, if not easy to fix
+            result_allT_array = np.array([val for key, val in result_allT.iteritems()])
 
-
-    def compute_bic_all_datasets(self, K=None):
-        '''
-            Compute the BIC scores for all datasets
-        '''
-        def compute_bic(sampler, parameters):
-            bic = sampler.compute_bic(K=parameters['K'])
-            return bic
-
-        fct_infos = dict(fct=compute_bic, parameters=dict(K=K))
-
-        return self.apply_fct_all_datasets(fct_infos)
-
-
-    def compute_loglik_all_datasets(self):
-        '''
-            Compute the loglikelihood of the current sampler for all datasets currently loaded
-        '''
-        def compute_loglik(sampler, parameters):
-            loglikelihood = sampler.compute_loglikelihood()
-            return loglikelihood
-        fct_infos = dict(fct=compute_loglik, parameters=None)
-
-        return self.apply_fct_all_datasets(fct_infos)
-
-
-    def compute_bic_loglik_all_datasets(self, K=None):
-        '''
-            Compute both the BIC and loglikelihood on all datasets
-        '''
-        def compute_bic(sampler, parameters):
-            bic = sampler.compute_bic(K=parameters['K'])
-            return bic
-        def compute_loglik(sampler, parameters):
-            loglikelihood = sampler.compute_loglikelihood()
-            return loglikelihood
-        def compute_loglik90percent(sampler, parameters):
-            return sampler.compute_loglikelihood_top90percent()
-
-        def compute_both(sampler, parameters):
-            result = dict(bic=compute_bic(sampler, parameters), LL=compute_loglik(sampler, parameters), LL90=compute_loglik90percent(sampler, parameters))
-            return result
-
-        fct_infos = dict(fct=compute_both, parameters=dict(K=K))
-
-        return self.apply_fct_all_datasets(fct_infos)
-
-
-    def compute_bic_loglik_noise_convolved_all_datasets(self, precision=150):
-        '''
-            Compute BIC and LL, based on the
-        '''
-
-        def compute_everything(sampler, parameters):
-            loglikelihood_conv_N = sampler.compute_loglikelihood_N_convolved_output_noise(precision=parameters['precision'])
-
-            loglikelihood_conv = np.nansum(loglikelihood_conv_N)
-            loglikelihood90_conv = sampler.compute_loglikelihood_top90percent(all_loglikelihoods=loglikelihood_conv_N)
-            bic = sampler.compute_bic(LL=loglikelihood_conv)
-
-            result = dict(LL=loglikelihood_conv, LL90=loglikelihood90_conv, bic=bic)
-
-            return result
-
-        fct_infos = dict(fct=compute_everything, parameters=dict(precision=precision))
-
-        return self.apply_fct_all_datasets(fct_infos)
-
-
-    def compute_sum_loglik_all_datasets(self):
-        '''
-            Compute the sum of the loglikelihood obtained on all datasets.
-        '''
-
-        loglike_all = self.compute_loglik_all_datasets()
-
-        return np.nansum([val for key, val in loglike_all.iteritems()])
+            return result_allT_array
+        else:
+            return result_allT
 
 
 
-    #####
-
-    def plot_model_human_loglik_comparison(self):
-        '''
-            Get the LL for human responses and model samples
-            plot model wrt human, to see how they compare
-        '''
-
-        def compute_model_human_loglik(sampler, parameters):
-            # First compute the human LL, which is easy as the responses are already set
-            human_ll = sampler.compute_loglikelihood()
-
-            # Now sample from the model
-            sampler.sample_theta(num_samples=300, burn_samples=300, slice_width=0.07, selection_method='last')
-
-            # Now recompute the LL
-            model_ll = sampler.compute_loglikelihood()
-
-            return dict(human=human_ll, model=model_ll)
-
-        fct_infos = dict(fct=compute_model_human_loglik, parameters=None)
-
-        return self.apply_fct_all_datasets(fct_infos)
+###########################################################################
 
 
-    def plot_loglik_misfit_datapoints(self, max_plots = 10):
-        '''
-            Plot the posterior distributions of the datapoints that are badly classified.
-        '''
+def test_fit_experimentallt():
 
-        # Set responses
-        self.sampler.set_theta(self.data_responses)
-
-        # Compute data loglikelihood
-        data_llh = self.sampler.compute_loglikelihood_N()
-
-        # Find misfit points
-        data_llh_outliers = np.argsort(data_llh)[:max_plots]
-        # data_llh_outliers = np.nonzero(data_llh <= (np.mean(data_llh) - 3.*np.std(data_llh)))[0]
-
-        # Check where they are and their relation to the posterior distribution
-        for outlier_i in data_llh_outliers:
-            print outlier_i
-            self.sampler.plot_likelihood_comparison(n=outlier_i)
-
-
-    def plot_distribution_loglik(self, bins=50, enforce_response=False):
-        '''
-            Plot the distribution of data loglikelihoods obtained
-
-            Can show the mean llh, and how many outliers they are
-        '''
-
-        # Set responses
-        if enforce_response:
-            self.sampler.set_theta(self.data_responses)
-
-        # Compute data loglikelihood
-        data_llh = self.sampler.compute_loglikelihood_N()
-
-        # Show the distribution of data llh as a boxplot and as the distribution directly
-        _, axes = plt.subplots(1, 2)
-
-        axes[0].boxplot(data_llh)
-        axes[1].hist(data_llh, bins=bins)
-
-
-    def plot_comparison_error_histograms(self, bins=50):
-        '''
-            Compare the distribution of errors of the human data,
-            and from samples from the model
-        '''
-
-        _, axes = plt.subplots(2, 1)
-
-        # Sample from model
-        self.sampler.sample_theta(num_samples=100, burn_samples=100)
-
-        # Plot distribution of samples first (so that we keep human data in theta)
-        if self.debug:
-            print 'Sampling...'
-        self.sampler.plot_histogram_errors(bins=bins, ax_handle=axes[1])
-
-        # Reput the data
-        self.sampler.set_theta(self.data_responses)
-
-        # Plot distribution of data
-        self.sampler.plot_histogram_errors(bins=bins, ax_handle=axes[0])
-
-        axes[0].set_title('Human data error distribution')
-        axes[1].set_title('Model samples error distribution')
-
-        # plt.hist(self.dataset_experiment['errors_angle_all'][self.dataset_experiment['3_items_trials'] & self.dataset_experiment['angle_trials'], 0], bins=50)
-
-
-def test_fit_experiment():
-
-    # Load a sampler
+    # Set some parameters and let the others default
     experiment_parameters = dict(action_to_do='launcher_do_simple_run',
-                                  inference_method='none',
-                                  T=1,
-                                  M=200,
-                                  N=200,
-                                  num_samples=500,
-                                  selection_method='last',
-                                  sigmax=0.15,
-                                  sigmay=0.0001,
-                                  code_type='mixed',
-                                  ratio_conj=0.8,
-                                  output_directory='.',
-                                  autoset_parameters=None)
+                                inference_method='none',
+                                experiment_id='bays09',
+                                M=100,
+                                filter_datapoints_size=500,
+                                filter_datapoints_selection='random',
+                                num_samples=500,
+                                selection_method='last',
+                                sigmax=0.1,
+                                renormalize_sigmax=None,
+                                sigmay=0.0001,
+                                code_type='mixed',
+                                slice_width=0.07,
+                                burn_samples=200,
+                                ratio_conj=0.7,
+                                stimuli_generation_recall='random',
+                                autoset_parameters=None,
+                                label='test_fit_experimentallt'
+                                )
     experiment_launcher = experimentlauncher.ExperimentLauncher(run=True, arguments_dict=experiment_parameters)
-
-    sampler = experiment_launcher.all_vars['sampler']
+    experiment_parameters_full = experiment_launcher.args_dict
 
     # Now let's build a FitExperimentAllT
-    parameters = dict(experiment_ids=['gorgo11', 'bays09','dualrecall'], fit_mixture_model=True)
-    fit_exp = FitExperimentAllT(sampler, parameters)
+    fit_exp = FitExperimentAllT(experiment_parameters_full)
 
     # Now compute some loglikelihoods
+    fct_infos = dict(fct = lambda s, p: s.sampler.compute_loglikelihood_N())
+
+    ll_n = fit_exp.apply_fct_datasets_allT(fct_infos)
+    print ll_n
+
     # print fit_exp.compute_loglik_all_datasets()
     # print fit_exp.compute_sum_loglik_all_datasets()
 
     # Compute BIC
     # print fit_exp.compute_bic_all_datasets()
-
-    print fit_exp.compute_bic_loglik_all_datasets()
 
     return locals()
 
@@ -442,7 +296,7 @@ def test_noiseoutput_loglike():
 
     # Now let's build a FitExperimentAllT
     parameters = dict(experiment_ids=['gorgo11', 'bays09'], fit_mixture_model=True)
-    fit_exp = FitExperimentAllT(sampler, parameters)
+    fit_exp = FitExperimentAllT(parameters)
 
     if False:
         ## Check precision required for the convolved likelihood
@@ -470,11 +324,11 @@ def test_noiseoutput_loglike():
 
 
 if __name__ == '__main__':
-    if False:
-        all_vars = test_fit_experiment()
+    if True:
+        all_vars = test_fit_experimentallt()
     if False:
         all_vars = test_loglike_fit()
-    if True:
+    if False:
         all_vars = test_noiseoutput_loglike()
 
 
