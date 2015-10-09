@@ -52,13 +52,13 @@ class FitExperimentAllT:
         self.experiment_data_to_fit = self.experimental_dataset['data_to_fit']
         self.T_space = self.experiment_data_to_fit['n_items']
         self.enforced_T = -1
-        self.num_datapoints = self.experiment_data_to_fit['N_smallest']
+        self.num_datapoints = int(self.experiment_data_to_fit['N_smallest'])
 
         # Handle limiting the number of datapoints
         self.init_filter_datapoints()
 
         if self.debug:
-            print "Loaded %s dataset. %d datapoints" % (self.experiment_id, self.num_datapoints)
+            print "Loaded %s dataset. %d datapoints" % ((self.experiment_id, self.num_datapoints))
 
 
     def init_filter_datapoints(self):
@@ -80,7 +80,7 @@ class FitExperimentAllT:
 
             if selection_method == 'sequential':
                 if selection_size > 1:
-                    self.filter_datapoints_mask = np.arange(min(self.num_datapoints, selection_size))
+                    self.filter_datapoints_mask = np.arange(min(self.num_datapoints, int(selection_size)))
                 else:
                     self.filter_datapoints_mask = np.arange(np.floor(self.num_datapoints*selection_size))
             elif selection_method == 'random':
@@ -90,6 +90,8 @@ class FitExperimentAllT:
                     self.filter_datapoints_mask = np.random.permutation(np.arange(self.num_datapoints))[:np.floor(self.num_datapoints*selection_size)]
 
             self.num_datapoints = self.filter_datapoints_mask.size
+        else:
+            self.filter_datapoints_mask = slice(0, self.num_datapoints)
 
 
     def setup_experimental_stimuli_T(self, T):
@@ -99,27 +101,21 @@ class FitExperimentAllT:
             If already setup correctly, do nothing.
         '''
 
-        print "Using {} nitems, %d datapoints".format(T, )
-
         if self.enforced_T != T:
+            print "\n>>> Setting up {} nitems, {} datapoints".format(T, self.num_datapoints)
+
             # Update parameters
             self.parameters['T'] = T
             self.parameters['N'] = self.num_datapoints
             self.parameters['fixed_cued_feature_time'] = self.experiment_data_to_fit[T]['probe'][0] #should be scalar
 
-            if self.filter_datapoints_mask is None:
-                self.parameters['stimuli_to_use'] = self.experiment_data_to_fit[T]['item_features']
-            else:
-                self.parameters['stimuli_to_use'] = self.experiment_data_to_fit[T]['item_features'][self.filter_datapoints_mask]
+            self.parameters['stimuli_to_use'] = self.experiment_data_to_fit[T]['item_features'][self.filter_datapoints_mask]
 
             # Instantiate everything
             (_, _, _, self.sampler) = launchers.init_everything(self.parameters)
 
             # Fix responses to the human ones
-            if self.filter_datapoints_mask is None:
-                self.sampler.set_theta(self.experiment_data_to_fit[T]['response'])
-            else:
-                self.sampler.set_theta(self.experiment_data_to_fit[T]['response'][self.filter_datapoints_mask])
+            self.sampler.set_theta(self.experiment_data_to_fit[T]['response'][self.filter_datapoints_mask])
 
             self.enforced_T = T
 
@@ -141,7 +137,7 @@ class FitExperimentAllT:
         return result
 
 
-    def apply_fct_datasets_allT(self, fct_infos, return_array=True):
+    def apply_fct_datasets_allT(self, fct_infos, return_array=False):
         '''
             Apply a function on all datasets
 
@@ -150,13 +146,13 @@ class FitExperimentAllT:
             result = fct_infos['fct'](self, fct_infos['parameters'])
         '''
 
-        result_allT = dict()
+        result_allT = []
         for T in self.T_space:
-            result_allT[T] = self.apply_fct_dataset_T(T, fct_infos)
+            result_allT.append(self.apply_fct_dataset_T(T, fct_infos))
 
         if return_array:
-            # Should adapt itself, if not easy to fix
-            result_allT_array = np.array([val for key, val in result_allT.iteritems()])
+            # Bit stupid for now. Might want to handle list of dictionaries, but meh
+            result_allT_array = np.array([res for res in result_allT])
 
             return result_allT_array
         else:
@@ -198,7 +194,7 @@ def test_fit_experimentallt():
     # Now compute some loglikelihoods
     fct_infos = dict(fct = lambda s, p: s.sampler.compute_loglikelihood_N())
 
-    ll_n = fit_exp.apply_fct_datasets_allT(fct_infos)
+    ll_n = fit_exp.apply_fct_datasets_allT(fct_infos, return_array=True)
     print ll_n
 
     # print fit_exp.compute_loglik_all_datasets()
@@ -321,7 +317,7 @@ def test_noiseoutput_loglike():
 
     fct_infos = dict(fct = compute_stats)
 
-    ll_outs = fit_exp.apply_fct_datasets_allT(fct_infos)
+    ll_outs = fit_exp.apply_fct_datasets_allT(fct_infos, return_array=True)
     print ll_outs.shape
 
     print "No noise: ", ll_outs[:, 0]
@@ -332,9 +328,9 @@ def test_noiseoutput_loglike():
 
 
 if __name__ == '__main__':
-    if False:
-        all_vars = test_fit_experimentallt()
     if True:
+        all_vars = test_fit_experimentallt()
+    if False:
         all_vars = test_loglike_modelselection()
     if False:
         all_vars = test_noiseoutput_loglike()

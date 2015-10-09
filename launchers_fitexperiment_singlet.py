@@ -16,19 +16,18 @@ import launchers
 from utils import *
 from dataio import *
 from fitexperiment_singlet import *
-from fitexperiment_allt import *
 import progress
 
 
 
-def launcher_do_fitexperiment(args):
+def launcher_do_fitexperimentsinglet(args):
     '''
         Perform a simple estimation of the loglikelihood of the data, under a model with provided parameters
 
         If inference_method is not none, also fits a EM mixture model, get the precision and the fisher information
     '''
 
-    print "Doing a piece of work for launcher_do_fitexperiment"
+    print "Doing a piece of work for launcher_do_fitexperimentsinglet"
 
 
     all_parameters = argparse_2_dict(args)
@@ -169,7 +168,7 @@ def launcher_do_fitexperiment(args):
     return locals()
 
 
-def launcher_do_fitexperiment_allT(args):
+def launcher_do_fitexperimentsinglet_fullt(args):
     '''
         Perform a simple estimation of the loglikelihood of the data, under a model with provided parameters.
 
@@ -178,7 +177,7 @@ def launcher_do_fitexperiment_allT(args):
         If inference_method is not none, also fits a EM mixture model, get the precision and the fisher information
     '''
 
-    print "Doing a piece of work for launcher_do_fitexperiment_allT"
+    print "Doing a piece of work for launcher_do_fitexperimentsinglet_fullt"
 
 
     all_parameters = argparse_2_dict(args)
@@ -404,5 +403,4 @@ def launcher_do_fitexperiment_mixed_tworcscale(args):
 
     print "All finished"
     return locals()
-
 
