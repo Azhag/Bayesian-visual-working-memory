@@ -219,6 +219,8 @@ class ExperimentLauncher(object):
             help='If >0, will limit the number of datapoints used in FitExperiments. [0-1] uses percent total data, >1 use absolute number of samples.')
         parser.add_argument('--filter_datapoints_selection', dest='filter_datapoints_selection', choices=['sequential', 'random'], default='sequential',
             help='If filter_datapoints_size > 0, sets the method to choose which datapoints to use.')
+        parser.add_argument('--bic_K', type=float, default=None,
+            help='If set, will fix the number of parameters for the computation of the BIC score. Should be set appropriately.')
 
         # Ipython notebook compatibility stuff
         parser.add_argument('-f')

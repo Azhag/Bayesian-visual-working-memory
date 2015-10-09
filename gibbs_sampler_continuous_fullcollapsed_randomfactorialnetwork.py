@@ -568,7 +568,7 @@ class Sampler:
         self.theta[np.arange(self.N), self.data_gen.cued_features[:, 0]] = self.data_gen.stimuli_correct[np.arange(self.N), self.data_gen.cued_features[:, 1], self.data_gen.cued_features[:, 0]]
 
 
-    def compute_bic(self, K=None, integrate_tc_out=False, LL=None):
+    def compute_bic(self, K=None, integrate_tc_out=False, LL=None, precision=200):
         '''
             Compute the BIC score for the current model.
 
@@ -593,42 +593,45 @@ class Sampler:
                 K += 1
 
         if LL is None:
-            LL = self.compute_loglikelihood(integrate_tc_out=integrate_tc_out)
+            LL = self.compute_loglikelihood(integrate_tc_out=integrate_tc_out, precision=precision)
 
         print 'Bic: K ', K
 
         return bic(K, LL, self.N)
 
 
-    def compute_loglikelihood(self, integrate_tc_out=False):
+    def compute_loglikelihood(self, integrate_tc_out=False, precision=200):
         '''
             Compute the summed loglikelihood for the current setting of thetas and using the likelihood defined in loglike_theta_fct_single
 
             - integrate_tc_out:  use the current tc, or should integrate over possible recall times?
         '''
+        return np.nansum(self.compute_loglikelihood_N(integrate_tc_out=integrate_tc_out, precision=precision))
 
-        return np.nansum(self.compute_loglikelihood_N(integrate_tc_out))
 
-
-    def compute_loglikelihood_N(self, integrate_tc_out=False):
+    def compute_loglikelihood_N(self, integrate_tc_out=False, precision=200):
         '''
             Compute the loglikelihood for each datapoint, using the current setting of thetas and likelihood functions.
             Uses the normalisation.
 
             - integrate_tc_out: use current tc, or should integrate over recall times?
         '''
-        if integrate_tc_out:
-            return self.compute_loglikelihood_tc_integratedout() - self.normalization
+        if self.sigma_output > 0.0:
+            return self.compute_loglikelihood_N_convolved_output_noise(precision=precision)
         else:
-            return self.compute_loglikelihood_current_tc() - self.normalization
+            if integrate_tc_out:
+                return self.compute_loglikelihood_tc_integratedout()
+            else:
+                return self.compute_loglikelihood_current_tc()
 
-    def compute_loglikelihood_top90percent(self, integrate_tc_out=False, all_loglikelihoods=None):
+
+    def compute_loglikelihood_top90percent(self, integrate_tc_out=False, precision=200, all_loglikelihoods=None):
         '''
             Compute the loglikelihood for each datapoint, just like compute_loglikelihood and compute_loglikelihood_N, but now only sums the top 90% results
         '''
 
         if all_loglikelihoods is None:
-            all_loglikelihoods = self.compute_loglikelihood_N(integrate_tc_out)
+            all_loglikelihoods = self.compute_loglikelihood_N(integrate_tc_out=integrate_tc_out, precision=precision)
 
         return np.nansum(np.sort(all_loglikelihoods)[self.N/10:])
 
@@ -646,6 +649,8 @@ class Sampler:
 
             # Compute the loglikelihood for the current datapoint
             loglikelihood[n] = loglike_theta_fct_single(self.theta[n, self.sampled_feature_index], params)
+
+        loglikelihood -= self.normalization
 
         return loglikelihood
 
@@ -665,6 +670,8 @@ class Sampler:
 
                 # Compute the loglikelihood for the current datapoint
                 loglikelihood[n, tc] = loglike_theta_fct_single(self.theta[n, self.sampled_feature_index], params)
+
+        loglikelihood -= self.normalization
 
         return loglikelihood
 
