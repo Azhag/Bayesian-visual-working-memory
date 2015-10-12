@@ -23,7 +23,7 @@ import experimentlauncher
 import datagenerator
 import launchers
 import load_experimental_data
-# import utils
+import utils
 
 
 class FitExperimentAllT:
@@ -157,6 +157,34 @@ class FitExperimentAllT:
             return result_allT_array
         else:
             return result_allT
+
+
+    def compute_dist_experimental_em_fits_currentT(self, model_fits):
+        '''
+            Given provided model_fits array, compute the distance to
+            the loaded Experimental Data em fits.
+
+            Inputs:
+            * model_fits:   [array 6x1] ['kappa', 'mixt_target', 'mixt_nontargets_sum', 'mixt_random', 'train_LL', 'bic']
+
+
+            Returns dict:
+            * kappa MSE
+            * mixture prop MSE
+            * summed MSE
+            * mixture prop KL divergence
+        '''
+
+        distances = dict()
+
+        data_mixture_means = self.experimental_dataset['em_fits_nitems_arrays']['mean']
+
+        curr_T_i = np.nonzero(self.T_space == self.enforced_T)[0][0]
+        distances['all_mse'] = (data_mixture_means[:4, curr_T_i] - model_fits[:4])**2.
+        distances['mixt_kl'] = utils.KL_div(data_mixture_means[1:4, curr_T_i], model_fits[1:4])
+
+        return distances
+
 
 
 
