@@ -334,8 +334,11 @@ class DataPBS:
             if output_variable_desired in dataset:
                 if np.isscalar(dataset[output_variable_desired]):
                     curr_results_shape = (1, )
-                else:
+                elif isinstance(dataset[output_variable_desired], np.ndarray):
                     curr_results_shape = dataset[output_variable_desired].shape
+                else:
+                    print "Result is not array, file looks bad: %s" % dataset['filename']
+                    pass
 
                 # Now keep track of the biggest results_shape found (tricky but simplest hack possible)
                 if results_shape is None or np.any(curr_results_shape > results_shape):
@@ -395,14 +398,18 @@ class DataPBS:
             if output_variable_desired in dataset:
 
                 # Save the dataset
-                if dataset[output_variable_desired].shape == initial_results_shape or np.isscalar(dataset[output_variable_desired]):
+                if np.isscalar(dataset[output_variable_desired]) or isinstance(dataset[output_variable_desired], np.ndarray):
+                    if dataset[output_variable_desired].shape == initial_results_shape or np.isscalar(dataset[output_variable_desired]):
 
-                    results_flat.append(dataset[output_variable_desired])
+                        results_flat.append(dataset[output_variable_desired])
 
+                    else:
+                        # Something is wrong with the result shapes... Just put as much as possible.
+                        smallest_sizes = tuple([slice(None, min(results_shape[j], dataset[output_variable_desired].shape[j])) for j in xrange(len(results_shape))])
+                        results_flat.append(dataset[output_variable_desired][smallest_sizes])
                 else:
-                    # Something is wrong with the result shapes... Just put as much as possible.
-                    smallest_sizes = tuple([slice(None, min(results_shape[j], dataset[output_variable_desired].shape[j])) for j in xrange(len(results_shape))])
-                    results_flat.append(dataset[output_variable_desired][smallest_sizes])
+                    # Badly formed data, skip
+                    pass
 
                 # Keep the current parameters
                 parameters_flat.append(np.array([parameters_complete[param][i] for param in list_parameters]))
@@ -474,15 +481,19 @@ class DataPBS:
 
                 if dataset_seens_repeat_i == 0 or concatenate_multiple_datasets:
                     # First time seeing this parameter combination!
-                    if dataset[output_variable_desired].shape == initial_results_shape or np.isscalar(dataset[output_variable_desired]):
+                    if np.isscalar(dataset[output_variable_desired]) or isinstance(dataset[output_variable_desired], np.ndarray):
+                        if dataset[output_variable_desired].shape == initial_results_shape or np.isscalar(dataset[output_variable_desired]):
 
-                        # Save the dataset at the proper position
-                        results_array[curr_dataposition][..., dataset_seens_repeat_i*initial_results_shape[-1]:(dataset_seens_repeat_i+1)*initial_results_shape[-1]] = dataset[output_variable_desired]
+                            # Save the dataset at the proper position
+                            results_array[curr_dataposition][..., dataset_seens_repeat_i*initial_results_shape[-1]:(dataset_seens_repeat_i+1)*initial_results_shape[-1]] = dataset[output_variable_desired]
 
+                        else:
+                            # Something is wrong with the result shapes... Just put as much as possible.
+                            smallest_sizes = tuple([slice(None, min(results_shape[j], dataset[output_variable_desired].shape[j])) for j in xrange(len(results_shape))])
+                            results_array[curr_dataposition+smallest_sizes] = dataset[output_variable_desired][smallest_sizes]
                     else:
-                        # Something is wrong with the result shapes... Just put as much as possible.
-                        smallest_sizes = tuple([slice(None, min(results_shape[j], dataset[output_variable_desired].shape[j])) for j in xrange(len(results_shape))])
-                        results_array[curr_dataposition+smallest_sizes] = dataset[output_variable_desired][smallest_sizes]
+                        # Badly formed data, skip
+                        pass
 
                     # Indices in the array
                     indices_array.append(curr_dataposition)
