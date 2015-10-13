@@ -66,13 +66,14 @@ def launcher_do_fitexperiment_allmetrics(args):
             results['result_ll_n'] = self.sampler.compute_loglikelihood_N()
 
             print ">> Computing LL sum..."
-            results['result_ll_sum'] = self.sampler.compute_loglikelihood()
+            results['result_ll_sum'] = np.nansum(results['result_ll_n'])
+            print results['result_ll_sum']
 
             print ">> Computing BIC..."
-            results['result_bic'] = self.sampler.compute_bic(K=parameters['bic_K'])
+            results['result_bic'] = self.sampler.compute_bic(K=parameters['bic_K'], LL=results['result_ll_sum'])
 
             print ">> Computing LL90..."
-            results['result_ll90_sum'] = self.sampler.compute_loglikelihood_top90percent()
+            results['result_ll90_sum'] = self.sampler.compute_loglikelihood_top90percent(all_loglikelihoods=results['result_ll_n'])
 
             # If sampling_method is not none, try to get em_fits and others
             if not parameters['inference_method'] == 'none':
@@ -109,8 +110,8 @@ def launcher_do_fitexperiment_allmetrics(args):
         for key in res_listdicts[0]:
             all_outputs_data.setdefault(key, []).append(np.array([res[key] for res in res_listdicts]))
 
-        print "CURRENT RESULTS:"
-        print res_listdicts
+        # print "CURRENT RESULTS:"
+        # print res_listdicts
 
         ### /Work ###
 
