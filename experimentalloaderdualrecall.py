@@ -25,7 +25,7 @@ from experimentalloader import ExperimentalLoader
 class ExperimentalLoaderDualRecall(ExperimentalLoader):
     """docstring for ExperimentalLoaderDualRecall"""
     def __init__(self, dataset_description):
-        super(ExperimentalLoaderDualRecall, self).__init__(dataset_description)
+        super(self.__class__, self).__init__(dataset_description)
 
     def preprocess(self, parameters):
         '''

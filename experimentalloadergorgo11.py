@@ -27,7 +27,7 @@ class ExperimentalLoaderGorgo11(ExperimentalLoader):
         Loader for Gorgo11, both simultaneous and sequential
     """
     def __init__(self, dataset_description):
-        super(ExperimentalLoaderGorgo11, self).__init__(dataset_description)
+        super(self.__class__, self).__init__(dataset_description)
 
 
     def preprocess(self, parameters):
