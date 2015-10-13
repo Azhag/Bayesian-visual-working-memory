@@ -13,13 +13,17 @@ import getpass
 
 # Read from other scripts
 parameters_entryscript = dict(action_to_do='launcher_do_generate_submit_pbs_from_param_files', output_directory='.')
-submit_jobs = False
+submit_jobs = True
 
 parameter_generation = 'random'  ## !!!!!! RANDOM HERE   !!!!!
 num_random_samples = 5000
 limit_max_queued_jobs = 70
 
 resource = ''
+
+# partition = 'wrkstn'
+# partition = 'test'
+partition = 'intel-ivy'
 
 # submit_cmd = 'qsub'
 submit_cmd = 'sbatch'
@@ -74,8 +78,10 @@ pbs_submission_infos = dict(description='Loads an experiment, and uses the data 
                             simul_out_dir=os.path.join(os.getcwd(), run_label.format(**locals())),
                             pbs_submit_cmd=submit_cmd,
                             limit_max_queued_jobs=limit_max_queued_jobs,
+                            source_dir=os.environ['WORKDIR_DROP'],
                             submit_label='LLcheck_rnd_1210',
                             resource=resource,
+                            partition=partition,
                             qos='auto')
 
 if getpass.getuser() == 'dc-matt1':
