@@ -114,9 +114,9 @@ def filtering_function(new_parameters, dict_parameters_range, function_parameter
 
 filtering_function_parameters = {'should_clamp': True}
 
-sigmax_range      =   dict(sampling_type='uniform', low=0.01, high=1.0, dtype=float)
+sigmax_range      =   dict(sampling_type='uniform', low=0.01, high=0.8, dtype=float)
 ratioconj_range   =   dict(sampling_type='uniform', low=0.01, high=1.0, dtype=float)
-sigmaoutput_range =   dict(sampling_type='uniform', low=0.0, high=3.0, dtype=float)
+sigmaoutput_range =   dict(sampling_type='uniform', low=0.0, high=1.5, dtype=float)
 M_range           =   dict(sampling_type='randint', low=6, high=625, dtype=int)
 
 dict_parameters_range =   dict(M=M_range, sigma_output=sigmaoutput_range, ratio_conj=ratioconj_range, sigmax=sigmax_range)

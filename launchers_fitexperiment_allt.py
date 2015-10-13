@@ -47,6 +47,7 @@ def launcher_do_fitexperiment_allmetrics(args):
     # Result arrays
     # sizes depend on the experiment.
     all_outputs_data = dict()
+    T_space = None
 
     search_progress = progress.Progress(all_parameters['num_repetitions'])
     for repet_i in xrange(all_parameters['num_repetitions']):
@@ -112,6 +113,8 @@ def launcher_do_fitexperiment_allmetrics(args):
         print res_listdicts
 
         ### /Work ###
+
+        T_space = fit_exp.T_space
 
         search_progress.increment()
         if run_counter % save_every == 0 or search_progress.done():
