@@ -46,7 +46,7 @@ def init_everything(parameters):
     stat_meas = init_stat_measurer(random_network, parameters)
 
     # Init sampler
-    sampler = Sampler(data_gen, n_parameters=stat_meas.model_parameters, tc=parameters['cued_feature_time'], sigma_output=parameters['sigma_output'], parameters_dict=parameters, renormalize_sigma_output=parameters.get('renormalize_sigma_output', False))
+    sampler = Sampler(data_gen, n_parameters=stat_meas.model_parameters, tc=parameters['cued_feature_time'], sigma_output=parameters['sigma_output'], parameters_dict=parameters, renormalize_sigma_output=parameters.get('renormalize_sigma_output', False), lapse_rate=parameters['lapse_rate'])
 
     return (random_network, data_gen, stat_meas, sampler)
 

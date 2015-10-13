@@ -60,7 +60,7 @@ class Sampler:
         y_t | x_t, y_{t-1} ~ Normal
 
     '''
-    def __init__(self, data_gen, tc=None, theta_prior_dict=dict(kappa=0.01, gamma=0.0), n_parameters = dict(), sigma_output=0.0, parameters_dict=None, renormalize_sigma_output=False):
+    def __init__(self, data_gen, tc=None, theta_prior_dict=dict(kappa=0.01, gamma=0.0), n_parameters = dict(), sigma_output=0.0, parameters_dict=None, renormalize_sigma_output=False, lapse_rate=0.0):
         '''
             Initialise the sampler
 
@@ -80,6 +80,9 @@ class Sampler:
 
         # Setup output noise
         self.init_output_noise(sigma_output, renormalize=renormalize_sigma_output)
+
+        # Setup lapse_rate
+        self.lapse_rate = lapse_rate
 
 
 
@@ -399,6 +402,9 @@ class Sampler:
         else:
             permutation_fct = lambda x: [x]
 
+        if self.lapse_rate > 0.0:
+            cache_randomdraws = np.random.rand(self.N, self.R-1)
+
         # Do everything in log-domain, to avoid numerical errors
         i = 0
         # for n in progress.ProgressDisplay(permuted_datapoints, display=progress.SINGLE_LINE):
@@ -407,27 +413,31 @@ class Sampler:
             # Sample all the non-cued features
             permuted_features = permutation_fct(self.theta_to_sample[n])
 
-            for sampled_feature_index in permuted_features:
-                # Get samples from the current distribution
-                if self.integrate_tc_out:
-                    samples = self.get_samples_theta_tc_integratedout(n, sampled_feature_index=sampled_feature_index)
-                else:
-                    (samples, _) = self.get_samples_theta_current_tc(n, sampled_feature_index=sampled_feature_index)
+            for sampled_feature_index_i, sampled_feature_index in enumerate(permuted_features):
+                # Handle lapse rate
+                has_lapsed, sampled_orientation = self.handle_lapse_sample(cache_randomdraws[n, sampled_feature_index_i])
 
-                # Keep all samples if desired
-                if return_samples:
-                    all_samples[i] = samples
+                if not has_lapsed:
+                    # Get samples from the current memory distribution
+                    if self.integrate_tc_out:
+                        samples = self.get_samples_theta_tc_integratedout(n, sampled_feature_index=sampled_feature_index)
+                    else:
+                        (samples, _) = self.get_samples_theta_current_tc(n, sampled_feature_index=sampled_feature_index)
 
-                # Select the new orientation
-                if self.selection_method == 'median':
-                    sampled_orientation = np.median(samples[-self.selection_num_samples:], overwrite_input=True)
-                elif self.selection_method == 'last':
-                    sampled_orientation = samples[-1]
-                else:
-                    raise ValueError('wrong value for selection_method')
+                    # Keep all samples if desired
+                    if return_samples:
+                        all_samples[i] = samples
 
-                # Add output noise if desired.
-                sampled_orientation = self.add_output_noise(sampled_orientation)
+                    # Select the new orientation
+                    if self.selection_method == 'median':
+                        sampled_orientation = np.median(samples[-self.selection_num_samples:], overwrite_input=True)
+                    elif self.selection_method == 'last':
+                        sampled_orientation = samples[-1]
+                    else:
+                        raise ValueError('wrong value for selection_method')
+
+                    # Add output noise if desired.
+                    sampled_orientation = self.add_output_noise(sampled_orientation)
 
                 # Save the orientation
                 self.theta[n, sampled_feature_index] = wrap_angles(sampled_orientation)
@@ -448,6 +458,27 @@ class Sampler:
 
         if return_samples:
             return all_samples
+
+
+    def handle_lapse_sample(self, random_draw=None):
+        '''
+            Handle Lapse rate, where a certain proportion of sampling runs are simply
+            dropped and randomly set to U[-pi, pi]
+
+            Depends on self.lapse_rate. Samples one U[0, 1], could be precomputed...
+        '''
+        should_lapse = False
+        sampled_orientation = -1
+        if self.lapse_rate > 0.0:
+            if random_draw is None:
+                should_lapse = np.random.rand() <= self.lapse_rate
+            else:
+                should_lapse = random_draw <= self.lapse_rate
+
+            if should_lapse:
+                sampled_orientation = sample_angle()
+
+        return should_lapse, sampled_orientation
 
 
     def get_samples_theta_current_tc(self, n, sampled_feature_index=0):
@@ -592,6 +623,9 @@ class Sampler:
             if self.sigma_output > 0.0:
                 K += 1
 
+            if self.lapse_rate > 0.0:
+                K += 1
+
         if LL is None:
             LL = self.compute_loglikelihood(integrate_tc_out=integrate_tc_out, precision=precision)
 
@@ -609,20 +643,32 @@ class Sampler:
         return np.nansum(self.compute_loglikelihood_N(integrate_tc_out=integrate_tc_out, precision=precision))
 
 
-    def compute_loglikelihood_N(self, integrate_tc_out=False, precision=200):
+    def compute_loglikelihood_N(self, integrate_tc_out=False, precision=200, lapse_likelihood_lower_bound=False):
         '''
             Compute the loglikelihood for each datapoint, using the current setting of thetas and likelihood functions.
             Uses the normalisation.
 
             - integrate_tc_out: use current tc, or should integrate over recall times?
         '''
+        LL = 0
         if self.sigma_output > 0.0:
-            return self.compute_loglikelihood_N_convolved_output_noise(precision=precision)
+            LL += self.compute_loglikelihood_N_convolved_output_noise(precision=precision)
         else:
             if integrate_tc_out:
-                return self.compute_loglikelihood_tc_integratedout()
+                LL += self.compute_loglikelihood_tc_integratedout()
             else:
-                return self.compute_loglikelihood_current_tc()
+                LL += self.compute_loglikelihood_current_tc()
+
+        if self.lapse_rate > 0.0:
+            # If lapse rate set, need to handle it properly.
+            if lapse_likelihood_lower_bound:
+                # This should be safe, but its a lower bound
+                LL = (1. - self.lapse_rate)*LL - self.lapse_rate*np.log(2.*np.pi)
+            else:
+                # This is precise, but could diverge
+                LL = np.log(self.lapse_rate) -np.log(2.*np.pi) + np.log1p((1. - self.lapse_rate)*2.*np.pi/(self.lapse_rate)*np.exp(LL))
+
+        return LL
 
 
     def compute_loglikelihood_top90percent(self, integrate_tc_out=False, precision=200, all_loglikelihoods=None):
