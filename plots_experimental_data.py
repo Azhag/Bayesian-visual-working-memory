@@ -22,6 +22,63 @@ import dataio as DataIO
 import utils
 
 
+def plot_kappa_mean_error(T_space, mean, yerror, ax=None, dataio=None, title='', **args):
+    '''
+        !!! IMPORTANT !!!
+
+        Main plotting function to show the evolution of Kappa with T
+
+        !!! IMPORTANT !!!
+    '''
+
+    if ax is None:
+        f, ax = plt.subplots()
+
+    ax = utils.plot_mean_std_area(T_space, mean, np.ma.masked_invalid(yerror).filled(0.0), ax_handle=ax, linewidth=3, markersize=8, fmt='o-', **args)
+
+    ax.legend(prop={'size':15}, loc='best')
+    ax.set_title('Kappa: %s' % title)
+    ax.set_xlim([0.9, T_space.max()+0.1])
+    ax.set_ylim([0.0, max(np.max(mean)*1.1, ax.get_ylim()[1])])
+    ax.set_xticks(range(1, T_space.max()+1))
+    ax.set_xticklabels(range(1, T_space.max()+1))
+    ax.get_figure().canvas.draw()
+
+    if dataio is not None:
+        dataio.save_current_figure('%s_kappa_{label}_{unique_id}.pdf' % title)
+
+    return ax
+
+
+def plot_emmixture_mean_error(T_space, mean, yerror, ax=None, dataio=None, title='', **args):
+    '''
+        !!! IMPORTANT !!!
+
+        Main plotting function to show the evolution of an EM Mixture proportion with T
+
+        !!! IMPORTANT !!!
+    '''
+    if ax is None:
+        f, ax = plt.subplots()
+
+    utils.plot_mean_std_area(T_space, mean, np.ma.masked_invalid(yerror).filled(0.0), ax_handle=ax, linewidth=3, fmt='o-', markersize=5, **args)
+
+    ax.legend(prop={'size':15}, loc='best')
+    ax.set_title('Mixture prop: %s' % title)
+    ax.set_xlim([1.0, T_space.max()])
+    ax.set_ylim([0.0, 1.1])
+    ax.set_xticks(range(1, T_space.max()+1))
+    ax.set_xticklabels(range(1, T_space.max()+1))
+
+    ax.get_figure().canvas.draw()
+
+    if dataio is not None:
+        dataio.save_current_figure('%s_mixtures_{label}_{unique_id}.pdf' % title)
+
+    return ax
+
+
+
 def plots_check_bias_nontarget(dataset, dataio=None):
     '''
         Get an histogram of the errors between the response and all non targets
@@ -277,7 +334,7 @@ def plots_em_mixtures(dataset, dataio=None, use_sem=True):
     f, ax = plt.subplots()
 
     ax = utils.plot_mean_std_area(T_space_exp,
-    dataset['em_fits_nitems_arrays']['mean'][0], np.ma.masked_invalid(dataset['em_fits_nitems_arrays'][errorbars][0]).filled(0.0), linewidth=3, fmt='o-', markersize=8, ylabel='Experimental data', ax_handle=ax)
+    dataset['em_fits_nitems_arrays']['mean'][0], np.ma.masked_invalid(dataset['em_fits_nitems_arrays'][errorbars][0]).filled(0.0), linewidth=3, fmt='o-', markersize=8, label='Kappa', xlabel='Number of items', ylabel='Experimental data', ax_handle=ax)
 
     ax.legend(prop={'size':15})
     ax.set_title('Kappa for EM fit %s' % dataset['name'])
@@ -330,13 +387,13 @@ def plots_bays2009(dataset, dataio=None):
     Some plots for the Bays2009 data
     '''
 
-    plots_histograms_errors_targets_nontargets_nitems(dataset, dataio)
+    # plots_histograms_errors_targets_nontargets_nitems(dataset, dataio)
 
-    plots_precision(dataset, dataio)
+    # plots_precision(dataset, dataio)
 
     plots_em_mixtures(dataset, dataio)
 
-    plots_collapsed_em_mixtures(dataset, dataio)
+    # plots_collapsed_em_mixtures(dataset, dataio)
 
 
 def plots_gorgo11(dataset, dataio=None):
@@ -854,51 +911,6 @@ def plot_compare_bic_collapsed_mixture_model_sequential(dataset, dataio=None):
 
     # Works well. Overall quite a huge improvement in BIC, as I thought.
 
-
-
-def plot_kappa_mean_error(T_space, mean, yerror, ax=None, dataio=None, title='', **args):
-
-    if ax is None:
-        f, ax = plt.subplots()
-
-    ax = utils.plot_mean_std_area(T_space, mean, np.ma.masked_invalid(yerror).filled(0.0), ax_handle=ax, linewidth=3, markersize=8, fmt='o-', **args)
-
-    ax.legend(prop={'size':15}, loc='best')
-    ax.set_title('Kappa: %s' % title)
-    ax.set_xlim([0.9, T_space.max()+0.1])
-    ax.set_ylim([0.0, max(np.max(mean)*1.1, ax.get_ylim()[1])])
-    ax.set_xticks(range(1, T_space.max()+1))
-    ax.set_xticklabels(range(1, T_space.max()+1))
-    ax.get_figure().canvas.draw()
-
-    if dataio is not None:
-        dataio.save_current_figure('%s_kappa_{label}_{unique_id}.pdf' % title)
-
-    return ax
-
-
-def plot_emmixture_mean_error(T_space, mean, yerror, ax=None, dataio=None, title='', **args):
-    '''
-        Simplified plotting for mixture proportion
-    '''
-    if ax is None:
-        f, ax = plt.subplots()
-
-    utils.plot_mean_std_area(T_space, mean, np.ma.masked_invalid(yerror).filled(0.0), ax_handle=ax, linewidth=3, fmt='o-', markersize=5, **args)
-
-    ax.legend(prop={'size':15}, loc='best')
-    ax.set_title('Mixture prop: %s' % title)
-    ax.set_xlim([1.0, T_space.max()])
-    ax.set_ylim([0.0, 1.1])
-    ax.set_xticks(range(1, T_space.max()+1))
-    ax.set_xticklabels(range(1, T_space.max()+1))
-
-    ax.get_figure().canvas.draw()
-
-    if dataio is not None:
-        dataio.save_current_figure('%s_mixtures_{label}_{unique_id}.pdf' % title)
-
-    return ax
 
 
 def plots_gorgo11_sequential_collapsed(dataset, dataio=None, use_sem=True):
