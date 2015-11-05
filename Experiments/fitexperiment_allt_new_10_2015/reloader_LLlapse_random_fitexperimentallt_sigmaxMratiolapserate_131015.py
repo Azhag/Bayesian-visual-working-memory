@@ -45,7 +45,7 @@ dataset_infos = dict(label='New Likelihood, Lapse rate now! Loads an experiment,
                      construct_multidimension_npyarr=False,
                      # limit_max_files=1,
                      parameters=['M', 'ratio_conj', 'sigmax', 'lapse_rate'],
-                     variables_to_load=['result_ll_sum', 'result_ll90_sum', 'result_precision', 'result_em_fits', 'result_emfit_mse', 'result_emfit_mixt_kl', 'result_fi_theo', 'result_fi_theocov' ],
+                     variables_to_load=['result_ll_sum', 'result_bic', 'result_ll90_sum', 'result_precision', 'result_em_fits', 'result_emfit_mse', 'result_emfit_mixt_kl', 'result_fi_theo', 'result_fi_theocov' ],
                      post_processing=None,
                      save_output_filename='plots_fitexperiment_%s_Mratiosigmaxlapserate' % generator_module.experiment_id
                      )

@@ -45,7 +45,7 @@ dataset_infos = dict(label='Loads an experiment, and uses the data for the model
                      construct_multidimension_npyarr=False,
                      # limit_max_files=1,
                      parameters=['M', 'ratio_conj', 'sigmax', 'sigma_output'],
-                     variables_to_load=['result_ll_sum', 'result_ll90_sum', 'result_precision', 'result_em_fits', 'result_emfit_mse', 'result_emfit_mixt_kl', 'result_fi_theo', 'result_fi_theocov' ],
+                     variables_to_load=['result_ll_sum', 'result_bic', 'result_ll90_sum', 'result_precision', 'result_em_fits', 'result_emfit_mse', 'result_emfit_mixt_kl', 'result_fi_theo', 'result_fi_theocov' ],
                      post_processing=None,
                      save_output_filename='plots_fitexperiment_%s_Mratiosigmaxsigmaout' % generator_module.experiment_id
                      )
