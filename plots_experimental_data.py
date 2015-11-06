@@ -759,7 +759,7 @@ def plots_collapsed_em_mixtures(dataset, dataio=None, use_sem=True):
 
     # Mixture probabilities
     utils.plot_mean_std_area(T_space_exp, dataset['collapsed_em_fits']['mean']['mixt_target'], np.ma.masked_invalid(dataset['collapsed_em_fits'][errorbars]['mixt_target']).filled(0.0), xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Target')
-    utils.plot_mean_std_area(T_space_exp, np.ma.masked_invalid(dataset['collapsed_em_fits']['mean']['mixt_nontargets']).filled(0.0), np.ma.masked_invalid(dataset['collapsed_em_fits'][errorbars]['mixt_nontargets']).filled(0.0), xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Nontarget')
+    utils.plot_mean_std_area(T_space_exp, np.ma.masked_invalid(dataset['collapsed_em_fits']['mean']['mixt_nontargets_sum']).filled(0.0), np.ma.masked_invalid(dataset['collapsed_em_fits'][errorbars]['mixt_nontargets_sum']).filled(0.0), xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Nontarget')
     utils.plot_mean_std_area(T_space_exp, dataset['collapsed_em_fits']['mean']['mixt_random'], np.ma.masked_invalid(dataset['collapsed_em_fits'][errorbars]['mixt_random']).filled(0.0), xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Random')
 
     ax.legend(prop={'size':15})
@@ -778,8 +778,7 @@ def plots_collapsed_em_mixtures(dataset, dataio=None, use_sem=True):
     # Kappa
     f, ax = plt.subplots()
 
-    ax = utils.plot_mean_std_area(T_space_exp,
-    dataset['collapsed_em_fits']['mean']['kappa'], np.ma.masked_invalid(dataset['collapsed_em_fits'][errorbars]['kappa']).filled(0.0), linewidth=3, fmt='o-', markersize=8, ylabel='Experimental data', ax_handle=ax)
+    ax = utils.plot_mean_std_area(T_space_exp, dataset['collapsed_em_fits']['mean']['kappa'], np.ma.masked_invalid(dataset['collapsed_em_fits'][errorbars]['kappa']).filled(0.0), linewidth=3, fmt='o-', markersize=8, ylabel='Experimental data', ax_handle=ax, label='Kappa')
 
     ax.legend(prop={'size':15})
     ax.set_title('Kappa for Collapsed EM fit %s' % dataset['name'])
