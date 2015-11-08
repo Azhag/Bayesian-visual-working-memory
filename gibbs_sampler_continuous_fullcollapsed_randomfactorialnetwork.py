@@ -402,8 +402,7 @@ class Sampler:
         else:
             permutation_fct = lambda x: [x]
 
-        if self.lapse_rate > 0.0:
-            cache_randomdraws = np.random.rand(self.N, self.R-1)
+        cache_randomdraws = np.random.rand(self.N, self.R-1)
 
         # Do everything in log-domain, to avoid numerical errors
         i = 0
