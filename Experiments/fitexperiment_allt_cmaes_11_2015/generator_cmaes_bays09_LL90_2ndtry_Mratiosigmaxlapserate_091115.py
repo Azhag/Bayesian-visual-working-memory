@@ -11,6 +11,7 @@ import dataio
 import copy
 import submitpbs
 
+import matplotlib.pyplot as plt
 
 # Read from other scripts
 parameters_entryscript = dict(action_to_do='launcher_do_generate_submit_pbs_from_param_files', output_directory='.')
@@ -154,9 +155,9 @@ def best_parameters_callback(job, parameters=None):
                     burn_samples=200,
                     stimuli_generation='random',
                     stimuli_generation_recall='random',
-                    session_id='cmaes_bays09_ll90_summarystats_rerun_061115',
+                    session_id='cmaes_bays09_ll90_summarystats_rerun_091115',
                     result_computation='filenameoutput',
-                    label='cmaes_bays09_ll90_summarystats_rerun_061115'))
+                    label='lapserate%.2f_cmaes_bays09_ll90_summarystats_rerun_091115' % parameters['parameters']['lapse_rate']))
                 pbs_submission_infos_copy['walltime'] = '40:00:00'
                 pbs_submission_infos_copy['submit_label'] = 'bestparam_rerun'
 
@@ -204,10 +205,14 @@ def cma_iter_plot_scatter3d_candidates(all_variables, parameters=None):
     if parameters['ax'] is None:
       _, parameters['ax'] = plt.subplots(2, 1)
 
-    parameters['ax'][0].plot(time_space, candidates_arr, xlabel='Time', ylabel='Parameters')
+    parameters['ax'][0].plot(time_space, candidates_arr)
+    parameters['ax'][0].set_xlabel('Time')
+    parameters['ax'][0].set_ylabel('Parameters')
     parameters['ax'][0].legend(parameter_names_sorted)
 
-    parameters['ax'][1].plot(time_space, fitness_arr, xlabel='Time', ylabel='NLL90', legend='NLL90')
+    parameters['ax'][1].plot(time_space, fitness_arr, label='NLL90')
+    parameters['ax'][1].set_xlabel('Time')
+    parameters['ax'][1].set_ylabel('NLL90')
 
     if parameters['dataio'] is not None:
         parameters['dataio'].save_current_figure('cmaes_optim_timeevolution_{label}_{unique_id}.pdf')
