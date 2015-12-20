@@ -25,6 +25,8 @@ import launchers
 import load_experimental_data
 import utils
 
+import em_circularmixture_parametrickappa
+import em_circularmixture_allitems_uniquekappa
 
 class FitExperimentAllT:
     '''
@@ -177,6 +179,7 @@ class FitExperimentAllT:
 
         distances = dict()
 
+        # TODO (lmatthey): use the EM Fits on the actual current subset here, instead of the full dataset!
         data_mixture_means = self.experimental_dataset['em_fits_nitems_arrays']['mean']
 
         curr_T_i = np.nonzero(self.T_space == self.enforced_T)[0][0]
@@ -185,6 +188,23 @@ class FitExperimentAllT:
 
         return distances
 
+
+    def recompute_em_fits_current_dataset(self):
+        '''
+            When we filter how data is used by our model, we cannot use the LL and BIC
+            of the groundtruth EM Fits (also the parameters may be different...)
+
+            So refit the EM mixture model on this subset and check how good it is.
+
+            TODO(lmatthey) Should handle multiple subjects though...
+        '''
+
+        # First do the collapsed, it's easier to call...
+        # params_fit = em_circularmixture_parametrickappa.fit(self.T_space, subject_data_dict['responses'], subject_data_dict['targets'], subject_data_dict['nontargets'], debug=False)
+
+        # self.experiment_data_to_fit[T]['item_features'][self.filter_datapoints_mask]
+
+        # params_fit = em_circularmixture_allitems_uniquekappa.fit(self.dataset['response'][ids_filtered, 0], self.dataset['item_angle'][ids_filtered, 0], self.dataset['item_angle'][ids_filtered, 1:])
 
 
 
