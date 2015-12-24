@@ -139,7 +139,7 @@ def best_parameters_callback(job, parameters=None):
                     stimuli_generation_recall='random',
                     session_id='cmaes_bays09_prodLL_summarystats_rerun_231215',
                     result_computation='filenameoutput',
-                    label='M%dratio%.2fsx%.2flapse%.2f_cmaes_bays09_prodLL_summarystats_rerun_231215' % (parameters['parameters']['M'], parameters['parameters']['ratio_conj'], parameters['parameters']['sigmax'], parameters['parameters']['lapse_rate']))
+                    label='M%dratio%.2fsx%.2flapse%.2f_cmaes_bays09_prodLL_summarystats_rerun_231215' % (parameters['parameters']['M'], parameters['parameters']['ratio_conj'], parameters['parameters']['sigmax'], parameters['parameters']['lapse_rate'])))
                 pbs_submission_infos_copy['walltime'] = '40:00:00'
                 pbs_submission_infos_copy['submit_label'] = 'bestparam_rerun'
 
