@@ -702,13 +702,18 @@ class SubmitPBS():
                     for curr_param_dict_i, curr_param_dict in enumerate(parameters_candidates_dict):
                         self.logger.info(" - {params} \t -> {result}".format(params=utils.pprint_dict(curr_param_dict, key_sorted=parameter_names_sorted), result=fitness_results[curr_param_dict_i]))
 
+                ## Do something after each CMA-ES iteration if desired
+                if cma_iter_callback_function_infos is not None:
+                    cma_iter_callback_output = cma_iter_callback_function_infos['function'](locals(), parameters=cma_iter_callback_function_infos['parameters'])
+
+                    # TODO(lmatthey) HACKY HACKY sorry...
+                    if cma_iter_callback_output:
+                        if 'fitness_results' in cma_iter_callback_output:
+                            fitness_results = cma_iter_callback_output['fitness_results']
+
                 ## Update the state of CMA-ES
                 cma_es.tell(parameters_candidates_array, fitness_results)
                 cma_log.add()
-
-                ## Do something after each CMA-ES iteration if desired
-                if cma_iter_callback_function_infos is not None:
-                    cma_iter_callback_function_infos['function'](locals(), parameters=cma_iter_callback_function_infos['parameters'])
 
                 ## Display and all
                 if self.debug:
@@ -850,7 +855,13 @@ class SubmitPBS():
             self.wait_all_jobs_collect_results(result_callback_function_infos=result_callback_function_infos, sleeping_period=sleeping_period, completion_progress=completed_parameters_progress, pbs_submission_infos=pbs_submission_infos)
 
             ## Now return the list of results, in the same ordering
-            result_outputs = np.array([self.jobs_tracking_dict[job_name]['result'] for job_name in job_names_ordered])
+            result_shape = (1,)
+            for job_i, job_name in enumerate(job_names_ordered):
+                if not np.isscalar(self.jobs_tracking_dict[job_name]['result']):
+                    result_shape = self.jobs_tracking_dict[job_name]['result'].shape
+            result_outputs = np.empty((len(job_names_ordered),) + result_shape)
+            for job_i, job_name in enumerate(job_names_ordered):
+                result_outputs[job_i] = self.jobs_tracking_dict[job_name]['result']
         else:
             result_outputs = np.empty(0)
 

@@ -224,6 +224,9 @@ class ExperimentLauncher(object):
         parser.add_argument('--bic_K', type=float, default=None,
             help='If set, will fix the number of parameters for the computation of the BIC score. Should be set appropriately.')
 
+        parser.add_argument('--shiftMinLL', type=float, default=0,
+            help='Value to enforce LL > 0, when computing geometric means instead of arithmetic mean. Used by ResultCompute -> dist_prodll_allt')
+
         # Ipython notebook compatibility stuff
         parser.add_argument('-f')
         parser.add_argument('--profile-dir')
