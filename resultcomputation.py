@@ -388,26 +388,26 @@ class ResultComputation():
             UGLY HACK: in order to keep track of the minLL, we return it here.
             You should have a cma_iter_function that cleans it before cma_es.tell() is called...
         '''
-        if 'result_ll90_sum' in all_variables:
+        if 'result_ll_sum' in all_variables:
             repetitions_axis = all_variables.get('repetitions_axis', -1)
 
             # Shift to get LL > 0 always
-            currMinLL = np.min(all_variables['result_ll90_sum'])
+            currMinLL = np.min(all_variables['result_ll_sum'])
             if currMinLL < all_variables['all_parameters']['shiftMinLL']:
                 all_variables['all_parameters']['shiftMinLL'] = currMinLL
 
             # Remove the current minLL, to make sure fitness > 0
-            print 'Before: ', all_variables['result_ll90_sum']
-            all_variables['result_ll90_sum'] -= all_variables['all_parameters']['shiftMinLL']
-            all_variables['result_ll90_sum'] += 0.001
-            print 'Shifted: ', all_variables['result_ll90_sum']
+            print 'Before: ', all_variables['result_ll_sum']
+            all_variables['result_ll_sum'] -= all_variables['all_parameters']['shiftMinLL']
+            all_variables['result_ll_sum'] += 0.001
+            print 'Shifted: ', all_variables['result_ll_sum']
 
-            result_dist_nll_geom = -mstats.gmean(utils.nanmean(all_variables['result_ll90_sum'], axis=repetitions_axis), axis=-1)
+            result_dist_nll_geom = -mstats.gmean(utils.nanmean(all_variables['result_ll_sum'], axis=repetitions_axis), axis=-1)
 
             print result_dist_nll_geom
             return np.array([result_dist_nll_geom, all_variables['all_parameters']['shiftMinLL']])
         else:
-            raise ValueError('result_ll90_sum was not found in the outputs')
+            raise ValueError('result_ll_sum was not found in the outputs')
 
 
 

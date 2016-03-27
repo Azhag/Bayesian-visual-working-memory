@@ -196,7 +196,7 @@ class Sampler:
         # Assign the cued ones now
         #   stimuli_correct: N x T x R
         #   cued_features:   N x (recall_feature, recall_time)
-        self.theta[np.arange(self.N), self.data_gen.cued_features[:, 0]] = self.data_gen.stimuli_correct[np.arange(self.N), self.data_gen.cued_features[:, 1], self.data_gen.cued_features[:, 0]]
+        self.theta[np.arange(self.N), self.data_gen.cued_features[:self.N, 0]] = self.data_gen.stimuli_correct[np.arange(self.N), self.data_gen.cued_features[:self.N, 1], self.data_gen.cued_features[:self.N, 0]]
 
         # Construct the list of uncued features, which should be sampled
         self.theta_to_sample = np.array([[r for r in xrange(self.R) if r != self.data_gen.cued_features[n, 0]] for n in xrange(self.N)], dtype='int')
@@ -219,10 +219,10 @@ class Sampler:
         #   stimuli_correct: N x T x R
         #   cued_features:   N x (recall_feature, recall_time)
         # r = 0 always the target to be sampled
-        self.theta[:, 1:] = self.data_gen.stimuli_correct[np.arange(self.N), self.data_gen.cued_features[:, 1], 1:]
+        self.theta[:, 1:] = self.data_gen.stimuli_correct[np.arange(self.N), self.data_gen.cued_features[:self.N, 1], 1:]
 
         # Construct the list of uncued features, which should be sampled
-        self.theta_to_sample = self.theta_target_index
+        self.theta_to_sample = self.theta_target_index[:self.N]
 
 
 
@@ -592,10 +592,10 @@ class Sampler:
         '''
 
         # The time of the cued feature
-        self.data_gen.cued_features[:, 1] = t_cued
+        self.data_gen.cued_features[:self.N, 1] = t_cued
 
         # Reset the cued theta
-        self.theta[np.arange(self.N), self.data_gen.cued_features[:, 0]] = self.data_gen.stimuli_correct[np.arange(self.N), self.data_gen.cued_features[:, 1], self.data_gen.cued_features[:, 0]]
+        self.theta[np.arange(self.N), self.data_gen.cued_features[:self.N, 0]] = self.data_gen.stimuli_correct[np.arange(self.N), self.data_gen.cued_features[:self.N, 1], self.data_gen.cued_features[:self.N, 0]]
 
 
     def compute_bic(self, K=None, integrate_tc_out=False, LL=None, precision=200):
@@ -695,7 +695,7 @@ class Sampler:
             # Compute the loglikelihood for the current datapoint
             loglikelihood[n] = loglike_theta_fct_single(self.theta[n, self.sampled_feature_index], params)
 
-        loglikelihood -= self.normalization
+        loglikelihood -= self.normalization[:self.N]
 
         return loglikelihood
 
@@ -716,7 +716,7 @@ class Sampler:
                 # Compute the loglikelihood for the current datapoint
                 loglikelihood[n, tc] = loglike_theta_fct_single(self.theta[n, self.sampled_feature_index], params)
 
-        loglikelihood -= self.normalization
+        loglikelihood -= self.normalization[:self.N]
 
         return loglikelihood
 
@@ -1636,10 +1636,10 @@ class Sampler:
         '''
 
         # Get the target angles
-        true_angles = self.data_gen.stimuli_correct[np.arange(self.N), self.data_gen.cued_features[:, 1], self.theta_target_index]
+        true_angles = self.data_gen.stimuli_correct[np.arange(self.N), self.data_gen.cued_features[:self.N, 1], self.theta_target_index[:self.N]]
 
         # Compute the angle difference error between predicted and ground truth
-        angle_errors = true_angles - self.theta[np.arange(self.N), self.theta_target_index]
+        angle_errors = true_angles - self.theta[np.arange(self.N), self.theta_target_index[:self.N]]
 
         # Correct for obtuse angles
         angle_errors = wrap_angles(angle_errors)
@@ -1689,7 +1689,7 @@ class Sampler:
         if show_nontargets:
 
             # Get the non-target/distractor angles.
-            nontargets = self.data_gen.stimuli_correct[np.arange(self.N), self.data_gen.nontargets_indices.T, self.theta_target_index].T
+            nontargets = self.data_gen.stimuli_correct[np.arange(self.N), self.data_gen.nontargets_indices[:self.N].T, self.theta_target_index[:self.N]].T
 
             print "Target " + ''.join(["\t NT %d " % x for x in (np.arange(nontargets.shape[1])+1)]) + "\t Inferred \t Error"
 
@@ -1744,7 +1744,7 @@ class Sampler:
             plt.xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi), (r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=15)
 
 
-    def plot_histogram_bias_nontarget(self, bins=31, in_degrees=False, dataio=None):
+    def plot_histogram_bias_nontarget(self, bins=31, in_degrees=False, dataio=None, plot_best_nontarget=False):
         '''
             Get an histogram of the errors between the response and all non targets
 
@@ -1761,10 +1761,6 @@ class Sampler:
         # Flatten everything, we want the full histogram.
         errors_nontargets = wrap_angles((responses[:, np.newaxis] - nontargets).flatten())
 
-        # Errors between the response the best nontarget.
-        errors_best_nontarget = wrap_angles((responses[:, np.newaxis] - nontargets))
-        errors_best_nontarget = errors_best_nontarget[np.arange(errors_best_nontarget.shape[0]), np.argmin(np.abs(errors_best_nontarget), axis=1)]
-
         # Do the plots
         angle_space = np.linspace(-np.pi, np.pi, bins)
 
@@ -1776,7 +1772,12 @@ class Sampler:
         print vtest_dict
 
         # Gest histogram of bias to best non target
-        hist_samples_density_estimation(errors_best_nontarget, bins=angle_space, title='Errors between response and best non-target, N=%d' % (self.T), filename='hist_bias_bestnontarget_%ditems_{label}_{unique_id}.pdf' % (self.T), dataio=dataio)
+        if plot_best_nontarget:
+            # Errors between the response the best nontarget.
+            errors_best_nontarget = wrap_angles((responses[:, np.newaxis] - nontargets))
+            errors_best_nontarget = errors_best_nontarget[np.arange(errors_best_nontarget.shape[0]), np.argmin(np.abs(errors_best_nontarget), axis=1)]
+
+            hist_samples_density_estimation(errors_best_nontarget, bins=angle_space, title='Errors between response and best non-target, N=%d' % (self.T), filename='hist_bias_bestnontarget_%ditems_{label}_{unique_id}.pdf' % (self.T), dataio=dataio)
 
 
     def collect_responses(self):
@@ -1786,11 +1787,11 @@ class Sampler:
             return (responses, target, nontargets)
         '''
         # Current inferred responses
-        responses = self.theta[np.arange(self.N), self.theta_target_index]
+        responses = self.theta[np.arange(self.N), self.theta_target_index[:self.N]]
         # Target angles. Funny indexing, maybe not the best place for t_r
-        target    =  self.data_gen.stimuli_correct[np.arange(self.N), self.data_gen.cued_features[:, 1], self.theta_target_index]
+        target    =  self.data_gen.stimuli_correct[np.arange(self.N), self.data_gen.cued_features[:self.N, 1], self.theta_target_index[:self.N]]
         # Non-target angles
-        nontargets = self.data_gen.stimuli_correct[np.arange(self.N), self.data_gen.nontargets_indices.T, self.theta_target_index].T
+        nontargets = self.data_gen.stimuli_correct[np.arange(self.N), self.data_gen.nontargets_indices[:self.N].T, self.theta_target_index[:self.N]].T
 
         return (responses, target, nontargets)
 
