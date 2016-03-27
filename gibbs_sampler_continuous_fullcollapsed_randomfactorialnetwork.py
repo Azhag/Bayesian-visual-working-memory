@@ -1548,8 +1548,8 @@ class Sampler:
 
         ratio_biases = bias_to_nontarget/ bias_to_target
 
-        target_2d = self.data_gen.stimuli_correct[:, 1]
-        nontarget_2d = self.data_gen.stimuli_correct[:, 0]
+        target_2d = self.data_gen.stimuli_correct[:self.N, 1]
+        nontarget_2d = self.data_gen.stimuli_correct[:self.N, 0]
 
         # Distance between probe and closest nontarget, in full feature space
         dist_target_nontarget_torus = dist_torus(target_2d, nontarget_2d)
