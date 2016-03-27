@@ -28,9 +28,9 @@ partition = 'intel-ivy'
 
 # For this computation, we need to have LL > 0 \forall t.
 # so we keep track of the smallest LL we've seen and if it goes below 0, than we subtract it (i.e. add its absolute value)
-cma_iter_parameters = dict(minLL=-10000, candidates=[], fitness=[])
+cma_iter_parameters = dict(minLL=-30000, candidates=[], fitness=[], steps=0)
 
-num_repetitions = 1
+num_repetitions = 5
 experiment_id = 'bays09'
 
 run_label = 'cmaes_bays09_prodLL_try1_Mratiosigmaxlapserate_repetitions{num_repetitions}_231215'
@@ -139,7 +139,7 @@ def best_parameters_callback(job, parameters=None):
                     stimuli_generation_recall='random',
                     session_id='cmaes_bays09_prodLL_summarystats_rerun_231215',
                     result_computation='filenameoutput',
-                    label='M%dratio%.2fsx%.2flapse%.2f_cmaes_bays09_prodLL_summarystats_rerun_231215' % (parameters['parameters']['M'], parameters['parameters']['ratio_conj'], parameters['parameters']['sigmax'], parameters['parameters']['lapse_rate'])))
+                    label='%d_M%dratio%.2fsx%.2flapse%.2f_cmaes_bays09_prodLL_summarystats_rerun_231215' % (cma_iter_parameters['steps'], parameters['parameters']['M'], parameters['parameters']['ratio_conj'], parameters['parameters']['sigmax'], parameters['parameters']['lapse_rate'])))
                 pbs_submission_infos_copy['walltime'] = '40:00:00'
                 pbs_submission_infos_copy['submit_label'] = 'bestparam_rerun'
 
@@ -183,6 +183,8 @@ def cma_iter_track_min_ll(all_variables, parameters=None):
     parameters['candidates'].extend(all_variables['parameters_candidates_array'])
     parameters['fitness'].extend(fitness_results.tolist())
     parameters['parameter_names_sorted'] = all_variables['parameter_names_sorted']
+    parameters['steps'] += 1
+
     if parameters['dataio'] is not None:
         parameters['dataio'].save_variables_default(parameters, ['candidates', 'fitness', 'parameter_names_sorted'])
         parameters['dataio'].make_link_output_to_dropbox(dropbox_current_experiment_folder=dropbox_current_experiment_folder)
