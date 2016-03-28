@@ -29,7 +29,7 @@ partition = 'intel-ivy'
 num_repetitions = 5
 experiment_id = 'bays09'
 
-run_label = 'cmaes_bays09_ll90_try3_Mratiosigmaxlapserate_repetitions{num_repetitions}_280316'
+run_label = 'cmaes_bays09_ll_try4_Mratiosigmaxlapserate_repetitions{num_repetitions}_280316'
 simul_out_dir = os.path.join(os.getcwd(), run_label.format(**locals()))
 
 parameter_generation = 'cma-es'
@@ -41,7 +41,7 @@ cma_use_bounds = True
 
 sleeping_period = dict(min=10, max=20)
 
-pbs_submission_infos = dict(description='Fit experiments (bays09), using distfit_bays09_ll90 ResultComputation), using the CMA-ES code. Looks at all t<=T here. Changes M, ratio_conj and sigmax. Only looks at LL score, top 90% items.',
+pbs_submission_infos = dict(description='Fit experiments (bays09), using dist_ll_allt ResultComputation), using the CMA-ES code. Looks at all t<=T here. Changes M, ratio_conj and sigmax. Only looks at LL score.',
                             command='python $WORKDIR/experimentlauncher.py',
                             other_options=dict(action_to_do='launcher_do_fitexperiment_allmetrics',
                                                code_type='mixed',
@@ -50,7 +50,7 @@ pbs_submission_infos = dict(description='Fit experiments (bays09), using distfit
                                                bic_K=4,
                                                ratio_conj=0.5,
                                                session_id='cmaes_Mratiosigmaxlapserate_bays09',
-                                               result_computation='dist_ll90_allt',
+                                               result_computation='dist_ll_allt',
                                                M=100,
                                                sigmax=0.1,
                                                renormalize_sigmax=None,
@@ -156,9 +156,9 @@ def best_parameters_callback(job, parameters=None):
                     burn_samples=200,
                     stimuli_generation='random',
                     stimuli_generation_recall='random',
-                    session_id='cmaes_bays09_ll90_summarystats_rerun_091115',
+                    session_id='cmaes_bays09_ll_summarystats_rerun_280316',
                     result_computation='filenameoutput',
-                    label='lapserate%.2f_cmaes_bays09_ll90_summarystats_rerun_091115' % parameters['parameters']['lapse_rate']))
+                    label='lapserate%.2f_cmaes_bays09_ll_summarystats_rerun_280316' % parameters['parameters']['lapse_rate']))
                 pbs_submission_infos_copy['walltime'] = '40:00:00'
                 pbs_submission_infos_copy['submit_label'] = 'bestparam_rerun'
 
@@ -203,20 +203,20 @@ def cma_iter_plot_scatter3d_candidates(all_variables, parameters=None):
         parameters['dataio'].make_link_output_to_dropbox(dropbox_current_experiment_folder='fitexperiment_allt_cmaes_11_2015')
 
     # Do plot
-    if parameters['ax'] is None:
-      _, parameters['ax'] = plt.subplots(2, 1)
+    # if parameters['ax'] is None:
+    #   _, parameters['ax'] = plt.subplots(2, 1)
 
-    parameters['ax'][0].plot(time_space, candidates_arr)
-    parameters['ax'][0].set_xlabel('Time')
-    parameters['ax'][0].set_ylabel('Parameters')
-    parameters['ax'][0].legend(parameter_names_sorted)
+    # parameters['ax'][0].plot(time_space, candidates_arr)
+    # parameters['ax'][0].set_xlabel('Time')
+    # parameters['ax'][0].set_ylabel('Parameters')
+    # parameters['ax'][0].legend(parameter_names_sorted)
 
-    parameters['ax'][1].plot(time_space, fitness_arr, label='NLL90')
-    parameters['ax'][1].set_xlabel('Time')
-    parameters['ax'][1].set_ylabel('NLL90')
+    # parameters['ax'][1].plot(time_space, fitness_arr, label='NLL90')
+    # parameters['ax'][1].set_xlabel('Time')
+    # parameters['ax'][1].set_ylabel('NLL90')
 
-    if parameters['dataio'] is not None:
-        parameters['dataio'].save_current_figure('cmaes_optim_timeevolution_{label}_{unique_id}.pdf')
+    # if parameters['dataio'] is not None:
+    #     parameters['dataio'].save_current_figure('cmaes_optim_timeevolution_{label}_{unique_id}.pdf')
 
 
 cma_iter_callback_function_infos = dict(function=cma_iter_plot_scatter3d_candidates, parameters=cma_iter_parameters)
