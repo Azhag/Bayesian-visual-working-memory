@@ -119,7 +119,7 @@ sigmaoutput_range =   dict(sampling_type='uniform', low=0.1, high=0.7, dtype=flo
 M_range           =   dict(sampling_type='randint', low=6, high=400, dtype=int)
 
 
-dict_parameters_range =   dict(M=M_range, lapse_rate=lapserate_range, ratio_conj=ratioconj_range, sigmax=sigmax_range)
+dict_parameters_range =   dict(M=M_range, lapse_rate=lapserate_range, ratio_conj=ratioconj_range, sigmax=sigmax_range, sigma_output=sigmaoutput_range)
 
 # result_callback_function to track best parameter
 best_parameters_seen = dict(result=np.nan, job_name='', parameters=None, submit_best=True, pbs_submission_infos_copy=copy.deepcopy(pbs_submission_infos))
