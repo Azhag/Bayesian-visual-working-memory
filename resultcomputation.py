@@ -363,6 +363,25 @@ class ResultComputation():
         return all_variables['dataio'].filename
 
 
+    def compute_result_dist_ll_allt(self, all_variables):
+        '''
+            Given outputs from FitExperimentAllT, will compute the summed LL, as
+            this seems to be an acceptable metric for data fitting.
+        '''
+
+        if 'result_ll_sum' in all_variables:
+            repetitions_axis = all_variables.get('repetitions_axis', -1)
+
+            # Average over repetitions and sum over the rest.
+            result_dist_ll = np.nansum(utils.nanmean(-all_variables['result_ll_sum'], axis=repetitions_axis))
+
+            print result_dist_ll
+
+            return result_dist_ll
+        else:
+            raise ValueError('result_ll_sum was not found in the outputs')
+
+
     def compute_result_dist_ll90_allt(self, all_variables):
         '''
             Given outputs from FitExperimentAllT, will compute the summed LL90, as
@@ -380,6 +399,7 @@ class ResultComputation():
             return result_dist_ll90
         else:
             raise ValueError('result_ll90_sum was not found in the outputs')
+
 
     def compute_result_dist_prodll_allt(self, all_variables):
         '''

@@ -12,7 +12,6 @@ from randomfactorialnetwork import *
 from statisticsmeasurer import *
 from slicesampler import *
 from dataio import *
-from gibbs_sampler_continuous_fullcollapsed_randomfactorialnetwork import *
 from launchers import *
 import load_experimental_data
 

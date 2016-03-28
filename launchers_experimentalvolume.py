@@ -22,7 +22,7 @@ from slicesampler import *
 from utils import *
 from dataio import *
 from datapbs import *
-from gibbs_sampler_continuous_fullcollapsed_randomfactorialnetwork import *
+# from gibbs_sampler_continuous_fullcollapsed_randomfactorialnetwork import *
 from submitpbs import *
 
 import progress

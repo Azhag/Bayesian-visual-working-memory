@@ -16,7 +16,7 @@ from statisticsmeasurer import *
 from randomfactorialnetwork import *
 from datagenerator import *
 import slicesampler
-from gibbs_sampler_continuous_fullcollapsed_randomfactorialnetwork import *
+# from gibbs_sampler_continuous_fullcollapsed_randomfactorialnetwork import *
 import progress
 
 def profile_me():
