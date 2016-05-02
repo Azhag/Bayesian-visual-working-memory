@@ -56,6 +56,7 @@ class FitExperimentAllT:
 
         self.all_samplers = dict()
         self.enforced_T = -1
+        self.sampler = None
 
         self.num_datapoints = int(self.experiment_data_to_fit['N_smallest'])
 
@@ -105,6 +106,8 @@ class FitExperimentAllT:
 
             If already setup correctly, do nothing.
         '''
+
+        assert T in self.T_space, "T=%d not possible. %s" % (T, self.T_space)
 
         if self.enforced_T != T:
             self.enforced_T = T

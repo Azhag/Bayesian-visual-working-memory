@@ -1717,7 +1717,8 @@ class Sampler:
         if ax_handle is None:
             f, ax_handle = plt.subplots()
 
-        hist_angular_data(errors, bins=bins, title='Errors between response and target', norm=norm, in_degrees=in_degrees, ax_handle=ax_handle)
+        hist_angular_data(errors, bins=bins, title='Errors between response and target',
+         norm=norm, in_degrees=in_degrees, ax_handle=ax_handle)
 
         if nice_xticks:
             plt.xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi), (r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=15)

@@ -40,7 +40,8 @@ def launcher_do_fitexperiment_allmetrics(args):
 
     # Create DataIO
     #  (complete label with current variable state)
-    dataio = DataIO(output_folder=all_parameters['output_directory'], label=all_parameters['label'].format(**all_parameters))
+    dataio = DataIO(output_folder=all_parameters['output_directory'],
+                    label=all_parameters['label'].format(**all_parameters))
     save_every = 1
     run_counter = 0
 
