@@ -8,18 +8,15 @@ Created by Loic Matthey on 2012-10-10
 Copyright (c) 2012 . All rights reserved.
 """
 
+import utils
 import matplotlib.pyplot as plt
+import numpy as np
 
-from datagenerator import *
-from randomfactorialnetwork import *
-from statisticsmeasurer import *
-from slicesampler import *
-from utils import *
-from dataio import *
-from datapbs import *
-# from gibbs_sampler_continuous_fullcollapsed_randomfactorialnetwork import *
+import utils
+import dataio as DataIO
 import progress
 
+import load_experimental_data
 import launchers
 
 def launcher_do_fisher_information_estimation(args):
@@ -1388,12 +1385,12 @@ def launcher_check_fisher_fit_1obj_2016(args):
 
     result_em_fits = np.nan*np.empty((5, all_parameters['num_repetitions']))
 
-    search_progress = progress.Progress(T_space.size*all_parameters['num_repetitions'])
+    search_progress = progress.Progress(all_parameters['num_repetitions'])
 
     for repet_i in xrange(all_parameters['num_repetitions']):
         print "%.2f%%, %s left - %s" % (search_progress.percentage(), search_progress.time_remaining_str(), search_progress.eta_str())
 
-        print "Fisher Info check, rep %d/%d" % (T, repet_i+1, all_parameters['num_repetitions'])
+        print "Fisher Info check, rep %d/%d" % (repet_i+1, all_parameters['num_repetitions'])
 
         ### WORK WORK WORK work? ###
 
@@ -1415,7 +1412,7 @@ def launcher_check_fisher_fit_1obj_2016(args):
 
         # Fisher Info from curvature
         print "Compute fisher from curvature"
-        fi_curv_dict = sampler.estimate_fisher_info_from_posterior_avg(num_points=1000, full_stats=True)
+        fi_curv_dict = sampler.estimate_fisher_info_from_posterior_avg(num_points=500, full_stats=True)
         result_FI_rc_curv[:, repet_i] = fi_curv_dict['all']
 
         # Fit mixture model
@@ -1427,7 +1424,7 @@ def launcher_check_fisher_fit_1obj_2016(args):
         # Compute marginal inverse fisher info
         print "compute marginal inverse fisher info"
         marginal_fi_dict = sampler.estimate_marginal_inverse_fisher_info_montecarlo()
-        result_marginal_inv_fi[:, repet_i] = [marginal_fi_dict[key] for key in ('inv_FI', 'inv_FI_std', 'FI', 'FI_std')]
+        result_marginal_inv_FI[:, repet_i] = [marginal_fi_dict[key] for key in ('inv_FI', 'inv_FI_std', 'FI', 'FI_std')]
 
         ## Run callback function if exists
         if plots_during_simulation_callback:

@@ -20,9 +20,9 @@ from scipy.spatial.distance import pdist
 # from randomnetwork import *
 # from randomfactorialnetwork import *
 from utils import *
-import datagenerator
+from datagenerator import DataGenerator
 
-class DataGeneratorRFN(datagenerator.DataGenerator):
+class DataGeneratorRFN(DataGenerator):
     '''
         DataGenerator for a RandomFactorialNetwork
     '''
@@ -30,7 +30,7 @@ class DataGeneratorRFN(datagenerator.DataGenerator):
 
         # assert isinstance(random_network, RandomFactorialNetwork), "Use a RandomFactorialNetwork with this DataGeneratorRFN"
 
-        datagenerator.DataGenerator.__init__(self, N, T, random_network, sigma_y = sigma_y, time_weights = time_weights, time_weights_parameters = time_weights_parameters)
+        DataGenerator.__init__(self, N, T, random_network, sigma_y = sigma_y, time_weights = time_weights, time_weights_parameters = time_weights_parameters)
 
         # This is the noise on specific memories. Belongs here.
         self.init_sigmax(sigma_x, renormalize=renormalize_sigmax)

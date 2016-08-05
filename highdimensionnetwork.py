@@ -487,7 +487,7 @@ class HighDimensionNetwork():
         network_response_statistics = self.compute_network_response_statistics(num_samples = num_samples, params=params, ignore_cache=ignore_cache)
 
         # The actual computation
-        covariance = T*beta**2.*network_response_statistics['cov'] + T*sigma_2*np.eye(self.M)
+        covariance = (T)*beta**2.*network_response_statistics['cov'] + T*sigma_2*np.eye(self.M)
 
         if should_plot:
             plt.figure()
@@ -514,14 +514,38 @@ class HighDimensionNetwork():
 
     def compute_marginal_inverse_FI(self, k_items, inv_cov_stim, max_n_samples=int(1e5), min_distance=0.1, convergence_epsilon = 1e-7, debug=False):
         '''
-            Computing the fisher information for a hierarchical code is not yet defined.
+            Computing the fisher information for a HighDimensionNetwork is not yet defined.
         '''
 
-        raise NotImplementedError('Watch out, actually not using the correct one...')
+        print '[highdimensionnetwork.compute_marginal_inverse_FI] Watch out, actually not using the correct one...'
 
         FI = self.compute_fisher_information(cov_stim=np.linalg.inv(inv_cov_stim))
 
         return dict(inv_FI=FI**-1., inv_FI_std=0.0, FI=FI, FI_std=0.0)
+
+
+    def compute_fisher_information_theoretical(self, sigma=None):
+        '''
+            Compute the theoretical, large N limit estimate of the Fisher Information
+            This one assumes a diagonal covariance matrix, wrong for the complete model.
+        '''
+
+        assert self.R <= 2, "Not implemented for R>2"
+
+        if self.population_code_type == 'conjunctive':
+            rho = 1./(4*np.pi**2/(self.M))
+            # rho = 1./(2*np.pi/(self.M))
+        elif self.population_code_type == 'feature':
+            # M/2 neuron per 2pi dimension.
+            rho = 1./(np.pi**2./self.M**2.)
+        else:
+            raise NotImplementedError('Fisher information not defined for population type ' + self.population_code_type)
+
+        kappa1 = self.rc_scale[0]
+        kappa2 = self.rc_scale[1]
+
+        return kappa1**2.*rho*(scsp.i0(2*kappa1) - scsp.iv(2, 2*kappa1))*scsp.i0(2*kappa2)/(sigma**2.*8*np.pi**2.*scsp.i0(kappa1)**2.*scsp.i0(kappa2)**2.)
+
 
 
     ########################

@@ -146,7 +146,7 @@ def do_plot_best_fit_bays09():
     return locals()
 
 
-def do_plot_fisher_info_fit_1obj_newcodebase():
+def do_plot_launcher_check_fisher_fit_1obj_2016():
     '''
         This reproduces Figure 7 from the paper, but with the latest codebase.
 
@@ -156,7 +156,7 @@ def do_plot_fisher_info_fit_1obj_newcodebase():
         CHECK IPTHON NOTEBOOK
     '''
 
-    # !!! CHECK IPYTHON NOTEBOOK UNDER Experiments/fisherinfo_singleitem !!!
+    # !!! CHECK IPYTHON NOTEBOOK ./Experiments/fisherinfo_singleitem/ !!!
 
     pass
 
