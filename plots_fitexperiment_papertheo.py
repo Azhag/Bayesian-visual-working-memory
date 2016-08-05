@@ -45,7 +45,6 @@ class PlotsFitExperimentAllTPaperTheo(object):
         self.experiment_id = self.fit_exp.experiment_id
 
         self.result_em_fits_stats = None
-
         self.do_distrib_errors_fig5 = do_distrib_errors_fig5
         self.do_memcurves_fig6 = do_memcurves_fig6
         self.do_mixtcurves_fig13 = do_mixtcurves_fig13
@@ -71,7 +70,6 @@ class PlotsFitExperimentAllTPaperTheo(object):
             self.plots_distrib_errors_fig5()
         if self.do_memcurves_fig6 or self.do_mixtcurves_fig13:
             self.plots_memmixtcurves_fig6fig13()
-
 
 
     def plots_distrib_errors_data_fig2(self):
@@ -101,7 +99,6 @@ class PlotsFitExperimentAllTPaperTheo(object):
 
         f.suptitle('Fig2 - Human distribution errors')
         return axes
-
 
     def plots_distrib_errors_fig5(self):
         '''
@@ -327,6 +324,5 @@ class PlotsFitExperimentAllTPaperTheo(object):
         ax.get_figure().canvas.draw()
 
         return ax
-
 
 
