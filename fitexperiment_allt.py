@@ -53,7 +53,11 @@ class FitExperimentAllT:
         self.experimental_dataset = load_experimental_data.load_data(experiment_id=self.experiment_id, data_dir=self.data_dir, fit_mixture_model=True)
         self.experiment_data_to_fit = self.experimental_dataset['data_to_fit']
         self.T_space = self.experiment_data_to_fit['n_items']
+
+        self.all_samplers = dict()
         self.enforced_T = -1
+        self.sampler = None
+
         self.num_datapoints = int(self.experiment_data_to_fit['N_smallest'])
 
         # Handle limiting the number of datapoints
@@ -103,23 +107,31 @@ class FitExperimentAllT:
             If already setup correctly, do nothing.
         '''
 
+        assert T in self.T_space, "T=%d not possible. %s" % (T, self.T_space)
+
         if self.enforced_T != T:
-            print "\n>>> Setting up {} nitems, {} datapoints".format(T, self.num_datapoints)
-
-            # Update parameters
-            self.parameters['T'] = T
-            self.parameters['N'] = self.num_datapoints
-            self.parameters['fixed_cued_feature_time'] = self.experiment_data_to_fit[T]['probe'][0] #should be scalar
-
-            self.parameters['stimuli_to_use'] = self.experiment_data_to_fit[T]['item_features'][self.filter_datapoints_mask]
-
-            # Instantiate everything
-            (_, _, _, self.sampler) = launchers.init_everything(self.parameters)
-
-            # Fix responses to the human ones
-            self.sampler.set_theta(self.experiment_data_to_fit[T]['response'][self.filter_datapoints_mask])
-
             self.enforced_T = T
+
+            if T not in self.all_samplers:
+                print "\n>>> Setting up {} nitems, {} datapoints".format(T, self.num_datapoints)
+
+                # Update parameters
+                self.parameters['T'] = T
+                self.parameters['N'] = self.num_datapoints
+                self.parameters['fixed_cued_feature_time'] = self.experiment_data_to_fit[T]['probe'][0] #should be scalar
+
+                self.parameters['stimuli_to_use'] = self.experiment_data_to_fit[T]['item_features'][self.filter_datapoints_mask]
+
+                # Instantiate everything
+                (_, _, _, newSampler) = launchers.init_everything(self.parameters)
+
+                # Fix responses to the human ones
+                newSampler.set_theta(self.experiment_data_to_fit[T]['response'][self.filter_datapoints_mask])
+
+                # Store it
+                self.all_samplers[self.enforced_T] = newSampler
+
+            self.sampler = self.all_samplers[self.enforced_T]
 
 
     def apply_fct_dataset_T(self, T, fct_infos):

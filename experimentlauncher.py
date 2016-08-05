@@ -307,7 +307,7 @@ if __name__ == '__main__':
 
     # Re-instantiate some variables
     #   Ugly but laziness prevails...
-    variables_to_reinstantiate = ['data_gen', 'sampler', 'stat_meas', 'random_network', 'args', 'constrained_parameters', 'data_pbs', 'dataio', 'post_processing_outputs', 'fit_exp']
+    variables_to_reinstantiate = ['data_gen', 'sampler', 'stat_meas', 'random_network', 'args', 'constrained_parameters', 'data_pbs', 'dataio', 'post_processing_outputs', 'fit_exp', 'all_outputs_data']
 
 
     if 'dataio' in experiment_launcher.all_vars:

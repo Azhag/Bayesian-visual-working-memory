@@ -144,7 +144,7 @@ def plot_mean_std_area(x, y, std, ax_handle=None, fignum=None, linewidth=1, fmt=
     plt.hold(True)
 
     if std is not None and np.any(std > 1e-6):
-        ax_handle.fill_between(x, y-std, y+std, facecolor=current_color, alpha=0.4, label='1 sigma range')
+        ax_handle.fill_between(x, y-std, y+std, facecolor=current_color, alpha=0.4)
 
     if xlabel is not None:
         ax_handle.set_xlabel(xlabel)
