@@ -516,6 +516,9 @@ class HighDimensionNetwork():
         '''
             Computing the fisher information for a hierarchical code is not yet defined.
         '''
+
+        raise NotImplementedError('Watch out, actually not using the correct one...')
+
         FI = self.compute_fisher_information(cov_stim=np.linalg.inv(inv_cov_stim))
 
         return dict(inv_FI=FI**-1., inv_FI_std=0.0, FI=FI, FI_std=0.0)

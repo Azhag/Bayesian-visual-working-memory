@@ -146,18 +146,34 @@ def do_plot_best_fit_bays09():
     return locals()
 
 
+def do_plot_fisher_info_fit_1obj_newcodebase():
+    '''
+        This reproduces Figure 7 from the paper, but with the latest codebase.
+
+        Need to check exactly which computation of the Fisher Information was used for that...
+        (and if the cov(mu) term should have T or T-1)
+
+        CHECK IPTHON NOTEBOOK
+    '''
+
+    # !!! CHECK IPYTHON NOTEBOOK UNDER Experiments/fisherinfo_singleitem !!!
+
+    pass
+
+
 if __name__ == '__main__':
 
     all_vars = {}
 
     # all_vars = do_plots_multiscale_random_populations()
     all_vars = do_plot_best_fit_bays09()
+    # all_vars = do_plot_fisher_info_fit_1obj_newcodebase()
 
 
     if 'experiment_launcher' in all_vars:
         all_vars.update(all_vars['experiment_launcher'].all_vars)
 
-    variables_to_reinstantiate = ['data_gen', 'sampler', 'stat_meas', 'random_network', 'args', 'constrained_parameters', 'data_pbs', 'dataio', 'experiment_launcher', 'arguments_dict']
+    variables_to_reinstantiate = ['data_gen', 'sampler', 'stat_meas', 'random_network', 'args', 'constrained_parameters', 'data_pbs', 'dataio', 'experiment_launcher', 'arguments_dict', 'post_processing_outputs', 'fit_exp', 'all_outputs_data']
 
     for var_reinst in variables_to_reinstantiate:
         if var_reinst in all_vars:
