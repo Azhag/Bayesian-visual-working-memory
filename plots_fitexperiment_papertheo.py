@@ -100,6 +100,7 @@ class PlotsFitExperimentAllTPaperTheo(object):
         f.suptitle('Fig2 - Human distribution errors')
         return axes
 
+
     def plots_distrib_errors_fig5(self):
         '''
             Series of plots reproducing Fig 5 - Distribution of errors of the
@@ -177,6 +178,7 @@ class PlotsFitExperimentAllTPaperTheo(object):
                                  )
             ax_i += 1
 
+
         if self.do_mixtcurves_fig13:
             self.__plot_mixtcurves(self.result_em_fits_stats,
                                    suptitle_text='Mixture proportions',
@@ -185,6 +187,145 @@ class PlotsFitExperimentAllTPaperTheo(object):
 
         return axes
 
+
+    # Memory curve kappa
+    def __plot_memcurves(self, model_em_fits, suptitle_text=None, ax=None):
+        '''
+            Nice plot for the memory fidelity, as in Fig6 of the paper theo
+        '''
+        T_space = self.fit_exp.T_space
+        data_em_fits = self.fit_exp.experimental_dataset['em_fits_nitems_arrays']
+
+        if ax is None:
+            _, ax = plt.subplots()
+        else:
+            ax.hold(False)
+
+        ax = utils.plot_mean_std_area(
+            T_space,
+            data_em_fits['mean'][0],
+            data_em_fits['std'][0],
+            linewidth=3, fmt='o-', markersize=8,
+            label='Experimental data',
+            ax_handle=ax
+        )
+
+        ax.hold(True)
+
+        ax = utils.plot_mean_std_area(
+            T_space,
+            model_em_fits['mean'][..., 0],
+            model_em_fits['std'][..., 0],
+            xlabel='Number of items',
+            ylabel="Memory error $[rad^{-2}]$",
+            linewidth=3,
+            fmt='o-', markersize=8,
+            label='Fitted kappa',
+            ax_handle=ax
+        )
+
+        ax.legend(prop={'size':15}, loc='center right', bbox_to_anchor=(1.1, 0.5))
+        ax.set_xlim([0.9, T_space.max()+0.1])
+        ax.set_xticks(range(1, T_space.max()+1))
+        ax.set_xticklabels(range(1, T_space.max()+1))
+
+        if suptitle_text:
+            ax.get_figure().suptitle(suptitle_text)
+
+        ax.get_figure().canvas.draw()
+
+        return ax
+
+
+    def __plot_mixtcurves(self, model_em_fits, suptitle_text=None, ax=None):
+        '''
+            Similar kind of plot, but showing the mixture proportions, as in Figure13
+        '''
+        T_space = self.fit_exp.T_space
+        data_em_fits = self.fit_exp.experimental_dataset['em_fits_nitems_arrays']
+
+        if ax is None:
+            _, ax = plt.subplots()
+        else:
+            ax.hold(False)
+
+
+        model_em_fits['mean'][np.isnan(model_em_fits['mean'])] = 0.0
+        model_em_fits['std'][np.isnan(model_em_fits['std'])] = 0.0
+
+        # Show model fits
+        utils.plot_mean_std_area(
+            T_space,
+            model_em_fits['mean'][..., 1],
+            model_em_fits['std'][..., 1],
+            xlabel='Number of items',
+            ylabel="Mixture probabilities",
+            ax_handle=ax, linewidth=3, fmt='o-', markersize=5,
+            label='Target',
+        )
+        ax.hold(True)
+        utils.plot_mean_std_area(
+            T_space,
+            model_em_fits['mean'][..., 2],
+            model_em_fits['std'][..., 2],
+            xlabel='Number of items',
+            ylabel="Mixture probabilities",
+            ax_handle=ax, linewidth=3, fmt='o-', markersize=5,
+            label='Nontarget'
+        )
+        utils.plot_mean_std_area(
+            T_space,
+            model_em_fits['mean'][..., 3],
+            model_em_fits['std'][..., 3],
+            xlabel='Number of items',
+            ylabel="Mixture probabilities",
+            ax_handle=ax, linewidth=3, fmt='o-', markersize=5,
+            label='Random'
+        )
+
+        # Now data
+        utils.plot_mean_std_area(
+            T_space,
+            data_em_fits['mean'][0],
+            data_em_fits['std'][0],
+            xlabel='Number of items',
+            ylabel="Mixture probabilities",
+            ax_handle=ax, linewidth=2, fmt='o:', markersize=5,
+            label='Data target'
+        )
+        utils.plot_mean_std_area(
+            T_space,
+            data_em_fits['mean'][1],
+            data_em_fits['std'][1],
+            xlabel='Number of items',
+            ylabel="Mixture probabilities",
+            ax_handle=ax, linewidth=2, fmt='o:', markersize=5, label='Data nontarget'
+        )
+        utils.plot_mean_std_area(
+            T_space,
+            data_em_fits['mean'][2],
+            data_em_fits['std'][2],
+            xlabel='Number of items',
+            ylabel="Mixture probabilities",
+            ax_handle=ax, linewidth=2, fmt='o:', markersize=5, label='Data random'
+        )
+
+        ax.legend(prop={'size':15},
+                 loc='center right',
+                 bbox_to_anchor=(1.1, 0.5)
+        )
+
+        ax.set_xlim([0.9, T_space.max() + 0.1])
+        ax.set_ylim([0.0, 1.1])
+        ax.set_xticks(range(1, T_space.max() + 1))
+        ax.set_xticklabels(range(1, T_space.max() + 1))
+
+        if suptitle_text:
+            ax.get_figure().suptitle(suptitle_text)
+
+        ax.get_figure().canvas.draw()
+
+        return ax
 
     # Memory curve kappa
     def __plot_memcurves(self, model_em_fits, suptitle_text=None, ax=None):
