@@ -17,7 +17,15 @@ import matplotlib.pyplot as plt
 
 import statsmodels.distributions as stmodsdist
 
-############################## DIRECTIONAL STATISTICS ################################
+#################### DIRECTIONAL STATISTICS ############################
+
+def init_feature_space(precision=20, endpoint=True):
+    '''
+        Initialise the appropriate 1D linspace depending on the coordinate system.
+    '''
+
+    return np.linspace(-np.pi, np.pi, precision, endpoint=endpoint)
+
 
 def vonmisespdf(x, mu, K):
     '''

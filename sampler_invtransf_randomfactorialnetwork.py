@@ -13,7 +13,6 @@ import scipy.stats as spst
 import scipy.optimize as spopt
 import scipy.integrate as spintg
 import scipy.interpolate as spinter
-import scipy.io as sio
 import matplotlib.patches as plt_patches
 # import matplotlib.collections as plt_collections
 import matplotlib.pyplot as plt
@@ -25,7 +24,7 @@ from utils import *
 import em_circularmixture
 import em_circularmixture_allitems_uniquekappa
 
-import slicesampler
+# import slicesampler
 
 # from dataio import *
 import progress
@@ -39,18 +38,21 @@ def loglike_theta_fct_single(new_theta, (thetas, datapoint, rn, theta_mu, theta_
     thetas[sampled_feature_index] = new_theta
 
     like_mean = datapoint - mean_fixed_contrib - \
-                ATtcB*rn.get_network_response(thetas)
+        ATtcB*rn.get_network_response(thetas)
 
     # Using inverse covariance as param
     # return theta_kappa*np.cos(thetas[sampled_feature_index] - theta_mu) - 0.5*np.dot(like_mean, np.dot(inv_covariance_fixed_contrib, like_mean))
     return -0.5*np.dot(like_mean, np.dot(inv_covariance_fixed_contrib, like_mean))
     # return -1./(2*0.2**2)*np.sum(like_mean**2.)
 
+
 def loglike_theta_fct_single_min(x, thetas, datapoint, rn, theta_mu, theta_kappa, ATtcB, sampled_feature_index, mean_fixed_contrib, inv_covariance_fixed_contrib):
     return -loglike_theta_fct_single(x, (thetas, datapoint, rn, theta_mu, theta_kappa, ATtcB, sampled_feature_index, mean_fixed_contrib, inv_covariance_fixed_contrib))
 
+
 def like_theta_fct_single(x, thetas, datapoint, rn, theta_mu, theta_kappa, ATtcB, sampled_feature_index, mean_fixed_contrib, inv_covariance_fixed_contrib):
     return np.exp(loglike_theta_fct_single(x, (thetas, datapoint, rn, theta_mu, theta_kappa, ATtcB, sampled_feature_index, mean_fixed_contrib, inv_covariance_fixed_contrib)))
+
 
 class Sampler:
     '''
@@ -61,7 +63,7 @@ class Sampler:
         y_t | x_t, y_{t-1} ~ Normal
 
     '''
-    def __init__(self, data_gen, tc=None, theta_prior_dict=dict(kappa=0.01, gamma=0.0), n_parameters = dict(), sigma_output=0.0, parameters_dict=None, renormalize_sigma_output=False, lapse_rate=0.0, inv_cdf_bins=1000):
+    def __init__(self, data_gen, tc=None, theta_prior_dict=dict(kappa=0.01, gamma=0.0), n_parameters=dict(), sigma_output=0.0, parameters_dict=None, renormalize_sigma_output=False, lapse_rate=0.0, inv_cdf_bins=1000):
         '''
             Initialise the sampler
 
@@ -376,7 +378,7 @@ class Sampler:
             # Just use the ML value for the theta
             print "-> Setting theta to ML values"
             self.set_theta_max_likelihood(num_points=100, post_optimise=True)
-        elif self.inference_method== 'none':
+        elif self.inference_method == 'none':
             # Do nothing
             print "-> no inference"
 
@@ -441,7 +443,8 @@ class Sampler:
         if len(self.theta_to_sample.shape) > 1:
             permutation_fct = np.random.permutation
         else:
-            permutation_fct = lambda x: [x]
+            def permutation_fct(x):
+                return [x]
 
         cache_randomdraws = np.random.rand(self.N, self.R-1)
 
@@ -490,11 +493,11 @@ class Sampler:
                     else:
                         eol = '\r'
 
-                    line= "%.2f%%, %s - %s" % (search_progress.percentage(), search_progress.time_remaining_str(), search_progress.eta_str())
+                    line = "%.2f%%, %s - %s" % (search_progress.percentage(), search_progress.time_remaining_str(), search_progress.eta_str())
                     sys.stdout.write("%s%s%s" % (line, " " * (78-len(line)), eol))
                     sys.stdout.flush()
 
-            i+= 1
+            i += 1
 
         if return_samples:
             return all_samples
@@ -644,7 +647,7 @@ class Sampler:
         # Current inferred responses
         responses = self.theta[np.arange(self.N), self.theta_target_index[:self.N]]
         # Target angles. Funny indexing, maybe not the best place for t_r
-        target    =  self.data_gen.stimuli_correct[np.arange(self.N), self.data_gen.cued_features[:self.N, 1], self.theta_target_index[:self.N]]
+        target = self.data_gen.stimuli_correct[np.arange(self.N), self.data_gen.cued_features[:self.N, 1], self.theta_target_index[:self.N]]
         # Non-target angles
         nontargets = self.data_gen.stimuli_correct[np.arange(self.N), self.data_gen.nontargets_indices[:self.N].T, self.theta_target_index[:self.N]].T
 
@@ -718,7 +721,7 @@ class Sampler:
                 LL = (1. - self.lapse_rate)*LL - self.lapse_rate*np.log(2.*np.pi)
             else:
                 # This is precise, but could diverge
-                LL = np.log(self.lapse_rate) -np.log(2.*np.pi) + np.log1p((1. - self.lapse_rate)*2.*np.pi/(self.lapse_rate)*np.exp(LL))
+                LL = np.log(self.lapse_rate) - np.log(2.*np.pi) + np.log1p((1. - self.lapse_rate)*2.*np.pi/(self.lapse_rate)*np.exp(LL))
 
         return LL
 
@@ -911,7 +914,7 @@ class Sampler:
     #########################################################################
 
 
-    def plot_likelihood_variation_twoangles(self, index_second_feature=1, num_points=100, amplify_diag=1.0, should_plot=True, should_return=False, should_exponentiate = False, remove_mean=False, n=0, t=0, interpolation='nearest', normalize=False, colormap=None):
+    def plot_likelihood_variation_twoangles(self, index_second_feature=1, num_points=100, amplify_diag=1.0, should_plot=True, should_return=False, should_exponentiate=False, remove_mean=False, n=0, t=0, interpolation='nearest', normalize=False, colormap=None):
         '''
             Compute the likelihood, varying two angles around.
             Plot the result
@@ -948,7 +951,7 @@ class Sampler:
             # Plot the obtained landscape
             f = plt.figure()
             ax = f.add_subplot(111)
-            im= ax.imshow(llh_2angles.T, origin='lower', cmap=colormap)
+            im = ax.imshow(llh_2angles.T, origin='lower', cmap=colormap)
             im.set_extent((-np.pi, np.pi, -np.pi, np.pi))
             im.set_interpolation(interpolation)
             f.colorbar(im)
@@ -984,7 +987,7 @@ class Sampler:
             return llh_2angles
 
 
-    def plot_likelihood_correctlycuedtimes(self, n=0, amplify_diag=1.0, all_angles=None, num_points=500, should_plot=True, should_return=False, should_exponentiate = False, show_legend=True, show_current_theta=True, debug=True, ax_handle=None):
+    def plot_likelihood_correctlycuedtimes(self, n=0, amplify_diag=1.0, all_angles=None, num_points=500, should_plot=True, should_return=False, should_exponentiate=False, show_legend=True, show_current_theta=True, debug=True, ax_handle=None):
         '''
             Plot the log-likelihood function, over the space of the sampled theta, keeping the other thetas fixed to their correct cued value.
         '''
@@ -1038,7 +1041,7 @@ class Sampler:
 
         # Print the answers
         if debug:
-            print "True angles: %s >> Inferred: %s" % (' | '.join(['%.3f' % x for x in self.data_gen.stimuli_correct[n, :, 0]]),  ' | '.join(['%.3f' % x for x in all_angles[opt_angles]]))
+            print "True angles: %s >> Inferred: %s" % (' | '.join(['%.3f' % x for x in self.data_gen.stimuli_correct[n, :, 0]]), ' | '.join(['%.3f' % x for x in all_angles[opt_angles]]))
 
         plt.show()
 
@@ -1114,7 +1117,7 @@ class Sampler:
         params_fit = em_circular_mixture_to_use.fit(*self.collect_responses())
 
         if compute_responsibilities:
-            params_fit['resp'] = em_circular_mixture_to_use.compute_responsibilities(*(self.collect_responses() + (params_fit,) ))
+            params_fit['resp'] = em_circular_mixture_to_use.compute_responsibilities(*(self.collect_responses() + (params_fit,)))
 
         params_fit.setdefault('mixt_nontargets_sum', np.sum(params_fit['mixt_nontargets']))
 
@@ -1301,7 +1304,7 @@ class Sampler:
             Look at the posterior to estimate the precision directly
         '''
 
-        posterior = self.plot_likelihood_correctlycuedtimes(n=n, num_points=num_points, should_plot=False, should_return=True, should_exponentiate = True, debug=False)[:, 0]
+        posterior = self.plot_likelihood_correctlycuedtimes(n=n, num_points=num_points, should_plot=False, should_return=True, should_exponentiate=True, debug=False)[:, 0]
 
         x = np.linspace(-np.pi, np.pi, num_points)
         dx = np.diff(x)[0]
@@ -1529,7 +1532,7 @@ class Sampler:
         fit_gaussian_samples(samples)
 
         # Get the posterior
-        posterior = self.plot_likelihood_correctlycuedtimes(n=n, num_points=num_points, should_plot=False, should_return=True, should_exponentiate = True, debug=False)[:, -1]
+        posterior = self.plot_likelihood_correctlycuedtimes(n=n, num_points=num_points, should_plot=False, should_return=True, should_exponentiate=True, debug=False)[:, -1]
 
         x = np.linspace(-np.pi, np.pi, num_points)
 
@@ -1551,7 +1554,7 @@ class Sampler:
         bias_to_nontarget = np.abs(wrap_angles(response - nontarget_recall_feature))
         bias_to_target = np.abs(wrap_angles(response - target_recall_feature))
 
-        ratio_biases = bias_to_nontarget/ bias_to_target
+        # ratio_biases = bias_to_nontarget / bias_to_target
 
         target_2d = self.data_gen.stimuli_correct[:self.N, 1]
         nontarget_2d = self.data_gen.stimuli_correct[:self.N, 0]
@@ -1757,7 +1760,7 @@ class Sampler:
                                       ax_handle=None,
                                       plot_best_nontarget=False,
                                       ax_handle_bestnontarget=None
-                                     ):
+                                      ):
         '''
             Get an histogram of the errors between the response and all non targets
 
@@ -1807,5 +1810,3 @@ if __name__ == '__main__':
     # experiment_launcher = experimentlauncher.ExperimentLauncher(run=True)
 
     # plt.show()
-
-

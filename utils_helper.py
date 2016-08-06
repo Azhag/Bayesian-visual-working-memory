@@ -22,14 +22,17 @@ import subprocess
 
 ########################## TRICKS AND HELPER FUNCTIONS #################################
 
+
 def flatten_list(ll):
     return [item for sublist in ll for item in sublist]
+
 
 def arrnum_to_list(arrnum_in):
     try:
         return list(arrnum_in)
     except TypeError:
         return [arrnum_in]
+
 
 def list_2_tuple(arg):
     if (isinstance(arg, list) and len(arg) > 0 and isinstance(arg[0], list)):
@@ -38,6 +41,7 @@ def list_2_tuple(arg):
         a = tuple(arg)
 
     return a
+
 
 def cross(*args):
     '''
@@ -82,14 +86,17 @@ def subdict(dictionary, keys):
     '''
     return {k: dictionary[k] for k in keys}
 
+
 def fast_dot_1D(x, y):
     out = 0
     for i in xrange(x.size):
         out += x[i]*y[i]
     return out
 
+
 def fast_1d_norm(x):
     return np.sqrt(np.dot(x, x.conj()))
+
 
 def array2string(array):
     # return np.array2string(array, suppress_small=True)
@@ -156,6 +163,7 @@ def remove_functions_dict(dict_input):
     '''
 
     return dict((k, v) for (k, v) in dict_input.iteritems() if not is_function(v))
+
 
 def argparse_2_dict(args):
     '''
@@ -264,6 +272,7 @@ def file_exists_new_shell(filename):
     files = "".join(pipelines).split(os.linesep)
     return fname in files
 
+
 def chdir_safe(directory, verbose=True):
     '''
         Change working directory, printing it each time
@@ -272,4 +281,3 @@ def chdir_safe(directory, verbose=True):
 
     if verbose:
         print "changed directory, current: %s" % os.getcwd()
-
