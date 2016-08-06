@@ -507,12 +507,15 @@ class HighDimensionNetwork(object):
     def compute_fisher_information(self, stimulus_input=None, sigma=0.01, cov_stim=None):
 
         if stimulus_input is None:
+            # TODO(lmatthey) This is wrong! Should estimate the
             stimulus_input = self.default_stimulus_input
 
         if cov_stim is None:
             # The covariance for the stimulus
+            raise NotImplementedError("This current implementation makes no sense")
             cov_stim = self.compute_covariance_stimulus(stimulus_input, sigma=sigma)
 
+        raise ValueError("Wrong here, should evaluate at optimal stimulus value!")
         der_f = self.get_derivative_network_response()
 
         return np.dot(der_f, np.linalg.solve(cov_stim, der_f))
