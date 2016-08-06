@@ -493,7 +493,7 @@ class HighDimensionNetwork(object):
         network_response_statistics = self.compute_network_response_statistics(num_samples=num_samples, ignore_cache=ignore_cache)
 
         # !!! The actual Fisher Information computation !!!
-        covariance = (T)*beta**2.*network_response_statistics['cov'] + T*sigma_2*np.eye(self.M)
+        covariance = (T-1)*beta**2.*network_response_statistics['cov'] + T*sigma_2*np.eye(self.M)
 
         if should_plot:
             plt.figure()
@@ -515,8 +515,8 @@ class HighDimensionNetwork(object):
             raise NotImplementedError("This current implementation makes no sense")
             cov_stim = self.compute_covariance_stimulus(stimulus_input, sigma=sigma)
 
-        raise ValueError("Wrong here, should evaluate at optimal stimulus value!")
-        der_f = self.get_derivative_network_response()
+
+        der_f = self.get_derivative_network_response(stimulus_input=stimulus_input)
 
         return np.dot(der_f, np.linalg.solve(cov_stim, der_f))
 

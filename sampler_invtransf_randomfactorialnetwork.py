@@ -1261,8 +1261,17 @@ class Sampler:
             # Use the measured one...
             computed_cov = self.noise_covariance
 
-        # Compute the theoretical FI
-        return self.random_network.compute_fisher_information(cov_stim=computed_cov)
+        # Compute the theoretical FI, for all samples
+        fisher_info_all = np.empty(self.N)
+
+        for n in xrange(self.N):
+            fisher_info_all[n] = self.random_network.compute_fisher_information(
+                    stimulus_input=self.data_gen.stimuli_correct[n,
+                                                                 self.tc[n]],
+                    cov_stim=computed_cov
+                )
+
+        return fisher_info_all
 
 
     def estimate_fisher_info_theocov_largen(self, use_theoretical_cov=True):

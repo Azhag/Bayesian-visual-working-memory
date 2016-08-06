@@ -42,8 +42,8 @@ def launcher_check_fisher_fit_1obj_2016(args):
     # Result arrays
     result_all_precisions = np.nan*np.empty((all_parameters['num_repetitions']), dtype=float)
     result_FI_rc_curv = np.nan*np.empty((all_parameters['N'], all_parameters['num_repetitions']), dtype=float)
-    result_FI_rc_theo = np.nan*np.empty((all_parameters['num_repetitions']), dtype=float)
-    result_FI_rc_theocov = np.nan*np.empty((all_parameters['num_repetitions']), dtype=float)
+    result_FI_rc_theo = np.nan*np.empty((all_parameters['N'], all_parameters['num_repetitions']), dtype=float)
+    result_FI_rc_theocov = np.nan*np.empty((all_parameters['N'], all_parameters['num_repetitions']), dtype=float)
     result_FI_rc_theo_largeN = np.nan*np.empty((all_parameters['num_repetitions']), dtype=float)
     result_marginal_inv_FI = np.nan*np.ones((4, all_parameters['num_repetitions']))  # inv_FI, inv_FI_std, FI, FI_std
 
@@ -70,8 +70,8 @@ def launcher_check_fisher_fit_1obj_2016(args):
 
         # Theoretical Fisher info
         print "theoretical FI"
-        result_FI_rc_theo[repet_i] = sampler.estimate_fisher_info_theocov(use_theoretical_cov=False)
-        result_FI_rc_theocov[repet_i] = sampler.estimate_fisher_info_theocov(use_theoretical_cov=True)
+        result_FI_rc_theo[:, repet_i] = sampler.estimate_fisher_info_theocov(use_theoretical_cov=False)
+        result_FI_rc_theocov[:, repet_i] = sampler.estimate_fisher_info_theocov(use_theoretical_cov=True)
         result_FI_rc_theo_largeN[repet_i] = sampler.estimate_fisher_info_theocov_largen(use_theoretical_cov=True)
 
         # Fisher Info from curvature

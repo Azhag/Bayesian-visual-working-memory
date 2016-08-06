@@ -158,7 +158,39 @@ def do_plot_launcher_check_fisher_fit_1obj_2016():
 
     # !!! CHECK IPYTHON NOTEBOOK ./Experiments/fisherinfo_singleitem/ !!!
 
-    pass
+    arguments_dict = dict(
+        action_to_do='launcher_check_fisher_fit_1obj_2016',
+        collect_responses=None,
+        inference_method='sample',
+        N=200,
+        num_samples=100,
+        M=196,
+        T=1,
+        num_repetitions=1,
+        renormalize_sigmax=None,
+        autoset_parameters=None,
+        label='thesis_fisherinfo_fit_1obj_newcodebase',
+        code_type='conj',
+        output_directory='./Experiments/fisherinfo_singleitem/thesisrerun_do_plot_fisher_info_fit_1obj_newcodebase_050816',
+        ratio_conj=1.,
+        sigmax=0.1,
+        sigmay=0.000001,
+        sigma_output=0.0,
+        selection_num_samples=1,
+        selection_method='last',
+        slice_width=0.07,
+        burn_samples=100,
+        enforce_min_distance=0.17,
+        specific_stimuli_random_centers=None,
+        stimuli_generation='constant',
+        stimuli_generation_recall='constant',
+        experiment_data_dir=os.path.normpath(os.path.join(os.environ['WORKDIR_DROP'], '../../experimental_data')),
+    )
+    experiment_launcher = ExperimentLauncher(run=True, arguments_dict=arguments_dict)
+
+    return locals()
+
+
 
 
 if __name__ == '__main__':
@@ -166,8 +198,8 @@ if __name__ == '__main__':
     all_vars = {}
 
     # all_vars = do_plots_multiscale_random_populations()
-    all_vars = do_plot_best_fit_bays09()
-    # all_vars = do_plot_fisher_info_fit_1obj_newcodebase()
+    # all_vars = do_plot_best_fit_bays09()
+    all_vars = do_plot_launcher_check_fisher_fit_1obj_2016()
 
 
     if 'experiment_launcher' in all_vars:
