@@ -467,26 +467,11 @@ class HighDimensionNetwork(object):
             return mean_activity
 
 
-    def compute_covariance_stimulus(self, stimulus_input, N=2000, sigma=0.2):
-        '''
-            Compute the covariance for a given stimulus.
-        '''
-
-        # Same stim for all
-        all_stim = np.tile(stimulus_input, (N, 1))
-
-        # Get samples
-        samples = self.sample_multiple_network_response(all_stim, sigma=sigma)
-
-        # Get covariance
-        return np.cov(samples.T)
-
-
     def compute_covariance_KL(self, num_samples=5000, sigma_2=0.2, beta=1.0, T=1, should_plot=False, ignore_cache=False):
         '''
             Compute the covariance of the Gaussian approximation (through a KL) to the averaged object.
 
-            Sigma* = T (sigma_y^2 + beta^2 sigma_x^2) I + T beta^2 Cov( mu(theta))_p(theta)
+            Sigma* = T (sigma_y^2 + beta^2 sigma_x^2) I + (T-1) beta^2 Cov( mu(theta))_p(theta)
         '''
 
         # Get the statistics of the network population code
