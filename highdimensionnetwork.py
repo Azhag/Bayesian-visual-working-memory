@@ -504,21 +504,16 @@ class HighDimensionNetwork(object):
         return covariance
 
 
-    def compute_fisher_information(self, stimulus_input=None, sigma=0.01, cov_stim=None):
-
-        if stimulus_input is None:
-            # TODO(lmatthey) This is wrong! Should estimate the
-            stimulus_input = self.default_stimulus_input
-
-        if cov_stim is None:
-            # The covariance for the stimulus
-            raise NotImplementedError("This current implementation makes no sense")
-            cov_stim = self.compute_covariance_stimulus(stimulus_input, sigma=sigma)
-
+    def compute_fisher_information(self, stimulus_input, cov_stim=None, inv_cov_stim=None):
 
         der_f = self.get_derivative_network_response(stimulus_input=stimulus_input)
 
-        return np.dot(der_f, np.linalg.solve(cov_stim, der_f))
+        if cov_stim is not None:
+            return np.dot(der_f, np.linalg.solve(cov_stim, der_f))
+        elif inv_cov_stim is not None:
+            return np.dot(der_f, np.dot(inv_cov_stim, der_f))
+        else:
+            return 0.
 
 
     def compute_marginal_inverse_FI(self, k_items, inv_cov_stim, max_n_samples=int(1e5), min_distance=0.1, convergence_epsilon=1e-7, debug=False):
@@ -528,7 +523,7 @@ class HighDimensionNetwork(object):
 
         print '[highdimensionnetwork.compute_marginal_inverse_FI] Watch out, actually not using the correct one...'
 
-        FI = self.compute_fisher_information(cov_stim=np.linalg.inv(inv_cov_stim))
+        FI = self.compute_fisher_information(stimulus_input=self.default_stimulus_input, inv_cov_stim=inv_cov_stim)
 
         return dict(inv_FI=FI**-1., inv_FI_std=0.0, FI=FI, FI_std=0.0)
 
@@ -546,6 +541,7 @@ class HighDimensionNetwork(object):
             # rho = 1./(2*np.pi/(self.M))
         elif self.population_code_type == 'feature':
             # M/2 neuron per 2pi dimension.
+            print "This looks wrong, doesnt fit at all"
             rho = 1./(np.pi**2./self.M**2.)
         else:
             raise NotImplementedError('Fisher information not defined for population type ' + self.population_code_type)

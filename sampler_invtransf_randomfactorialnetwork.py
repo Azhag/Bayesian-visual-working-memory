@@ -107,8 +107,6 @@ class Sampler:
         self.n_means_measured = n_parameters['means'][2]
         self.n_covariances_measured = n_parameters['covariances'][2]
 
-        self.noise_covariance = self.n_covariances_measured[-1]
-
 
 
     def init_from_data_gen(self, data_gen, tc=None):
@@ -117,6 +115,8 @@ class Sampler:
         '''
 
         self.data_gen = data_gen
+        self.sigma_x = self.data_gen.sigma_x
+        self.sigma_y = self.data_gen.sigma_y
         self.random_network = self.data_gen.random_network
         self.NT = self.data_gen.Y
 
@@ -237,7 +237,7 @@ class Sampler:
 
 
 
-    def init_cache_parameters(self, amplify_diag=1.0):
+    def init_cache_parameters(self):
         '''
             Most of our multiplicative factors are fixed, so precompute them, for all tc.
 
@@ -251,10 +251,14 @@ class Sampler:
         self.ATtcB = np.zeros(self.T)
         self.mean_fixed_contrib = np.zeros((self.T, self.M))
         self.inv_covariance_fixed_contrib = np.zeros((self.M, self.M))
-
+        self.noise_covariance = np.zeros((self.M, self.M))
         # Precompute parameters
         for t in xrange(self.T):
-            (self.ATtcB[t], self.mean_fixed_contrib[t], self.inv_covariance_fixed_contrib) = self.precompute_parameters(t, amplify_diag=amplify_diag)
+            (self.ATtcB[t],
+             self.mean_fixed_contrib[t],
+             self.noise_covariance,
+             self.inv_covariance_fixed_contrib
+             ) = self.precompute_parameters(t)
 
         # Compute the normalization
         self.compute_normalization()
@@ -284,7 +288,7 @@ class Sampler:
         # Add the precomputation of the new convolved posteriors here
 
 
-    def precompute_parameters(self, t, amplify_diag=1.0):
+    def precompute_parameters(self, t):
         '''
             Precompute some matrices to speed up the sampling.
         '''
@@ -293,16 +297,15 @@ class Sampler:
         mean_fixed_contrib = self.n_means_end[t] + np.dot(ATmtc, self.n_means_start[t])
         ATtcB = np.dot(ATmtc, self.time_weights[1, t])
         # inv_covariance_fixed_contrib = self.n_covariances_end[t] + np.dot(ATmtc, np.dot(self.n_covariances_start[t], ATmtc))   # + np.dot(ATtcB, np.dot(self.random_network.get_network_covariance_combined(), ATtcB.T))
-        inv_covariance_fixed_contrib = self.n_covariances_measured[-1]
-
-        # Weird, this solves it. Measured covariances are wrong for generation...
-        inv_covariance_fixed_contrib[np.arange(self.M), np.arange(self.M)] *= amplify_diag
+        covariance_fixed_contrib = ATmtc**2.*(self.sigma_x**2. + self.sigma_y**2.)*np.eye(self.M)
+        if self.T > 1:
+            covariance_fixed_contrib += self.n_covariances_measured[-2]
 
         # Precompute the inverse, should speedup quite nicely
-        inv_covariance_fixed_contrib = np.linalg.inv(inv_covariance_fixed_contrib)
+        inv_covariance_fixed_contrib = np.linalg.inv(covariance_fixed_contrib)
         # inv_covariance_fixed_contrib = np.eye(self.M)
 
-        return (ATtcB, mean_fixed_contrib, inv_covariance_fixed_contrib)
+        return (ATtcB, mean_fixed_contrib, covariance_fixed_contrib, inv_covariance_fixed_contrib)
 
 
     def compute_normalization(self):
@@ -914,7 +917,7 @@ class Sampler:
     #########################################################################
 
 
-    def plot_likelihood_variation_twoangles(self, index_second_feature=1, num_points=100, amplify_diag=1.0, should_plot=True, should_return=False, should_exponentiate=False, remove_mean=False, n=0, t=0, interpolation='nearest', normalize=False, colormap=None):
+    def plot_likelihood_variation_twoangles(self, index_second_feature=1, num_points=100, should_plot=True, should_return=False, should_exponentiate=False, remove_mean=False, n=0, t=0, interpolation='nearest', normalize=False, colormap=None):
         '''
             Compute the likelihood, varying two angles around.
             Plot the result
@@ -928,7 +931,7 @@ class Sampler:
 
         # Compute the array
         for i in xrange(num_points):
-            print "%d%%" % (i/float(num_points)*100)
+            # print "%d%%" % (i/float(num_points)*100)
             for j in xrange(num_points):
                 # Pack the parameters for the likelihood function
                 curr_theta[index_second_feature] = all_angles[j]
@@ -987,7 +990,7 @@ class Sampler:
             return llh_2angles
 
 
-    def plot_likelihood_correctlycuedtimes(self, n=0, amplify_diag=1.0, all_angles=None, num_points=500, should_plot=True, should_return=False, should_exponentiate=False, show_legend=True, show_current_theta=True, debug=True, ax_handle=None):
+    def plot_likelihood_correctlycuedtimes(self, n=0, all_angles=None, num_points=500, should_plot=True, should_return=False, should_exponentiate=False, show_legend=True, show_current_theta=True, debug=True, ax_handle=None):
         '''
             Plot the log-likelihood function, over the space of the sampled theta, keeping the other thetas fixed to their correct cued value.
         '''
@@ -1232,7 +1235,7 @@ class Sampler:
         '''
             Compute and returns the theoretical covariance, found from KL minimization.
         '''
-        return self.random_network.compute_covariance_KL(sigma_2=(self.data_gen.sigma_x**2. + self.data_gen.sigma_y**2.), T=self.T, beta=1.0, num_samples=num_samples, ignore_cache=ignore_cache)
+        return self.random_network.compute_covariance_KL(sigma_2=(self.sigma_x**2. + self.sigma_y**2.), T=self.T, beta=1.0, num_samples=num_samples, ignore_cache=ignore_cache)
 
 
     def estimate_fisher_info_theocov(self, use_theoretical_cov=True):
@@ -1244,32 +1247,23 @@ class Sampler:
             # Get the computed covariance
             computed_cov = self.compute_covariance_theoretical(num_samples=1000, ignore_cache=False)
 
+            inv_cov_stim = np.linalg.inv(computed_cov)
+
             # Check if it seems correctly similar to the current measured one.
             if np.mean((self.noise_covariance-computed_cov)**2.) > 0.01:
                 print "WARNING> Divergence between measured and theoretical covariance, use measured"
 
-                computed_cov = self.noise_covariance
-                # print np.mean((self.noise_covariance-computed_cov)**2.)
-                # print "M: %d, rcscale: %.3f, sigmax: %.3f, sigmay: %.3f" % (self.M, self.random_network.rc_scale.flatten()[0], self.data_gen.sigma_x, self.data_gen.sigma_y)
+                inv_cov_stim = self.inv_covariance_fixed_contrib
 
-                # pcolor_2d_data(computed_cov)
-                # pcolor_2d_data(self.noise_covariance)
-                # plt.show()
-
-                # raise ValueError('Big divergence between measured and theoretical divergence!')
         else:
             # Use the measured one...
-            computed_cov = self.noise_covariance
+            inv_cov_stim = self.inv_covariance_fixed_contrib
 
         # Compute the theoretical FI, for all samples
         fisher_info_all = np.empty(self.N)
 
         for n in xrange(self.N):
-            fisher_info_all[n] = self.random_network.compute_fisher_information(
-                    stimulus_input=self.data_gen.stimuli_correct[n,
-                                                                 self.tc[n]],
-                    cov_stim=computed_cov
-                )
+            fisher_info_all[n] = self.random_network.compute_fisher_information(stimulus_input=self.data_gen.stimuli_correct[n, self.tc[n]], inv_cov_stim=inv_cov_stim)
 
         return fisher_info_all
 
