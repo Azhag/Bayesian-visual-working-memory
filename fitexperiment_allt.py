@@ -118,7 +118,7 @@ class FitExperimentAllT:
                 # Update parameters
                 self.parameters['T'] = T
                 self.parameters['N'] = self.num_datapoints
-                self.parameters['fixed_cued_feature_time'] = self.experiment_data_to_fit[T]['probe'][0] #should be scalar
+                self.parameters['fixed_cued_feature_time'] = self.experiment_data_to_fit[T]['probe'][0]  # should be scalar
 
                 self.parameters['stimuli_to_use'] = self.experiment_data_to_fit[T]['item_features'][self.filter_datapoints_mask]
 
@@ -227,24 +227,24 @@ def test_fit_experimentallt():
 
     # Set some parameters and let the others default
     experiment_parameters = dict(action_to_do='launcher_do_simple_run',
-                                inference_method='none',
-                                experiment_id='bays09',
-                                M=100,
-                                filter_datapoints_size=500,
-                                filter_datapoints_selection='random',
-                                num_samples=500,
-                                selection_method='last',
-                                sigmax=0.1,
-                                renormalize_sigmax=None,
-                                sigmay=0.0001,
-                                code_type='mixed',
-                                slice_width=0.07,
-                                burn_samples=200,
-                                ratio_conj=0.7,
-                                stimuli_generation_recall='random',
-                                autoset_parameters=None,
-                                label='test_fit_experimentallt'
-                                )
+                                 inference_method='none',
+                                 experiment_id='bays09',
+                                 M=100,
+                                 filter_datapoints_size=500,
+                                 filter_datapoints_selection='random',
+                                 num_samples=500,
+                                 selection_method='last',
+                                 sigmax=0.1,
+                                 renormalize_sigmax=None,
+                                 sigmay=0.0001,
+                                 code_type='mixed',
+                                 slice_width=0.07,
+                                 burn_samples=200,
+                                 ratio_conj=0.7,
+                                 stimuli_generation_recall='random',
+                                 autoset_parameters=None,
+                                 label='test_fit_experimentallt'
+                                 )
     experiment_launcher = experimentlauncher.ExperimentLauncher(run=True, arguments_dict=experiment_parameters)
     experiment_parameters_full = experiment_launcher.args_dict
 
@@ -252,7 +252,7 @@ def test_fit_experimentallt():
     fit_exp = FitExperimentAllT(experiment_parameters_full)
 
     # Now compute some loglikelihoods
-    fct_infos = dict(fct = lambda s, p: s.sampler.compute_loglikelihood_N())
+    fct_infos = dict(fct=lambda s, p: s.sampler.compute_loglikelihood_N())
 
     ll_n = fit_exp.apply_fct_datasets_allT(fct_infos, return_array=True)
     print ll_n
@@ -275,26 +275,26 @@ def test_loglike_modelselection():
 
     # Set some parameters and let the others default
     experiment_parameters = dict(action_to_do='launcher_do_simple_run',
-                                inference_method='sample',
-                                experiment_id='bays09',
-                                M=100,
-                                N=500,
-                                filter_datapoints_size=500,
-                                filter_datapoints_selection='random',
-                                num_samples=500,
-                                selection_method='last',
-                                sigmax=0.1,
-                                sigma_output=0.5,
-                                renormalize_sigmax=None,
-                                sigmay=0.0001,
-                                code_type='mixed',
-                                slice_width=0.07,
-                                burn_samples=200,
-                                ratio_conj=0.7,
-                                stimuli_generation_recall='random',
-                                autoset_parameters=None,
-                                label='test_fit_experimentallt'
-                                )
+                                 inference_method='sample',
+                                 experiment_id='bays09',
+                                 M=100,
+                                 N=500,
+                                 filter_datapoints_size=500,
+                                 filter_datapoints_selection='random',
+                                 num_samples=500,
+                                 selection_method='last',
+                                 sigmax=0.1,
+                                 sigma_output=0.5,
+                                 renormalize_sigmax=None,
+                                 sigmay=0.0001,
+                                 code_type='mixed',
+                                 slice_width=0.07,
+                                 burn_samples=200,
+                                 ratio_conj=0.7,
+                                 stimuli_generation_recall='random',
+                                 autoset_parameters=None,
+                                 label='test_fit_experimentallt'
+                                 )
     experiment_launcher = experimentlauncher.ExperimentLauncher(run=True, arguments_dict=experiment_parameters)
     experiment_parameters_full = experiment_launcher.args_dict
     sampler = experiment_launcher.all_vars['sampler']
@@ -343,25 +343,25 @@ def test_noiseoutput_loglike():
 
     # Set some parameters and let the others default
     experiment_parameters = dict(action_to_do='launcher_do_simple_run',
-                                inference_method='none',
-                                experiment_id='bays09',
-                                M=100,
-                                filter_datapoints_size=500,
-                                filter_datapoints_selection='random',
-                                num_samples=500,
-                                selection_method='last',
-                                sigmax=0.1,
-                                sigma_output=0.5,
-                                renormalize_sigmax=None,
-                                sigmay=0.0001,
-                                code_type='mixed',
-                                slice_width=0.07,
-                                burn_samples=200,
-                                ratio_conj=0.7,
-                                stimuli_generation_recall='random',
-                                autoset_parameters=None,
-                                label='test_fit_experimentallt'
-                                )
+                                 inference_method='none',
+                                 experiment_id='bays09',
+                                 M=100,
+                                 filter_datapoints_size=500,
+                                 filter_datapoints_selection='random',
+                                 num_samples=500,
+                                 selection_method='last',
+                                 sigmax=0.1,
+                                 sigma_output=0.5,
+                                 renormalize_sigmax=None,
+                                 sigmay=0.0001,
+                                 code_type='mixed',
+                                 slice_width=0.07,
+                                 burn_samples=200,
+                                 ratio_conj=0.7,
+                                 stimuli_generation_recall='random',
+                                 autoset_parameters=None,
+                                 label='test_fit_experimentallt'
+                                 )
     experiment_launcher = experimentlauncher.ExperimentLauncher(run=True, arguments_dict=experiment_parameters)
     experiment_parameters_full = experiment_launcher.args_dict
 
@@ -375,7 +375,7 @@ def test_noiseoutput_loglike():
         return np.array([loglik_N, loglik_conv_N])
 
 
-    fct_infos = dict(fct = compute_stats)
+    fct_infos = dict(fct=compute_stats)
 
     ll_outs = fit_exp.apply_fct_datasets_allT(fct_infos, return_array=True)
     print ll_outs.shape

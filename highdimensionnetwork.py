@@ -467,18 +467,18 @@ class HighDimensionNetwork(object):
             return mean_activity
 
 
-    def compute_covariance_KL(self, num_samples=5000, sigma_2=0.2, beta=1.0, T=1, should_plot=False, ignore_cache=False):
+    def compute_covariance_KL(self, num_samples=5000, sigma_x=0.1, sigma_y=0.0001, sigma_baseline=0.00001, beta=1.0, T=1, should_plot=False, ignore_cache=False):
         '''
             Compute the covariance of the Gaussian approximation (through a KL) to the averaged object.
 
-            Sigma* = T (sigma_y^2 + beta^2 sigma_x^2) I + (T-1) beta^2 Cov( mu(theta))_p(theta)
+            Sigma* = T (sigma_y^2 + beta^2 sigma_x^2) I + (T-1) beta^2 Cov( mu(theta))_p(theta) + sigma_baseline^2 I
         '''
 
         # Get the statistics of the network population code
         network_response_statistics = self.compute_network_response_statistics(num_samples=num_samples, ignore_cache=ignore_cache)
 
         # !!! The actual Fisher Information computation !!!
-        covariance = (T-1)*beta**2.*network_response_statistics['cov'] + T*sigma_2*np.eye(self.M)
+        covariance = (T-1)*beta**2.*network_response_statistics['cov'] + T*(sigma_x**2. + sigma_y**2.)*np.eye(self.M) + sigma_baseline**2.*np.eye(self.M)
 
         if should_plot:
             plt.figure()

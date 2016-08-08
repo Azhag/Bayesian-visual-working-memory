@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 
 import sys
 
-from utils import *
+import utils
 
 import em_circularmixture
 import em_circularmixture_allitems_uniquekappa
@@ -117,6 +117,7 @@ class Sampler:
         self.data_gen = data_gen
         self.sigma_x = self.data_gen.sigma_x
         self.sigma_y = self.data_gen.sigma_y
+        self.sigma_baseline = self.data_gen.sigma_baseline
         self.random_network = self.data_gen.random_network
         self.NT = self.data_gen.Y
 
@@ -271,7 +272,7 @@ class Sampler:
 
     def init_output_noise(self, sigma_output, renormalize=True):
         '''
-            The output noise is added after samples from the posterior are taken. Adds another level of randomness. Should count it in the BIC.
+            The output noise is added after samples from the posterior are taken. Adds another level of randomness. Should count it in the utils.BIC.
 
             Given a level of output noise (sigma_output), stores the corresponding kappa_output.
 
@@ -283,7 +284,7 @@ class Sampler:
         else:
             self.sigma_output = sigma_output
 
-        self.kappa_output = stddev_to_kappa_single(sigma_output)
+        self.kappa_output = utils.stddev_to_kappa_single(sigma_output)
 
         # Add the precomputation of the new convolved posteriors here
 
@@ -297,7 +298,7 @@ class Sampler:
         mean_fixed_contrib = self.n_means_end[t] + np.dot(ATmtc, self.n_means_start[t])
         ATtcB = np.dot(ATmtc, self.time_weights[1, t])
         # inv_covariance_fixed_contrib = self.n_covariances_end[t] + np.dot(ATmtc, np.dot(self.n_covariances_start[t], ATmtc))   # + np.dot(ATtcB, np.dot(self.random_network.get_network_covariance_combined(), ATtcB.T))
-        covariance_fixed_contrib = ATmtc**2.*(self.sigma_x**2. + self.sigma_y**2.)*np.eye(self.M)
+        covariance_fixed_contrib = ATmtc**2.*(self.sigma_x**2. + self.sigma_y**2.)*np.eye(self.M) + self.sigma_baseline**2.*np.eye(self.M)
         if self.T > 1:
             covariance_fixed_contrib += self.n_covariances_measured[-2]
 
@@ -486,7 +487,7 @@ class Sampler:
                     sampled_orientation = self.add_output_noise(sampled_orientation)
 
                 # Save the orientation
-                self.theta[n, sampled_feature_index] = wrap_angles(sampled_orientation)
+                self.theta[n, sampled_feature_index] = utils.wrap_angles(sampled_orientation)
 
                 if debug:
                     search_progress.increment()
@@ -522,7 +523,7 @@ class Sampler:
                 should_lapse = random_draw <= self.lapse_rate
 
             if should_lapse:
-                sampled_orientation = sample_angle()
+                sampled_orientation = utils.sample_angle()
 
         return should_lapse, sampled_orientation
 
@@ -583,7 +584,7 @@ class Sampler:
 
         if self.sigma_output > 0.0:
             samples += spst.vonmises.rvs(self.kappa_output, size=samples.size)
-            samples = wrap_angles(samples)
+            samples = utils.wrap_angles(samples)
 
         return samples
 
@@ -618,7 +619,7 @@ class Sampler:
 
             # opt_angles[n] = spopt.fminbound(loglike_theta_fct_single_min, -np.pi, np.pi, params, disp=3)
             # opt_angles[n] = spopt.brent(loglike_theta_fct_single_min, params)
-            # opt_angles[n] = wrap_angles(np.array([np.mod(spopt.anneal(loglike_theta_fct_single_min, np.random.random_sample()*np.pi*2. - np.pi, args=params)[0], 2.*np.pi)]))
+            # opt_angles[n] = utils.wrap_angles(np.array([np.mod(spopt.anneal(loglike_theta_fct_single_min, np.random.random_sample()*np.pi*2. - np.pi, args=params)[0], 2.*np.pi)]))
 
             if post_optimise:
                 self.theta[n, self.sampled_feature_index] = spopt.fmin(loglike_theta_fct_single_min, all_angles[np.argmax(llh)], args=params, disp=False)[0]
@@ -689,7 +690,7 @@ class Sampler:
 
         print 'Bic: K ', K
 
-        return bic(K, LL, self.N)
+        return utils.bic(K, LL, self.N)
 
 
     def compute_loglikelihood(self, integrate_tc_out=False, precision=200):
@@ -828,7 +829,7 @@ class Sampler:
             all_angles = np.linspace(-np.pi, np.pi, precision, endpoint=False)
 
         posterior = self.compute_loglikelihood_nt_fullspace(n=n, t=self.tc[n], all_angles=all_angles, normalize=True, should_exponentiate=True)
-        noise = vonmisespdf(all_angles, 0.0, self.kappa_output)
+        noise = utils.vonmisespdf(all_angles, 0.0, self.kappa_output)
 
         # Compute the convolved posterior
         posterior_fft = np.fft.fft(posterior)
@@ -990,7 +991,7 @@ class Sampler:
             return llh_2angles
 
 
-    def plot_likelihood_correctlycuedtimes(self, n=0, all_angles=None, num_points=500, should_plot=True, should_return=False, should_exponentiate=False, show_legend=True, show_current_theta=True, debug=True, ax_handle=None):
+    def plot_likelihood_correctlycuedtimes(self, n=0, all_angles=None, num_points=500, should_plot=True, should_return=False, should_exponentiate=True, show_legend=True, show_current_theta=True, debug=True, ax_handle=None):
         '''
             Plot the log-likelihood function, over the space of the sampled theta, keeping the other thetas fixed to their correct cued value.
         '''
@@ -1147,7 +1148,7 @@ class Sampler:
         model_mixtprop = np.array([model_em_fit[key] for key in ('mixt_target', 'mixt_nontargets_sum', 'mixt_random')])
         data_mixtprop = np.array([data_em_fit[key] for key in ('mixt_target', 'mixt_nontargets', 'mixt_random')])
 
-        return KL_div(model_mixtprop, data_mixtprop)
+        return utils.KL_div(model_mixtprop, data_mixtprop)
 
 
     def estimate_fisher_info_from_posterior(self, n=0, all_angles=None, num_points=500):
@@ -1205,9 +1206,9 @@ class Sampler:
             mean_FI[i] = self.estimate_fisher_info_from_posterior(n=i, all_angles=all_angles)
 
         if full_stats:
-            return dict(mean=nanmean(mean_FI), std=nanstd(mean_FI), median=nanmedian(mean_FI), all=mean_FI)
+            return dict(mean=utils.nanmean(mean_FI), std=utils.nanstd(mean_FI), median=utils.nanmedian(mean_FI), all=mean_FI)
         else:
-            return nanmean(mean_FI)
+            return utils.nanmean(mean_FI)
 
 
     def estimate_fisher_info_from_posterior_avg_randomsubset(self, subset_size=1, num_points=500, full_stats=False):
@@ -1226,16 +1227,16 @@ class Sampler:
             mean_FI[i] = self.estimate_fisher_info_from_posterior(n=random_subset[i], all_angles=all_angles)
 
         if full_stats:
-            return dict(mean=nanmean(mean_FI), std=nanstd(mean_FI), median=nanmedian(mean_FI), all=mean_FI)
+            return dict(mean=utils.nanmean(mean_FI), std=utils.nanstd(mean_FI), median=utils.nanmedian(mean_FI), all=mean_FI)
         else:
-            return nanmean(mean_FI)
+            return utils.nanmean(mean_FI)
 
 
     def compute_covariance_theoretical(self, num_samples=1000, ignore_cache=False):
         '''
             Compute and returns the theoretical covariance, found from KL minimization.
         '''
-        return self.random_network.compute_covariance_KL(sigma_2=(self.sigma_x**2. + self.sigma_y**2.), T=self.T, beta=1.0, num_samples=num_samples, ignore_cache=ignore_cache)
+        return self.random_network.compute_covariance_KL(sigma_x=self.sigma_x, sigma_y=self.sigma_y, sigma_baseline=self.sigma_baseline, T=self.T, beta=1.0, num_samples=num_samples, ignore_cache=ignore_cache)
 
 
     def estimate_fisher_info_theocov(self, use_theoretical_cov=True):
@@ -1341,9 +1342,9 @@ class Sampler:
             precisions[i] = self.estimate_precision_from_posterior(n=i, num_points=num_points)
 
         if full_stats:
-            return dict(mean=nanmean(precisions), std=nanstd(precisions), median=nanmedian(precisions), all=precisions)
+            return dict(mean=utils.nanmean(precisions), std=utils.nanstd(precisions), median=utils.nanmedian(precisions), all=precisions)
         else:
-            return nanmean(precisions)
+            return utils.nanmean(precisions)
 
 
     def estimate_precision_from_posterior_avg_randomsubset(self, subset_size=1, num_points=1000, full_stats=False):
@@ -1361,9 +1362,9 @@ class Sampler:
             precisions[i] = self.estimate_precision_from_posterior(n=random_subset[i], num_points=num_points)
 
         if full_stats:
-            return dict(mean=nanmean(precisions), std=nanstd(precisions), median=nanmedian(precisions), all=precisions)
+            return dict(mean=utils.nanmean(precisions), std=utils.nanstd(precisions), median=utils.nanmedian(precisions), all=precisions)
         else:
-            return nanmean(precisions)
+            return utils.nanmean(precisions)
 
 
     def estimate_precision_from_samples(self, n=0, num_samples=1000, num_repetitions=1, selection_method='median', return_samples=False):
@@ -1382,10 +1383,10 @@ class Sampler:
             samples = self.sample_theta(return_samples=True, subset_theta=[n])[0]
 
             # Estimate the circular standard deviation of those samples
-            circ_std_dev = angle_circular_std_dev(samples)
+            circ_std_dev = utils.angle_circular_std_dev(samples)
 
             # And now get the precision (uncorrected for chance level)
-            all_precisions[repet_i] = compute_angle_precision_from_std(circ_std_dev)
+            all_precisions[repet_i] = utils.compute_angle_precision_from_std(circ_std_dev)
 
             if return_samples:
                 all_samples[repet_i] = samples
@@ -1420,9 +1421,9 @@ class Sampler:
                 all_samples[i] = res['samples']
 
         if full_stats:
-            return dict(mean=nanmean(all_precision), std=nanstd(all_precision), median=nanmedian(all_precision), all=all_precision_everything)
+            return dict(mean=utils.nanmean(all_precision), std=utils.nanstd(all_precision), median=utils.nanmedian(all_precision), all=all_precision_everything)
         else:
-            return nanmean(all_precision)
+            return utils.nanmean(all_precision)
 
 
     def estimate_precision_from_samples_avg_randomsubset(self, subset_size=1, num_samples=1000, num_repetitions=1, full_stats=False, selection_method='median', return_samples=False):
@@ -1449,9 +1450,9 @@ class Sampler:
                 all_samples[i] = res['samples']
 
         if full_stats:
-            return dict(mean=nanmean(all_precision), std=nanstd(all_precision), median=nanmedian(all_precision), all=all_precision_everything)
+            return dict(mean=utils.nanmean(all_precision), std=utils.nanstd(all_precision), median=utils.nanmedian(all_precision), all=all_precision_everything)
         else:
-            return nanmean(all_precision)
+            return utils.nanmean(all_precision)
 
 
     def estimate_truevariance_from_posterior(self, n=0, t=-1, all_angles=None, num_points=500, return_mean=False):
@@ -1489,9 +1490,9 @@ class Sampler:
             truevariances[i] = self.estimate_truevariance_from_posterior(n=i, all_angles=all_angles, num_points=num_points)
 
         if full_stats:
-            return dict(mean=nanmean(truevariances), std=nanstd(truevariances), median=nanmedian(truevariances), all=truevariances)
+            return dict(mean=utils.nanmean(truevariances), std=utils.nanstd(truevariances), median=utils.nanmedian(truevariances), all=truevariances)
         else:
-            return nanmean(truevariances)
+            return utils.nanmean(truevariances)
 
 
     def estimate_gaussianity_from_samples(self, significance_level=0.025, n=0, num_samples=500, num_repetitions=1, selection_method='median'):
@@ -1507,7 +1508,7 @@ class Sampler:
             # Get samples
             all_samples[repet_i] = self.sample_theta(return_samples=True, subset_theta=[n])[0]
 
-            # fit_gaussian_samples(all_samples[repet_i])
+            # utils.fit_gaussian_samples(all_samples[repet_i])
 
             # Check if gaussian or not.
             # normaltest returns (chi^2 stat, p-value). If p-value small => reject H0 coming from gaussian.
@@ -1532,7 +1533,7 @@ class Sampler:
             samples = self.sample_theta(return_samples=True, subset_theta=[n])[0]
 
         # Plot the samples and the fit
-        fit_gaussian_samples(samples)
+        utils.fit_gaussian_samples(samples)
 
         # Get the posterior
         posterior = self.plot_likelihood_correctlycuedtimes(n=n, num_points=num_points, should_plot=False, should_return=True, should_exponentiate=True, debug=False)[:, -1]
@@ -1554,8 +1555,8 @@ class Sampler:
         response, target_recall_feature, nontarget_recall_feature = self.collect_responses()
         nontarget_recall_feature = nontarget_recall_feature.flatten()
 
-        bias_to_nontarget = np.abs(wrap_angles(response - nontarget_recall_feature))
-        bias_to_target = np.abs(wrap_angles(response - target_recall_feature))
+        bias_to_nontarget = np.abs(utils.wrap_angles(response - nontarget_recall_feature))
+        bias_to_target = np.abs(utils.wrap_angles(response - target_recall_feature))
 
         # ratio_biases = bias_to_nontarget / bias_to_target
 
@@ -1563,14 +1564,14 @@ class Sampler:
         nontarget_2d = self.data_gen.stimuli_correct[:self.N, 0]
 
         # Distance between probe and closest nontarget, in full feature space
-        dist_target_nontarget_torus = dist_torus(target_2d, nontarget_2d)
+        dist_target_nontarget_torus = utils.dist_torus(target_2d, nontarget_2d)
 
         # Distance only looking at recalled feature
-        dist_target_nontarget_recalled = np.abs(wrap_angles(target_recall_feature - nontarget_recall_feature))
+        dist_target_nontarget_recalled = np.abs(utils.wrap_angles(target_recall_feature - nontarget_recall_feature))
 
         # Distance only looking at cued feature.
         # Needs more work. They are only a few possible values, so we can group them and get a boxplot for each
-        dist_target_nontarget_cue = np.abs(wrap_angles((target_2d[:, 1] - nontarget_2d[:, 1])))
+        dist_target_nontarget_cue = np.abs(utils.wrap_angles((target_2d[:, 1] - nontarget_2d[:, 1])))
 
         # Check if the response is closer to the target or nontarget, in relative terms.
         # Need to compute a ratio linking bias_to_target and bias_to_nontarget.
@@ -1653,19 +1654,19 @@ class Sampler:
         angle_errors = true_angles - self.theta[np.arange(self.N), self.theta_target_index[:self.N]]
 
         # Correct for obtuse angles
-        angle_errors = wrap_angles(angle_errors)
+        angle_errors = utils.wrap_angles(angle_errors)
 
         # Compute the statistics. Uses the spherical formulation of standard deviation
         if return_errors:
             if return_groundtruth:
-                return (compute_mean_std_circular_data(angle_errors), angle_errors, true_angles)
+                return (utils.compute_mean_std_circular_data(angle_errors), angle_errors, true_angles)
             else:
-                return (compute_mean_std_circular_data(angle_errors), angle_errors)
+                return (utils.compute_mean_std_circular_data(angle_errors), angle_errors)
         else:
             if return_groundtruth:
-                return (compute_mean_std_circular_data(angle_errors), true_angles)
+                return (utils.compute_mean_std_circular_data(angle_errors), true_angles)
             else:
-                return compute_mean_std_circular_data(angle_errors)
+                return utils.compute_mean_std_circular_data(angle_errors)
 
 
     def get_precision(self, remove_chance_level=False, correction_theo_fit=1.0):
@@ -1677,12 +1678,12 @@ class Sampler:
         '''
 
         # Compute precision
-        precision = compute_angle_precision_from_std(self.compute_angle_error()['std'], square_precision=True)
+        precision = utils.compute_angle_precision_from_std(self.compute_angle_error()['std'], square_precision=True)
         precision *= correction_theo_fit
 
         if remove_chance_level:
             # Remove the chance level
-            precision -= compute_precision_chance(self.N)
+            precision -= utils.compute_precision_chance(self.N)
 
         return precision
 
@@ -1728,7 +1729,7 @@ class Sampler:
         if ax_handle is None:
             f, ax_handle = plt.subplots()
 
-        hist_angular_data(errors, bins=bins, title='Errors between response and target', norm=norm, in_degrees=in_degrees, ax_handle=ax_handle)
+        utils.hist_angular_data(errors, bins=bins, title='Errors between response and target', norm=norm, in_degrees=in_degrees, ax_handle=ax_handle)
 
         if nice_xticks:
             plt.xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi), (r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=15)
@@ -1742,7 +1743,7 @@ class Sampler:
         # Plot the responses
         (responses, target, nontargets) = self.collect_responses()
 
-        hist_angular_data(responses, bins=bins, title='Distribution of responses', norm=norm, in_degrees=in_degrees, fignum=fignum)
+        utils.hist_angular_data(responses, bins=bins, title='Distribution of responses', norm=norm, in_degrees=in_degrees, fignum=fignum)
 
         if show_angles:
             # Add lines for the target and non targets
@@ -1778,25 +1779,25 @@ class Sampler:
 
         # Now check the error between the responses and nontargets.
         # Flatten everything, we want the full histogram.
-        errors_nontargets = wrap_angles((responses[:, np.newaxis] - nontargets).flatten())
+        errors_nontargets = utils.wrap_angles((responses[:, np.newaxis] - nontargets).flatten())
 
         # Do the plots
         angle_space = np.linspace(-np.pi, np.pi, bins)
 
         # Get histograms of bias to nontargets.
-        hist_samples_density_estimation(errors_nontargets, bins=angle_space, title='Errors between response and non-targets, N=%d' % (self.T), filename='hist_bias_nontargets_%ditems_{label}_{unique_id}.pdf' % (self.T), dataio=dataio, ax_handle=ax_handle, show_parameters=show_parameters)
+        utils.hist_samples_density_estimation(errors_nontargets, bins=angle_space, title='Errors between response and non-targets, N=%d' % (self.T), filename='hist_bias_nontargets_%ditems_{label}_{unique_id}.pdf' % (self.T), dataio=dataio, ax_handle=ax_handle, show_parameters=show_parameters)
 
         # Compute Vtest score
-        vtest_dict = V_test(errors_nontargets)
+        vtest_dict = utils.V_test(errors_nontargets)
         print vtest_dict
 
         # Gest histogram of bias to best non target
         if plot_best_nontarget:
             # Errors between the response the best nontarget.
-            errors_best_nontarget = wrap_angles((responses[:, np.newaxis] - nontargets))
+            errors_best_nontarget = utils.wrap_angles((responses[:, np.newaxis] - nontargets))
             errors_best_nontarget = errors_best_nontarget[np.arange(errors_best_nontarget.shape[0]), np.argmin(np.abs(errors_best_nontarget), axis=1)]
 
-            hist_samples_density_estimation(errors_best_nontarget, bins=angle_space, title='Errors between response and best non-target, N=%d' % (self.T), filename='hist_bias_bestnontarget_%ditems_{label}_{unique_id}.pdf' % (self.T), dataio=dataio, ax_handle=ax_handle_bestnontarget)
+            utils.hist_samples_density_estimation(errors_best_nontarget, bins=angle_space, title='Errors between response and best non-target, N=%d' % (self.T), filename='hist_bias_bestnontarget_%ditems_{label}_{unique_id}.pdf' % (self.T), dataio=dataio, ax_handle=ax_handle_bestnontarget)
 
 
 

@@ -11,7 +11,6 @@ Copyright (c) 2014 Gatsby Unit. All rights reserved.
 
 # from scaledimage import *
 import matplotlib.pyplot as plt
-import matplotlib.ticker as plttic
 import matplotlib.patches as plt_patches
 import numpy as np
 from scipy.spatial.distance import pdist
@@ -22,18 +21,54 @@ from scipy.spatial.distance import pdist
 from utils import *
 from datagenerator import DataGenerator
 
+
 class DataGeneratorRFN(DataGenerator):
     '''
         DataGenerator for a RandomFactorialNetwork
+
+        - Randomly samples stimuli with some separation, or reuses provided
+          ones
+        - Instantiates random memories:
+            x_i ~ mu(thetas_i) + N(0, sigma_x^2)
+            y_i ~ beta_i x_i + alpha_i y_{i-1} + N(0, sigma_y^2)
+            y_R ~ y_N + N(0, sigma_baseline^2)
     '''
-    def __init__(self, N, T, random_network, sigma_y = 0.05, sigma_x = 0.02, time_weights=None, time_weights_parameters = dict(weighting_alpha=0.3, weighting_beta = 1.0, specific_weighting = 0.3, weight_prior='uniform'), cued_feature_time=0, enforce_min_distance=0.17, stimuli_generation='random', enforce_first_stimulus=True, stimuli_to_use=None, specific_stimuli_random_centers=False, specific_stimuli_asymmetric=False, enforce_distance_cued_feature_only=False, renormalize_sigmax=False):
+    def __init__(self,
+                 N,
+                 T,
+                 random_network,
+                 sigma_x=0.1,
+                 sigma_y=0.001,
+                 sigma_baseline=0.0001,
+                 renormalize_sigma=False,
+                 time_weights=None,
+                 time_weights_parameters=None,
+                 cued_feature_time=0,
+                 enforce_min_distance=0.17,
+                 stimuli_generation='random',
+                 enforce_first_stimulus=True,
+                 stimuli_to_use=None,
+                 specific_stimuli_random_centers=False,
+                 specific_stimuli_asymmetric=False,
+                 enforce_distance_cued_feature_only=False,
+                 debug=False
+                 ):
 
-        # assert isinstance(random_network, RandomFactorialNetwork), "Use a RandomFactorialNetwork with this DataGeneratorRFN"
-
-        DataGenerator.__init__(self, N, T, random_network, sigma_y = sigma_y, time_weights = time_weights, time_weights_parameters = time_weights_parameters)
+        if time_weights_parameters is None:
+            time_weights_parameters = dict(weighting_alpha=0.3,
+                                           weighting_beta=1.0,
+                                           specific_weighting=0.3,
+                                           weight_prior='uniform'
+                                           )
+        DataGenerator.__init__(self, N, T, random_network,
+                               sigma_y=sigma_y,
+                               time_weights=time_weights,
+                               time_weights_parameters=time_weights_parameters
+                               )
 
         # This is the noise on specific memories. Belongs here.
-        self.init_sigmax(sigma_x, renormalize=renormalize_sigmax)
+        self.init_all_sigma(sigma_x, sigma_y, sigma_baseline,
+                            renormalize=renormalize_sigma)
 
         self.enforce_min_distance = enforce_min_distance
 
@@ -43,7 +78,8 @@ class DataGeneratorRFN(DataGenerator):
             self.set_stimuli(stimuli_to_use)
         else:
             if stimuli_generation == 'specific_stimuli':
-                # Use our specifically built function, to get the special stimuli combination allowing to verify some biases
+                # Use our specifically built function, to get the special
+                # stimuli combination allowing to verify some biases
                 self.generate_specific_stimuli(asymmetric=specific_stimuli_asymmetric, centre=np.array([0., 0.]), specific_stimuli_random_centers=specific_stimuli_random_centers)
             elif stimuli_generation is not None:
                 # Generate it randomly
@@ -51,26 +87,31 @@ class DataGeneratorRFN(DataGenerator):
             else:
                 raise ValueError("No data generation possible.")
 
+        if debug:
+            print "== DataGeneratorRfn =="
+            print "Size: %d, %d items/times." % (N, T)
+            print "sigma_x %.3g, sigma_y %.3g sigma_baseline %.3g renormalized: %d" % (self.sigma_x, self.sigma_y, self.sigma_baseline, renormalize_sigma)
 
         # Build the dataset
         self.build_dataset(cued_feature_time=cued_feature_time)
 
-    def init_sigmax(self, sigma_x_input=0.1, renormalize=False):
+    def init_all_sigma(self, sigma_x, sigma_y, sigma_baseline, renormalize=False):
         '''
-            Will initialise sigma_x properly.
-            If desired, we can max it so that sigma_x_input is interpreted as a proportion of the maximal network activation (obviously values close to 1 will be crazy).
-            This allows for a more useful setting of sigmax, and should work for R>2 (as the max activation depends on R, most likely as 10^-R)
+            Will initialise all the sigma's properly.
+            If desired, we can max it so that sigma_*_input is interpreted as a proportion of the maximal network activation (obviously values close to 1 will be crazy).
+            This allows for a more useful setting of sigma, and should work for R>2 (as the max activation depends on R, most likely as 10^-R)
         '''
         max_network_activation = self.random_network.compute_maximum_activation_network()
 
         if renormalize:
             # max_network_activation = self.random_network.compute_maximum_activation_network()
-            self.sigma_x = max_network_activation*sigma_x_input
+            self.sigma_x = max_network_activation*sigma_x
+            self.sigma_y = max_network_activation*sigma_y
+            self.sigma_baseline = max_network_activation*sigma_baseline
         else:
-            self.sigma_x = sigma_x_input
-
-        print "sigmax/max network: %.5f" % (self.sigma_x/max_network_activation)
-
+            self.sigma_x = sigma_x
+            self.sigma_y = sigma_y
+            self.sigma_baseline = sigma_baseline
 
 
     def generate_stimuli(self, stimuli_generation='random', enforce_first_stimulus=True, cued_feature_R=1, enforce_distance_cued_feature_only=False):
@@ -87,25 +128,29 @@ class DataGeneratorRFN(DataGenerator):
             angle_generator = stimuli_generation
         else:
             if stimuli_generation == 'random':
-                angle_generator = lambda T: (np.random.rand(T)-0.5)*2.*np.pi
+                def angle_generator(T):
+                    return (np.random.rand(T)-0.5)*2.*np.pi
                 random_generation = True
             elif stimuli_generation == 'constant':
-                angle_generator = lambda T: 1.2*np.ones(T)
+                def angle_generator(T):
+                    return 1.2*np.ones(T)
             elif stimuli_generation == 'random_smallrange':
-                angle_generator = lambda: (np.random.rand(T)-0.5)*np.pi/2.
-                # angle_generator = lambda T: (np.random.rand(T)-0.5)*np.pi
+                def angle_generator():
+                    return (np.random.rand(T)-0.5)*np.pi/2.
                 random_generation = True
             elif stimuli_generation == 'constant_separated':
-                angle_generator = lambda T: 1.2*np.ones(T)
+                def angle_generator(T):
+                    return 1.2*np.ones(T)
             elif stimuli_generation == 'separated':
-                angle_generator = lambda T: np.linspace(-np.pi*0.6, np.pi*0.6, T)
+                def angle_generator(T):
+                    return np.linspace(-np.pi*0.6, np.pi*0.6, T)
             else:
                 raise ValueError('Unknown stimulus generation technique')
 
         # This gives all the true stimuli
         self.stimuli_correct = np.zeros((self.N, self.T, self.R), dtype=float)
 
-        ## Get stimuli with a minimum enforced distance.
+        # Get stimuli with a minimum enforced distance.
         # Sample stimuli uniformly
         # Enforce differences on all dimensions (P. Bays: 10 deg for orientations).
         for n in xrange(self.N):
@@ -214,13 +259,17 @@ class DataGeneratorRFN(DataGenerator):
             # Create the memory
             for t in xrange(self.T):
                 # Get the 'x' sample (here from the population code)
-                x_sample = self.random_network.sample_network_response(self.stimuli_correct[i, t], sigma=self.sigma_x)
+                self.all_X[i, t] = self.random_network.sample_network_response(self.stimuli_correct[i, t], sigma=self.sigma_x)
 
-                self.Y[i] = self.time_weights[0, t]*self.Y[i].copy() + self.time_weights[1, t]*x_sample + self.sigma_y*np.random.randn(self.random_network.M)
-                # self.Y[i] /= np.sum(np.abs(self.Y[i]))
-                # self.Y[i] /= fast_1d_norm(self.Y[i])
-                self.all_Y[i, t] = self.Y[i]
-                self.all_X[i, t] = x_sample
+                self.all_Y[i, t] = self.time_weights[1, t]*self.all_X[i, t] + self.sigma_y*np.random.randn(self.random_network.M)
+                if t > 0:
+                    self.all_Y[i, t] += self.time_weights[0, t]*self.all_Y[i, t-1]
+
+            # Add final noise
+            self.all_Y[i, -1] += self.sigma_baseline*np.random.randn(self.random_network.M)
+
+            # This is our final memory to recall from
+            self.Y[i] = self.all_Y[i, -1].copy()
 
         # For convenience, store the list of nontargets objects.
         self.nontargets_indices = np.array([[t for t in xrange(self.T) if t != self.cued_features[n, 1]] for n in xrange(self.N)], dtype='int')
@@ -261,9 +310,6 @@ class DataGeneratorRFN(DataGenerator):
 
         M = self.random_network.M
         M_sqrt = np.floor(M**0.5)
-
-        print M_sqrt
-        print M
 
         f = plt.figure()
         ax = f.add_subplot(111)
@@ -345,57 +391,59 @@ class DataGeneratorRFN(DataGenerator):
 
         f = plt.figure()
 
-        ##### Show the conjunctive units first
+        # Show the conjunctive units first
         ax = f.add_subplot(211)
-        conj_sqrt = int(self.random_network.conj_subpop_size**0.5)
-        # TODO Fix for conj_subpop_size = 0
-        im = ax.imshow(np.reshape(self.Y[n][:conj_sqrt**2.], (conj_sqrt, conj_sqrt)).T, origin='lower', aspect='equal', interpolation='nearest', cmap=colormap)
-        im.set_extent((-np.pi, np.pi, -np.pi, np.pi))
-        ax.set_xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
-        ax.set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'))
-        ax.set_yticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
-        ax.set_yticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'))
+        if self.random_network.conj_subpop_size > 0:
+            conj_sqrt = int(self.random_network.conj_subpop_size**0.5)
+            # TODO Fix for conj_subpop_size = 0
+            im = ax.imshow(np.reshape(self.Y[n][:conj_sqrt**2.], (conj_sqrt, conj_sqrt)).T, origin='lower', aspect='equal', interpolation='nearest', cmap=colormap)
+            im.set_extent((-np.pi, np.pi, -np.pi, np.pi))
+            ax.set_xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
+            ax.set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'))
+            ax.set_yticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
+            ax.set_yticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'))
 
-        # Show ellipses at the stimuli positions
-        colmap = plt.get_cmap('gist_rainbow')
-        color_gen = [colmap(1.*(i)/self.T) for i in xrange(self.T)][::-1]  # use 22 colors
+            # Show ellipses at the stimuli positions
+            colmap = plt.get_cmap('gist_rainbow')
+            color_gen = [colmap(1.*(i)/self.T) for i in xrange(self.T)][::-1]  # use 22 colors
 
-        for t in xrange(self.T):
-            w = plt_patches.Wedge((self.stimuli_correct[n, t, 0], self.stimuli_correct[n, t, 1]), 0.25, 0, 360, 0.12, color=color_gen[t], alpha=1.0, linewidth=2)
-            ax.add_patch(w)
+            for t in xrange(self.T):
+                w = plt_patches.Wedge((self.stimuli_correct[n, t, 0], self.stimuli_correct[n, t, 1]), 0.25, 0, 360, 0.12, color=color_gen[t], alpha=1.0, linewidth=2)
+                ax.add_patch(w)
 
-        ##### Show the feature units
-        ax = f.add_subplot(212)
+        # Show the feature units
+        if self.random_network.feat_subpop_size > 0:
+            ax = f.add_subplot(212)
+            horiz_cells = np.arange(self.random_network.conj_subpop_size, int(self.random_network.feat_subpop_size/2. + self.random_network.conj_subpop_size))
+            vert_cells = np.arange(int(self.random_network.feat_subpop_size/2.+self.random_network.conj_subpop_size), self.random_network.M)
 
-        horiz_cells = np.arange(self.random_network.conj_subpop_size, int(self.random_network.feat_subpop_size/2.+self.random_network.conj_subpop_size))
-        vert_cells = np.arange(int(self.random_network.feat_subpop_size/2.+self.random_network.conj_subpop_size), self.random_network.M)
+            factor_2lines = 1.9
 
-        factor_2lines = 1.9
+            ax.plot(np.linspace(-np.pi, np.pi, horiz_cells.size), self.Y[n, horiz_cells], linewidth=2)
+            ax.plot(np.linspace(-np.pi, np.pi, vert_cells.size), self.Y[n, vert_cells] + factor_2lines*self.Y[n, horiz_cells].max(), linewidth=2)
 
-        ax.plot(np.linspace(-np.pi, np.pi, horiz_cells.size), self.Y[n, horiz_cells], linewidth=2)
-        ax.plot(np.linspace(-np.pi, np.pi, vert_cells.size), self.Y[n, vert_cells] + factor_2lines*self.Y[n, horiz_cells].max(), linewidth=2)
+            ax.set_xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
+            ax.set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'))
 
-        ax.set_xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
-        ax.set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'))
+            ax.set_yticks(())
 
-        ax.set_yticks(())
-        ax.legend(['Horizontal cells', 'Vertical cells'], fancybox=True, borderpad=0.3, columnspacing=0.5, borderaxespad=0.7, handletextpad=0, handlelength=1.5)
+            ax.legend(['Horizontal cells', 'Vertical cells'], fancybox=True, borderpad=0.3, columnspacing=0.5, borderaxespad=0.7, handletextpad=0, handlelength=1.5)
 
-        # Show ellipses at the stimuli positions
-        colmap = plt.get_cmap('gist_rainbow')
-        color_gen = [colmap(1.*(i)/self.T) for i in xrange(self.T)][::-1]  # use 22 colors
+            # Show ellipses at the stimuli positions
+            colmap = plt.get_cmap('gist_rainbow')
+            color_gen = [colmap(1.*(i)/self.T) for i in xrange(self.T)][::-1]  # use 22 colors
 
-        for t in xrange(self.T):
+            for t in xrange(self.T):
 
-            # max_pos = np.argmin((np.linspace(-np.pi, np.pi, horiz_cells.size, endpoint=False) - self.stimuli_correct[n, t, 0])**2.)
-            w = plt_patches.Wedge((self.stimuli_correct[n, t, 0], 1.2*self.Y[n, horiz_cells].max()), 0.1, 0, 360, color=color_gen[t], alpha=1.0, linewidth=2)
-            ax.add_patch(w)
+                # max_pos = np.argmin((np.linspace(-np.pi, np.pi, horiz_cells.size, endpoint=False) - self.stimuli_correct[n, t, 0])**2.)
+                w = plt_patches.Wedge((self.stimuli_correct[n, t, 0], 1.2*self.Y[n, horiz_cells].max()), 0.1, 0, 360, color=color_gen[t], alpha=1.0, linewidth=2)
+                ax.add_patch(w)
 
-            w = plt_patches.Wedge((self.stimuli_correct[n, t, 1], 1.1*self.Y[n, horiz_cells].max() + factor_2lines*self.Y[n, horiz_cells].max()), 0.1, 0, 360, color=color_gen[t], alpha=1.0, linewidth=2)
-            ax.add_patch(w)
+                w = plt_patches.Wedge((self.stimuli_correct[n, t, 1], 1.1*self.Y[n, horiz_cells].max() + factor_2lines*self.Y[n, horiz_cells].max()), 0.1, 0, 360, color=color_gen[t], alpha=1.0, linewidth=2)
+                ax.add_patch(w)
 
-        ax.set_xlim((-np.pi, np.pi))
-        ax.set_ylim((-0.5, 1.5*(1.2*self.Y[n, horiz_cells].max() + factor_2lines*self.Y[n, horiz_cells].max())))
+            ax.set_xlim((-np.pi, np.pi))
+            ax.set_ylim((-0.5, 1.5*(1.2*self.Y[n, horiz_cells].max() + factor_2lines*self.Y[n, horiz_cells].max())))
 
 
 
@@ -514,5 +562,4 @@ class DataGeneratorRFN(DataGenerator):
             e.set_transform(axes_levelone[t].transData)
 
         plt.show()
-
 

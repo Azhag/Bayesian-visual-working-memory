@@ -96,7 +96,7 @@ class FitExperimentSingleT:
             cued_feature_time = self.experimental_datasets[experiment_id]['data_to_fit'][self.sampler.T]['probe'][0]
 
             # Specifically force the stimuli to be the human experimental ones
-            data_gen = datagenerator.DataGeneratorRFN(self.experimental_datasets[experiment_id]['data_to_fit'][self.sampler.T]['N'], self.sampler.T, self.sampler.random_network, sigma_y=self.sampler.data_gen.sigma_y, sigma_x=self.sampler.data_gen.sigma_x, time_weights=self.sampler.time_weights, cued_feature_time=cued_feature_time, stimuli_to_use=self.experimental_datasets[experiment_id]['data_to_fit'][self.sampler.T]['item_features'])
+            data_gen = datagenerator.DataGeneratorRFN(self.experimental_datasets[experiment_id]['data_to_fit'][self.sampler.T]['N'], self.sampler.T, self.sampler.random_network, sigma_y=self.sampler.data_gen.sigma_y, sigma_x=self.sampler.data_gen.sigma_x, sigma_baseline=self.sampler.data_gen.sigma_baseline, renormalize_sigma=self.data_gen.renormalize_sigma, time_weights=self.sampler.time_weights, cued_feature_time=cued_feature_time, stimuli_to_use=self.experimental_datasets[experiment_id]['data_to_fit'][self.sampler.T]['item_features'])
 
             # Use this new Data_gen, reinit a few things, hopefully it works..
             self.sampler.init_from_data_gen(data_gen, tc=cued_feature_time)
