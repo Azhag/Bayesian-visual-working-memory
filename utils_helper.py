@@ -22,6 +22,8 @@ import subprocess
 
 ########################## TRICKS AND HELPER FUNCTIONS #################################
 
+def identity(x):
+    return x
 
 def flatten_list(ll):
     return [item for sublist in ll for item in sublist]

@@ -29,6 +29,8 @@ import jobwrapper
 
 import cma
 
+import matplotlib.pyplot as plt
+
 PBS_SCRIPT = """#!/bin/bash
 {pbs_options}
 hostn=`hostname`
@@ -597,7 +599,7 @@ class SubmitPBS():
                 continue
 
             # Submit the minibatch of size 1
-            result_minibatch = self.submit_minibatch_jobswrapper([new_parameters], submission_parameters_dict)
+            self.submit_minibatch_jobswrapper([new_parameters], submission_parameters_dict)
 
             fill_parameters_progress.increment()
             parameters_tested += 1
@@ -627,10 +629,13 @@ class SubmitPBS():
         cma_logger_filename = submission_parameters_dict.get('cma_logger_filename', 'logging_cmaes')
         cma_nan_replacement = submission_parameters_dict.get('cma_nan_replacement', 1000000000.)
         cma_use_bounds = submission_parameters_dict.get('cma_use_bounds', False)
+        cma_boundary_handling = submission_parameters_dict.get('cma_boundary_handling', None)
+        cma_tolx = submission_parameters_dict.get('cma_tolx', None)
+        cma_use_transforms = submission_parameters_dict.get('cma_use_transforms', False)
 
         # Extract the parameters ranges
         dict_parameters_range = submission_parameters_dict['dict_parameters_range']
-        parameter_names_sorted = dict_parameters_range.keys()
+        parameter_names_sorted = sorted(dict_parameters_range.keys())
         for curr_param_name in parameter_names_sorted:
             curr_param = dict_parameters_range[curr_param_name]
             # Check that we have x0 and scaling set for each variable
@@ -646,19 +651,57 @@ class SubmitPBS():
         # Extract the arrays of scalings for the parameters
         parameters_scalings = np.array([dict_parameters_range[curr_param_name]['scaling'] for curr_param_name in parameter_names_sorted])
 
+        # Setup parameter transformations
+        if cma_use_transforms:
+            parameters_transform_functions = {}
+
+            # Collect all the forward/inverse transform functions per param
+            all_transform_fct = []
+            all_transform_inv_fct = []
+            for param_name in parameter_names_sorted:
+                if 'transform_fct' in dict_parameters_range[param_name]:
+                    all_transform_fct.append(dict_parameters_range[param_name]['transform_fct'])
+                else:
+                    all_transform_fct.append(utils.identity)
+
+                if 'transform_inv_fct' in dict_parameters_range[param_name]:
+                    all_transform_inv_fct.append(dict_parameters_range[param_name]['transform_inv_fct'])
+                else:
+                    all_transform_inv_fct.append(utils.identity)
+
+            # 'vectorized' version of the transformation of different parameters
+            def transform_params_fct(parameters):
+                return [all_transform_fct[param_i](param) for param_i, param in enumerate(parameters)]
+
+            def transform_inv_params_fct(parameters):
+                return [all_transform_inv_fct[param_i](param) for param_i, param in enumerate(parameters)]
+
+
         # Construct Options dict
-        cma_options = dict()
+        cma_options = cma.CMAOptions()
         if cma_population_size is not None:
-            cma_options['popsize'] = cma_population_size
+            if cma_population_size == 'auto_10x':
+                cma_options['popsize'] = 10*len(parameter_names_sorted)
+            else:
+                cma_options['popsize'] = cma_population_size
             self.logger.info("forcing popsize: %s " % cma_population_size)
         if cma_use_auto_scaling and not np.allclose(parameters_scalings, np.ones(len(parameter_names_sorted))):
-            cma_options['scaling_of_variables'] = parameters_scalings
+            cma_options['CMA_stds'] = parameters_scalings
             self.logger.info("forcing scaling: %s" % parameters_scalings)
         if cma_use_bounds:
             cma_options['bounds'] = [[dict_parameters_range[param_key][bound_] for param_key in parameter_names_sorted] for bound_ in ('low', 'high')]
+        if cma_boundary_handling is not None:
+            cma_options['boundary_handling'] = cma_boundary_handling
+        if cma_tolx is not None:
+            cma_options['tolx'] = cma_tolx
+        if cma_use_transforms:
+            cma_options['transformation'] = [transform_params_fct, transform_inv_params_fct]
 
         ### Instantiate CMA ES object.
-        cma_es = cma.CMAEvolutionStrategy(self.cma_init_parameters(dict_parameters_range, parameter_names_sorted), cma_sigma0, inopts = cma_options)
+        cma_es = cma.CMAEvolutionStrategy(self.cma_init_parameters(dict_parameters_range, parameter_names_sorted),
+                                          cma_sigma0,
+                                          inopts=cma_options
+                                          )
 
         ## Instantiate a CMADataLogger. Will write to the current directory
         cma_log = cma.CMADataLogger(name_prefix=os.path.join(self.plot_output_dir, cma_logger_filename)).register(cma_es)
@@ -729,7 +772,7 @@ class SubmitPBS():
                             cma_log.plot()
                             cma.savefig('cma_es_state.pdf')
                             cma_log.closefig()
-                        except KeyError:
+                        except AttributeError:
                             # Sometimes, cma_log.plot() fails, I suppose when not enough runs exist... So just ignore it
                             pass
         except KeyboardInterrupt:
@@ -805,7 +848,7 @@ class SubmitPBS():
             Takes dict_parameters_range and returns x0 for each of the parameters
         '''
 
-        return np.array([dict_parameters_range[curr_param]['dtype']( dict_parameters_range[curr_param]['x0']) for curr_param in parameter_names_sorted])
+        return np.array([dict_parameters_range[curr_param]['dtype'](dict_parameters_range[curr_param]['x0']) for curr_param in parameter_names_sorted])
 
 
     ##########################################################################
@@ -829,7 +872,7 @@ class SubmitPBS():
         # Track status of parameters: parameters -> dict(status=['waiting', 'submitted', 'completed'], result=None, jobwrapper=None, parameters=None)
 
         completed_parameters_progress = progress.Progress(len(parameters_to_submit))
-        parameters_tested = 0
+        # parameters_tested = 0
         job_names_ordered = []
 
         # Submit all jobs
