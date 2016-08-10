@@ -283,3 +283,22 @@ def chdir_safe(directory, verbose=True):
 
     if verbose:
         print "changed directory, current: %s" % os.getcwd()
+
+
+# ========= CALLBACK FOR CMA/ES TRANSFORMATIONS =====
+def tsfr_square(x):
+    return x**2.
+
+def tsfr_square_inv(x):
+    return x**0.5
+
+def tsfr_10pow(x):
+    return 10.**x
+def tsfr_10pow_inv(x):
+    return np.log10(x)
+
+def tsfr_10powab(x, a=0.001, b=1.0):
+    return a*((b/a)**(x))
+def tsfr_10powab_inv(x, a=0.001, b=1.0):
+    return (np.log(x) - np.log(a))/(np.log(b) - np.log(a))
+

@@ -631,6 +631,7 @@ class SubmitPBS():
         cma_use_bounds = submission_parameters_dict.get('cma_use_bounds', False)
         cma_boundary_handling = submission_parameters_dict.get('cma_boundary_handling', None)
         cma_tolx = submission_parameters_dict.get('cma_tolx', None)
+        cma_tolfun = submission_parameters_dict.get('tolfun', None)
         cma_use_transforms = submission_parameters_dict.get('cma_use_transforms', False)
 
         # Extract the parameters ranges
@@ -694,6 +695,8 @@ class SubmitPBS():
             cma_options['boundary_handling'] = cma_boundary_handling
         if cma_tolx is not None:
             cma_options['tolx'] = cma_tolx
+        if cma_tolfun is not None:
+            cma_options['tolfun'] = cma_tolfun
         if cma_use_transforms:
             cma_options['transformation'] = [transform_params_fct, transform_inv_params_fct]
 

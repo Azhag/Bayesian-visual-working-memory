@@ -39,7 +39,7 @@ cma_logger_do_plot = True
 cma_use_bounds = True
 cma_use_auto_scaling = True
 cma_use_transforms = True
-cma_tolx = 1e-3
+cma_tolfun = 1e-3
 cma_population_size = 'auto_10x'
 cma_boundary_handling = 'BoundPenalty'
 
@@ -122,53 +122,37 @@ def filtering_function(new_parameters, dict_parameters_range, function_parameter
 
 filtering_function_parameters = {'should_clamp': True}
 
-def tsfr_square(x):
-    return x**2.
-
-def tsfr_square_inv(x):
-    return x**0.5
-
-def tsfr_10pow(x):
-    return 10.**x
-def tsfr_10pow_inv(x):
-    return np.log10(x)
-
-def tsfr_10powab(x, a=0.001, b=1.0):
-    return a*((b/a)**(x))
-def tsfr_10powab_inv(x, a=0.001, b=1.0):
-    return (np.log(x) - np.log(a))/(np.log(b) - np.log(a))
-
 
 # ============================================================================
 sigmax_range = dict(low=0.005,
                     high=1.,
                     x0=0.2,
-                    scaling=0.3,
+                    scaling=cma_sigma0/3.,
                     dtype=float,
-                    transform_fct=tsfr_square,
-                    transform_inv_fct=tsfr_square_inv
+                    transform_fct=utils.tsfr_square,
+                    transform_inv_fct=utils.tsfr_square_inv
                     )
 sigmabaseline_range = dict(low=0.0,
                            high=1.,
                            x0=0.2,
-                           scaling=0.3,
+                           scaling=cma_sigma0/3.,
                            dtype=float,
-                           transform_fct=tsfr_square,
-                           transform_inv_fct=tsfr_square_inv
+                           transform_fct=utils.tsfr_square,
+                           transform_inv_fct=utils.tsfr_square_inv
                            )
 ratioconj_range = dict(low=0.0,
                        high=1.0,
                        x0=0.5,
-                       scaling=0.3,
+                       scaling=cma_sigma0/3.,
                        dtype=float,
                        )
 lapserate_range = dict(low=0.0,
-                       high=0.15,
+                       high=0.3,
                        x0=0.05,
-                       scaling=0.1,
+                       scaling=cma_sigma0/10.,
                        dtype=float,
-                       transform_fct=tsfr_square,
-                       transform_inv_fct=tsfr_square_inv
+                       transform_fct=utils.tsfr_square,
+                       transform_inv_fct=utils.tsfr_square_inv
                        )
 M_range = dict(low=6,
                high=400,
