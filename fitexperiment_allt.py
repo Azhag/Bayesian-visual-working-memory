@@ -15,18 +15,13 @@ import numpy as np
 # import scipy.optimize as spopt
 # import scipy.stats as spst
 
-import matplotlib.pyplot as plt
-
 # import progress
 
 import experimentlauncher
-import datagenerator
 import launchers
 import load_experimental_data
 import utils
 
-import em_circularmixture_parametrickappa
-import em_circularmixture_allitems_uniquekappa
 
 class FitExperimentAllT:
     '''
@@ -48,7 +43,11 @@ class FitExperimentAllT:
         self.debug = debug
 
         self.experiment_id = parameters.get('experiment_id', '')
-        self.data_dir = parameters.get('experiment_data_dir', os.path.normpath(os.path.join(os.environ['WORKDIR_DROP'], '../../experimental_data/')))
+        self.data_dir = parameters.get('experiment_data_dir',
+                                       os.path.normpath(os.path.join(
+                                           os.environ['WORKDIR_DROP'],
+                                           '../../experimental_data/'))
+                                       )
 
         self.experimental_dataset = load_experimental_data.load_data(experiment_id=self.experiment_id, data_dir=self.data_dir, fit_mixture_model=True)
         self.experiment_data_to_fit = self.experimental_dataset['data_to_fit']

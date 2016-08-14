@@ -2,23 +2,16 @@
     Small class system to simplify the process of loading Experimental datasets
 '''
 
-import sys
 import numpy as np
 import scipy.io as sio
-import matplotlib.pyplot as plt
 # import matplotlib.patches as plt_patches
 # import matplotlib.gridspec as plt_grid
 import os
 import os.path
 import cPickle as pickle
 # import bottleneck as bn
-import em_circularmixture
-import em_circularmixture_allitems_uniquekappa
-import em_circularmixture_parametrickappa
-
-import pandas as pd
-
-import dataio as DataIO
+import em_circularmixture_allitems_uniquekappa as em_circmixtmodel
+import em_circularmixture_parametrickappa as em_circmixtmodel_parametric
 
 import utils
 
@@ -35,7 +28,7 @@ class ExperimentalLoader(object):
     def preprocess(self, parameters):
         raise NotImplementedError('Should be overriden')
 
-    def load_dataset(self, dataset_description = {}):
+    def load_dataset(self, dataset_description={}):
         '''
             Load dataset file
         '''
@@ -55,14 +48,14 @@ class ExperimentalLoader(object):
         return self.dataset
 
 
-    def convert_wrap(self, keys_to_convert = ['item_angle', 'probe_angle', 'response', 'error', 'err'], multiply_factor=2., max_angle=np.pi):
+    def convert_wrap(self, keys_to_convert=['item_angle', 'probe_angle', 'response', 'error', 'err'], multiply_factor=2., max_angle=np.pi):
         '''
             Takes a dataset and a list of keys. Each data associated with these keys will be converted to radian,
                 and wrapped in a [-max_angle, max_angle] interval
         '''
         for key in keys_to_convert:
             if key in self.dataset:
-                self.dataset[key] = utils.wrap_angles(np.deg2rad(multiply_factor*self.dataset[key]), bound = max_angle)
+                self.dataset[key] = utils.wrap_angles(np.deg2rad(multiply_factor*self.dataset[key]), bound=max_angle)
 
 
     def compute_all_errors(self):
@@ -74,9 +67,6 @@ class ExperimentalLoader(object):
         # Should also wrap it around
         self.dataset['errors_all'] = utils.wrap_angles(self.dataset['item_angle'] - self.dataset['response'], bound=np.pi)
 
-        # Sanity check, verify that errors computed are the same as precomputed ones.
-        # if 'error' in self.dataset and 'probe' in self.dataset:
-            # assert all(np.abs(self.dataset['errors_all'][np.arange(self.dataset['probe'].size), self.dataset['probe'][:, 0]] - self.dataset['error'][:, 0]) < 10**-6), "Errors computed are different than errors given in the data"
 
 
     def compute_precision(self, errors, remove_chance_level=True, correct_orientation=False, use_wrong_precision=True):
@@ -108,7 +98,7 @@ class ExperimentalLoader(object):
         return precision
 
 
-    def fit_mixture_model_cached(self, caching_save_filename=None, saved_keys=['em_fits', 'em_fits_nitems', 'em_fits_subjects_nitems', 'em_fits_nitems_arrays']):
+    def fit_mixture_model_cached(self, caching_save_filename=None, saved_keys=['em_fits', 'em_fits_nitems', 'em_fits_subjects_nitems', 'em_fits_nitems_arrays', 'em_fits_subjects_nitems_arrays']):
         '''
             Fit the mixture model onto classical responses/item_angle values
 
@@ -155,20 +145,22 @@ class ExperimentalLoader(object):
 
 
     def fit_mixture_model(self):
-        # Initialize empty arrays
-        self.dataset['em_fits'] = dict(
-                                  kappa=np.empty(self.dataset['probe'].size),
-                                  mixt_target=np.empty(self.dataset['probe'].size),
-                                  mixt_nontarget=np.empty(self.dataset['probe'].size),
-                                  mixt_random=np.empty(self.dataset['probe'].size),
-                                  resp_target=np.empty(self.dataset['probe'].size),
-                                  resp_nontarget=np.empty(self.dataset['probe'].size),
-                                  resp_random=np.empty(self.dataset['probe'].size),
-                                  train_LL=np.empty(self.dataset['probe'].size),
-                                  test_LL=np.empty(self.dataset['probe'].size))
+        N = self.dataset['probe'].size
+
+        # Initialize empty arrays and dicts
+        self.dataset['em_fits'] = dict(kappa=np.empty(N),
+                                       mixt_target=np.empty(N),
+                                       mixt_nontarget=np.empty(N),
+                                       mixt_random=np.empty(N),
+                                       resp_target=np.empty(N),
+                                       resp_nontarget=np.empty(N),
+                                       resp_random=np.empty(N),
+                                       train_LL=np.empty(N),
+                                       test_LL=np.empty(N)
+                                       )
         for key in self.dataset['em_fits']:
             self.dataset['em_fits'][key].fill(np.nan)
-        self.dataset['target'] = np.empty(self.dataset['probe'].size)
+        self.dataset['target'] = np.empty(N)
         self.dataset['em_fits_subjects_nitems'] = dict()
         for subject in np.unique(self.dataset['subject']):
             self.dataset['em_fits_subjects_nitems'][subject] = dict()
@@ -177,31 +169,44 @@ class ExperimentalLoader(object):
         # Compute mixture model fits per n_items and per subject
         for n_items in np.unique(self.dataset['n_items']):
             for subject in np.unique(self.dataset['subject']):
-                ids_filtered = (self.dataset['subject']==subject).flatten() & (self.dataset['n_items'] == n_items).flatten()
-                print "Fit mixture model, %d items, subject %d, %d datapoints" % (subject, n_items, np.sum(ids_filtered))
+                ids_filter = (self.dataset['subject'] == subject).flatten() & \
+                             (self.dataset['n_items'] == n_items).flatten()
+                print "Fit mixture model, %d items, subject %d, %d datapoints" % (subject, n_items, np.sum(ids_filter))
 
-                self.dataset['target'][ids_filtered] = self.dataset['item_angle'][ids_filtered, 0]
+                self.dataset['target'][ids_filter] = self.dataset['item_angle'][ids_filter, 0]
 
-                # params_fit = em_circularmixture.fit(self.dataset['response'][ids_filtered, 0], self.dataset['item_angle'][ids_filtered, 0], self.dataset['item_angle'][ids_filtered, 1:])
-                params_fit = em_circularmixture_allitems_uniquekappa.fit(self.dataset['response'][ids_filtered, 0], self.dataset['item_angle'][ids_filtered, 0], self.dataset['item_angle'][ids_filtered, 1:])
-                params_fit['mixt_nontargets_sum'] = np.sum(params_fit['mixt_nontargets'])
-                # print self.dataset['response'][ids_filtered, 0].shape, self.dataset['item_angle'][ids_filtered, 0].shape, self.dataset['item_angle'][ids_filtered, 1:].shape
+                params_fit = em_circmixtmodel.fit(
+                    self.dataset['response'][ids_filter, 0],
+                    self.dataset['item_angle'][ids_filter, 0],
+                    self.dataset['item_angle'][ids_filter, 1:]
+                )
+                params_fit['mixt_nontargets_sum'] = np.sum(
+                    params_fit['mixt_nontargets']
+                )
 
-                # cross_valid_outputs = em_circularmixture.cross_validation_kfold(self.dataset['response'][ids_filtered, 0], self.dataset['item_angle'][ids_filtered, 0], self.dataset['item_angle'][ids_filtered, 1:], K=10, shuffle=True, debug=False)
-                # params_fit = cross_valid_outputs['best_fit']
-                # resp = em_circularmixture.compute_responsibilities(self.dataset['response'][ids_filtered, 0], self.dataset['item_angle'][ids_filtered, 0], self.dataset['item_angle'][ids_filtered, 1:], params_fit)
-                resp = em_circularmixture_allitems_uniquekappa.compute_responsibilities(self.dataset['response'][ids_filtered, 0], self.dataset['item_angle'][ids_filtered, 0], self.dataset['item_angle'][ids_filtered, 1:], params_fit)
+                resp = em_circmixtmodel.compute_responsibilities(
+                    self.dataset['response'][ids_filter, 0],
+                    self.dataset['item_angle'][ids_filter, 0],
+                    self.dataset['item_angle'][ids_filter, 1:],
+                    params_fit
+                )
 
-                self.dataset['em_fits']['kappa'][ids_filtered] = params_fit['kappa']
-                self.dataset['em_fits']['mixt_target'][ids_filtered] = params_fit['mixt_target']
-                # self.dataset['em_fits']['mixt_nontarget'][ids_filtered] = params_fit['mixt_nontargets']
-                self.dataset['em_fits']['mixt_nontarget'][ids_filtered] = params_fit['mixt_nontargets_sum']
-                self.dataset['em_fits']['mixt_random'][ids_filtered] = params_fit['mixt_random']
-                self.dataset['em_fits']['resp_target'][ids_filtered] = resp['target']
-                self.dataset['em_fits']['resp_nontarget'][ids_filtered] = np.sum(resp['nontargets'], axis=1)
-                self.dataset['em_fits']['resp_random'][ids_filtered] = resp['random']
-                self.dataset['em_fits']['train_LL'][ids_filtered] = params_fit['train_LL']
-                # self.dataset['em_fits']['test_LL'][ids_filtered] = cross_valid_outputs['best_test_LL']
+                self.dataset['em_fits']['kappa'][ids_filter] = \
+                    params_fit['kappa']
+                self.dataset['em_fits']['mixt_target'][ids_filter] = \
+                    params_fit['mixt_target']
+                self.dataset['em_fits']['mixt_nontarget'][ids_filter] = \
+                    params_fit['mixt_nontargets_sum']
+                self.dataset['em_fits']['mixt_random'][ids_filter] = \
+                    params_fit['mixt_random']
+                self.dataset['em_fits']['resp_target'][ids_filter] = \
+                    resp['target']
+                self.dataset['em_fits']['resp_nontarget'][ids_filter] = \
+                    np.sum(resp['nontargets'], axis=1)
+                self.dataset['em_fits']['resp_random'][ids_filter] = \
+                    resp['random']
+                self.dataset['em_fits']['train_LL'][ids_filter] = \
+                    params_fit['train_LL']
 
                 self.dataset['em_fits_subjects_nitems'][subject][n_items] = params_fit
 
@@ -226,22 +231,56 @@ class ExperimentalLoader(object):
 
 
     def construct_arrays_em_fits(self):
+        fits_keys = ['kappa', 'mixt_target', 'mixt_nontargets_sum',
+                     'mixt_random']
+
         if 'em_fits_nitems_arrays' not in self.dataset:
             self.dataset['em_fits_nitems_arrays'] = dict()
 
             # Check if mixt_nontargets is array or not
             if 'mixt_nontargets_sum' in self.dataset['em_fits_nitems']['mean'].values()[0]:
-                self.dataset['em_fits_nitems_arrays']['mean'] = np.array([[self.dataset['em_fits_nitems']['mean'][item][em_key] for item in np.unique(self.dataset['n_items'])] for em_key in ['kappa', 'mixt_target', 'mixt_nontargets_sum', 'mixt_random']])
-                self.dataset['em_fits_nitems_arrays']['std'] = np.array([[self.dataset['em_fits_nitems']['std'][item][em_key] for item in np.unique(self.dataset['n_items'])] for em_key in ['kappa', 'mixt_target', 'mixt_nontargets_sum', 'mixt_random']])
+                self.dataset['em_fits_nitems_arrays']['mean'] = np.array(
+                    [[self.dataset['em_fits_nitems']['mean'][item][em_key]
+                        for item in np.unique(self.dataset['n_items'])]
+                        for em_key in fits_keys]
+                )
+                self.dataset['em_fits_nitems_arrays']['std'] = np.array(
+                    [[self.dataset['em_fits_nitems']['std'][item][em_key]
+                        for item in np.unique(self.dataset['n_items'])]
+                        for em_key in fits_keys])
             else:
-                self.dataset['em_fits_nitems_arrays']['mean'] = np.array([[self.dataset['em_fits_nitems']['mean'][item][em_key] for item in np.unique(self.dataset['n_items'])] for em_key in ['kappa', 'mixt_target', 'mixt_nontargets', 'mixt_random']])
-                self.dataset['em_fits_nitems_arrays']['std'] = np.array([[self.dataset['em_fits_nitems']['std'][item][em_key] for item in np.unique(self.dataset['n_items'])] for em_key in ['kappa', 'mixt_target', 'mixt_nontargets', 'mixt_random']])
+                self.dataset['em_fits_nitems_arrays']['mean'] = np.array(
+                    [[self.dataset['em_fits_nitems']['mean'][item][em_key]
+                        for item in np.unique(self.dataset['n_items'])]
+                        for em_key in fits_keys])
+                self.dataset['em_fits_nitems_arrays']['std'] = np.array(
+                    [[self.dataset['em_fits_nitems']['std'][item][em_key]
+                        for item in np.unique(self.dataset['n_items'])]
+                        for em_key in fits_keys])
 
         if 'sem' not in self.dataset['em_fits_nitems_arrays']:
             self.dataset['em_fits_nitems_arrays']['sem'] = self.dataset['em_fits_nitems_arrays']['std']/np.sqrt(self.dataset['subject_size'])
 
+        if 'em_fits_subjects_nitems_arrays' not in self.dataset:
+            self.dataset['em_fits_subjects_nitems_arrays'] = \
+                np.empty((self.dataset['subject_size'],
+                          self.dataset['n_items_size'],
+                          len(fits_keys)
+                          ))
 
-    def compute_bootstrap_cached(self, caching_save_filename=None, nb_bootstrap_samples=1000):
+            for subject_i, subject in enumerate(np.unique(self.dataset['subject'])):
+                for n_items_i, n_items in enumerate(np.unique(self.dataset['n_items'])):
+                    self.dataset['em_fits_subjects_nitems_arrays'][subject_i, n_items_i] = \
+                        np.array([self.dataset['em_fits_subjects_nitems']
+                                              [subject][n_items][key]
+                                  for key in fits_keys
+                                  ])
+
+
+
+    def compute_bootstrap_cached(self,
+                                 caching_save_filename=None,
+                                 nb_bootstrap_samples=1000):
         '''
             Compute bootstrap estimates per subject/nitems.
 
@@ -273,7 +312,7 @@ class ExperimentalLoader(object):
 
 
         if should_compute_bootstrap:
-            self.compute_bootstrap()
+            self.compute_bootstrap(nb_bootstrap_samples=1000)
 
 
         if save_caching_file:
@@ -287,7 +326,7 @@ class ExperimentalLoader(object):
                 print "Error writing out to caching file ", caching_save_filename
 
 
-    def compute_bootstrap(self):
+    def compute_bootstrap(self, nb_bootstrap_samples=1000):
         print "Computing bootstrap..."
 
         self.dataset['bootstrap_nitems_pval'] = np.nan*np.empty(self.dataset['n_items_size'])
@@ -302,11 +341,11 @@ class ExperimentalLoader(object):
                     print "Nitems %d, subject %d" % (n_items, subject)
 
                     # Bootstrap per subject and nitems
-                    ids_filtered = (self.dataset['subject']==subject).flatten() & (self.dataset['n_items'] == n_items).flatten()
+                    ids_filter = (self.dataset['subject'] == subject).flatten() & (self.dataset['n_items'] == n_items).flatten()
 
                     # Compute bootstrap if required
 
-                    bootstrap = em_circularmixture_allitems_uniquekappa.bootstrap_nontarget_stat(self.dataset['response'][ids_filtered, 0], self.dataset['item_angle'][ids_filtered, 0], self.dataset['item_angle'][ids_filtered, 1:n_items], nb_bootstrap_samples=nb_bootstrap_samples)
+                    bootstrap = em_circmixtmodel.bootstrap_nontarget_stat(self.dataset['response'][ids_filter, 0], self.dataset['item_angle'][ids_filter, 0], self.dataset['item_angle'][ids_filter, 1:n_items], nb_bootstrap_samples=nb_bootstrap_samples)
                     self.dataset['bootstrap_subject_nitems'][subject_i, n_items_i] = bootstrap
                     self.dataset['bootstrap_subject_nitems_pval'][subject_i, n_items_i] = bootstrap['p_value']
 
@@ -315,9 +354,9 @@ class ExperimentalLoader(object):
                 print "Nitems %d, all subjects" % (n_items)
 
                 # Data collapsed accross subjects
-                ids_filtered = (self.dataset['n_items'] == n_items).flatten()
+                ids_filter = (self.dataset['n_items'] == n_items).flatten()
 
-                bootstrap = em_circularmixture_allitems_uniquekappa.bootstrap_nontarget_stat(self.dataset['response'][ids_filtered, 0], self.dataset['item_angle'][ids_filtered, 0], self.dataset['item_angle'][ids_filtered, 1:n_items], nb_bootstrap_samples=nb_bootstrap_samples)
+                bootstrap = em_circmixtmodel.bootstrap_nontarget_stat(self.dataset['response'][ids_filter, 0], self.dataset['item_angle'][ids_filter, 0], self.dataset['item_angle'][ids_filter, 1:n_items], nb_bootstrap_samples=nb_bootstrap_samples)
                 self.dataset['bootstrap_nitems'][n_items_i] = bootstrap
                 self.dataset['bootstrap_nitems_pval'][n_items_i] = bootstrap['p_value']
 
@@ -368,16 +407,17 @@ class ExperimentalLoader(object):
             # Create dict(subject) -> dict(nitems_space, response, target, nontargets)
             for n_items in np.unique(self.dataset['data_subject_split']['nitems_space']):
 
-                ids_filtered = (self.dataset['subject']==subject).flatten() & (self.dataset['n_items'] == n_items).flatten()
+                ids_filtered = (self.dataset['subject'] == subject).flatten() & (self.dataset['n_items'] == n_items).flatten()
                 # print "Splitting data up: subject %d, %d items, %d datapoints" % (subject, n_items, np.sum(ids_filtered))
 
                 # Create dict(subject) -> dict(n_items) -> dict(nitems_space, response, target, nontargets, N)
-                self.dataset['data_subject_split']['data_subject_nitems'].setdefault(subject, dict())[n_items] = dict(
-                        N=np.sum(ids_filtered),
-                        response=self.dataset['response'][ids_filtered, 0],
-                        target=self.dataset['item_angle'][ids_filtered, 0],
-                        nontargets=self.dataset['item_angle'][ids_filtered, 1:n_items]
-                    )
+                self.dataset['data_subject_split']['data_subject_nitems'].setdefault(subject, dict())[n_items] = \
+                    dict(N=np.sum(ids_filtered),
+                         response=self.dataset['response'][ids_filtered, 0],
+                         target=self.dataset['item_angle'][ids_filtered, 0],
+                         nontargets=self.dataset['item_angle'][ids_filtered, 1:n_items],
+                         item_features=self.dataset['item_angle'][ids_filtered, :n_items]
+                         )
 
                 # Find the smallest number of samples for later
                 self.dataset['data_subject_split']['subject_smallestN'][subject] = min(self.dataset['data_subject_split']['subject_smallestN'][subject], np.sum(ids_filtered))
@@ -387,16 +427,23 @@ class ExperimentalLoader(object):
 
             self.dataset['data_subject_split']['data_subject'][subject] = dict(
                 # Responses: TxN
-                responses = np.nan*np.empty((self.dataset['data_subject_split']['nitems_space'].size, self.dataset['data_subject_split']['subject_smallestN'][subject])),
+                responses=np.nan*np.empty(
+                    (self.dataset['data_subject_split']['nitems_space'].size,
+                     self.dataset['data_subject_split']['subject_smallestN'][subject])),
                 # Targets: TxN
-                targets = np.nan*np.empty((self.dataset['data_subject_split']['nitems_space'].size, self.dataset['data_subject_split']['subject_smallestN'][subject])),
+                targets=np.nan*np.empty(
+                    (self.dataset['data_subject_split']['nitems_space'].size,
+                     self.dataset['data_subject_split']['subject_smallestN'][subject])),
                 # Nontargets: TxNx(Tmax-1)
-                nontargets = np.nan*np.empty((self.dataset['data_subject_split']['nitems_space'].size, self.dataset['data_subject_split']['subject_smallestN'][subject], self.dataset['data_subject_split']['nitems_space'].max()-1))
+                nontargets=np.nan*np.empty(
+                    (self.dataset['data_subject_split']['nitems_space'].size,
+                     self.dataset['data_subject_split']['subject_smallestN'][subject],
+                     self.dataset['data_subject_split']['nitems_space'].max()-1))
             )
 
             for n_items_i, n_items in enumerate(np.unique(self.dataset['data_subject_split']['nitems_space'])):
 
-                ids_filtered = (self.dataset['subject']==subject).flatten() & (self.dataset['n_items'] == n_items).flatten()
+                ids_filtered = (self.dataset['subject'] == subject).flatten() & (self.dataset['n_items'] == n_items).flatten()
 
                 # Assign data to:
                 # dict(subject) -> dict(responses TxN, targets TxN, nontargets TxNx(T-1) )
@@ -460,7 +507,13 @@ class ExperimentalLoader(object):
             print 'Fitting Collapsed Mixture model for subject %d' % subject
 
             # Bug here, fit is not using the good dimensionality for the number of Nontarget angles...
-            params_fit = em_circularmixture_parametrickappa.fit(self.dataset['data_subject_split']['nitems_space'], subject_data_dict['responses'], subject_data_dict['targets'], subject_data_dict['nontargets'], debug=False)
+            params_fit = em_circmixtmodel_parametric.fit(
+                self.dataset['data_subject_split']['nitems_space'],
+                subject_data_dict['responses'],
+                subject_data_dict['targets'],
+                subject_data_dict['nontargets'],
+                debug=False
+            )
 
             self.dataset['collapsed_em_fits_subjects'][subject] = params_fit
 

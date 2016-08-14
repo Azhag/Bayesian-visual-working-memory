@@ -120,16 +120,16 @@ if __name__ == '__main__':
     print sys.argv
 
     if True or (len(sys.argv) > 1 and sys.argv[1]):
-    # keys:
-    # 'probe', 'delayed', 'item_colour', 'probe_colour', 'item_angle', 'error', 'probe_angle', 'n_items', 'response', 'subject']
+        # keys:
+        # 'probe', 'delayed', 'item_colour', 'probe_colour', 'item_angle', 'error', 'probe_angle', 'n_items', 'response', 'subject']
         # (data_sequen, data_simult, data_dualrecall) = load_multiple_datasets([dict(filename='Exp1.mat', parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'))), dict(filename='Exp2_withcolours.mat',  parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), fit_mixture_model=True)), dict(filename=os.path.join(data_dir, 'DualRecall_Bays', 'rate_data.mat'),  parameters=dict(fit_mixture_model=True))])
         # (data_simult,) = load_multiple_datasets([dict(name='Gorgo_simult', filename='Exp2_withcolours.mat',  parameters=dict(datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), fit_mixture_model=True, mixture_model_cache='em_simult.pickle'))])
         # (data_bays2009, ) = load_multiple_datasets([dict(name='Bays2009', filename='colour_data.mat', parameters=dict(datadir=os.path.join(data_dir, 'Bays2009'), fit_mixture_model=True, mixture_model_cache='em_bays.pickle', should_compute_bootstrap=True, bootstrap_cache='bootstrap_1000samples.pickle'))])
 
         # data_bays2009 = load_data_bays09(data_dir=data_dir, fit_mixture_model=True)
         # data_gorgo11 = load_data_gorgo11(data_dir=data_dir, fit_mixture_model=True)
-        data_dualrecall = load_data_dualrecall(data_dir=data_dir, fit_mixture_model=True)
-        data_gorgo11_sequ = load_data_gorgo11_sequential(data_dir=data_dir, fit_mixture_model=True)
+        # data_dualrecall = load_data_dualrecall(data_dir=data_dir, fit_mixture_model=True)
+        # data_gorgo11_sequ = load_data_gorgo11_sequential(data_dir=data_dir, fit_mixture_model=True)
 
         data_bays09 = load_data('bays09', data_dir=data_dir)
 
@@ -191,7 +191,7 @@ if __name__ == '__main__':
             for nitems_i, nitems in enumerate(data_bays2009['data_subject_split']['nitems_space']):
                 utils.scatter_marginals(data_bays2009['data_subject_split']['data_subject'][subj]['targets'][nitems_i], data_bays2009['data_subject_split']['data_subject'][subj]['responses'][nitems_i], title='Subject %d, %d items' % (subj, nitems))
 
-    dataio = DataIO.DataIO(label='experiments_gorgo11_seq')
+    # dataio = DataIO.DataIO(label='experiments_gorgo11_seq')
     # plots_gorgo11_sequential(data_gorgo11_sequ, dataio)
     # plots_gorgo11_sequential_collapsed(data_gorgo11_sequ, dataio)
 

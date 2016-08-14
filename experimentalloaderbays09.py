@@ -2,21 +2,7 @@
     Small class system to simplify the process of loading Experimental datasets
 '''
 
-import sys
 import numpy as np
-import scipy.io as sio
-import matplotlib.pyplot as plt
-# import matplotlib.patches as plt_patches
-# import matplotlib.gridspec as plt_grid
-import os
-import os.path
-import cPickle as pickle
-# import bottleneck as bn
-import em_circularmixture
-import em_circularmixture_allitems_uniquekappa
-import pandas as pd
-
-import dataio as DataIO
 
 import utils
 
@@ -67,7 +53,7 @@ class ExperimentalLoaderBays09(ExperimentalLoader):
         for n_items_i, n_items in enumerate(np.unique(self.dataset['n_items'])):
             for subject_i, subject in enumerate(np.unique(self.dataset['subject'])):
                 # Data per subject
-                ids_filtered = (self.dataset['subject']==subject).flatten() & (self.dataset['n_items'] == n_items).flatten()
+                ids_filtered = (self.dataset['subject'] == subject).flatten() & (self.dataset['n_items'] == n_items).flatten()
 
                 self.dataset['errors_subject_nitems'][subject_i, n_items_i] = self.dataset['error'][ids_filtered, 0]
                 self.dataset['errors_nontarget_subject_nitems'][subject_i, n_items_i] = self.dataset['error'][ids_filtered, 1:n_items]
