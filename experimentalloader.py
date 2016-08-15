@@ -416,8 +416,15 @@ class ExperimentalLoader(object):
                          response=self.dataset['response'][ids_filtered, 0],
                          target=self.dataset['item_angle'][ids_filtered, 0],
                          nontargets=self.dataset['item_angle'][ids_filtered, 1:n_items],
-                         item_features=self.dataset['item_angle'][ids_filtered, :n_items]
+                         item_features=np.empty((np.sum(ids_filtered), n_items, 2)),
+                         probe=self.dataset['probe'][ids_filtered]
                          )
+
+                # Store item_features for later data instantiation use
+                self.dataset['data_subject_split']['data_subject_nitems'][subject][n_items]['item_features'][..., 0] = \
+                    self.dataset['item_angle'][ids_filtered, :n_items]
+                self.dataset['data_subject_split']['data_subject_nitems'][subject][n_items]['item_features'][..., 1] = \
+                    self.dataset['item_colour'][ids_filtered, :n_items]
 
                 # Find the smallest number of samples for later
                 self.dataset['data_subject_split']['subject_smallestN'][subject] = min(self.dataset['data_subject_split']['subject_smallestN'][subject], np.sum(ids_filtered))

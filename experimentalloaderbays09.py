@@ -31,7 +31,7 @@ class ExperimentalLoaderBays09(ExperimentalLoader):
         self.dataset['response'] = self.dataset['Y']
         self.dataset['item_angle'] = self.dataset['X']
         self.dataset['item_colour'] = self.dataset['A'] - np.pi
-        self.dataset['probe'] = np.zeros(self.dataset['error'].shape, dtype= int)
+        self.dataset['probe'] = np.zeros(self.dataset['response'].shape, dtype=int)
         self.dataset['errors_nitems'] = np.empty(self.dataset['n_items_size'], dtype=np.object)
         self.dataset['errors_nontarget_nitems'] = np.empty(self.dataset['n_items_size'], dtype=np.object)
         self.dataset['errors_subject_nitems'] = np.empty((self.dataset['subject_size'], self.dataset['n_items_size']), dtype=np.object)
