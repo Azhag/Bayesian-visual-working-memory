@@ -732,13 +732,20 @@ class Sampler:
 
     def compute_loglikelihood_top90percent(self, integrate_tc_out=False, precision=200, all_loglikelihoods=None):
         '''
-            Compute the loglikelihood for each datapoint, just like compute_loglikelihood and compute_loglikelihood_N, but now only sums the top 90% results
+            Backward compatibility function when p was fixed to 90%
+        '''
+        return self.compute_loglikelihood_top_p_percent(0.9, integrate_tc_out=integrate_tc_out, precision=precision, all_loglikelihoods=all_loglikelihoods)
+
+
+    def compute_loglikelihood_top_p_percent(self, p, integrate_tc_out=False, precision=200, all_loglikelihoods=None):
+        '''
+            Compute the loglikelihood for each datapoint, just like compute_loglikelihood and compute_loglikelihood_N, but now only sums the top p% results
         '''
 
         if all_loglikelihoods is None:
             all_loglikelihoods = self.compute_loglikelihood_N(integrate_tc_out=integrate_tc_out, precision=precision)
 
-        return np.nansum(np.sort(all_loglikelihoods)[self.N/10:])
+        return np.nansum(np.sort(all_loglikelihoods)[int(np.round(self.N*(1-p))):])
 
 
     def compute_loglikelihood_current_tc(self):

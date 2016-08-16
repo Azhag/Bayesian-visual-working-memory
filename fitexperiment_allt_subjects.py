@@ -39,7 +39,7 @@ class FitExperimentAllTSubject(FitExperimentAllT):
         self.debug = debug
 
         self.experiment_id = parameters.get('experiment_id', '')
-        self.subject = parameters.get('subject', 1)
+        self.subject = parameters.get('experiment_subject', 0)
 
         assert self.experiment_id == 'bays09', "Check me for other datasets first!"
 
@@ -52,7 +52,7 @@ class FitExperimentAllTSubject(FitExperimentAllT):
         self.experimental_dataset = load_experimental_data.load_data(experiment_id=self.experiment_id, data_dir=self.data_dir, fit_mixture_model=True)
 
         self.subject_space = self.experimental_dataset['data_subject_split']['subjects_space']
-        assert self.subject in self.subject_space
+        assert self.subject in self.subject_space, "Subject id not found in dataset!"
 
 
         # This is a subset of the full dataset, for this particular subject!
@@ -109,6 +109,7 @@ def test_fitexperiment_allt_subjects():
     experiment_parameters = dict(action_to_do='launcher_do_simple_run',
                                  inference_method='none',
                                  experiment_id='bays09',
+                                 experiment_subject=2,
                                  M=100,
                                  selection_method='last',
                                  sigmax=0.1,
