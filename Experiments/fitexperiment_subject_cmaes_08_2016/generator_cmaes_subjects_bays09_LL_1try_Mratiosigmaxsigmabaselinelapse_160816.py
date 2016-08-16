@@ -26,10 +26,12 @@ resource = ''
 # partition = 'test'
 partition = 'intel-ivy'
 
-experiment_subject = 1
 
 num_repetitions = 5
+
 experiment_id = 'bays09'
+# Vary me between 1-12 for bayes09
+experiment_subject = 7
 
 run_label = 'cmaes_subjects_bays09_ll_1try_Mratiosigmaxsigmabaselinelapserate_subject{experiment_subject}rep{num_repetitions}_160816'
 simul_out_dir = os.path.join(os.getcwd(), run_label.format(**locals()))
@@ -41,7 +43,7 @@ cma_use_bounds = True
 cma_use_auto_scaling = True
 cma_use_transforms = True
 cma_tolfun = 1e-3
-cma_population_size = 'auto_10x'
+cma_population_size = 30
 cma_boundary_handling = 'BoundPenalty'
 
 sleeping_period = dict(min=10, max=20)
@@ -152,7 +154,7 @@ ratioconj_range = dict(low=0.0,
                        dtype=float,
                        )
 lapserate_range = dict(low=0.0,
-                       high=0.3,
+                       high=0.15,
                        x0=0.05,
                        scaling=cma_sigma0/10.,
                        dtype=float,
