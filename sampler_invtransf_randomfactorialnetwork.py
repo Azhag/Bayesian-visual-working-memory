@@ -410,7 +410,7 @@ class Sampler:
         return loglikelihood
 
 
-    def sample_theta(self, return_samples=False, subset_theta=None, debug=True):
+    def sample_theta(self, return_samples=False, subset_theta=None, debug=False):
         '''
             Sample the thetas
             Need to use a slice sampler, as we do not know the normalization constant.
