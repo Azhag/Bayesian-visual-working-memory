@@ -23,7 +23,7 @@ import load_experimental_data
 import utils
 
 
-class FitExperimentAllT:
+class FitExperimentAllT(object):
     '''
         Loads experimental data, set up DataGenerator and associated RFN, Sampler to optimize parameters.
 
@@ -39,6 +39,15 @@ class FitExperimentAllT:
             Requires experiment_id to be set.
         '''
 
+        self.all_samplers = dict()
+        self.enforced_T = -1
+        self.sampler = None
+        self.cache_responses = dict()
+        self.experimental_dataset = None
+        self.experiment_data_to_fit = None
+        self.T_space = None
+        self.num_datapoints = -1
+
         self.parameters = parameters
         self.debug = debug
 
@@ -49,21 +58,30 @@ class FitExperimentAllT:
                                            '../../experimental_data/'))
                                        )
 
-        self.experimental_dataset = load_experimental_data.load_data(experiment_id=self.experiment_id, data_dir=self.data_dir, fit_mixture_model=True)
-        self.experiment_data_to_fit = self.experimental_dataset['data_to_fit']
-        self.T_space = self.experiment_data_to_fit['n_items']
-
-        self.all_samplers = dict()
-        self.enforced_T = -1
-        self.sampler = None
-
-        self.num_datapoints = int(self.experiment_data_to_fit['N_smallest'])
+        # Load data
+        self.load_dataset()
 
         # Handle limiting the number of datapoints
         self.init_filter_datapoints()
 
         if self.debug:
-            print "Loaded %s dataset. %d datapoints" % ((self.experiment_id, self.num_datapoints))
+            print "FitExperimentAllT: loaded %s dataset. %d datapoints" % (
+                (self.experiment_id, self.num_datapoints))
+
+
+    def load_dataset(self):
+        '''
+            Load and select dataset given the parameters.
+        '''
+        self.experimental_dataset = load_experimental_data.load_data(
+            experiment_id=self.experiment_id,
+            data_dir=self.data_dir,
+            fit_mixture_model=True
+        )
+        self.experiment_data_to_fit = self.experimental_dataset['data_to_fit']
+        self.T_space = self.experiment_data_to_fit['n_items']
+
+        self.num_datapoints = int(self.experiment_data_to_fit['N_smallest'])
 
 
     def init_filter_datapoints(self):
@@ -122,15 +140,40 @@ class FitExperimentAllT:
                 self.parameters['stimuli_to_use'] = self.experiment_data_to_fit[T]['item_features'][self.filter_datapoints_mask]
 
                 # Instantiate everything
-                (_, _, _, newSampler) = launchers.init_everything(self.parameters)
+                (_, _, _, self.sampler) = launchers.init_everything(self.parameters)
 
                 # Fix responses to the human ones
-                newSampler.set_theta(self.experiment_data_to_fit[T]['response'][self.filter_datapoints_mask])
+                self.sampler.set_theta(self.experiment_data_to_fit[T]['response'][self.filter_datapoints_mask])
+                self.store_responses('human')
 
                 # Store it
-                self.all_samplers[self.enforced_T] = newSampler
+                self.all_samplers[self.enforced_T] = self.sampler
 
             self.sampler = self.all_samplers[self.enforced_T]
+
+
+    def store_responses(self, name):
+        '''
+            Given a name, will store the current Sampler responses for later.
+
+            Useful to switch between data/samples efficiently.
+        '''
+
+        self.cache_responses.setdefault(self.enforced_T, dict())[name] = self.sampler.get_theta()
+
+    def restore_responses(self, name):
+        '''
+            Will restore the responses to the cached one with the appropriate name
+        '''
+        assert name in self.cache_responses[self.enforced_T], "Response name unknown"
+        self.sampler.set_theta(self.cache_responses[self.enforced_T][name])
+
+
+    def get_names_stored_responses(self):
+        '''
+            Returns the list of possible names currently cached.
+        '''
+        return self.cache_responses[self.enforced_T].keys()
 
 
     def apply_fct_dataset_T(self, T, fct_infos):

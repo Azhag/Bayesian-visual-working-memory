@@ -588,6 +588,14 @@ class Sampler:
 
         return samples
 
+
+    def get_theta(self):
+        '''
+            Get the current thetas.
+        '''
+        return self.theta[:, self.sampled_feature_index]
+
+
     def set_theta(self, new_thetas):
         '''
             Update thetas to a given value (most likely to experimentally measured ones)

@@ -35,40 +35,32 @@ class FitExperimentAllTSubject(FitExperimentAllT):
 
             Requires experiment_id to be set.
         '''
-        self.parameters = parameters
-        self.debug = debug
-
-        self.experiment_id = parameters.get('experiment_id', '')
         self.subject = parameters.get('experiment_subject', 0)
 
-        assert self.experiment_id == 'bays09', "Check me for other datasets first!"
+        assert parameters['experiment_id'] == 'bays09', "Check me for other datasets first!"
 
-        self.data_dir = parameters.get('experiment_data_dir',
-                                       os.path.normpath(os.path.join(
-                                           os.environ['WORKDIR_DROP'],
-                                           '../../experimental_data/'))
-                                       )
+        if debug:
+            print "FitExperimentAllTSubject: subject %d" % (self.subject)
 
-        self.experimental_dataset = load_experimental_data.load_data(experiment_id=self.experiment_id, data_dir=self.data_dir, fit_mixture_model=True)
+        super(self.__class__, self).__init__(parameters, debug)
 
+
+    def load_dataset(self):
+        '''
+            Load and select dataset given the parameters.
+        '''
+        self.experimental_dataset = load_experimental_data.load_data(
+            experiment_id=self.experiment_id,
+            data_dir=self.data_dir,
+            fit_mixture_model=True
+        )
         self.subject_space = self.experimental_dataset['data_subject_split']['subjects_space']
         assert self.subject in self.subject_space, "Subject id not found in dataset!"
-
 
         # This is a subset of the full dataset, for this particular subject!
         self.experiment_data_to_fit = self.experimental_dataset['data_subject_split']['data_subject_nitems'][self.subject]
         self.T_space = self.experimental_dataset['data_subject_split']['nitems_space']
         self.num_datapoints = int(self.experimental_dataset['data_subject_split']['subject_smallestN'][self.subject])
-
-        self.all_samplers = dict()
-        self.enforced_T = -1
-        self.sampler = None
-
-        # Handle limiting the number of datapoints
-        self.init_filter_datapoints()
-
-        if self.debug:
-            print "Loaded %s dataset, subject %d. %d datapoints" % ((self.experiment_id, self.subject, self.num_datapoints))
 
 
     def compute_dist_experimental_em_fits_currentT(self, model_fits):

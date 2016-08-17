@@ -1,31 +1,12 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-import os
 import numpy as np
-import matplotlib as mpl
 import matplotlib.pyplot as plt
-import pandas as pd
-import seaborn as sns
-
-from experimentlauncher import ExperimentLauncher
-from dataio import DataIO
-import plots_experimental_data
-import em_circularmixture_parametrickappa
-
-
-# import matplotlib.animation as plt_anim
-# from mpl_toolkits.mplot3d import Axes3D
 import progress
-
-import re
-import inspect
-import imp
-
 import utils
-# import submitpbs
-import load_experimental_data
 
+plt.rcParams['font.size'] = 24
 
 
 class PlotsFitExperimentAllTPaperTheo(object):
@@ -39,7 +20,7 @@ class PlotsFitExperimentAllTPaperTheo(object):
                  do_memcurves_fig6=True,
                  do_mixtcurves_fig13=True,
                  do_distrib_errors_data_fig2=True,
-                ):
+                 ):
 
         self.fit_exp = fit_experiment_allt
         self.experiment_id = self.fit_exp.experiment_id
@@ -55,7 +36,7 @@ class PlotsFitExperimentAllTPaperTheo(object):
             self.do_distrib_errors_fig5,
             self.do_memcurves_fig6,
             self.do_mixtcurves_fig13
-            )
+        )
 
 
     def do_plots(self):
@@ -79,12 +60,16 @@ class PlotsFitExperimentAllTPaperTheo(object):
 
             Series of plots reproducing Fig 2 - Distribution of errors in human subjects
         '''
-        f, axes = plt.subplots(nrows=2, ncols=self.fit_exp.T_space.size, figsize=(14, 10))
+        f, axes = plt.subplots(nrows=2,
+                               ncols=self.fit_exp.T_space.size,
+                               figsize=(14, 10)
+                               )
 
         for t_i, T in enumerate(self.fit_exp.T_space):
             print "DATA T %d" % T
+
             self.fit_exp.setup_experimental_stimuli_T(T)
-            self.fit_exp.sampler.N = self.fit_exp.sampler.data_gen.N
+            self.fit_exp.restore_responses('human')
 
             self.fit_exp.sampler.plot_histogram_errors(bins=41, ax_handle=axes[0, t_i], norm='density')
             axes[0, t_i].set_title('')
@@ -109,13 +94,20 @@ class PlotsFitExperimentAllTPaperTheo(object):
             Arranged as in the paper.
         '''
 
-        f, axes = plt.subplots(nrows=2, ncols=self.fit_exp.T_space.size, figsize=(14, 10))
+        f, axes = plt.subplots(nrows=2,
+                               ncols=self.fit_exp.T_space.size,
+                               figsize=(14, 10)
+                               )
 
         for t_i, T in enumerate(self.fit_exp.T_space):
             print "MODEL T %d" % T
-            self.fit_exp.setup_experimental_stimuli_T(T)
 
-            self.fit_exp.sampler.force_sampling_round()
+            self.fit_exp.setup_experimental_stimuli_T(T)
+            if 'samples' in self.fit_exp.get_names_stored_responses():
+                self.fit_exp.restore_responses('samples')
+            else:
+                self.fit_exp.sampler.force_sampling_round()
+                self.fit_exp.store_responses('samples')
 
             self.fit_exp.sampler.plot_histogram_errors(bins=41, ax_handle=axes[0, t_i], norm='density')
             axes[0, t_i].set_title('')
@@ -132,13 +124,14 @@ class PlotsFitExperimentAllTPaperTheo(object):
         return axes
 
 
-    def plots_memmixtcurves_fig6fig13(self, num_repetitions=1, cache=True):
+    def plots_memmixtcurves_fig6fig13(self, num_repetitions=1, use_cache=True):
         '''
             Plots the memory fidelity for all T and the mixture proportions for all T
         '''
 
-        if self.result_em_fits_stats is None:
+        if self.result_em_fits_stats is None or not use_cache:
             search_progress = progress.Progress(self.fit_exp.T_space.size*num_repetitions)
+
             # kappa, mixt_target, mixt_nontarget, mixt_random, ll
             result_em_fits = np.nan*np.ones((self.fit_exp.T_space.size, 5, num_repetitions))
 
@@ -149,11 +142,18 @@ class PlotsFitExperimentAllTPaperTheo(object):
                     print "%.2f%%, %s left - %s" % (search_progress.percentage(), search_progress.time_remaining_str(), search_progress.eta_str())
                     print "Fit for T=%d, %d/%d" % (T, repet_i+1, num_repetitions)
 
-                    self.fit_exp.sampler.force_sampling_round()
+                    if 'samples' in self.fit_exp.get_names_stored_responses() and repet_i < 1:
+                        self.fit_exp.restore_responses('samples')
+                    else:
+                        self.fit_exp.sampler.force_sampling_round()
+                        self.fit_exp.store_responses('samples')
 
                     # Fit mixture model
                     curr_params_fit = self.fit_exp.sampler.fit_mixture_model(use_all_targets=False)
-                    result_em_fits[T_i, :, repet_i] = [curr_params_fit[key] for key in ('kappa', 'mixt_target', 'mixt_nontargets_sum', 'mixt_random', 'train_LL')]
+                    result_em_fits[T_i, :, repet_i] = [curr_params_fit[key]
+                        for key in ('kappa', 'mixt_target',
+                                    'mixt_nontargets_sum', 'mixt_random',
+                                    'train_LL')]
 
                     search_progress.increment()
 
@@ -165,9 +165,9 @@ class PlotsFitExperimentAllTPaperTheo(object):
 
         # Do the plots
         if self.do_memcurves_fig6 and self.do_mixtcurves_fig13:
-            f, axes = plt.subplots(nrows=2, figsize=(14, 18))
+            f, axes = plt.subplots(nrows=2, figsize=(12, 18))
         else:
-            f, ax = plt.subplots(figsize=(14, 9))
+            f, ax = plt.subplots(figsize=(12, 9))
             axes = [ax]
         ax_i = 0
 
@@ -175,7 +175,7 @@ class PlotsFitExperimentAllTPaperTheo(object):
             self.__plot_memcurves(self.result_em_fits_stats,
                                   suptitle_text='Memory fidelity',
                                   ax=axes[ax_i]
-                                 )
+                                  )
             ax_i += 1
 
 
@@ -183,7 +183,8 @@ class PlotsFitExperimentAllTPaperTheo(object):
             self.__plot_mixtcurves(self.result_em_fits_stats,
                                    suptitle_text='Mixture proportions',
                                    ax=axes[ax_i]
-                                  )
+                                   )
+            ax_i += 1
 
         return axes
 
@@ -224,14 +225,18 @@ class PlotsFitExperimentAllTPaperTheo(object):
             ax_handle=ax
         )
 
-        ax.legend(prop={'size':15}, loc='center right', bbox_to_anchor=(1.1, 0.5))
+        ax.legend(prop={'size': 15},
+                  loc='upper left',
+                  bbox_to_anchor=(1., 1.)
+                  )
         ax.set_xlim([0.9, T_space.max()+0.1])
         ax.set_xticks(range(1, T_space.max()+1))
         ax.set_xticklabels(range(1, T_space.max()+1))
 
         if suptitle_text:
-            ax.get_figure().suptitle(suptitle_text)
-
+            ax.set_title(suptitle_text)
+            # ax.get_figure().suptitle(suptitle_text)
+        ax.hold(False)
         ax.get_figure().canvas.draw()
 
         return ax
@@ -286,8 +291,8 @@ class PlotsFitExperimentAllTPaperTheo(object):
         # Now data
         utils.plot_mean_std_area(
             T_space,
-            data_em_fits['mean'][0],
-            data_em_fits['std'][0],
+            data_em_fits['mean'][1],
+            data_em_fits['std'][1],
             xlabel='Number of items',
             ylabel="Mixture probabilities",
             ax_handle=ax, linewidth=2, fmt='o:', markersize=5,
@@ -295,25 +300,25 @@ class PlotsFitExperimentAllTPaperTheo(object):
         )
         utils.plot_mean_std_area(
             T_space,
-            data_em_fits['mean'][1],
-            data_em_fits['std'][1],
+            data_em_fits['mean'][2],
+            data_em_fits['std'][2],
             xlabel='Number of items',
             ylabel="Mixture probabilities",
             ax_handle=ax, linewidth=2, fmt='o:', markersize=5, label='Data nontarget'
         )
         utils.plot_mean_std_area(
             T_space,
-            data_em_fits['mean'][2],
-            data_em_fits['std'][2],
+            data_em_fits['mean'][3],
+            data_em_fits['std'][3],
             xlabel='Number of items',
             ylabel="Mixture probabilities",
             ax_handle=ax, linewidth=2, fmt='o:', markersize=5, label='Data random'
         )
 
-        ax.legend(prop={'size':15},
-                 loc='center right',
-                 bbox_to_anchor=(1.1, 0.5)
-        )
+        ax.legend(prop={'size': 15},
+                  loc='upper left',
+                  bbox_to_anchor=(1., 1.)
+                  )
 
         ax.set_xlim([0.9, T_space.max() + 0.1])
         ax.set_ylim([0.0, 1.1])
@@ -321,149 +326,11 @@ class PlotsFitExperimentAllTPaperTheo(object):
         ax.set_xticklabels(range(1, T_space.max() + 1))
 
         if suptitle_text:
-            ax.get_figure().suptitle(suptitle_text)
+            ax.set_title(suptitle_text)
+            # ax.get_figure().suptitle(suptitle_text)
 
         ax.get_figure().canvas.draw()
 
-        return ax
-
-    # Memory curve kappa
-    def __plot_memcurves(self, model_em_fits, suptitle_text=None, ax=None):
-        '''
-            Nice plot for the memory fidelity, as in Fig6 of the paper theo
-        '''
-        T_space = self.fit_exp.T_space
-        data_em_fits = self.fit_exp.experimental_dataset['em_fits_nitems_arrays']
-
-        if ax is None:
-            _, ax = plt.subplots()
-        else:
-            ax.hold(False)
-
-        ax = utils.plot_mean_std_area(
-            T_space,
-            data_em_fits['mean'][0],
-            data_em_fits['std'][0],
-            linewidth=3, fmt='o-', markersize=8,
-            label='Experimental data',
-            ax_handle=ax
-        )
-
-        ax.hold(True)
-
-        ax = utils.plot_mean_std_area(
-            T_space,
-            model_em_fits['mean'][..., 0],
-            model_em_fits['std'][..., 0],
-            xlabel='Number of items',
-            ylabel="Memory error $[rad^{-2}]$",
-            linewidth=3,
-            fmt='o-', markersize=8,
-            label='Fitted kappa',
-            ax_handle=ax
-        )
-
-        ax.legend(prop={'size':15}, loc='center right', bbox_to_anchor=(1.1, 0.5))
-        ax.set_xlim([0.9, T_space.max()+0.1])
-        ax.set_xticks(range(1, T_space.max()+1))
-        ax.set_xticklabels(range(1, T_space.max()+1))
-
-        if suptitle_text:
-            ax.get_figure().suptitle(suptitle_text)
-
-        ax.get_figure().canvas.draw()
+        ax.hold(False)
 
         return ax
-
-
-    def __plot_mixtcurves(self, model_em_fits, suptitle_text=None, ax=None):
-        '''
-            Similar kind of plot, but showing the mixture proportions, as in Figure13
-        '''
-        T_space = self.fit_exp.T_space
-        data_em_fits = self.fit_exp.experimental_dataset['em_fits_nitems_arrays']
-
-        if ax is None:
-            _, ax = plt.subplots()
-        else:
-            ax.hold(False)
-
-
-        model_em_fits['mean'][np.isnan(model_em_fits['mean'])] = 0.0
-        model_em_fits['std'][np.isnan(model_em_fits['std'])] = 0.0
-
-        # Show model fits
-        utils.plot_mean_std_area(
-            T_space,
-            model_em_fits['mean'][..., 1],
-            model_em_fits['std'][..., 1],
-            xlabel='Number of items',
-            ylabel="Mixture probabilities",
-            ax_handle=ax, linewidth=3, fmt='o-', markersize=5,
-            label='Target',
-        )
-        ax.hold(True)
-        utils.plot_mean_std_area(
-            T_space,
-            model_em_fits['mean'][..., 2],
-            model_em_fits['std'][..., 2],
-            xlabel='Number of items',
-            ylabel="Mixture probabilities",
-            ax_handle=ax, linewidth=3, fmt='o-', markersize=5,
-            label='Nontarget'
-        )
-        utils.plot_mean_std_area(
-            T_space,
-            model_em_fits['mean'][..., 3],
-            model_em_fits['std'][..., 3],
-            xlabel='Number of items',
-            ylabel="Mixture probabilities",
-            ax_handle=ax, linewidth=3, fmt='o-', markersize=5,
-            label='Random'
-        )
-
-        # Now data
-        utils.plot_mean_std_area(
-            T_space,
-            data_em_fits['mean'][0],
-            data_em_fits['std'][0],
-            xlabel='Number of items',
-            ylabel="Mixture probabilities",
-            ax_handle=ax, linewidth=2, fmt='o:', markersize=5,
-            label='Data target'
-        )
-        utils.plot_mean_std_area(
-            T_space,
-            data_em_fits['mean'][1],
-            data_em_fits['std'][1],
-            xlabel='Number of items',
-            ylabel="Mixture probabilities",
-            ax_handle=ax, linewidth=2, fmt='o:', markersize=5, label='Data nontarget'
-        )
-        utils.plot_mean_std_area(
-            T_space,
-            data_em_fits['mean'][2],
-            data_em_fits['std'][2],
-            xlabel='Number of items',
-            ylabel="Mixture probabilities",
-            ax_handle=ax, linewidth=2, fmt='o:', markersize=5, label='Data random'
-        )
-
-        ax.legend(prop={'size':15},
-                 loc='center right',
-                 bbox_to_anchor=(1.1, 0.5)
-        )
-
-        ax.set_xlim([0.9, T_space.max() + 0.1])
-        ax.set_ylim([0.0, 1.1])
-        ax.set_xticks(range(1, T_space.max() + 1))
-        ax.set_xticklabels(range(1, T_space.max() + 1))
-
-        if suptitle_text:
-            ax.get_figure().suptitle(suptitle_text)
-
-        ax.get_figure().canvas.draw()
-
-        return ax
-
-
