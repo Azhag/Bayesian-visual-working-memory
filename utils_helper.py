@@ -285,6 +285,16 @@ def chdir_safe(directory, verbose=True):
         print "changed directory, current: %s" % os.getcwd()
 
 
+# Fix M and ratio_conj
+def fix_M_ratioconj(M, ratio_conj):
+    M_conj_prior = np.asarray(M*ratio_conj).astype(int)
+    M_conj_true = np.asarray(np.floor(M_conj_prior**0.5)**2.).astype(int)
+    M_feat_true = np.asarray(np.floor((M-M_conj_prior)/2.)*2.).astype(int)
+    M_corrected = M_conj_true + M_feat_true
+    ratio_corrected = M_conj_true/np.asarray(M_corrected).astype(float)
+    return M_corrected, ratio_corrected
+
+
 # ========= CALLBACK FOR CMA/ES TRANSFORMATIONS =====
 def tsfr_square(x):
     return x**2.

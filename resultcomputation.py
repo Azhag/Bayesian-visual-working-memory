@@ -363,42 +363,64 @@ class ResultComputation():
         return all_variables['dataio'].filename
 
 
+    def _compute_dist_llvariant(self, all_variables, variant='ll'):
+        '''
+            Given outputs from FitExperimentAllT, will compute the summed LL,
+            as this seems to be an acceptable metric for data fitting.
+        '''
+
+        res_variant = 'result_%s_sum' % variant
+        if res_variant in all_variables:
+            # Average over repetitions and sum over the rest.
+            repetitions_axis = all_variables.get('repetitions_axis', -1)
+            result_dist = np.nansum(utils.nanmean(-all_variables[res_variant], axis=repetitions_axis))
+
+            print result_dist
+            return result_dist
+        else:
+            raise ValueError("%s was not found in the outputs" % res_variant)
+
+
     def compute_result_dist_ll_allt(self, all_variables):
         '''
-            Given outputs from FitExperimentAllT, will compute the summed LL, as
-            this seems to be an acceptable metric for data fitting.
+            Given outputs from FitExperimentAllT, will compute the summed LL,
+            as this seems to be an acceptable metric for data fitting.
         '''
-
-        if 'result_ll_sum' in all_variables:
-            repetitions_axis = all_variables.get('repetitions_axis', -1)
-
-            # Average over repetitions and sum over the rest.
-            result_dist_ll = np.nansum(utils.nanmean(-all_variables['result_ll_sum'], axis=repetitions_axis))
-
-            print result_dist_ll
-
-            return result_dist_ll
-        else:
-            raise ValueError('result_ll_sum was not found in the outputs')
+        return self._compute_dist_llvariant(all_variables,
+                                            variant='ll')
 
 
     def compute_result_dist_ll90_allt(self, all_variables):
         '''
-            Given outputs from FitExperimentAllT, will compute the summed LL90, as
-            this seems to be an acceptable metric for data fitting.
+            Given outputs from FitExperimentAllT, will compute the summed
+            LL90.
+            Discards the most outliers.
         '''
 
-        if 'result_ll90_sum' in all_variables:
-            repetitions_axis = all_variables.get('repetitions_axis', -1)
+        return self._compute_dist_llvariant(all_variables,
+                                            variant='ll90')
 
-            # Average over repetitions and sum over the rest.
-            result_dist_ll90 = np.nansum(utils.nanmean(-all_variables['result_ll90_sum'], axis=repetitions_axis))
 
-            print result_dist_ll90
+    def compute_result_dist_ll95_allt(self, all_variables):
+        '''
+            Given outputs from FitExperimentAllT, will compute the summed
+            LL90.
+            Discards the most outliers.
+        '''
 
-            return result_dist_ll90
-        else:
-            raise ValueError('result_ll90_sum was not found in the outputs')
+        return self._compute_dist_llvariant(all_variables,
+                                            variant='ll95')
+
+
+    def compute_result_dist_ll97_allt(self, all_variables):
+        '''
+            Given outputs from FitExperimentAllT, will compute the summed
+            LL90.
+            Discards the most outliers.
+        '''
+
+        return self._compute_dist_llvariant(all_variables,
+                                            variant='ll97')
 
 
     def compute_result_dist_prodll_allt(self, all_variables):
