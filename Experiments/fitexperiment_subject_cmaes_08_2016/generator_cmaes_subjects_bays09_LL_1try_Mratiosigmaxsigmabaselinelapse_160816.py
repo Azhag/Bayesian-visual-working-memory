@@ -31,7 +31,7 @@ num_repetitions = 5
 
 experiment_id = 'bays09'
 # Vary me between 1-12 for bayes09
-experiment_subject = 7
+experiment_subject = 12
 
 run_label = 'cmaes_subjects_bays09_ll_1try_Mratiosigmaxsigmabaselinelapserate_subject{experiment_subject}rep{num_repetitions}_160816'
 simul_out_dir = os.path.join(os.getcwd(), run_label.format(**locals()))
