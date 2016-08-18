@@ -30,7 +30,7 @@ partition = 'intel-ivy'
 num_repetitions = 3
 experiment_id = 'bays09'
 
-run_label = 'cmaes_bays09_ll_3try_Mratiosigmaxsigmabaselinelapserate_repetitions{num_repetitions}_090816'
+run_label = 'cmaes_bays09_ll92_7try_Mratiosigmaxsigmabaselinelapserate_repetitions{num_repetitions}_170816'
 simul_out_dir = os.path.join(os.getcwd(), run_label.format(**locals()))
 
 parameter_generation = 'cma-es'
@@ -45,12 +45,12 @@ cma_boundary_handling = 'BoundPenalty'
 
 sleeping_period = dict(min=10, max=20)
 
-pbs_submission_infos = dict(description='''Fit experiments (bays09), using dist_ll_allt ResultComputation), using the CMA-ES code. Now with sigma_baseline instead of sigma_output. Using new fixed Covariance matrix for Sampler, should change N=1 case most.
+pbs_submission_infos = dict(description='''Fit experiments (bays09), using dist_ll92_allt ResultComputation), using the CMA-ES code. Now with sigma_baseline instead of sigma_output. Using new fixed Covariance matrix for Sampler, should change N=1 case most.
 
   Changes M, ratio_conj, sigmax, sigma baseline, lapse rate.
   Looks at all t<=T. Use full LL score, all datapoints.
 
-  ==>> PLAYING WITH CMA/ES PARAMETERS IN HERE. checking new cma.py codebase.
+  Playing with LL92/LL95/LL95 and see the effect.
   ''',
                             command='python $WORKDIR/experimentlauncher.py',
                             other_options=dict(action_to_do='launcher_do_fitexperiment_allmetrics',
@@ -59,8 +59,8 @@ pbs_submission_infos = dict(description='''Fit experiments (bays09), using dist_
                                                experiment_id=experiment_id,
                                                bic_K=5,
                                                ratio_conj=0.5,
-                                               session_id='cmaes_3try_Mratiosigmaxlapsesigmabase_bays09',
-                                               result_computation='dist_ll_allt',
+                                               session_id='cmaes_7try_Mratiosigmaxlapsesigmabase_bays09',
+                                               result_computation='dist_ll92_allt',
                                                M=100,
                                                sigmax=0.1,
                                                renormalize_sigma=None,
@@ -91,7 +91,7 @@ pbs_submission_infos = dict(description='''Fit experiments (bays09), using dist_
                             simul_out_dir=os.path.join(os.getcwd(), run_label.format(**locals())),
                             pbs_submit_cmd=submit_cmd,
                             source_dir=os.environ['WORKDIR_DROP'],
-                            submit_label='cmaes_3try_bays',
+                            submit_label='cmaes_7try_bays',
                             resource=resource,
                             partition=partition,
                             qos='auto')
@@ -147,7 +147,7 @@ ratioconj_range = dict(low=0.0,
                        dtype=float,
                        )
 lapserate_range = dict(low=0.0,
-                       high=0.3,
+                       high=0.15,
                        x0=0.05,
                        scaling=cma_sigma0/10.,
                        dtype=float,
@@ -209,9 +209,9 @@ def best_parameters_callback(job, parameters=None):
                     burn_samples=200,
                     stimuli_generation='random',
                     stimuli_generation_recall='random',
-                    session_id='cmaes_bays09_3try_rerun_080816',
+                    session_id='cmaes_bays09_7try_rerun_080816',
                     result_computation='filenameoutput',
-                    label='%s_cmaes_bays09_3try_080816' % (curr_params_label)
+                    label='%s_cmaes_bays09_7try_080816' % (curr_params_label)
                 ))
                 pbs_submission_infos_copy['walltime'] = '40:00:00'
                 pbs_submission_infos_copy['submit_label'] = 'bestparam_rerun'
@@ -266,9 +266,9 @@ def cma_iter_plot_scatter3d_candidates(all_variables, parameters=None):
     # parameters['ax'][0].set_ylabel('Parameters')
     # parameters['ax'][0].legend(parameter_names_sorted)
 
-    # parameters['ax'][1].plot(time_space, fitness_arr, label='NLL90')
+    # parameters['ax'][1].plot(time_space, fitness_arr, label='NLL92')
     # parameters['ax'][1].set_xlabel('Time')
-    # parameters['ax'][1].set_ylabel('NLL90')
+    # parameters['ax'][1].set_ylabel('NLL92')
 
     # if parameters['dataio'] is not None:
     #     parameters['dataio'].save_current_figure('cmaes_optim_timeevolution_{label}_{unique_id}.pdf')

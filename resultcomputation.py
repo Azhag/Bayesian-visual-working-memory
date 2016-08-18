@@ -401,6 +401,17 @@ class ResultComputation():
                                             variant='ll90')
 
 
+    def compute_result_dist_ll92_allt(self, all_variables):
+        '''
+            Given outputs from FitExperimentAllT, will compute the summed
+            LL90.
+            Discards the most outliers.
+        '''
+
+        return self._compute_dist_llvariant(all_variables,
+                                            variant='ll92')
+
+
     def compute_result_dist_ll95_allt(self, all_variables):
         '''
             Given outputs from FitExperimentAllT, will compute the summed

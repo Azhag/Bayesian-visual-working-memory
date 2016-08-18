@@ -128,7 +128,7 @@ dict_parameters_range = dict(M=M_range, lapse_rate=lapserate_range, ratio_conj=r
 
 
 # result_callback_function to track best parameter
-best_parameters_seen = dict(result=np.nan, job_name='', parameters=None, submit_best=True, pbs_submission_infos_copy=copy.deepcopy(pbs_submission_infos))
+best_parameters_seen = dict(result=np.nan, job_name='', parameters=None, submit_best=False, pbs_submission_infos_copy=copy.deepcopy(pbs_submission_infos))
 def best_parameters_callback(job, parameters=None):
 
     if not np.any(np.isnan(job.get_result())) and (np.any(np.isnan(parameters['result'])) or (job.get_result() <= parameters['result'])):
