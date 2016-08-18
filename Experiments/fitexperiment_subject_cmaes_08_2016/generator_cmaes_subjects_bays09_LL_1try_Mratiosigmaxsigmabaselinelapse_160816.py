@@ -98,7 +98,7 @@ pbs_submission_infos = dict(description='''Fit experiments (bays09), using dist_
                             simul_out_dir=os.path.join(os.getcwd(), run_label.format(**locals())),
                             pbs_submit_cmd=submit_cmd,
                             source_dir=os.environ['WORKDIR_DROP'],
-                            submit_label='cmaes_1try_bays_%d',
+                            submit_label='cmaes_sub_1try_b09',
                             resource=resource,
                             partition=partition,
                             qos='auto')
