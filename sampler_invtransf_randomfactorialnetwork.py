@@ -1684,6 +1684,41 @@ class Sampler:
                 return utils.compute_mean_std_circular_data(angle_errors)
 
 
+    def compute_errors_alltargets_histograms(self, bins=41, norm='density'):
+        '''
+            Estimates the histograms of Targets and Nontargets errors.
+            Also returns the ECDF, for nicer plottings and further K-S 2-samples tests.
+
+            Returns:
+            dict of:
+                - targets dict of:
+                    * samples
+                    * hist
+                    * x
+                    * bins
+                    * ecdf
+                - nontargets dict same.
+        '''
+        outputs = dict()
+
+        (responses, targets, nontargets) = self.collect_responses()
+        errors_targets = utils.wrap_angles(targets - responses)
+        outputs['targets'] = utils.empirical_cdf_samples(errors_targets,
+                                                         bins=bins,
+                                                         norm=norm
+                                                         )
+        if self.T > 1:
+            errors_nontargets = utils.wrap_angles((
+                responses[:, np.newaxis] - nontargets).flatten())
+            outputs['nontargets'] = \
+                utils.empirical_cdf_samples(errors_nontargets,
+                                            bins=bins,
+                                            norm=norm
+                                            )
+
+        return outputs
+
+
     def get_precision(self, remove_chance_level=False, correction_theo_fit=1.0):
         '''
             Compute the precision, inverse of the variance of the errors.

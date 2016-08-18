@@ -5,9 +5,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import progress
 import utils
-
-from fitexperiment_allt import FitExperimentAllT
-from fitexperiment_allt_subjects import FitExperimentAllTSubject
+import scipy.stats as spst
+import pycircstat
+import warnings
 
 plt.rcParams['font.size'] = 24
 
@@ -125,6 +125,130 @@ class PlotsFitExperimentAllTPaperTheo(object):
 
         f.suptitle('Fig5 - Model distribution errors')
         return axes
+
+
+    def plots_KS_comparison_fig2fig5(self, bins=41, show_ks_pval=True):
+        '''
+            Will plot the ECDF of data/samples and then do Kolmogorov-Smirnov /Kuiper 2-samples tests on them.
+        '''
+
+        f, axes = plt.subplots(nrows=2,
+                               ncols=self.fit_exp.T_space.size,
+                               figsize=(14, 10)
+                               )
+
+        result_KS = dict(human=dict(),
+                         model=dict(),
+                         ks_pval=dict(),
+                         kuiper_pval=dict()
+                         )
+
+        warnings.simplefilter("ignore")
+
+        for t_i, T in enumerate(self.fit_exp.T_space):
+            result_KS['ks_pval'][T] = dict()
+            result_KS['kuiper_pval'][T] = dict()
+
+            self.fit_exp.setup_experimental_stimuli_T(T)
+
+            # Human histograms and CDF
+            self.fit_exp.restore_responses('human')
+            result_KS['human'][T] = self.fit_exp.sampler.compute_errors_alltargets_histograms(bins=bins)
+
+            # Samples histograms and CDF
+            if 'samples' in self.fit_exp.get_names_stored_responses():
+                self.fit_exp.restore_responses('samples')
+            else:
+                self.fit_exp.sampler.force_sampling_round()
+                self.fit_exp.store_responses('samples')
+            result_KS['model'][T] = self.fit_exp.sampler.compute_errors_alltargets_histograms(bins=bins)
+
+            # Compute K-S 2-samples tests stats
+            for condition in ['targets', 'nontargets']:
+                if condition in result_KS['human'][T]:
+                    ks_out = spst.ks_2samp(
+                        result_KS['human'][T][condition]['samples'],
+                        result_KS['model'][T][condition]['samples']
+                    )
+
+                    result_KS['ks_pval'][T][condition] = \
+                        ks_out.pvalue
+
+                    result_KS['kuiper_pval'][T][condition] = \
+                        pycircstat.tests.kuiper(
+                            result_KS['human'][T][condition]['samples'],
+                            result_KS['model'][T][condition]['samples'])[0][0]
+
+            ### Plot everything
+            axes[0, t_i].plot(result_KS['human'][T]['targets']['x'],
+                              result_KS['human'][T]['targets']['ecdf'],
+                              label='human'
+                              )
+            axes[0, t_i].plot(result_KS['model'][T]['targets']['x'],
+                              result_KS['model'][T]['targets']['ecdf'],
+                              label='model'
+                              )
+            axes[0, t_i].set_title('')
+            # axes[0, t_i].set_ylim((0, 2))
+
+            if show_ks_pval:
+                axes[0, t_i].text(
+                    0.02, 0.99,
+                    "KS p: %.2f" % result_KS['ks_pval'][T]['targets'],
+                    size=12,
+                    transform=axes[0, t_i].transAxes,
+                    horizontalalignment='left',
+                    verticalalignment='top'
+                )
+                axes[0, t_i].text(
+                    0.02, 0.9,
+                    "Kuiper p: %.2f" % result_KS['kuiper_pval'][T]['targets'],
+                    size=12,
+                    transform=axes[0, t_i].transAxes,
+                    horizontalalignment='left',
+                    verticalalignment='top'
+                )
+
+            if T > 1:
+                axes[1, t_i].plot(result_KS['human'][T]['nontargets']['x'],
+                                  result_KS['human'][T]['nontargets']['ecdf'],
+                                  label='human'
+                                  )
+                axes[1, t_i].plot(result_KS['model'][T]['nontargets']['x'],
+                                  result_KS['model'][T]['nontargets']['ecdf'],
+                                  label='model'
+                                  )
+                axes[1, t_i].set_title('')
+
+                if show_ks_pval:
+                    axes[1, t_i].text(
+                        0.02, 0.99,
+                        "KS p: %.2f" % result_KS['ks_pval'][T]['nontargets'],
+                        size=12,
+                        transform=axes[1, t_i].transAxes,
+                        horizontalalignment='left',
+                        verticalalignment='top'
+                    )
+                    axes[1, t_i].text(
+                        0.02, 0.9,
+                        "Kuiper p: %.2f" % result_KS['kuiper_pval'][T]['nontargets'],
+                        size=12,
+                        transform=axes[1, t_i].transAxes,
+                        horizontalalignment='left',
+                        verticalalignment='top'
+                    )
+            else:
+                axes[1, t_i].axis('off')
+
+        axes[0, -1].legend(prop={'size': 15},
+                           loc='upper left',
+                           bbox_to_anchor=(1., 1.)
+                           )
+
+        f.suptitle('ECDF between human and model')
+
+        return axes, result_KS
+
 
 
     def plots_memmixtcurves_fig6fig13(self, num_repetitions=1, use_cache=True):

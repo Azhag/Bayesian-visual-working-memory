@@ -160,7 +160,7 @@ class FitExperimentAllT(object):
             Useful to switch between data/samples efficiently.
         '''
 
-        self.cache_responses.setdefault(self.enforced_T, dict())[name] = self.sampler.get_theta()
+        self.cache_responses.setdefault(self.enforced_T, dict())[name] = self.sampler.get_theta().copy()
 
     def restore_responses(self, name):
         '''

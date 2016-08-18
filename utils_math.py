@@ -22,20 +22,20 @@ def argmax_indices(array):
     return np.unravel_index(np.nanargmax(array), array.shape)
 
 def nanmean(array, axis=None):
-    if not axis is None:
+    if axis is not None:
         return np.ma.masked_invalid(array).mean(axis=axis)
     else:
         return np.ma.masked_invalid(array).mean()
 
 def nanmedian(array, axis=None):
-    if not axis is None:
+    if axis is not None:
         return np.ma.extras.median(np.ma.masked_invalid(array), axis=axis)
     else:
         return np.ma.extras.median(np.ma.masked_invalid(array))
 
 
 def nanstd(array, axis=None):
-    if not axis is None:
+    if axis is not None:
         return np.ma.masked_invalid(array).std(axis=axis)
     else:
         return np.ma.masked_invalid(array).std()
@@ -60,7 +60,6 @@ def sample_log_bernoulli(lp1, lp0):
     '''
         Sample a bernoulli from log-transformed probabilities
     '''
-    #print lp0-lp1
     if (lp0-lp1) < -500:
         p1 = 1.
     elif (lp0-lp1) > 500:
@@ -70,13 +69,14 @@ def sample_log_bernoulli(lp1, lp0):
 
     return np.random.rand() < p1
 
-def sample_discrete_logp(log_prob):
+
+def sample_discrete_logp(log_prob, K=2):
     '''
         Use the logistic link function to get back to probabilities (thanks Sam Roweis)
         Also put a constant in it to avoid underflows
     '''
 
-    b = - np.log(self.K) - np.max(log_prob)
+    b = - np.log(K) - np.max(log_prob)
 
     prob = np.exp(log_prob+b)/np.sum(np.exp(log_prob+b))
     cum_prob = np.cumsum(prob)
@@ -93,10 +93,10 @@ def tril_set(array, vector_input, check_sizes=False):
     '''
 
     if check_sizes:
-        num_elements = np.sum(np.fromfunction(lambda i,j: i>j, array.shape))
+        num_elements = np.sum(np.fromfunction(lambda i, j: i > j, array.shape))
         assert vector_input.size == num_elements, "Wrong number of inputs, need %d" % num_elements
 
-    array[np.fromfunction(lambda i,j: i>j, array.shape)] = vector_input
+    array[np.fromfunction(lambda i, j: i > j, array.shape)] = vector_input
 
 
 def triu_set(array, vector_input, check_sizes=False):
@@ -107,10 +107,10 @@ def triu_set(array, vector_input, check_sizes=False):
     '''
 
     if check_sizes:
-        num_elements = np.sum(np.fromfunction(lambda i,j: i<j, array.shape))
+        num_elements = np.sum(np.fromfunction(lambda i, j: i < j, array.shape))
         assert vector_input.size == num_elements, "Wrong number of inputs, need %d" % num_elements
 
-    array[np.fromfunction(lambda i,j: i<j, array.shape)] = vector_input
+    array[np.fromfunction(lambda i, j: i < j, array.shape)] = vector_input
 
 
 def triu_2_tril(array):
@@ -118,7 +118,7 @@ def triu_2_tril(array):
         Copy the upper triangular part of an array into its lower triangular part
     '''
 
-    array[np.fromfunction(lambda i,j: i>j, array.shape)] = array[np.fromfunction(lambda i,j: i<j, array.shape)]
+    array[np.fromfunction(lambda i, j: i > j, array.shape)] = array[np.fromfunction(lambda i, j: i < j, array.shape)]
 
 
 def powerlaw(x, amp, index):
@@ -166,6 +166,7 @@ def kurtosis_distrib(xdata, ydata):
     kurtosis = np.trapz(distrib*(xdata - mu)**4., xdata)/np.trapz(distrib*(xdata - mu)**2., xdata)**2.
 
     return kurtosis
+
 
 def bimodality_coefficient(xdata, ydata):
     '''
@@ -236,6 +237,7 @@ def KL_div(P, Q, axis=None):
 
     return np.nansum(P*(np.log(P) - np.log(Q)), axis=axis)
 
+
 def histogram_binspace(data, bins=20, norm='density', bound_x=np.pi):
     '''
         Compute the histogram given a number of bins or a set of bins.
@@ -265,6 +267,22 @@ def histogram_binspace(data, bins=20, norm='density', bound_x=np.pi):
     return bar_heights, x[:-1] + bound_x/(bins-1), bins
 
 
+def empirical_cdf_samples(samples, bins=41, norm='density'):
+    '''
+        Given a set of samples, will compute the Histogram and its Empirical CDF.
+
+        Useful for K-S style plots.
+    '''
+
+    result = dict(samples=samples.copy())
+
+    result['hist'], result['x'], result['bins'] = \
+        histogram_binspace(samples, bins=bins, norm=norm)
+    result['ecdf'] = np.cumsum(result['hist'])
+    result['ecdf'] /= np.max(result['ecdf'])
+
+    return result
+
 def combine_pval_fisher_method(pvalues):
     '''
         Combine p-values using the Fisher Method:
@@ -278,8 +296,7 @@ def combine_pval_fisher_method(pvalues):
     return spst.chi2.sf(fscore, 2*pvalues.size)
 
 
-def interpolate_data_2d(all_points, data, param1_space_int=None, param2_space_int=None, interpolation_numpoints=200, interpolation_method='linear', mask_when_nearest=True, show_scatter=True, show_colorbar=True, mask_x_condition=None, mask_y_condition=None,
-    ):
+def interpolate_data_2d(all_points, data, param1_space_int=None, param2_space_int=None, interpolation_numpoints=200, interpolation_method='linear', mask_when_nearest=True, show_scatter=True, show_colorbar=True, mask_x_condition=None, mask_y_condition=None):
 
     # Construct the interpolation
     if param1_space_int is None:
@@ -299,9 +316,9 @@ def interpolate_data_2d(all_points, data, param1_space_int=None, param2_space_in
         data_interpol[np.isnan(data_interpol_lin)] = np.nan
 
     # Mask it based on some conditions
-    if not mask_x_condition is None:
+    if mask_x_condition is not None:
         data_interpol[mask_x_condition(param1_space_int), :] = 0.0
-    if not mask_y_condition is None:
+    if mask_y_condition is not None:
         data_interpol[:, mask_y_condition(param2_space_int)] = 0.0
 
     return data_interpol
