@@ -63,6 +63,25 @@ class FitExperimentAllTSubject(FitExperimentAllT):
         self.num_datapoints = int(self.experimental_dataset['data_subject_split']['subject_smallestN'][self.subject])
 
 
+    def get_em_fits_arrays(self):
+        '''
+            Provide the EM fits as numpy arrays
+
+            Returns:
+            * dict(mean=np.array, std=np.array)
+        '''
+
+        if self.em_fits_arrays is None:
+            subject_i = np.nonzero(self.subject_space ==
+                                   self.subject)[0][0]
+
+            self.em_fits_arrays = dict()
+            self.em_fits_arrays['mean'] = self.experimental_dataset['em_fits_subjects_nitems_arrays'][subject_i].T
+            self.em_fits_arrays['std'] = np.zeros_like(self.em_fits_arrays['mean'])
+
+        return self.em_fits_arrays
+
+
     def compute_dist_experimental_em_fits_currentT(self, model_fits):
         '''
             Given provided model_fits array, compute the distance to
@@ -80,11 +99,9 @@ class FitExperimentAllTSubject(FitExperimentAllT):
 
         distances = dict()
 
-        subject_i = np.nonzero(self.subject_space == self.subject)[0][0]
         T_i = np.nonzero(self.T_space == self.enforced_T)[0][0]
 
-        data_mixture_subject = self.experimental_dataset['em_fits_subjects_nitems_arrays'][subject_i].T
-
+        data_mixture_subject = self.get_em_fits_arrays()['mean']
 
         distances['all_mse'] = (data_mixture_subject[:4, T_i] - model_fits[:4])**2.
         distances['mixt_kl'] = utils.KL_div(data_mixture_subject[1:4, T_i], model_fits[1:4])

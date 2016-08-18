@@ -6,6 +6,9 @@ import matplotlib.pyplot as plt
 import progress
 import utils
 
+from fitexperiment_allt import FitExperimentAllT
+from fitexperiment_allt_subjects import FitExperimentAllTSubject
+
 plt.rcParams['font.size'] = 24
 
 
@@ -193,9 +196,12 @@ class PlotsFitExperimentAllTPaperTheo(object):
     def __plot_memcurves(self, model_em_fits, suptitle_text=None, ax=None):
         '''
             Nice plot for the memory fidelity, as in Fig6 of the paper theo
+
+            Changes to using the subject fits if FitExperimentAllTSubject used.
         '''
+
         T_space = self.fit_exp.T_space
-        data_em_fits = self.fit_exp.experimental_dataset['em_fits_nitems_arrays']
+        data_em_fits = self.fit_exp.get_em_fits_arrays()
 
         if ax is None:
             _, ax = plt.subplots()
@@ -247,7 +253,7 @@ class PlotsFitExperimentAllTPaperTheo(object):
             Similar kind of plot, but showing the mixture proportions, as in Figure13
         '''
         T_space = self.fit_exp.T_space
-        data_em_fits = self.fit_exp.experimental_dataset['em_fits_nitems_arrays']
+        data_em_fits = self.fit_exp.get_em_fits_arrays()
 
         if ax is None:
             _, ax = plt.subplots()
@@ -295,7 +301,7 @@ class PlotsFitExperimentAllTPaperTheo(object):
             data_em_fits['std'][1],
             xlabel='Number of items',
             ylabel="Mixture probabilities",
-            ax_handle=ax, linewidth=2, fmt='o:', markersize=5,
+            ax_handle=ax, linewidth=2, fmt='o--', markersize=5,
             label='Data target'
         )
         utils.plot_mean_std_area(
@@ -304,7 +310,7 @@ class PlotsFitExperimentAllTPaperTheo(object):
             data_em_fits['std'][2],
             xlabel='Number of items',
             ylabel="Mixture probabilities",
-            ax_handle=ax, linewidth=2, fmt='o:', markersize=5, label='Data nontarget'
+            ax_handle=ax, linewidth=2, fmt='o--', markersize=5, label='Data nontarget'
         )
         utils.plot_mean_std_area(
             T_space,
@@ -312,7 +318,7 @@ class PlotsFitExperimentAllTPaperTheo(object):
             data_em_fits['std'][3],
             xlabel='Number of items',
             ylabel="Mixture probabilities",
-            ax_handle=ax, linewidth=2, fmt='o:', markersize=5, label='Data random'
+            ax_handle=ax, linewidth=2, fmt='o--', markersize=5, label='Data random'
         )
 
         ax.legend(prop={'size': 15},

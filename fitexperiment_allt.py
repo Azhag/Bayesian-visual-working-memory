@@ -47,6 +47,7 @@ class FitExperimentAllT(object):
         self.experiment_data_to_fit = None
         self.T_space = None
         self.num_datapoints = -1
+        self.em_fits_arrays = None
 
         self.parameters = parameters
         self.debug = debug
@@ -174,6 +175,20 @@ class FitExperimentAllT(object):
             Returns the list of possible names currently cached.
         '''
         return self.cache_responses[self.enforced_T].keys()
+
+
+    def get_em_fits_arrays(self):
+        '''
+            Give a numpy array of the current EM Fits.
+
+            Returns:
+            * dict(mean=np.array, std=np.array)
+        '''
+
+        if self.em_fits_arrays is None:
+            self.em_fits_arrays = self.experimental_dataset['em_fits_nitems_arrays']
+
+        return self.em_fits_arrays
 
 
     def apply_fct_dataset_T(self, T, fct_infos):

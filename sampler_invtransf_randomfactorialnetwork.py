@@ -375,7 +375,7 @@ class Sampler:
             print "initial loglikelihood: %.2f" % self.compute_loglikelihood()
 
             for pass_i in xrange(self.num_sampling_passes):
-                print "--> Pass %d" % (pass_i + 1)
+                # print "--> Pass %d" % (pass_i + 1)
                 self.sample_all()
 
         elif self.inference_method == 'max_lik':
