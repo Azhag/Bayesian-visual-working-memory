@@ -94,6 +94,7 @@ def launcher_do_fitexperiment_subject_allmetrics(args):
                 # Sample
                 print " sampling..."
                 self.sampler.run_inference(parameters)
+                self.store_responses('samples')
 
                 # Compute precision
                 print " get precision..."

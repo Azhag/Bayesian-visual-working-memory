@@ -9,7 +9,7 @@ import scipy.stats as spst
 import pycircstat
 import warnings
 
-plt.rcParams['font.size'] = 24
+# plt.rcParams['font.size'] = 24
 
 
 class PlotsFitExperimentAllTPaperTheo(object):
@@ -56,7 +56,7 @@ class PlotsFitExperimentAllTPaperTheo(object):
             self.plots_memmixtcurves_fig6fig13()
 
 
-    def plots_distrib_errors_data_fig2(self):
+    def plots_distrib_errors_data_fig2(self, size=6):
         '''
             HUMAN DATA for Fig5
             Same as plots_distrib_errors_fig5, but for the Experimental data
@@ -65,7 +65,7 @@ class PlotsFitExperimentAllTPaperTheo(object):
         '''
         f, axes = plt.subplots(nrows=2,
                                ncols=self.fit_exp.T_space.size,
-                               figsize=(14, 10)
+                               figsize=(2*size, size)
                                )
 
         for t_i, T in enumerate(self.fit_exp.T_space):
@@ -85,11 +85,11 @@ class PlotsFitExperimentAllTPaperTheo(object):
             else:
                 axes[1, t_i].axis('off')
 
-        f.suptitle('Fig2 - Human distribution errors')
+        f.suptitle('Fig2 - Human distribution errors', y=0.95)
         return axes
 
 
-    def plots_distrib_errors_fig5(self):
+    def plots_distrib_errors_fig5(self, size=6):
         '''
             Series of plots reproducing Fig 5 - Distribution of errors of the
             model
@@ -99,7 +99,7 @@ class PlotsFitExperimentAllTPaperTheo(object):
 
         f, axes = plt.subplots(nrows=2,
                                ncols=self.fit_exp.T_space.size,
-                               figsize=(14, 10)
+                               figsize=(2*size, size)
                                )
 
         for t_i, T in enumerate(self.fit_exp.T_space):
@@ -123,18 +123,22 @@ class PlotsFitExperimentAllTPaperTheo(object):
             else:
                 axes[1, t_i].axis('off')
 
-        f.suptitle('Fig5 - Model distribution errors')
+        f.suptitle('Fig5 - Model distribution errors', y=0.95)
         return axes
 
 
-    def plots_KS_comparison_fig2fig5(self, bins=41, show_ks_pval=True):
+    def plots_KS_comparison_fig2fig5(self,
+                                     bins=41,
+                                     show_pval=True,
+                                     size=6
+                                     ):
         '''
             Will plot the ECDF of data/samples and then do Kolmogorov-Smirnov /Kuiper 2-samples tests on them.
         '''
 
         f, axes = plt.subplots(nrows=2,
                                ncols=self.fit_exp.T_space.size,
-                               figsize=(14, 10)
+                               figsize=(size*2, size)
                                )
 
         result_KS = dict(human=dict(),
@@ -182,20 +186,20 @@ class PlotsFitExperimentAllTPaperTheo(object):
             ### Plot everything
             axes[0, t_i].plot(result_KS['human'][T]['targets']['x'],
                               result_KS['human'][T]['targets']['ecdf'],
-                              label='human'
+                              label='data'
                               )
             axes[0, t_i].plot(result_KS['model'][T]['targets']['x'],
                               result_KS['model'][T]['targets']['ecdf'],
                               label='model'
                               )
             axes[0, t_i].set_title('')
+            axes[0, t_i].set_xlim((-np.pi, np.pi))
             # axes[0, t_i].set_ylim((0, 2))
 
-            if show_ks_pval:
+            if show_pval:
                 axes[0, t_i].text(
                     0.02, 0.99,
                     "KS p: %.2f" % result_KS['ks_pval'][T]['targets'],
-                    size=12,
                     transform=axes[0, t_i].transAxes,
                     horizontalalignment='left',
                     verticalalignment='top'
@@ -203,7 +207,6 @@ class PlotsFitExperimentAllTPaperTheo(object):
                 axes[0, t_i].text(
                     0.02, 0.9,
                     "Kuiper p: %.2f" % result_KS['kuiper_pval'][T]['targets'],
-                    size=12,
                     transform=axes[0, t_i].transAxes,
                     horizontalalignment='left',
                     verticalalignment='top'
@@ -212,19 +215,19 @@ class PlotsFitExperimentAllTPaperTheo(object):
             if T > 1:
                 axes[1, t_i].plot(result_KS['human'][T]['nontargets']['x'],
                                   result_KS['human'][T]['nontargets']['ecdf'],
-                                  label='human'
+                                  label='data'
                                   )
                 axes[1, t_i].plot(result_KS['model'][T]['nontargets']['x'],
                                   result_KS['model'][T]['nontargets']['ecdf'],
                                   label='model'
                                   )
                 axes[1, t_i].set_title('')
+                axes[1, t_i].set_xlim((-np.pi, np.pi))
 
-                if show_ks_pval:
+                if show_pval:
                     axes[1, t_i].text(
                         0.02, 0.99,
                         "KS p: %.2f" % result_KS['ks_pval'][T]['nontargets'],
-                        size=12,
                         transform=axes[1, t_i].transAxes,
                         horizontalalignment='left',
                         verticalalignment='top'
@@ -232,7 +235,6 @@ class PlotsFitExperimentAllTPaperTheo(object):
                     axes[1, t_i].text(
                         0.02, 0.9,
                         "Kuiper p: %.2f" % result_KS['kuiper_pval'][T]['nontargets'],
-                        size=12,
                         transform=axes[1, t_i].transAxes,
                         horizontalalignment='left',
                         verticalalignment='top'
@@ -240,10 +242,10 @@ class PlotsFitExperimentAllTPaperTheo(object):
             else:
                 axes[1, t_i].axis('off')
 
-        axes[0, -1].legend(prop={'size': 15},
-                           loc='upper left',
-                           bbox_to_anchor=(1., 1.)
-                           )
+        axes[1, 1].legend(loc='center',
+                          bbox_to_anchor=(0.5, 0.5),
+                          bbox_transform=axes[1, 0].transAxes
+                          )
 
         f.suptitle('ECDF between human and model')
 
@@ -251,7 +253,12 @@ class PlotsFitExperimentAllTPaperTheo(object):
 
 
 
-    def plots_memmixtcurves_fig6fig13(self, num_repetitions=1, use_cache=True):
+    def plots_memmixtcurves_fig6fig13(self,
+                                      num_repetitions=1,
+                                      use_cache=True,
+                                      layout='vertical',
+                                      size=6
+                                      ):
         '''
             Plots the memory fidelity for all T and the mixture proportions for all T
         '''
@@ -292,9 +299,12 @@ class PlotsFitExperimentAllTPaperTheo(object):
 
         # Do the plots
         if self.do_memcurves_fig6 and self.do_mixtcurves_fig13:
-            f, axes = plt.subplots(nrows=2, figsize=(12, 18))
+            if layout == 'vertical':
+                f, axes = plt.subplots(nrows=2, figsize=(size, size*2))
+            else:
+                f, axes = plt.subplots(ncols=2, figsize=(size*2, size))
         else:
-            f, ax = plt.subplots(figsize=(12, 9))
+            f, ax = plt.subplots(figsize=(size, size))
             axes = [ax]
         ax_i = 0
 
@@ -337,7 +347,7 @@ class PlotsFitExperimentAllTPaperTheo(object):
             data_em_fits['mean'][0],
             data_em_fits['std'][0],
             linewidth=3, fmt='o-', markersize=8,
-            label='Experimental data',
+            label='Data',
             ax_handle=ax
         )
 
@@ -351,12 +361,11 @@ class PlotsFitExperimentAllTPaperTheo(object):
             ylabel="Memory error $[rad^{-2}]$",
             linewidth=3,
             fmt='o-', markersize=8,
-            label='Fitted kappa',
+            label='Model',
             ax_handle=ax
         )
 
-        ax.legend(prop={'size': 15},
-                  loc='upper left',
+        ax.legend(loc='upper right',
                   bbox_to_anchor=(1., 1.)
                   )
         ax.set_xlim([0.9, T_space.max()+0.1])
@@ -445,8 +454,7 @@ class PlotsFitExperimentAllTPaperTheo(object):
             ax_handle=ax, linewidth=2, fmt='o--', markersize=5, label='Data random'
         )
 
-        ax.legend(prop={'size': 15},
-                  loc='upper left',
+        ax.legend(loc='upper left',
                   bbox_to_anchor=(1., 1.)
                   )
 
