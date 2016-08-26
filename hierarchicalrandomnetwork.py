@@ -18,7 +18,7 @@ import matplotlib.colors as pltcol
 from randomfactorialnetwork import *
 from utils import *
 
-class HierarchialRandomNetwork(RandomFactorialNetwork):
+class HierarchialRandomNetwork(object):
     '''
         Network built hiearchically.
         Consist of two layers:
@@ -46,7 +46,7 @@ class HierarchialRandomNetwork(RandomFactorialNetwork):
 
         self.rcscale_layer_one = rcscale_layer_one
         self.ratio_layer_one = ratio_layer_one
-        self.gain_layer_one = 1.0 # 4.*np.pi**2.
+        self.gain_layer_one = 1.0  # 4.*np.pi**2.
         self.optimal_coverage = optimal_coverage
         self.sigma_weights = sigma_weights
         self.normalise_weights = normalise_weights
@@ -240,7 +240,7 @@ class HierarchialRandomNetwork(RandomFactorialNetwork):
 
     ##### Theoretical stuff
 
-    def compute_marginal_inverse_FI(self, k_items, inv_cov_stim, max_n_samples=int(1e5), min_distance=0.1, convergence_epsilon = 1e-7, debug=False):
+    def compute_marginal_inverse_FI(self, k_items, inv_cov_stim, max_n_samples=int(1e5), min_distance=0.1, convergence_epsilon=1e-7, debug=False):
         '''
             Computing the fisher information for a hierarchical code is not yet defined.
         '''

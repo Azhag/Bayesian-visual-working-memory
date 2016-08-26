@@ -96,9 +96,9 @@ def plots_check_bias_nontarget(dataset, dataio=None):
     # Get histograms of bias to nontargets. Do that by binning the errors to others nontargets of the array.
     utils.plot_hists_bias_nontargets(dataset['errors_all_nitems'][n_items_space>1], bins=20, dataio=dataio, label='allnontargets', remove_first_column=True)
 
-    rayleigh_test = utils.rayleigh_test(dataset['errors_all_nitems'][n_items_space>1].flatten())
+    rayleigh = utils.rayleigh(dataset['errors_all_nitems'][n_items_space>1].flatten())
     v_test = utils.V_test(dataset['errors_all_nitems'][n_items_space>1].flatten())
-    print rayleigh_test
+    print rayleigh
     print v_test
 
 

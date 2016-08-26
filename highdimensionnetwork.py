@@ -856,7 +856,7 @@ class HighDimensionNetwork(object):
 
         rn = HighDimensionNetwork(M, R=R, response_maxout=response_maxout)
 
-        rn.conj_subpop_size = int(M*ratio_feature_conjunctive)
+        rn.conj_subpop_size = int(np.round(M*ratio_feature_conjunctive))
         rn.feat_subpop_size = M - rn.conj_subpop_size
 
         if autoset_parameters:
@@ -869,7 +869,7 @@ class HighDimensionNetwork(object):
                 feat_scale = utils.stddev_to_kappa(np.pi)
                 feat_ratio = cls.compute_optimal_rcscale(rn.feat_subpop_size, R, population_code_type='feature')/feat_scale
 
-        print "Population sizes: ratio: %.1f conj: %d, feat: %d, autoset: %d" % (ratio_feature_conjunctive, rn.conj_subpop_size, rn.feat_subpop_size, autoset_parameters)
+        print "Population sizes: ratio: %.2f conj: %d, feat: %d, autoset: %d" % (ratio_feature_conjunctive, rn.conj_subpop_size, rn.feat_subpop_size, autoset_parameters)
 
         # Create the conjunctive subpopulation
         rn.assign_prefered_stimuli(tiling_type='conjunctive', reset=True, specific_neurons=np.arange(rn.conj_subpop_size))

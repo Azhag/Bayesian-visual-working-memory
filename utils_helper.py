@@ -292,6 +292,9 @@ def fix_M_ratioconj(M, ratio_conj):
     M_feat_true = np.asarray(np.floor((M-M_conj_prior)/2.)*2.).astype(int)
     M_corrected = M_conj_true + M_feat_true
     ratio_corrected = M_conj_true/np.asarray(M_corrected).astype(float)
+
+    assert np.allclose(np.round(M_corrected*ratio_corrected), M_conj_true), "Error in ratio here..."
+
     return M_corrected, ratio_corrected
 
 
