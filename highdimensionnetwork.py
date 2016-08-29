@@ -501,16 +501,126 @@ class HighDimensionNetwork(object):
             return 0.
 
 
-    def compute_marginal_inverse_FI(self, k_items, inv_cov_stim, max_n_samples=int(1e5), min_distance=0.1, convergence_epsilon=1e-7, debug=False):
+    def compute_sample_inverse_FI(self, nitems, inv_cov_stim, min_distance=0.17):
         '''
-            Computing the fisher information for a HighDimensionNetwork is not yet defined.
+            Compute one sample estimate of the Inverse Fisher Information, nitems.
+
+            Those samples can then be averaged together in a Monte Carlo scheme to provide a better estimate of the Inverse Fisher Information for K items.
+
+            Assume the first item is fixed at (0, 0), sample the other uniformly
         '''
 
-        print '[highdimensionnetwork.compute_marginal_inverse_FI] Watch out, actually not using the correct one...'
+        all_items = [np.array([0.0, 0.0])]
 
-        FI = self.compute_fisher_information(stimulus_input=self.default_stimulus_input, inv_cov_stim=inv_cov_stim)
+        # Add extra items
+        for item_i in xrange(nitems - 1):
+            new_item = utils.sample_angle(size=2)
+            while not utils.enforce_distance_set(new_item,
+                                                 all_items,
+                                                 min_distance):
+                new_item = utils.sample_angle(size=2)
 
-        return dict(inv_FI=FI**-1., inv_FI_std=0.0, FI=FI, FI_std=0.0)
+            all_items.append(new_item)
+
+        items_thetas = np.array(all_items)
+
+        # Compute all derivatives
+        deriv_mu = np.zeros((2*nitems, self.M))
+        for i in xrange(nitems):
+            deriv_mu[2*i] = self.get_derivative_network_response(derivative_feature_target=0, stimulus_input=items_thetas[i])
+            deriv_mu[2*i + 1] = self.get_derivative_network_response(derivative_feature_target=1, stimulus_input=items_thetas[i])
+        deriv_mu[np.isnan(deriv_mu)] = 0.0
+
+        # Compute the Fisher information matrix
+        FI_nobj = np.dot(deriv_mu, np.dot(inv_cov_stim, deriv_mu.T))
+
+        try:
+            inv_FI_nobj = np.linalg.inv(FI_nobj)
+        except np.linalg.linalg.LinAlgError:
+            inv_FI_nobj = np.nan*np.empty(FI_nobj.shape)
+
+        return inv_FI_nobj[0, 0], FI_nobj[0, 0]
+
+
+    def compute_marginal_inverse_FI(self,
+                                    nitems,
+                                    inv_cov_stim,
+                                    max_n_samples=int(1e5),
+                                    min_distance=0.1,
+                                    convergence_epsilon=1e-7,
+                                    debug=False):
+        '''
+            Compute a Monte Carlo estimate of the Marginal Inverse Fisher Information
+            Averages over stimuli values. Requires the inverse of the covariance of the memory.
+
+            Returns dict(inv_FI, inv_FI_std, FI, FI_std)
+        '''
+
+        min_num_samples_std = int(2e3)
+
+        marginal_fi_dict = dict(inv_FI=0,
+                                inv_FI_std=0,
+                                FI=0,
+                                FI_std=0
+                                )
+        inv_FI_cum = 0
+        FI_cum = 0
+        FI_cum_var = 0
+        inv_FI_cum_var = 0
+        epsilon = 0
+
+        new_estimates = np.zeros(4)
+        previous_estimates = np.zeros(4)
+
+        search_progress = progress.Progress(max_n_samples)
+        for i in xrange(max_n_samples):
+
+            if i % 1000 == 0 and debug:
+                sys.stdout.write("%.1f%%, %s: %d %s %s %s %s %f\r" % (search_progress.percentage(), search_progress.time_remaining_str(), i, inv_FI_estimate, inv_FI_std_estimate, FI_estimate, FI_std_estimate, epsilon))
+                sys.stdout.flush()
+
+            # Get sample of invFI and FI
+            inv_FI_sample, FI_sample = self.compute_sample_inverse_FI(
+                nitems, inv_cov_stim, min_distance
+            )
+
+            # Compute mean
+            inv_FI_cum += inv_FI_sample/float(max_n_samples)
+            FI_cum += FI_sample/float(max_n_samples)
+
+            # Compute std (wrong but oh well...)
+            if i > min_num_samples_std:
+                inv_FI_cum_var += (inv_FI_sample -
+                    inv_FI_cum*max_n_samples/(i+1.))**2./float(max_n_samples)
+                FI_cum_var += (FI_sample -
+                    FI_cum*max_n_samples/(i+1.))**2./float(max_n_samples)
+
+            # Compute current running averages
+            marginal_fi_dict['inv_FI'] = inv_FI_cum*max_n_samples/(i+1.)
+            marginal_fi_dict['inv_FI_std']  = np.sqrt(
+                inv_FI_cum_var*max_n_samples/(i+1.))/np.sqrt(i+1)
+            marginal_fi_dict['FI'] = FI_cum*max_n_samples/(i+1.)
+            marginal_fi_dict['FI_std'] = np.sqrt(
+                FI_cum_var*max_n_samples/(i+1.))/np.sqrt(i+1)
+
+            search_progress.increment()
+
+            if i > 1.5*min_num_samples_std:
+                # Check convergence
+                for k_i, k in enumerate(marginal_fi_dict):
+                    new_estimates[k_i] = marginal_fi_dict[k]
+
+                epsilon = np.nansum(np.abs(previous_estimates - new_estimates))
+
+                if epsilon <= convergence_epsilon:
+                    # Converged, stop the loop
+                    if debug:
+                        print "Converged after %d samples" % i
+                    break
+
+                previous_estimates = new_estimates
+
+        return marginal_fi_dict
 
 
     def compute_fisher_information_theoretical(self, sigma=None):
@@ -529,7 +639,9 @@ class HighDimensionNetwork(object):
             print "This looks wrong, doesnt fit at all"
             rho = 1./(np.pi**2./self.M**2.)
         else:
-            raise NotImplementedError('Fisher information not defined for population type ' + self.population_code_type)
+            print 'Fisher information not defined for population type ' + self.population_code_type
+            return 0
+
 
         kappa1 = self.rc_scale[0]
         kappa2 = self.rc_scale[1]
