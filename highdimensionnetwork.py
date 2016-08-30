@@ -501,7 +501,11 @@ class HighDimensionNetwork(object):
             return 0.
 
 
-    def compute_sample_inverse_FI(self, nitems, inv_cov_stim, min_distance=0.17):
+    def compute_sample_inverse_FI(self,
+                                  inv_cov_stim,
+                                  items_thetas=None,
+                                  nitems=0,
+                                  min_distance=0.17):
         '''
             Compute one sample estimate of the Inverse Fisher Information, nitems.
 
@@ -510,19 +514,21 @@ class HighDimensionNetwork(object):
             Assume the first item is fixed at (0, 0), sample the other uniformly
         '''
 
-        all_items = [np.array([0.0, 0.0])]
-
-        # Add extra items
-        for item_i in xrange(nitems - 1):
-            new_item = utils.sample_angle(size=2)
-            while not utils.enforce_distance_set(new_item,
-                                                 all_items,
-                                                 min_distance):
+        if items_thetas is None:
+            all_items = [np.array([0.0, 0.0])]
+            # Add extra items
+            for item_i in xrange(nitems - 1):
                 new_item = utils.sample_angle(size=2)
+                while not utils.enforce_distance_set(new_item,
+                                                     all_items,
+                                                     min_distance):
+                    new_item = utils.sample_angle(size=2)
 
-            all_items.append(new_item)
+                all_items.append(new_item)
 
-        items_thetas = np.array(all_items)
+            items_thetas = np.array(all_items)
+        else:
+            nitems = items_thetas.shape[0]
 
         # Compute all derivatives
         deriv_mu = np.zeros((2*nitems, self.M))
@@ -575,7 +581,7 @@ class HighDimensionNetwork(object):
         for i in xrange(max_n_samples):
             # Get sample of invFI and FI
             inv_FI_sample, FI_sample = self.compute_sample_inverse_FI(
-                nitems, inv_cov_stim, min_distance
+                inv_cov_stim, nitems=nitems, min_distance=min_distance
             )
 
             # Compute mean

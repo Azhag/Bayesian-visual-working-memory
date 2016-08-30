@@ -7,6 +7,7 @@ import os
 import numpy as np
 import experimentlauncher
 import inspect
+import utils
 
 # Commit @d8c9acb
 
@@ -30,6 +31,7 @@ submit_cmd = 'sbatch'
 num_repetitions = 3
 
 run_label = 'fisher2016_random_large_repetitions{num_repetitions}_300816'
+sleeping_period = dict(min=30, max=60)
 
 pbs_submission_infos = dict(description='Large random sweep of all parameters. Will compute Fisher info, EM Fits and a few other stuff, to be used in parameter sensibility plots for Thesis.',
                             command='python $WORKDIR/experimentlauncher.py',
@@ -39,19 +41,19 @@ pbs_submission_infos = dict(description='Large random sweep of all parameters. W
                                                ratio_conj=1,
                                                M=100,
                                                sigmax=0.1,
-                                               renormalize_sigmax=None,
+                                               renormalize_sigma=None,
                                                N=200,
                                                R=2,
-                                               T=6,
-                                               sigmay=0.0001,
+                                               T=1,
+                                               sigmay=0.000001,
                                                sigma_output=0.0,
                                                sigma_baseline=0.0,
                                                inference_method='sample',
-                                               num_samples=200,
+                                               num_samples=50,
                                                selection_num_samples=1,
                                                selection_method='last',
                                                slice_width=0.07,
-                                               burn_samples=200,
+                                               burn_samples=100,
                                                num_repetitions=num_repetitions,
                                                enforce_min_distance=0.17,
                                                specific_stimuli_random_centers=None,
@@ -75,18 +77,17 @@ pbs_submission_infos = dict(description='Large random sweep of all parameters. W
 
 
 ## Define our filtering function
-def filtering_function(new_parameters, dict_parameters_range, function_parameters=None):
+def filtering_function(new_parameters,
+                       dict_parameters_range,
+                       function_parameters=None):
     '''
     Given M and ratio_conj, will adapt them so that M_conj is always correct and integer.
 
     or if should_clamp is False, will not change them
     '''
 
-    M_conj_prior = int(new_parameters['M']*new_parameters['ratio_conj'])
-    M_conj_true = int(np.floor(M_conj_prior**0.5)**2)
-    M_feat_true = int(np.floor((new_parameters['M']-M_conj_prior)/2.)*2.)
-    M_true = M_conj_true + M_feat_true
-    ratio_true = M_conj_true/float(M_true)
+    M_true, ratio_true = utils.fix_M_ratioconj(
+        new_parameters['M'], new_parameters['ratio_conj'])
 
     if function_parameters['should_clamp']:
         # Clamp them and return true
@@ -101,6 +102,11 @@ def filtering_function(new_parameters, dict_parameters_range, function_parameter
 filtering_function_parameters = {'should_clamp': True}
 
 dict_parameters_range = dict(
+    T=dict(sampling_type='randint',
+           low=1,
+           high=6,
+           dtype=int
+           ),
     M=dict(sampling_type='randint',
            low=6,
            high=625,
@@ -120,12 +126,7 @@ dict_parameters_range = dict(
                         low=0.01,
                         high=0.8,
                         dtype=float
-                        ),
-    sigma_output=dict(sampling_type='uniform',
-                      low=0.0,
-                      high=1.5,
-                      dtype=float
-                      )
+                        )
 )
 
 if __name__ == '__main__':
