@@ -548,7 +548,7 @@ class HighDimensionNetwork(object):
                                     max_n_samples=int(1e5),
                                     min_distance=0.1,
                                     convergence_epsilon=1e-7,
-                                    debug=False):
+                                    debug=True):
         '''
             Compute a Monte Carlo estimate of the Marginal Inverse Fisher Information
             Averages over stimuli values. Requires the inverse of the covariance of the memory.
@@ -572,13 +572,7 @@ class HighDimensionNetwork(object):
         new_estimates = np.zeros(4)
         previous_estimates = np.zeros(4)
 
-        search_progress = progress.Progress(max_n_samples)
         for i in xrange(max_n_samples):
-
-            if i % 1000 == 0 and debug:
-                sys.stdout.write("%.1f%%, %s: %d %s %s %s %s %f\r" % (search_progress.percentage(), search_progress.time_remaining_str(), i, inv_FI_estimate, inv_FI_std_estimate, FI_estimate, FI_std_estimate, epsilon))
-                sys.stdout.flush()
-
             # Get sample of invFI and FI
             inv_FI_sample, FI_sample = self.compute_sample_inverse_FI(
                 nitems, inv_cov_stim, min_distance
@@ -597,13 +591,11 @@ class HighDimensionNetwork(object):
 
             # Compute current running averages
             marginal_fi_dict['inv_FI'] = inv_FI_cum*max_n_samples/(i+1.)
-            marginal_fi_dict['inv_FI_std']  = np.sqrt(
+            marginal_fi_dict['inv_FI_std'] = np.sqrt(
                 inv_FI_cum_var*max_n_samples/(i+1.))/np.sqrt(i+1)
             marginal_fi_dict['FI'] = FI_cum*max_n_samples/(i+1.)
             marginal_fi_dict['FI_std'] = np.sqrt(
                 FI_cum_var*max_n_samples/(i+1.))/np.sqrt(i+1)
-
-            search_progress.increment()
 
             if i > 1.5*min_num_samples_std:
                 # Check convergence

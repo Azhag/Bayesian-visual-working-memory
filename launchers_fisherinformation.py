@@ -45,9 +45,10 @@ def launcher_check_fisher_fit_1obj_2016(args):
     result_FI_rc_theo = np.nan*np.empty((all_parameters['N'], all_parameters['num_repetitions']), dtype=float)
     result_FI_rc_theocov = np.nan*np.empty((all_parameters['N'], all_parameters['num_repetitions']), dtype=float)
     result_FI_rc_theo_largeN = np.nan*np.empty((all_parameters['num_repetitions']), dtype=float)
-    result_marginal_inv_FI = np.nan*np.ones((4, all_parameters['num_repetitions']))  # inv_FI, inv_FI_std, FI, FI_std
+    result_marginal_inv_FI = np.nan*np.ones((2, all_parameters['num_repetitions']))
+    result_marginal_FI = np.nan*np.ones((2, all_parameters['num_repetitions']))
 
-    result_em_fits = np.nan*np.empty((5, all_parameters['num_repetitions']))
+    result_em_fits = np.nan*np.empty((6, all_parameters['num_repetitions']))
 
     search_progress = progress.Progress(all_parameters['num_repetitions'])
 
@@ -83,12 +84,15 @@ def launcher_check_fisher_fit_1obj_2016(args):
         print "fit mixture model..."
         curr_params_fit = sampler.fit_mixture_model(use_all_targets=False)
         curr_params_fit['mixt_nontargets_sum'] = np.sum(curr_params_fit['mixt_nontargets'])
-        result_em_fits[..., repet_i] = [curr_params_fit[key] for key in ('kappa', 'mixt_target', 'mixt_nontargets_sum', 'mixt_random', 'train_LL')]
+        result_em_fits[..., repet_i] = [curr_params_fit[key] for key in ('kappa', 'mixt_target', 'mixt_nontargets_sum', 'mixt_random', 'train_LL', 'bic')]
 
         # Compute marginal inverse fisher info
         print "compute marginal inverse fisher info"
         marginal_fi_dict = sampler.estimate_marginal_inverse_fisher_info_montecarlo()
-        result_marginal_inv_FI[:, repet_i] = [marginal_fi_dict[key] for key in ('inv_FI', 'inv_FI_std', 'FI', 'FI_std')]
+        result_marginal_inv_FI[:, repet_i] = [marginal_fi_dict[key]
+            for key in ('inv_FI', 'inv_FI_std')]
+        result_marginal_FI[:, repet_i] = [marginal_fi_dict[key]
+            for key in ('FI', 'FI_std')]
 
         ## Run callback function if exists
         if plots_during_simulation_callback:
