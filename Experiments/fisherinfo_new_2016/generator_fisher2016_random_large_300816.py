@@ -16,7 +16,7 @@ parameters_entryscript = dict(action_to_do='launcher_do_generate_submit_pbs_from
 submit_jobs = True
 
 parameter_generation = 'random'
-num_random_samples = 5000
+num_random_samples = 10000
 limit_max_queued_jobs = 70
 
 resource = ''
@@ -70,7 +70,7 @@ pbs_submission_infos = dict(description='Large random sweep of all parameters. W
                             pbs_submit_cmd=submit_cmd,
                             limit_max_queued_jobs=limit_max_queued_jobs,
                             source_dir=os.environ['WORKDIR_DROP'],
-                            submit_label='fisher_conj_3008',
+                            submit_label='fisher_3008',
                             resource=resource,
                             partition=partition,
                             qos='auto')
@@ -109,7 +109,7 @@ dict_parameters_range = dict(
            ),
     M=dict(sampling_type='randint',
            low=6,
-           high=625,
+           high=200,
            dtype=int
            ),
     ratio_conj=dict(sampling_type='uniform',
@@ -118,13 +118,13 @@ dict_parameters_range = dict(
                     dtype=float
                     ),
     sigmax=dict(sampling_type='uniform',
-                low=0.01,
-                high=0.8,
+                low=0.05,
+                high=0.6,
                 dtype=float
                 ),
     sigma_baseline=dict(sampling_type='uniform',
-                        low=0.01,
-                        high=0.8,
+                        low=0.05,
+                        high=0.6,
                         dtype=float
                         )
 )
