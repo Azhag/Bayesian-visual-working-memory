@@ -647,6 +647,18 @@ class HighDimensionNetwork(object):
         return kappa1**2.*rho*(scsp.i0(2*kappa1) - scsp.iv(2, 2*kappa1))*scsp.i0(2*kappa2)/(sigma**2.*8*np.pi**2.*scsp.i0(kappa1)**2.*scsp.i0(kappa2)**2.)
 
 
+    def compute_fisher_information_circulant(self, stimulus_input, cov_stim):
+
+        der_f = self.get_derivative_network_response(stimulus_input=stimulus_input)
+        der_f_tilde = np.fft.fft(der_f)
+        c_tilde = np.fft.fft(cov_stim[0])
+
+        # IF_fourier = np.abs(np.dot(der_f_tilde.conj(), c_tilde**-1*der_f_tilde))/der_f.size
+        IF_fourier = np.abs(np.dot(der_f_tilde.conj(), np.dot(np.diag(c_tilde**-1), der_f_tilde)))/der_f.size
+
+        return IF_fourier
+
+
 
     ########################
 

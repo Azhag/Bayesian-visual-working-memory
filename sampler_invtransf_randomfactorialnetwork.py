@@ -1302,6 +1302,23 @@ class Sampler:
         return self.random_network.compute_fisher_information_theoretical(sigma=sigma)
 
 
+    def estimate_fisher_info_circulant(self):
+        '''
+            Compute the Fisher Information assuming Circulant covariance
+        '''
+
+        # Compute the theoretical FI, for all samples
+        fisher_info_all = np.empty(self.N)
+
+        for n in xrange(self.N):
+            fisher_info_all[n] = self.random_network.compute_fisher_information_circulant(
+                self.data_gen.stimuli_correct[n, self.tc[n]],
+                self.noise_covariance
+            )
+
+        return fisher_info_all
+
+
     def estimate_marginal_inverse_fisher_info_montecarlo(self):
         '''
             Compute a Monte Carlo estimate of the Marginal Inverse Fisher Information.
