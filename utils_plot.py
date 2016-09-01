@@ -305,8 +305,8 @@ def plot_mean_std_from_samples_rolling(x, y, window=25, xlabel='', ylabel='', ti
     data_pd = pd.DataFrame(data=y, index=x)
     data_pd = data_pd.sort()
 
-    data_mean = pd.rolling_mean(data_pd, window, center=True)
-    data_std = pd.rolling_std(data_pd, window, center=True)
+    data_mean = data_pd.rolling(window=window,center=True).mean()
+    data_std = data_pd.rolling(window=window,center=True).std()
 
     # Now plot
     if ax_handle is None:

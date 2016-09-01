@@ -1,14 +1,8 @@
-"""
-    ExperimentDescriptor to fit the experimental data, using the Mixture models only.
-
-    Spawns random samples for now, let's see.
-"""
-
 import os
-# import numpy as np
+import numpy as np
 import experimentlauncher
 import inspect
-import getpass
+import utils
 
 # Commit @d8c9acb
 
@@ -16,69 +10,103 @@ import getpass
 parameters_entryscript = dict(action_to_do='launcher_do_generate_submit_pbs_from_param_files', output_directory='.')
 submit_jobs = True
 
-parameter_generation = 'random'  ## !!!!!! RANDOM HERE   !!!!!
-num_random_samples = 1000
-limit_max_queued_jobs = 60
+parameter_generation = 'random'
+num_random_samples = 10000
+limit_max_queued_jobs = 90
 
 resource = ''
+
+# partition = 'wrkstn'
+# partition = 'test'
+partition = 'intel-ivy'
 
 # submit_cmd = 'qsub'
 submit_cmd = 'sbatch'
 
-
 num_repetitions = 3
-M = 400
 
-run_label = 'rcscaleeffect_random_fitmixturemodels_rcscale_M{M}_repetitions{num_repetitions}_010916'
+run_label = 'fisher2016_random_large_3try_repetitions{num_repetitions}_010916'
+sleeping_period = dict(min=10, max=30)
 
-pbs_submission_infos = dict(description='Runs the model for 1..T items. Computes precision, Fisher information, fits the mixture model, and compare the mixture model fits to the experimental data (Bays09 and Gorgo11 here). Also stores all responses. Vary Rcscale, goal is to see where the optimal one lies.',
+pbs_submission_infos = dict(description='Small sweep to get Receptive width effect.',
                             command='python $WORKDIR/experimentlauncher.py',
-                            other_options=dict(action_to_do='launcher_do_fit_mixturemodels',
+                            other_options=dict(action_to_do='launcher_check_fisher_fit_1obj_2016',
                                                code_type='conj',
                                                output_directory='.',
-                                               ratio_conj=1.0,
-                                               M=M,
+                                               ratio_conj=1,
+                                               M=14*14,
                                                sigmax=0.25,
                                                renormalize_sigma=None,
-                                               N=300,
+                                               N=200,
+                                               R=2,
                                                T=1,
-                                               sigmay=0.0001,
+                                               sigmay=0.000001,
                                                sigma_output=0.0,
                                                sigma_baseline=0.0,
-                                               lapse_rate=0.0,
                                                inference_method='sample',
-                                               num_samples=300,
+                                               num_samples=50,
                                                selection_num_samples=1,
                                                selection_method='last',
                                                slice_width=0.07,
-                                               burn_samples=300,
+                                               burn_samples=50,
                                                num_repetitions=num_repetitions,
                                                enforce_min_distance=0.17,
                                                specific_stimuli_random_centers=None,
                                                stimuli_generation='random',
                                                stimuli_generation_recall='random',
-                                               collect_responses=None,
-                                               rc_scale=0.5,
+                                               rc_scale=1.0,
                                                label=run_label,
                                                experiment_data_dir=os.path.normpath(os.path.join(os.environ['WORKDIR_DROP'], '../../experimental_data')),
                                                ),
-                            walltime='10:00:00',
+                            walltime='1:00:00',
                             memory='2gb',
                             simul_out_dir=os.path.join(os.getcwd(), run_label.format(**locals())),
                             pbs_submit_cmd=submit_cmd,
                             limit_max_queued_jobs=limit_max_queued_jobs,
-                            submit_label='rcscale_effect',
+                            source_dir=os.environ['WORKDIR_DROP'],
+                            submit_label='fisher_3try_0109',
                             resource=resource,
+                            partition=partition,
                             qos='auto')
 
-if getpass.getuser() == 'dc-matt1':
-  pbs_submission_infos['pbs_unfilled_script'] = pbs_unfilled_script
-  pbs_submission_infos['walltime'] = '12:00:00'
+
+## Define our filtering function
+def filtering_function(new_parameters,
+                       dict_parameters_range,
+                       function_parameters=None):
+    '''
+    Given M and ratio_conj, will adapt them so that M_conj is always correct and integer.
+
+    or if should_clamp is False, will not change them
+    '''
+
+    M_true, ratio_true = utils.fix_M_ratioconj(
+        new_parameters['M'], new_parameters['ratio_conj'])
+
+    if function_parameters['should_clamp']:
+        # Clamp them and return true
+        new_parameters['M'] = M_true
+        new_parameters['ratio_conj'] = ratio_true
+
+        return True
+    else:
+        return np.allclose(M_true, new_parameters['M'])
 
 
-rc_scale_range     =   dict(sampling_type='uniform', low=0.01, high=60.0, dtype=float)
+filtering_function_parameters = {'should_clamp': True}
 
-dict_parameters_range =   dict(rc_scale = rc_scale_range)
+dict_parameters_range = dict(
+    T=dict(sampling_type='randint',
+           low=1,
+           high=1,
+           dtype=int
+           ),
+    rc_scale=dict(sampling_type='uniform',
+                  low=0.01,
+                  high=60.0,
+                  dtype=float
+                  ),
+)
 
 if __name__ == '__main__':
 

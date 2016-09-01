@@ -122,6 +122,8 @@ def plots_fitmixtmodel_rcscale_effect(data_pbs, generator_module=None):
     all_args = data_pbs.loaded_data['args_list']
     specific_arg = all_args[0]
     specific_arg['autoset_parameters'] = True
+    specific_arg['sigma_baseline'] = 0
+    specific_arg['lapse_rate'] = 0.0
     (_, _, _, sampler) = launchers.init_everything(specific_arg)
     optimal_rc_scale = sampler.random_network.rc_scale[0]
 
