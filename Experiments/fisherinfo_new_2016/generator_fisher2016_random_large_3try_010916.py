@@ -12,7 +12,7 @@ submit_jobs = True
 
 parameter_generation = 'random'
 num_random_samples = 10000
-limit_max_queued_jobs = 90
+limit_max_queued_jobs = 60
 
 resource = ''
 
@@ -70,35 +70,34 @@ pbs_submission_infos = dict(description='Small sweep to get Receptive width effe
                             qos='auto')
 
 
-## Define our filtering function
-def filtering_function(new_parameters,
-                       dict_parameters_range,
-                       function_parameters=None):
-    '''
-    Given M and ratio_conj, will adapt them so that M_conj is always correct and integer.
+# ## Define our filtering function
+# def filtering_function(new_parameters,
+#                        dict_parameters_range,
+#                        function_parameters=None):
+#     '''
+#     Given M and ratio_conj, will adapt them so that M_conj is always correct and integer.
 
-    or if should_clamp is False, will not change them
-    '''
+#     or if should_clamp is False, will not change them
+#     '''
 
-    M_true, ratio_true = utils.fix_M_ratioconj(
-        new_parameters['M'], new_parameters['ratio_conj'])
+#     M_true, ratio_true = utils.fix_M_ratioconj(
+#         new_parameters['M'], new_parameters['ratio_conj'])
 
-    if function_parameters['should_clamp']:
-        # Clamp them and return true
-        new_parameters['M'] = M_true
-        new_parameters['ratio_conj'] = ratio_true
+#     if function_parameters['should_clamp']:
+#         # Clamp them and return true
+#         new_parameters['M'] = M_true
+#         new_parameters['ratio_conj'] = ratio_true
 
-        return True
-    else:
-        return np.allclose(M_true, new_parameters['M'])
+#         return True
+#     else:
+#         return np.allclose(M_true, new_parameters['M'])
 
-
-filtering_function_parameters = {'should_clamp': True}
+# filtering_function_parameters = {'should_clamp': True}
 
 dict_parameters_range = dict(
     T=dict(sampling_type='randint',
            low=1,
-           high=1,
+           high=2,
            dtype=int
            ),
     rc_scale=dict(sampling_type='uniform',

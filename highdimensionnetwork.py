@@ -222,7 +222,7 @@ class HighDimensionNetwork(object):
             self.normalisation[specific_neurons] = np.prod(self.normalisation_fisher_all[specific_neurons], axis=-1)
 
 
-    def compute_maximum_activation_network(self, nb_samples=50):
+    def compute_maximum_activation_network(self, nb_samples=100):
         '''
             Try to estimate the maximum activation for the network.
 
