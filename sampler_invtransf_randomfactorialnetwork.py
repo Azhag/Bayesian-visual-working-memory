@@ -1056,13 +1056,16 @@ class Sampler:
             if show_current_theta:
                 ax_handle.axvline(x=self.theta[n, self.theta_target_index[n]], color='k', linestyle="--")
 
+            ax_handle.set_xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
+            ax_handle.set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=15)
+            ax_handle.set_yticks([])
             ax_handle.get_figure().canvas.draw()
 
         # Print the answers
         if debug:
             print "True angles: %s >> Inferred: %s" % (' | '.join(['%.3f' % x for x in self.data_gen.stimuli_correct[n, :, 0]]), ' | '.join(['%.3f' % x for x in all_angles[opt_angles]]))
 
-        plt.show()
+        # plt.show()
 
         if should_return:
             return llh_2angles_out

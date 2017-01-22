@@ -674,6 +674,9 @@ class HighDimensionNetwork(object):
         return (feature_space1, feature_space2, cross_array)
 
 
+    def init_feature_space(self, precision=100, endpoint=True):
+        return np.linspace(-np.pi, np.pi, precision, endpoint=endpoint)
+
 
     ######################## PLOTS ######################################
 
@@ -736,11 +739,11 @@ class HighDimensionNetwork(object):
 
         (mean_activity, feature_space1, feature_space2) = self.get_mean_activity(precision=precision, specific_neurons=specific_neurons, return_axes_vect=True)
 
-        print "%.3f %.5f" % (np.mean(mean_activity), np.std(mean_activity.flatten()))
+        print(np.mean(mean_activity), np.std(mean_activity.flatten()))
 
-        utils.pcolor_2d_data(mean_activity, x=feature_space1, y=feature_space2, xlabel='Color', ylabel='Orientation', colorbar=True, ticks_interpolate=5)
+        ax, im = utils.pcolor_2d_data(mean_activity, x=feature_space1, y=feature_space2, xlabel='Color', ylabel='Orientation', colorbar=True, ticks_interpolate=5, cmap='RdBu_r')
 
-        plt.show()
+        return ax, im
 
 
     def plot_neuron_activity(self, neuron_index=0, nb_stddev=1., precision=100):

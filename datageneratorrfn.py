@@ -46,7 +46,7 @@ class DataGeneratorRFN(DataGenerator):
                  cued_feature_time=0,
                  enforce_min_distance=0.17,
                  stimuli_generation='random',
-                 enforce_first_stimulus=True,
+                 enforce_first_stimulus=False,
                  stimuli_to_use=None,
                  specific_stimuli_random_centers=False,
                  specific_stimuli_asymmetric=False,
@@ -165,6 +165,11 @@ class DataGeneratorRFN(DataGenerator):
                         self.stimuli_correct[n, :, r] = angle_generator(self.T)
                         # self.stimuli_correct[n, :, r] = (np.random.rand(self.T)-0.5)*np.pi
                         tries += 1
+
+        if enforce_first_stimulus:
+            forced_stimuli = np.array([[-0.4, 0.4], [-1.5, 1.5], [np.pi/2., -np.pi + 0.3]])
+            self.stimuli_correct[0, :np.min((self.T, 3))] = forced_stimuli[:np.min((self.T, 3))]
+
 
 
     def generate_specific_stimuli(self, asymmetric=False, centre=np.array([0., 0.]), specific_stimuli_random_centers=True, randomise_target=True):
@@ -286,15 +291,15 @@ class DataGeneratorRFN(DataGenerator):
         display_type = self.random_network.population_code_type
 
         if display_type == 'conjunctive':
-            self.show_datapoint_conjunctive(n=n, colormap=colormap)
+            return self.show_datapoint_conjunctive(n=n, colormap=colormap)
         elif display_type == 'feature':
-            self.show_datapoint_features(n=n, colormap=colormap)
+            return self.show_datapoint_features(n=n, colormap=colormap)
         elif display_type == 'wavelet':
-            self.show_datapoint_wavelet(n=n, colormap=colormap)
+            return self.show_datapoint_wavelet(n=n, colormap=colormap)
         elif display_type == 'mixed':
-            self.show_datapoint_mixed(n=n, colormap=colormap)
+            return self.show_datapoint_mixed(n=n, colormap=colormap)
         elif display_type == 'hierarchical':
-            self.show_datapoint_hierarchical(n=n, colormap=colormap)
+            return self.show_datapoint_hierarchical(n=n, colormap=colormap)
         else:
             raise ValueError("Unknown population type:" + self.random_network.population_code_type)
 
@@ -329,6 +334,9 @@ class DataGeneratorRFN(DataGenerator):
             w = plt_patches.Wedge((self.stimuli_correct[n, t, 0], self.stimuli_correct[n, t, 1]), 0.25, 0, 360, 0.12, color=color_gen[t], alpha=1.0, linewidth=2)
             ax.add_patch(w)
 
+        return ax
+
+
 
     def show_datapoint_features(self, n=0, colormap=None):
         '''
@@ -339,13 +347,8 @@ class DataGeneratorRFN(DataGenerator):
         # TODO
 
         M = self.random_network.M
-
-        # When there are multiple centers per feature, we can reduce the space.
-
-        horiz_cells = np.arange(M/2/self.random_network.nb_feature_centers)
-        vert_cells = np.arange(M/2, (M/2+M/2/self.random_network.nb_feature_centers))
-
-
+        horiz_cells = np.arange(M/2)
+        vert_cells = np.arange(M/2, M)
         factor_2lines = 1.9
 
         f = plt.figure()
@@ -358,7 +361,15 @@ class DataGeneratorRFN(DataGenerator):
         ax.set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'))
 
         ax.set_yticks(())
-        ax.legend(['Horizontal cells', 'Vertical cells'], fancybox=True, borderpad=0.3, columnspacing=0.5, borderaxespad=0.1, handletextpad=0, handlelength=1.5, bbox_to_anchor=(1.0, 1.0))
+
+        ax.legend(['Orientation', 'Colour'],
+                  loc='upper right',
+                  fancybox=True,
+                  borderpad=0.3,
+                  columnspacing=0.5,
+                  borderaxespad=0.7,
+                  handletextpad=0,
+                  handlelength=1.5)
 
         # Show ellipses at the stimuli positions
         colmap = plt.get_cmap('gist_rainbow')
@@ -373,13 +384,11 @@ class DataGeneratorRFN(DataGenerator):
             w = plt_patches.Wedge((self.stimuli_correct[n, t, 1], 1.1*self.Y[n, horiz_cells].max() + factor_2lines*self.Y[n, horiz_cells].max()), 0.1, 0, 360, color=color_gen[t], alpha=1.0, linewidth=2)
             ax.add_patch(w)
 
-        plt.xlim((-np.pi, np.pi))
-        plt.ylim((-0.5, 1.2*(1.2*self.Y[n, horiz_cells].max() + factor_2lines*self.Y[n, horiz_cells].max())))
+        ax.set_xlim((-np.pi, np.pi))
+        ax.set_ylim((-0.5, 1.5*(1.2*self.Y[n, horiz_cells].max() + factor_2lines*self.Y[n, horiz_cells].max())))
 
-        # im = ax.imshow(np.reshape(self.Y[n], (2, M/2)).T, origin='lower', aspect='equal', interpolation='nearest')
-        # im.set_extent((-np.pi, np.pi, -np.pi, np.pi))
-        # ax.set_yticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
-        # ax.set_yticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'))
+
+        return ax
 
 
     def show_datapoint_mixed(self, n=0, colormap=None):
@@ -427,7 +436,14 @@ class DataGeneratorRFN(DataGenerator):
 
             ax.set_yticks(())
 
-            ax.legend(['Horizontal cells', 'Vertical cells'], fancybox=True, borderpad=0.3, columnspacing=0.5, borderaxespad=0.7, handletextpad=0, handlelength=1.5)
+            ax.legend(['Orientation', 'Colour'],
+                      loc='upper right',
+                      fancybox=True,
+                      borderpad=0.3,
+                      columnspacing=0.5,
+                      borderaxespad=0.7,
+                      handletextpad=0,
+                      handlelength=1.5)
 
             # Show ellipses at the stimuli positions
             colmap = plt.get_cmap('gist_rainbow')
@@ -444,6 +460,7 @@ class DataGeneratorRFN(DataGenerator):
 
             ax.set_xlim((-np.pi, np.pi))
             ax.set_ylim((-0.5, 1.5*(1.2*self.Y[n, horiz_cells].max() + factor_2lines*self.Y[n, horiz_cells].max())))
+        return ax
 
 
 
@@ -488,7 +505,8 @@ class DataGeneratorRFN(DataGenerator):
             ax.set_yticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'))
 
 
-        plt.show()
+        return ax
+
 
 
     def show_datapoint_flat(self, n=0, t=-1):
@@ -561,5 +579,6 @@ class DataGeneratorRFN(DataGenerator):
             e.set_facecolor('white')
             e.set_transform(axes_levelone[t].transData)
 
-        plt.show()
+
+
 

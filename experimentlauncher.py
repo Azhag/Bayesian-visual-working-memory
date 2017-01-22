@@ -83,6 +83,8 @@ class ExperimentLauncher(object):
         print 'Arguments:', sys.argv[1:]
 
         parser = argparse.ArgumentParser(description='Sample a model of Visual working memory.')
+        parser.add_argument('--seed', type=int, default=None,
+            help='Random seed to fix')
         parser.add_argument('--label',
             help='label added to output files', default='')
         parser.add_argument('--output_directory', nargs='?', default='Data/')
@@ -200,8 +202,6 @@ class ExperimentLauncher(object):
             help='Will use the "say" command to indicate when the launcher has completed.')
         parser.add_argument('--enforce_first_stimulus', dest='enforce_first_stimulus', action='store_true', default=False,
             help='Force some datapoints to known values.')
-        parser.add_argument('--no-enforce_first_stimulus', dest='enforce_first_stimulus', action='store_false',
-            help='Disable forcing to some datapoints to known values.')
         parser.add_argument('--verbose', dest='verbose', action='store_true', default=False,
             help='Prints more messages')
         parser.add_argument('--experiment_data_dir', dest='experiment_data_dir', default="../../experimental_data/",
@@ -288,6 +288,10 @@ class ExperimentLauncher(object):
 
         # Print the docstring
         print self.possible_launchers[self.args.action_to_do].__doc__
+
+        # Fix seed
+        if self.args.seed:
+            np.random.seed(self.args.seed)
 
         # Run the launcher
         self.all_vars = self.possible_launchers[self.args.action_to_do](self.args)
