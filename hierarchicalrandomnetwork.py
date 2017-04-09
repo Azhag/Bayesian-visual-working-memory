@@ -13,10 +13,12 @@ import numpy as np
 # import scipy.special as scsp
 # import progress
 from mpl_toolkits.axes_grid1 import ImageGrid
+from matplotlib.patches import Ellipse
 import matplotlib.colors as pltcol
 
-from randomfactorialnetwork import *
-from utils import *
+from highdimensionnetwork import HighDimensionNetwork
+import utils
+
 
 class HierarchialRandomNetwork(object):
     '''
@@ -25,15 +27,18 @@ class HierarchialRandomNetwork(object):
         - The first one provides some smooth basis on a conjunctive space of features.
         - The second samples the first randomly and computes a non-linear weighted sum of them
     '''
-
-    #### Constructors
-
-    def __init__(self, M, R=2, gain=1.0, ratio_hierarchical=None, M_layer_one=100, type_layer_one='conjunctive', output_both_layers=False, optimal_coverage=False, rcscale_layer_one=5.0, ratio_layer_one=200.0, gain_layer_one=4.*np.pi**2., nonlinearity_fct='positive_linear', threshold=0.0, sparsity_weights=0.7, distribution_weights='exponential', sigma_weights=0.5, normalise_weights=True, debug=True):
+    def __init__(self, M, R=2, gain=1.0, ratio_hierarchical=None,
+                 M_layer_one=100, type_layer_one='conjunctive',
+                 output_both_layers=False, optimal_coverage=False,
+                 rcscale_layer_one=5.0, ratio_layer_one=200.0,
+                 nonlinearity_fct='positive_linear', threshold=0.0,
+                 sparsity_weights=0.7, distribution_weights='exponential',
+                 sigma_weights=0.5, normalise_weights=True, debug=True):
 
         assert R == 2, 'HiearchialRandomNetwork defined over two features for now'
 
         if ratio_hierarchical is not None:
-            self.M_layer_two = int(np.round(ratio_hierarchical*M))
+            self.M_layer_two = int(np.round(ratio_hierarchical * M))
             self.M_layer_one = M - self.M_layer_two
         else:
             self.M_layer_two = M
@@ -46,7 +51,6 @@ class HierarchialRandomNetwork(object):
 
         self.rcscale_layer_one = rcscale_layer_one
         self.ratio_layer_one = ratio_layer_one
-        self.gain_layer_one = 1.0  # 4.*np.pi**2.
         self.optimal_coverage = optimal_coverage
         self.sigma_weights = sigma_weights
         self.normalise_weights = normalise_weights
@@ -90,12 +94,22 @@ class HierarchialRandomNetwork(object):
             Consists of another RFN, makes everything simpler and more logical
         '''
         if type_layer == 'conjunctive':
-
-            self.layer_one_network = RandomFactorialNetwork.create_full_conjunctive(self.M_layer_one, R=self.R, rcscale=self.rcscale_layer_one, autoset_parameters=self.optimal_coverage, response_type='bivariate_fisher', gain=self.gain_layer_one)
+            self.layer_one_network = \
+                HighDimensionNetwork.create_full_conjunctive(
+                    self.M_layer_one,
+                    R=self.R,
+                    rcscale=self.rcscale_layer_one,
+                    autoset_parameters=self.optimal_coverage,
+                    response_type='bivariate_fisher')
 
         elif type_layer == 'feature':
-
-            self.layer_one_network = RandomFactorialNetwork.create_full_features(self.M_layer_one, R=self.R, scale=self.rcscale_layer_one, ratio=self.ratio_layer_one, autoset_parameters=self.optimal_coverage, gain=self.gain_layer_one, nb_feature_centers=1)
+            self.layer_one_network = \
+                HighDimensionNetwork.create_full_features(
+                    self.M_layer_one,
+                    R=self.R,
+                    scale=self.rcscale_layer_one,
+                    ratio=self.ratio_layer_one,
+                    autoset_parameters=self.optimal_coverage)
         else:
             raise NotImplementedError('type_layer is conjunctive only for now')
 
@@ -109,7 +123,7 @@ class HierarchialRandomNetwork(object):
                     exponential, identity, rectify
         '''
 
-        if is_function(fct):
+        if utils.is_function(fct):
             # Function given, just use that
             self.nonlinearity_fct = fct
         else:
@@ -127,7 +141,7 @@ class HierarchialRandomNetwork(object):
                     # Correct response to account for 4 pi^2 term
 
                     def positive_linear(x):
-                        return (4.*np.pi**2.*x - self.threshold).clip(0.0)
+                        return (4. * np.pi**2. * x - self.threshold).clip(0.0)
                 else:
                     def positive_linear(x):
                         return (x - self.threshold).clip(0.0)
@@ -143,23 +157,29 @@ class HierarchialRandomNetwork(object):
         '''
 
         if distribution_weights == 'randn':
-            self.A_sampling = sigma_weights*np.random.randn(self.M_layer_two, self.M_layer_one)*(np.random.rand(self.M_layer_two, self.M_layer_one) <= sparsity)
+            self.A_sampling = sigma_weights * np.random.randn(self.M_layer_two, self.M_layer_one) * (np.random.rand(self.M_layer_two, self.M_layer_one) <= sparsity)
         elif distribution_weights == 'exponential':
-            self.A_sampling = np.random.exponential(sigma_weights, (self.M_layer_two, self.M_layer_one))*(np.random.rand(self.M_layer_two, self.M_layer_one) <= sparsity)
+            self.A_sampling = (
+                np.random.exponential(sigma_weights,
+                                      (self.M_layer_two, self.M_layer_one)) *
+                (np.random.rand(self.M_layer_two,
+                                self.M_layer_one) <= sparsity))
         else:
             raise ValueError('distribution_weights should be randn/exponential')
 
         if normalise == 1:
             # Normalise the rows to get a maximum activation level per neuron
             # self.A_sampling = self.A_sampling/np.sum(self.A_sampling, axis=0)
-            self.A_sampling = (self.A_sampling.T/(np.sum(self.A_sampling, axis=1))).T
+            self.A_sampling = (self.A_sampling.T / (np.sum(self.A_sampling,
+                                                           axis=1))).T
         elif normalise == 2:
             # Normalise the network activity by the number of layer one neurons
-            self.gain /= self.M_layer_one*sigma_weights
+            self.gain /= self.M_layer_one * sigma_weights
 
 
-    ##### Network behaviour
-
+    ##
+    # Network behaviour
+    ##
     def get_network_response(self, stimulus_input=None, specific_neurons=None, params={}):
         '''
             Output the activity of the network for the provided input.
@@ -168,7 +188,7 @@ class HierarchialRandomNetwork(object):
         '''
 
         if stimulus_input is None:
-            stimulus_input = (0.0,)*self.R
+            stimulus_input = (0.0,) * self.R
 
         # Get the response of layer one to the stimulus
         layer_one_response = self.get_layer_one_response(stimulus_input)
@@ -183,6 +203,15 @@ class HierarchialRandomNetwork(object):
         else:
             # Only layer two is relevant
             return layer_two_response
+
+
+    def sample_network_response(self, stimulus_input, sigma=0.2):
+        '''
+            Get a random response for the given stimulus.
+
+            return: Mx1
+        '''
+        return self.get_network_response(stimulus_input) + sigma * np.random.randn(self.M)
 
 
     def get_layer_one_response(self, stimulus_input=None, specific_neurons=None):
@@ -211,9 +240,9 @@ class HierarchialRandomNetwork(object):
         '''
 
         if specific_neurons is None:
-            self.current_layer_two_response = self.gain*self.nonlinearity_fct(np.dot(self.A_sampling, layer_one_response))
+            self.current_layer_two_response = self.gain * self.nonlinearity_fct(np.dot(self.A_sampling, layer_one_response))
         else:
-            self.current_layer_two_response = self.gain*self.nonlinearity_fct(np.dot(self.A_sampling[specific_neurons], layer_one_response))
+            self.current_layer_two_response = self.gain * self.nonlinearity_fct(np.dot(self.A_sampling[specific_neurons], layer_one_response))
 
         return self.current_layer_two_response
 
@@ -227,7 +256,7 @@ class HierarchialRandomNetwork(object):
         self.current_layer_one_response = self.layer_one_network.get_network_response_opt2d(theta1, theta2)
 
         # Combine those responses according the the sampling matrices
-        self.current_layer_two_response = self.gain*self.nonlinearity_fct(np.dot(self.A_sampling, self.current_layer_one_response))
+        self.current_layer_two_response = self.gain * self.nonlinearity_fct(np.dot(self.A_sampling, self.current_layer_one_response))
 
         if self.output_both_layers:
             # Should return the activity of both layers collated
@@ -238,7 +267,24 @@ class HierarchialRandomNetwork(object):
             return self.current_layer_two_response
 
 
-    ##### Theoretical stuff
+    def compute_maximum_activation_network(self, nb_samples=100):
+        '''
+            Try to estimate the maximum activation for the network.
+
+            This can be used to make sure sigmax is adapted, or to renormalize everything.
+        '''
+
+        test_samples = utils.sample_angle((nb_samples, self.R))
+
+        max_activation = 0
+        for test_sample in test_samples:
+            max_activation = max(np.nanmax(self.get_network_response(test_sample)), max_activation)
+
+        return max_activation
+
+    ##
+    # Theoretical stuff
+    ##
 
     def compute_marginal_inverse_FI(self, k_items, inv_cov_stim, max_n_samples=int(1e5), min_distance=0.1, convergence_epsilon=1e-7, debug=False):
         '''
@@ -250,7 +296,9 @@ class HierarchialRandomNetwork(object):
         return 0.0
 
 
-    ##### Plots
+    ##
+    # Plots
+    ##
 
     def plot_network_activity(self, stimulus_input=None):
         '''
@@ -260,7 +308,7 @@ class HierarchialRandomNetwork(object):
         '''
 
         if stimulus_input is None:
-            stimulus_input = (0,)*self.R
+            stimulus_input = (0,) * self.R
 
         # Compute activity of network on the stimulus
         self.get_network_response(stimulus_input=stimulus_input)
@@ -279,9 +327,9 @@ class HierarchialRandomNetwork(object):
         # Level one
         im = ax_layerone.imshow(self.current_layer_one_response.reshape(M_sqrt, M_sqrt).T, origin='lower', aspect='equal', interpolation='nearest')
         im.set_extent((-np.pi, np.pi, -np.pi, np.pi))
-        ax_layerone.set_xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
+        ax_layerone.set_xticks((-np.pi, -np.pi / 2, 0, np.pi / 2., np.pi))
         ax_layerone.set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'))
-        ax_layerone.set_yticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
+        ax_layerone.set_yticks((-np.pi, -np.pi / 2, 0, np.pi / 2., np.pi))
         ax_layerone.set_yticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'))
 
         e = Ellipse(xy=stimulus_input, width=0.4, height=0.4)
@@ -303,10 +351,10 @@ class HierarchialRandomNetwork(object):
         activity, feature_space1, feature_space2 = self.get_neuron_activity(neuron_index, precision=precision, return_axes_vect=True)
 
         # Plot it
-        ax_handle, _ = pcolor_2d_data(activity, x=feature_space1, y=feature_space2, ticks_interpolate=5, ax_handle=ax_handle, colorbar=draw_colorbar)
+        ax_handle, _ = utils.pcolor_2d_data(activity, x=feature_space1, y=feature_space2, ticks_interpolate=5, ax_handle=ax_handle, colorbar=draw_colorbar)
 
         # Change the ticks
-        selected_ticks = np.array(np.linspace(0, feature_space1.size-1, 5), dtype=int)
+        selected_ticks = np.array(np.linspace(0, feature_space1.size - 1, 5), dtype=int)
         ax_handle.set_xticks(selected_ticks)
         ax_handle.set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=17, rotation=0)
         ax_handle.set_yticks(selected_ticks)
@@ -333,21 +381,14 @@ class HierarchialRandomNetwork(object):
         # Construct the plot
         f = plt.figure()
 
-        axes_top = ImageGrid(f, 211,
-                             nrows_ncols = (1, nb_layer_two_neurons),
-                             direction="row",
-                             axes_pad = 0.2,
-                             add_all=True,
-                             label_mode = "L",
-                             share_all = True,
-                             cbar_location="right",
-                             cbar_mode="single",
-                             cbar_size="5%",
-                             cbar_pad=0.2,
-                             )
+        axes_top = ImageGrid(f, 211, nrows_ncols=(1, nb_layer_two_neurons),
+                             direction="row", axes_pad=0.2, add_all=True,
+                             label_mode="L", share_all=True,
+                             cbar_location="right", cbar_mode="single",
+                             cbar_size="5%", cbar_pad=0.2)
 
         norm = pltcol.normalize(vmax=activities_layertwo.max(), vmin=activities_layertwo.min())
-        selected_ticks = np.array(np.linspace(0, feature_space1.size-1, 5), dtype=int)
+        selected_ticks = np.array(np.linspace(0, feature_space1.size - 1, 5), dtype=int)
 
         for ax_top, activity_neuron in zip(axes_top, activities_layertwo):
             im = ax_top.imshow(activity_neuron.T, norm=norm, origin='lower left')
@@ -369,12 +410,6 @@ class HierarchialRandomNetwork(object):
         self.layer_one_network.plot_coverage_feature_space(nb_stddev=2, facecolor=facecolor_layerone, alpha_ellipses=alpha_ellipses, lim_factor=lim_factor, ax=ax_bottom, specific_neurons=np.arange(0, self.M_layer_one, 2))
 
         return axes_top, ax_bottom
-
-
-
-
-
-
 
 
 
@@ -414,23 +449,20 @@ if __name__ == '__main__':
 
     hrn_feat.plot_coverage_feature()
 
-    if True:
-        ## Try to PCA everything
-        try:
-            import sklearn.decomposition as skdec
+    # if True:
+    #     ## Try to PCA everything
+    #     try:
+    #         import sklearn.decomposition as skdec
+    #         samples_pca = [hrn1.sample_network_response(np.random.uniform(-np.pi, np.pi, (2)), sigma=0.2) for i in xrange(100)]
+    #         samples_pca.extend([hrn1.sample_network_response(np.random.uniform(-np.pi, np.pi, (2)), sigma=0.2) for i in xrange(100)])
+    #         samples_pca.extend([hrn1.sample_network_response(np.random.uniform(-np.pi, np.pi, (2)), sigma=0.2) for i in xrange(100)])
+    #         samples_pca = np.array(samples_pca)
 
-            samples_pca = [hrn1.sample_network_response(np.random.uniform(-np.pi, np.pi, (2)), sigma=0.2) for i in xrange(100)]
-            samples_pca.extend([hrn1.sample_network_response(np.random.uniform(-np.pi, np.pi, (2)), sigma=0.2) for i in xrange(100)])
-            samples_pca.extend([hrn1.sample_network_response(np.random.uniform(-np.pi, np.pi, (2)), sigma=0.2) for i in xrange(100)])
-            samples_pca = np.array(samples_pca)
+    #         pca = skdec.PCA()
+    #         samples_pca_transf = pca.fit(samples_pca).transform(samples_pca)
+    #         print pca.explained_variance_ratio_
 
-            pca = skdec.PCA()
-            samples_pca_transf = pca.fit(samples_pca).transform(samples_pca)
-            print pca.explained_variance_ratio_
+    #     except:
+    #         pass
 
-        except:
-            pass
-
-    plt.show()
-
-
+    # plt.show()

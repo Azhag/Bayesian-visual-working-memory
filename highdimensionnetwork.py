@@ -210,7 +210,6 @@ class HighDimensionNetwork(object):
         # The normalising constant
         #   Overflows have happened, but they have no real consequence, as 1/inf = 0.0, appropriately.
         if specific_neurons is None:
-
             # precompute separate ones
             self.normalisation_fisher_all = 2.*np.pi*scsp.i0(self.neurons_sigma)
             self.normalisation_gauss_all = np.sqrt(self.neurons_sigma)/(np.sqrt(2*np.pi))
@@ -393,7 +392,7 @@ class HighDimensionNetwork(object):
             return: Mx1
         '''
 
-        return self.get_network_response(stimulus_input) + sigma*np.random.randn(self.M)
+        return self.get_network_response(stimulus_input) + sigma * np.random.randn(self.M)
 
 
     def sample_multiple_network_response(self, stimuli_input, sigma=0.2):
@@ -452,7 +451,7 @@ class HighDimensionNetwork(object):
             activity[stimulus_i] = self.get_network_response(stimulus, specific_neurons=specific_neurons)
 
         # Reshape
-        activity.shape = self.R*(precision, ) + (self.M, )
+        activity.shape = self.R * (precision, ) + (self.M, )
 
         mean_activity = activity
 

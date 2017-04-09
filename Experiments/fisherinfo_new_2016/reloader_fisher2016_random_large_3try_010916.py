@@ -37,7 +37,7 @@ dataset_infos = dict(label='Large random sweep of all parameters. Will compute F
                                         'result_marginal_FI',
                                         'result_em_fits'],
                      post_processing=None,
-                     save_output_filename='fisher2016_rnd_large'
+                     save_output_filename='rcwidtheffect_rnd'
                      )
 
 

@@ -34,7 +34,7 @@ pbs_submission_infos = dict(description='Small sweep to get Receptive width effe
                                                code_type='conj',
                                                output_directory='.',
                                                ratio_conj=1,
-                                               M=14*14,
+                                               M=14 * 14,
                                                sigmax=0.25,
                                                renormalize_sigma=None,
                                                N=200,
@@ -116,4 +116,3 @@ if __name__ == '__main__':
     arguments_dict.update(parameters_entryscript)
 
     experiment_launcher = experimentlauncher.ExperimentLauncher(run=True, arguments_dict=arguments_dict)
-
