@@ -40,6 +40,8 @@ class HierarchialRandomNetwork(object):
         if ratio_hierarchical is not None:
             self.M_layer_two = int(np.round(ratio_hierarchical * M))
             self.M_layer_one = M - self.M_layer_two
+
+            assert self.M_layer_one > 2, "Cannot have such a small layer one: {}".format(self.M_layer_one)
         else:
             self.M_layer_two = M
             self.M_layer_one = M_layer_one
