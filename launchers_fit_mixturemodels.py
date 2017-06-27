@@ -40,13 +40,11 @@ def launcher_do_fit_mixturemodels(args):
     if all_parameters['burn_samples'] + all_parameters['num_samples'] < 200:
         print "WARNING> you do not have enough samples I think!", all_parameters['burn_samples'] + all_parameters['num_samples']
 
-
     # Create DataIO
     #  (complete label with current variable state)
     dataio = DataIO.DataIO(output_folder=all_parameters['output_directory'], label=all_parameters['label'].format(**all_parameters))
     save_every = 1
     run_counter = 0
-
 
     # Load datasets to compare against
     data_bays2009 = load_experimental_data.load_data_bays09(data_dir=all_parameters['experiment_data_dir'], fit_mixture_model=True)
@@ -65,10 +63,10 @@ def launcher_do_fit_mixturemodels(args):
 
     # Result arrays
     result_all_precisions = np.nan*np.empty((T_space.size, all_parameters['num_repetitions']))
-    result_fi_theo = np.nan*np.empty((T_space.size, all_parameters['num_repetitions']))
-    result_fi_theocov = np.nan*np.empty((T_space.size, all_parameters['num_repetitions']))
+    # result_fi_theo = np.nan*np.empty((T_space.size, all_parameters['num_repetitions']))
+    # result_fi_theocov = np.nan*np.empty((T_space.size, all_parameters['num_repetitions']))
     result_em_fits = np.nan*np.empty((T_space.size, 6, all_parameters['num_repetitions']))  # kappa, mixt_target, mixt_nontarget, mixt_random, ll, bic
-    result_em_fits_allnontargets = np.nan*np.empty((T_space.size, 5+(T_max-1), all_parameters['num_repetitions']))  # kappa, mixt_target, mixt_nontarget (T-1), mixt_random, ll, bic
+    # result_em_fits_allnontargets = np.nan*np.empty((T_space.size, 5+(T_max-1), all_parameters['num_repetitions']))  # kappa, mixt_target, mixt_nontarget (T-1), mixt_random, ll, bic
     result_dist_bays09 = np.nan*np.empty((T_space.size, 4, all_parameters['num_repetitions']))  # kappa, mixt_target, mixt_nontarget, mixt_random
     result_dist_gorgo11 = np.nan*np.empty((T_space.size, 4, all_parameters['num_repetitions']))  # kappa, mixt_target, mixt_nontarget, mixt_random
     result_dist_bays09_emmixt_KL = np.nan*np.empty((T_space.size, all_parameters['num_repetitions']))
@@ -108,25 +106,25 @@ def launcher_do_fit_mixturemodels(args):
             curr_params_fit = sampler.fit_mixture_model(use_all_targets=False)
             # curr_params_fit['mixt_nontargets_sum'] = np.sum(curr_params_fit['mixt_nontargets'])
             result_em_fits[T_i, :, repet_i] = [curr_params_fit[key] for key in ['kappa', 'mixt_target', 'mixt_nontargets_sum', 'mixt_random', 'train_LL', 'bic']]
-            result_em_fits_allnontargets[T_i, :2, repet_i] = [curr_params_fit['kappa'], curr_params_fit['mixt_target']]
-            result_em_fits_allnontargets[T_i, 2:(2+T-1), repet_i] = curr_params_fit['mixt_nontargets']
-            result_em_fits_allnontargets[T_i, -3:, repet_i] = [curr_params_fit[key] for key in ('mixt_random', 'train_LL', 'bic')]
+            # result_em_fits_allnontargets[T_i, :2, repet_i] = [curr_params_fit['kappa'], curr_params_fit['mixt_target']]
+            # result_em_fits_allnontargets[T_i, 2:(2+T-1), repet_i] = curr_params_fit['mixt_nontargets']
+            # result_em_fits_allnontargets[T_i, -3:, repet_i] = [curr_params_fit[key] for key in ('mixt_random', 'train_LL', 'bic')]
 
             # Compute fisher info
-            print "compute fisher info"
-            result_fi_theo[T_i, repet_i] = sampler.estimate_fisher_info_theocov(use_theoretical_cov=False)
-            result_fi_theocov[T_i, repet_i] = sampler.estimate_fisher_info_theocov(use_theoretical_cov=True)
+            # print "compute fisher info"
+            # result_fi_theo[T_i, repet_i] = sampler.estimate_fisher_info_theocov(use_theoretical_cov=False)
+            # result_fi_theocov[T_i, repet_i] = sampler.estimate_fisher_info_theocov(use_theoretical_cov=True)
 
             # Compute distances to datasets
             if T in bays09_T_space:
-                result_dist_bays09[T_i, :, repet_i] = (bays09_experimental_mixtures_mean[:, bays09_T_space==T].flatten() - result_em_fits[T_i, :4, repet_i])**2.
+                result_dist_bays09[T_i, :, repet_i] = (bays09_experimental_mixtures_mean[:, bays09_T_space == T].flatten() - result_em_fits[T_i, :4, repet_i])**2.
 
-                result_dist_bays09_emmixt_KL[T_i, repet_i] = utils.KL_div(result_em_fits[T_i, 1:4, repet_i], bays09_experimental_mixtures_mean[1:, bays09_T_space==T].flatten())
+                result_dist_bays09_emmixt_KL[T_i, repet_i] = utils.KL_div(result_em_fits[T_i, 1:4, repet_i], bays09_experimental_mixtures_mean[1:, bays09_T_space == T].flatten())
 
             if T in gorgo11_T_space:
                 result_dist_gorgo11[T_i, :, repet_i] = (gorgo11_experimental_emfits_mean[:, gorgo11_T_space == T].flatten() - result_em_fits[T_i, :4, repet_i])**2.
 
-                result_dist_gorgo11_emmixt_KL[T_i, repet_i] = utils.KL_div(result_em_fits[T_i, 1:4, repet_i], gorgo11_experimental_emfits_mean[1:, gorgo11_T_space==T].flatten())
+                result_dist_gorgo11_emmixt_KL[T_i, repet_i] = utils.KL_div(result_em_fits[T_i, 1:4, repet_i], gorgo11_experimental_emfits_mean[1:, gorgo11_T_space == T].flatten())
 
 
             # If needed, store responses
@@ -139,7 +137,7 @@ def launcher_do_fit_mixturemodels(args):
                 print "collected responses"
 
 
-            print "CURRENT RESULTS:\n", result_all_precisions[T_i, repet_i], curr_params_fit, result_fi_theo[T_i, repet_i], result_fi_theocov[T_i, repet_i], np.sum(result_dist_bays09[T_i, :, repet_i]), np.sum(result_dist_gorgo11[T_i, :, repet_i]), "\n"
+            print "CURRENT RESULTS:\n", result_all_precisions[T_i, repet_i], curr_params_fit, np.sum(result_dist_bays09[T_i, :, repet_i]), np.sum(result_dist_gorgo11[T_i, :, repet_i]), "\n"
             ### /Work ###
 
             search_progress.increment()
