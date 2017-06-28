@@ -30,7 +30,7 @@ submit_cmd = 'sbatch'
 
 num_repetitions = 3
 
-run_label = 'fit_mixturemodels_hier_sigmaxMratio_random_repetitions{num_repetitions}_270617'
+run_label = 'fit_mixturemodels_hierarchical_sigmaxMratio_random_repetitions{num_repetitions}_270617'
 sleeping_period = dict(min=20, max=50)
 
 pbs_submission_infos = dict(description='Runs the model for 1..T items. Computes precision, Fisher information, fits the mixture model, and compare the mixture model fits to the experimental data (Bays09 and Gorgo11 here). Also stores all responses. Meant to run random sampling for a long while! Hierarchical population code.',
