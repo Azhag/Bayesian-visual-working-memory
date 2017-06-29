@@ -21,8 +21,6 @@ from matplotlib import cm
 from matplotlib.colors import LogNorm
 from matplotlib.widgets import Slider
 
-from mpl_toolkits.mplot3d import Axes3D
-
 import pandas as pd
 
 
@@ -70,7 +68,7 @@ def lab2rgb(lab):
     V = np.empty((lab.shape[0], 3))
 
     # Convert CIE L*a*b* to CIE XYZ
-    V[:, 1] = ( lab[:, 0] + 16 ) / 116.     # (Y/Yn)^(1/3)
+    V[:, 1] = (lab[:, 0] + 16) / 116.     # (Y/Yn)^(1/3)
     V[:, 0] = lab[:, 1] / 500. + V[:, 1]    # (X/Xn)^(1/3)
     V[:, 2] = V[:, 1] - lab[:, 2]/200.      # (Z/Zn)^(1/3)
 
@@ -264,7 +262,7 @@ def plot_square_grid(x, y, nb_to_plot=-1):
     return (f, subaxes)
 
 
-def plot_mean_std_from_samples(x, y, bins=100, bins_y=100, xlabel='', ylabel='', title='',  ax_handle=None, nb_stddev=1., show_scatter=False):
+def plot_mean_std_from_samples(x, y, bins=100, bins_y=100, xlabel='', ylabel='', title='', ax_handle=None, nb_stddev=1., show_scatter=False):
     '''
         Given a set of (x, y) variables, will estimate a mean and std through 'x'.
         Should give how many bins you want on the x axis (this will affect the fit)
@@ -276,7 +274,7 @@ def plot_mean_std_from_samples(x, y, bins=100, bins_y=100, xlabel='', ylabel='',
     else:
         f = ax_handle.get_figure()
 
-    cnts_hist, x_edges, y_edges = np.histogram2d(x, y, bins = [bins, bins_y])
+    cnts_hist, x_edges, y_edges = np.histogram2d(x, y, bins=[bins, bins_y])
     x_centers = (x_edges + np.diff(x_edges)[0]/2.)[:-1]
     y_centers = (y_edges + np.diff(y_edges)[0]/2.)[:-1]
 
@@ -305,8 +303,8 @@ def plot_mean_std_from_samples_rolling(x, y, window=25, xlabel='', ylabel='', ti
     data_pd = pd.DataFrame(data=y, index=x)
     data_pd = data_pd.sort()
 
-    data_mean = data_pd.rolling(window=window,center=True).mean()
-    data_std = data_pd.rolling(window=window,center=True).std()
+    data_mean = data_pd.rolling(window=window, center=True).mean()
+    data_std = data_pd.rolling(window=window, center=True).std()
 
     # Now plot
     if ax_handle is None:
@@ -495,7 +493,7 @@ def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorba
         else:
             im = ax_handle.imshow(data.T, interpolation=interpolation, origin='lower left', cmap=cmap, vmin=vmin, vmax=vmax)
 
-        if not x is None:
+        if x is not None:
             assert data.shape[0] == x.size, 'Wrong x dimension'
 
             if not ticks_interpolate is None:
@@ -506,10 +504,10 @@ def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorba
                 ax_handle.set_xticks(np.arange(x.size))
                 ax_handle.set_xticklabels([xlabel_format % curr for curr in x], rotation=90)
 
-        if not y is None:
+        if y is not None:
             assert data.shape[1] == y.size, 'Wrong y dimension'
 
-            if not ticks_interpolate is None:
+            if ticks_interpolate is not None:
                 selected_ticks = np.array(np.linspace(0, y.size-1, ticks_interpolate), dtype=int)
                 ax_handle.set_yticks(selected_ticks)
                 ax_handle.set_yticklabels([ylabel_format % y[tick_i] for tick_i in selected_ticks])
@@ -597,9 +595,9 @@ def contourf_interpolate_data(all_points, data, xlabel='', ylabel='', title='', 
         data_interpol[np.isnan(data_interpol_lin)] = np.nan
 
     # Mask it based on some conditions
-    if not mask_x_condition is None:
+    if mask_x_condition is not None:
         data_interpol[mask_x_condition(param1_space_int), :] = 0.0
-    if not mask_y_condition is None:
+    if mask_y_condition is not None:
         data_interpol[:, mask_y_condition(param2_space_int)] = 0.0
 
     # Plot it
@@ -994,8 +992,8 @@ def scatter3d_torus(theta, gamma, torus_radius=5., tube_radius=3.0, try_mayavi=T
         Need theta \in [0, 2pi] and gamma \in [0, pi]
     '''
 
-    x = (torus_radius+ tube_radius*np.cos(theta))*np.cos(gamma)
-    y = (torus_radius+ tube_radius*np.cos(theta))*np.sin(gamma)
+    x = (torus_radius + tube_radius*np.cos(theta))*np.cos(gamma)
+    y = (torus_radius + tube_radius*np.cos(theta))*np.sin(gamma)
     z = tube_radius*np.sin(theta)
 
     use_mayavi = False
