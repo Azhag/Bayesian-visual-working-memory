@@ -112,7 +112,16 @@ class ExperimentalLoaderDualRecall(ExperimentalLoader):
             Special fitting for this dual recall dataset
         '''
 
-        self.dataset['em_fits'] = dict(kappa=np.empty(self.dataset['probe_angle'].size), mixt_target=np.empty(self.dataset['probe_angle'].size), mixt_nontarget=np.empty(self.dataset['probe_angle'].size), mixt_random=np.empty(self.dataset['probe_angle'].size), resp_target=np.empty(self.dataset['probe_angle'].size), resp_nontarget=np.empty(self.dataset['probe_angle'].size), resp_random=np.empty(self.dataset['probe_angle'].size), train_LL=np.empty(self.dataset['probe_angle'].size), test_LL=np.empty(self.dataset['probe_angle'].size))
+        self.dataset['em_fits'] = dict(
+            kappa=np.empty(self.dataset['probe_angle'].size),
+            mixt_target=np.empty(self.dataset['probe_angle'].size),
+            mixt_nontargets=np.empty(self.dataset['probe_angle'].size),
+            mixt_random=np.empty(self.dataset['probe_angle'].size),
+            resp_target=np.empty(self.dataset['probe_angle'].size),
+            resp_nontarget=np.empty(self.dataset['probe_angle'].size),
+            resp_random=np.empty(self.dataset['probe_angle'].size),
+            train_LL=np.empty(self.dataset['probe_angle'].size),
+            test_LL=np.empty(self.dataset['probe_angle'].size))
         for key in self.dataset['em_fits']:
             self.dataset['em_fits'][key].fill(np.nan)
 
@@ -144,7 +153,7 @@ class ExperimentalLoaderDualRecall(ExperimentalLoader):
 
                     self.dataset['em_fits']['kappa'][ids_filtered] = params_fit['kappa']
                     self.dataset['em_fits']['mixt_target'][ids_filtered] = params_fit['mixt_target']
-                    self.dataset['em_fits']['mixt_nontarget'][ids_filtered] = params_fit['mixt_nontargets']
+                    self.dataset['em_fits']['mixt_nontargets'][ids_filtered] = params_fit['mixt_nontargets']
                     self.dataset['em_fits']['mixt_random'][ids_filtered] = params_fit['mixt_random']
                     self.dataset['em_fits']['resp_target'][ids_filtered] = resp['target']
                     self.dataset['em_fits']['resp_nontarget'][ids_filtered] = np.sum(resp['nontargets'], axis=1)
@@ -185,7 +194,7 @@ class ExperimentalLoaderDualRecall(ExperimentalLoader):
 
                     self.dataset['em_fits']['kappa'][ids_filtered] = params_fit['kappa']
                     self.dataset['em_fits']['mixt_target'][ids_filtered] = params_fit['mixt_target']
-                    self.dataset['em_fits']['mixt_nontarget'][ids_filtered] = params_fit['mixt_nontargets']
+                    self.dataset['em_fits']['mixt_nontargets'][ids_filtered] = params_fit['mixt_nontargets']
                     self.dataset['em_fits']['mixt_random'][ids_filtered] = params_fit['mixt_random']
                     self.dataset['em_fits']['resp_target'][ids_filtered] = resp['target']
                     self.dataset['em_fits']['resp_nontarget'][ids_filtered] = np.sum(resp['nontargets'], axis=1)

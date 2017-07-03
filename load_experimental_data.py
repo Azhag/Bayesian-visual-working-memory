@@ -38,7 +38,14 @@ def load_data_simult(data_dir='../../experimental_data/', fit_mixture_model=Fals
         experim_datadir = os.environ.get('WORKDIR_DROP', os.path.split(utils.__file__)[0])
         data_dir = os.path.normpath(os.path.join(experim_datadir, data_dir))
 
-    expLoader = ExperimentalLoaderGorgo11Simultaneous(dict(name='gorgo11', filename='Exp2_withcolours.mat', datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), parameters=dict(fit_mixture_model=fit_mixture_model, mixture_model_cache='em_simult.pickle', collapsed_mixture_model_cache='collapsed_em_simult.pickle')))
+    expLoader = ExperimentalLoaderGorgo11Simultaneous(dict(
+        name='gorgo11',
+        filename='Exp2_withcolours.mat',
+        datadir=os.path.join(data_dir, 'Gorgoraptis_2011'),
+        parameters=dict(
+            fit_mixture_model=fit_mixture_model,
+            mixture_model_cache='em_gorgo_sim_basicmodel.pickle',
+            collapsed_mixture_model_cache='collapsed_em_gorgo_sim_new.pickle')))
 
     return expLoader.dataset
 
@@ -60,7 +67,15 @@ def load_data_gorgo11_sequential(data_dir='../../experimental_data/', fit_mixtur
         experim_datadir = os.environ.get('WORKDIR_DROP', os.path.split(utils.__file__)[0])
         data_dir = os.path.normpath(os.path.join(experim_datadir, data_dir))
 
-    expLoader = ExperimentalLoaderGorgo11Sequential(dict(name='gorgo11seq', filename='Exp1.mat', datadir=os.path.join(data_dir, 'Gorgoraptis_2011'), parameters=dict(fit_mixture_model=fit_mixture_model, mixture_model_cache='em_gorgo_seq.pickle', collapsed_mixture_model_cache='collapsed_em_gorgo_seq.pickle')))
+    expLoader = ExperimentalLoaderGorgo11Sequential(dict(
+        name='gorgo11seq',
+        filename='Exp1.mat',
+        datadir=os.path.join(data_dir, 'Gorgoraptis_2011'),
+        parameters=dict(
+            fit_mixture_model=fit_mixture_model,
+            mixture_model_cache='em_gorgo_seq_basicmodel.pickle',
+            collapsed_mixture_model_cache='collapsed_em_gorgo_seq_new.pickle')
+    ))
 
     return expLoader.dataset
 
@@ -74,7 +89,14 @@ def load_data_bays09(data_dir='../../experimental_data/', fit_mixture_model=Fals
         experim_datadir = os.environ.get('WORKDIR_DROP', os.path.split(utils.__file__)[0])
         data_dir = os.path.normpath(os.path.join(experim_datadir, data_dir))
 
-    expLoader = ExperimentalLoaderBays09(dict(name='bays09', filename='colour_data.mat', datadir=os.path.join(data_dir, 'Bays2009'), parameters=dict(fit_mixture_model=fit_mixture_model, mixture_model_cache='em_bays_allitems.pickle', collapsed_mixture_model_cache='collapsed_em_bays.pickle')))
+    expLoader = ExperimentalLoaderBays09(dict(
+        name='bays09',
+        filename='colour_data.mat',
+        datadir=os.path.join(data_dir, 'Bays2009'),
+        parameters=dict(
+            fit_mixture_model=fit_mixture_model,
+            mixture_model_cache='em_bays_basicmodel.pickle',
+            collapsed_mixture_model_cache='collapsed_em_bays_new.pickle')))
 
     return expLoader.dataset
 

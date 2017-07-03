@@ -42,7 +42,7 @@ class ExperimentalLoaderGorgo11Simultaneous(ExperimentalLoader):
         self.dataset['probe'] = np.zeros(self.dataset['error'].shape, dtype= int)
 
         # Convert everything to radians, spanning a -np.pi:np.pi
-        if parameters.get('convert_radians', True): #pylint: disable=E0602
+        if parameters.get('convert_radians', True):  #pylint: disable=E0602
             self.convert_wrap(multiply_factor=2, max_angle=np.pi)
 
         # Make some aliases

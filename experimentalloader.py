@@ -10,7 +10,8 @@ import os
 import os.path
 import cPickle as pickle
 # import bottleneck as bn
-import em_circularmixture_allitems_uniquekappa as em_circmixtmodel
+# import em_circularmixture_allitems_uniquekappa as em_circmixtmodel
+import em_circularmixture as em_circmixtmodel
 import em_circularmixture_parametrickappa as em_circmixtmodel_parametric
 
 import utils
@@ -55,6 +56,7 @@ class ExperimentalLoader(object):
         '''
         for key in keys_to_convert:
             if key in self.dataset:
+                self.dataset[key + "_deg"] = self.dataset[key]
                 self.dataset[key] = utils.wrap_angles(np.deg2rad(multiply_factor*self.dataset[key]), bound=max_angle)
 
 
@@ -150,13 +152,17 @@ class ExperimentalLoader(object):
         # Initialize empty arrays and dicts
         self.dataset['em_fits'] = dict(kappa=np.empty(N),
                                        mixt_target=np.empty(N),
-                                       mixt_nontarget=np.empty(N),
+                                       mixt_nontargets=np.empty(N),
+                                       mixt_nontargets_sum=np.empty(N),
                                        mixt_random=np.empty(N),
                                        resp_target=np.empty(N),
                                        resp_nontarget=np.empty(N),
                                        resp_random=np.empty(N),
                                        train_LL=np.empty(N),
-                                       test_LL=np.empty(N)
+                                       test_LL=np.empty(N),
+                                       K=np.empty(N),
+                                       bic=np.empty(N),
+                                       aic=np.empty(N),
                                        )
         for key in self.dataset['em_fits']:
             self.dataset['em_fits'][key].fill(np.nan)
@@ -191,22 +197,16 @@ class ExperimentalLoader(object):
                     params_fit
                 )
 
-                self.dataset['em_fits']['kappa'][ids_filter] = \
-                    params_fit['kappa']
-                self.dataset['em_fits']['mixt_target'][ids_filter] = \
-                    params_fit['mixt_target']
-                self.dataset['em_fits']['mixt_nontarget'][ids_filter] = \
-                    params_fit['mixt_nontargets_sum']
-                self.dataset['em_fits']['mixt_random'][ids_filter] = \
-                    params_fit['mixt_random']
+                # Copy all data
+                for k, v in params_fit.iteritems():
+                    self.dataset['em_fits'][k][ids_filter] = v
+
                 self.dataset['em_fits']['resp_target'][ids_filter] = \
                     resp['target']
                 self.dataset['em_fits']['resp_nontarget'][ids_filter] = \
                     np.sum(resp['nontargets'], axis=1)
                 self.dataset['em_fits']['resp_random'][ids_filter] = \
                     resp['random']
-                self.dataset['em_fits']['train_LL'][ids_filter] = \
-                    params_fit['train_LL']
 
                 self.dataset['em_fits_subjects_nitems'][subject][n_items] = params_fit
 
