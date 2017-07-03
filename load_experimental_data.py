@@ -3,20 +3,12 @@
 '''
 
 import sys
-import numpy as np
-import scipy.io as sio
 import matplotlib.pyplot as plt
 # import matplotlib.patches as plt_patches
 # import matplotlib.gridspec as plt_grid
 import os
 import os.path
-import cPickle as pickle
 # import bottleneck as bn
-import em_circularmixture
-import em_circularmixture_allitems_uniquekappa
-import pandas as pd
-
-import dataio as DataIO
 
 import utils
 

@@ -119,7 +119,7 @@ def plot_multiple_mean_std_area(x, y, std, ax_handle=None, fignum=None, linewidt
     return ax_handle
 
 
-def plot_mean_std_area(x, y, std, ax_handle=None, fignum=None, linewidth=1, fmt='-', markersize=1, color=None, xlabel=None, ylabel=None, label='', title=None):
+def plot_mean_std_area(x, y, std, ax_handle=None, fignum=None, linewidth=1, fmt='-', markersize=1, color=None, xlabel=None, ylabel=None, label='', title=None, zorder=1):
     '''
         Plot a given x-y data, with a transparent area for its standard deviation
 
@@ -133,16 +133,16 @@ def plot_mean_std_area(x, y, std, ax_handle=None, fignum=None, linewidth=1, fmt=
     ishold = plt.ishold()
 
     if color is not None:
-        ax = ax_handle.plot(x, y, fmt, linewidth=linewidth, markersize=markersize, color=color, label=label)
+        ax = ax_handle.plot(x, y, fmt, linewidth=linewidth, markersize=markersize, color=color, label=label, zorder=zorder)
     else:
-        ax = ax_handle.plot(x, y, fmt, linewidth=linewidth, markersize=markersize, label=label)
+        ax = ax_handle.plot(x, y, fmt, linewidth=linewidth, markersize=markersize, label=label, zorder=zorder)
 
     current_color = ax[-1].get_c()
 
     plt.hold(True)
 
     if std is not None and np.any(std > 1e-6):
-        ax_handle.fill_between(x, y-std, y+std, facecolor=current_color, alpha=0.4)
+        ax_handle.fill_between(x, y-std, y+std, facecolor=current_color, alpha=0.4, zorder=zorder)
 
     if xlabel is not None:
         ax_handle.set_xlabel(xlabel)

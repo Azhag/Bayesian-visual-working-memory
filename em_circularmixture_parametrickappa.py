@@ -14,8 +14,6 @@ import scipy.stats as spst
 from sklearn.cross_validation import KFold
 import statsmodels.distributions as stmodsdist
 
-import matplotlib.pyplot as plt
-
 import utils
 
 import progress

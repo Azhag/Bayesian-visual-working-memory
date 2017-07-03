@@ -22,7 +22,7 @@ def fit(responses, target_angle, nontarget_angles=np.array([[]]), initialisation
         Return maximum likelihood values for a mixture model, with:
             - 1 target Von Mises component
             - 1 circular uniform random component
-            - K nontarget Von Mises components
+            - 1 nontarget Von Mises components
         Inputs in radian, in the -pi:pi range.
             - responses: Nx1
             - target_angle: Nx1
@@ -72,7 +72,7 @@ def fit(responses, target_angle, nontarget_angles=np.array([[]]), initialisation
             resp_ik[:, 0] = mixt_target * vonmisespdf(error_to_target, 0.0, kappa)
             resp_r = mixt_random/(2.*np.pi)
             if K > 0:
-                resp_ik[:, 1:] = mixt_nontargets/K  * vonmisespdf(error_to_nontargets, 0.0, kappa)
+                resp_ik[:, 1:] = mixt_nontargets/K * vonmisespdf(error_to_nontargets, 0.0, kappa)
             W = np.sum(resp_ik, axis=1) + resp_r
 
 
@@ -329,7 +329,7 @@ def vonmisespdf(x, mu, K):
         Von Mises PDF (switch to Normal if high kappa)
     '''
     if K > 700.:
-        return np.sqrt(K)/(np.sqrt(2*np.pi))*np.exp(-0.5*(x -mu)**2.*K)
+        return np.sqrt(K)/(np.sqrt(2*np.pi))*np.exp(-0.5*(x - mu)**2.*K)
     else:
         return np.exp(K*np.cos(x-mu)) / (2.*np.pi * spsp.i0(K))
 
@@ -398,9 +398,9 @@ def aic(em_fit_result_dict):
     # Number of parameters:
     # - mixt_target: 1
     # - mixt_random: 1
-    # - mixt_nontarget: K
+    # - mixt_nontarget: 1
     # - kappa: 1
-    K = 3 + em_fit_result_dict['K']
+    K = 4
 
     return utils.aic(K, em_fit_result_dict['train_LL'])
 
@@ -413,9 +413,11 @@ def bic(em_fit_result_dict, N):
     # Number of parameters:
     # - mixt_target: 1
     # - mixt_random: 1
-    # - mixt_nontarget: K
+    # - mixt_nontarget: 1
     # - kappa: 1
-    K = 3 + em_fit_result_dict['K']
+    K = 4
+
+    import pdb;pdb.set_trace()
 
     return utils.bic(K, em_fit_result_dict['train_LL'], N)
 

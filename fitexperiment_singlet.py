@@ -146,17 +146,17 @@ class FitExperimentSingleT:
         return result_all
 
 
-    def compute_bic_all_datasets(self, K=None):
-        '''
-            Compute the BIC scores for all datasets
-        '''
-        def compute_bic(sampler, parameters):
-            bic = sampler.compute_bic(K=parameters['K'])
-            return bic
+    # def compute_bic_all_datasets(self, K=None):
+    #     '''
+    #         Compute the BIC scores for all datasets
+    #     '''
+    #     def compute_bic(sampler, parameters):
+    #         bic = sampler.compute_bic(K=parameters['K'])
+    #         return bic
 
-        fct_infos = dict(fct=compute_bic, parameters=dict(K=K))
+    #     fct_infos = dict(fct=compute_bic, parameters=dict(K=K))
 
-        return self.apply_fct_all_datasets(fct_infos)
+    #     return self.apply_fct_all_datasets(fct_infos)
 
 
     def compute_loglik_all_datasets(self):
@@ -176,11 +176,14 @@ class FitExperimentSingleT:
             Compute both the BIC and loglikelihood on all datasets
         '''
         def compute_bic(sampler, parameters):
+            raise ValueError("This K for BIC is wrong here")
             bic = sampler.compute_bic(K=parameters['K'])
             return bic
+
         def compute_loglik(sampler, parameters):
             loglikelihood = sampler.compute_loglikelihood()
             return loglikelihood
+
         def compute_loglik90percent(sampler, parameters):
             return sampler.compute_loglikelihood_top90percent()
 

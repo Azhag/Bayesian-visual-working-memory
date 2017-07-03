@@ -57,7 +57,7 @@ class ExperimentalLoader(object):
         for key in keys_to_convert:
             if key in self.dataset:
                 self.dataset[key + "_deg"] = self.dataset[key]
-                self.dataset[key] = utils.wrap_angles(np.deg2rad(multiply_factor*self.dataset[key]), bound=max_angle)
+                self.dataset[key] = utils.wrap_angles(np.deg2rad(multiply_factor * self.dataset[key]), bound=max_angle)
 
 
     def compute_all_errors(self):
