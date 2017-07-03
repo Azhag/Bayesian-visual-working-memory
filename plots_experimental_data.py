@@ -229,74 +229,140 @@ def plots_histograms_errors_targets_nontargets_nitems(dataset, dataio=None):
     bins_center = angle_space[:-1] + np.diff(angle_space)[0]/2
 
     # Histogram, collapsing across subjects
-    f1, axes1 = plt.subplots(ncols=dataset['n_items_size'], figsize=(dataset['n_items_size']*6, 6), sharey=True)
-    f2, axes2 = plt.subplots(ncols=dataset['n_items_size']-1, figsize=((dataset['n_items_size']-1)*6, 6), sharey=True)
+    f1, axes1 = plt.subplots(ncols=dataset['n_items_size'],
+                             nrows=2,
+                             figsize=(dataset['n_items_size']*6, 12),
+                             )
 
     for n_items_i, n_items in enumerate(np.unique(dataset['n_items'])):
-        utils.hist_angular_data(dataset['errors_nitems'][n_items_i], bins=angle_space, title='%s N=%d' % (dataset['name'], n_items), norm='density', ax_handle=axes1[n_items_i], pretty_xticks=True)
-        axes1[n_items_i].set_ylim([0., 2.0])
+        utils.hist_angular_data(
+            dataset['errors_nitems'][n_items_i],
+            bins=angle_space,
+            title='N=%d' % (n_items),
+            norm='density',
+            ax_handle=axes1[0, n_items_i],
+            pretty_xticks=True)
+        axes1[0, n_items_i].set_ylim([0., 2.0])
 
         if n_items > 1:
-            utils.hist_angular_data(utils.dropnan(dataset['errors_nontarget_nitems'][n_items_i]), bins=angle_space, title='%s N=%d' % (dataset['name'], n_items), norm='density', ax_handle=axes2[n_items_i-1], pretty_xticks=True)
+            utils.hist_angular_data(
+                utils.dropnan(dataset['errors_nontarget_nitems'][n_items_i]),
+                bins=angle_space,
+                # title='Nontarget %s N=%d' % (dataset['name'], n_items),
+                norm='density',
+                ax_handle=axes1[1, n_items_i],
+                pretty_xticks=True)
 
-            axes2[n_items_i-1].text(0.02, 0.96, "Vtest pval: %.4f" % (dataset['vtest_nitems'][n_items_i]), transform=axes2[n_items_i-1].transAxes, horizontalalignment='left', fontsize=13)
+            axes1[1, n_items_i].text(
+                0.02,
+                0.96,
+                "Vtest pval: %.4f" % (dataset['vtest_nitems'][n_items_i]),
+                transform=axes1[1, n_items_i].transAxes,
+                horizontalalignment='left',
+                fontsize=13)
 
-            axes2[n_items_i - 1].set_ylim([0., 0.3])
+            axes1[1, n_items_i].set_ylim([0., 0.3])
+        else:
+            axes1[1, n_items_i].axis('off')
 
-
+    # f1.suptitle(dataset['name'])
 
     f1.canvas.draw()
-    f2.canvas.draw()
 
     if dataio is not None:
         plt.figure(f1.number)
         # plt.tight_layout()
-        dataio.save_current_figure("hist_error_target_all_{label}_{unique_id}.pdf")
-        plt.figure(f2.number)
-        # plt.tight_layout()
-        dataio.save_current_figure("hist_error_nontarget_all_{label}_{unique_id}.pdf")
+        dataio.save_current_figure("hist_error_all_{label}_{unique_id}.pdf")
 
     # Do per subject and nitems, using average histogram
-    f3, axes3 = plt.subplots(ncols=dataset['n_items_size'], figsize=(dataset['n_items_size']*6, 6), sharey=True)
-    f4, axes4 = plt.subplots(ncols=dataset['n_items_size']-1, figsize=((dataset['n_items_size']-1)*6, 6), sharey=True)
+    f2, axes2 = plt.subplots(ncols=dataset['n_items_size'],
+                             nrows=2,
+                             figsize=(dataset['n_items_size']*6, 12))
+    f3_all = []
 
     for n_items_i, n_items in enumerate(np.unique(dataset['n_items'])):
 
-        axes3[n_items_i].bar(bins_center, dataset['hist_cnts_target_nitems_stats']['mean'][n_items_i], width=2.*np.pi/(angle_space.size-1), align='center', yerr=dataset['hist_cnts_target_nitems_stats']['sem'][n_items_i])
+        axes2[0, n_items_i].bar(
+            bins_center,
+            dataset['hist_cnts_target_nitems_stats']['mean'][n_items_i],
+            width=2.*np.pi/(angle_space.size-1),
+            align='center',
+            yerr=dataset['hist_cnts_target_nitems_stats']['sem'][n_items_i])
         # axes3[n_items_i].set_title('N=%d' % n_items)
-        axes3[n_items_i].set_xlim([bins_center[0]-np.pi/(angle_space.size-1), bins_center[-1]+np.pi/(angle_space.size-1)])
-        axes3[n_items_i].set_ylim([0., 2.0])
-        axes3[n_items_i].set_xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
-        axes3[n_items_i].set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=16)
+        axes2[0, n_items_i].set_title('N=%d' % n_items)
+        axes2[0, n_items_i].set_xlim(
+            [bins_center[0]-np.pi/(angle_space.size-1),
+             bins_center[-1]+np.pi/(angle_space.size-1)])
+        axes2[0, n_items_i].set_ylim([0., 2.0])
+        axes2[0, n_items_i].set_xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
+        axes2[0, n_items_i].set_xticklabels(
+            (r'$-\pi$',
+             r'$-\frac{\pi}{2}$',
+             r'$0$',
+             r'$\frac{\pi}{2}$',
+             r'$\pi$'),
+            fontsize=16)
 
         if n_items > 1:
-            axes4[n_items_i-1].bar(bins_center, dataset['hist_cnts_nontarget_nitems_stats']['mean'][n_items_i], width=2.*np.pi/(angle_space.size-1), align='center', yerr=dataset['hist_cnts_nontarget_nitems_stats']['sem'][n_items_i])
-            # axes4[n_items_i-1].set_title('N=%d' % n_items)
-            axes4[n_items_i-1].set_xlim([bins_center[0]-np.pi/(angle_space.size-1), bins_center[-1]+np.pi/(angle_space.size-1)])
-
-            # axes4[n_items_i-1].text(0.02, 0.96, "Vtest pval: %.4f" % (pvalue_nontarget_subject_nitems_mean[n_items_i]), transform=axes4[n_items_i-1].transAxes, horizontalalignment='left', fontsize=13)
-            axes4[n_items_i-1].text(0.02, 0.96, "Vtest pval: %.4f" % (dataset['vtest_nitems'][n_items_i]), transform=axes4[n_items_i-1].transAxes, horizontalalignment='left', fontsize=14)
+            axes2[1, n_items_i].bar(
+                bins_center,
+                dataset['hist_cnts_nontarget_nitems_stats']['mean'][n_items_i],
+                yerr=dataset['hist_cnts_nontarget_nitems_stats']['sem'][n_items_i],
+                width=2.*np.pi/(angle_space.size-1),
+                align='center')
+            # axes2[1, n_items_i].set_title('N=%d' % n_items)
+            # axes2[1, n_items_i].text(0.02, 0.96, "Vtest pval: %.4f" % (pvalue_nontarget_subject_nitems_mean[n_items_i]), transform=axes2[1, n_items_i].transAxes, horizontalalignment='left', fontsize=13)
+            axes2[1, n_items_i].text(
+                0.02,
+                0.96,
+                "Vtest pval: %.4f" % (dataset['vtest_nitems'][n_items_i]),
+                transform=axes2[1, n_items_i].transAxes,
+                horizontalalignment='left',
+                fontsize=14)
 
             # TODO Add bootstrap there instead.
+            # axes2[1, n_items_i].set_title('Nontarget, subject, N=%d' % n_items)
+            axes2[1, n_items_i].set_xlim(
+                [bins_center[0]-np.pi/(angle_space.size-1),
+                 bins_center[-1]+np.pi/(angle_space.size-1)])
+            axes2[1, n_items_i].set_ylim([0., 0.3])
+            axes2[1, n_items_i].set_xticks(
+                (-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
+            axes2[1, n_items_i].set_xticklabels(
+                (r'$-\pi$',
+                 r'$-\frac{\pi}{2}$',
+                 r'$0$',
+                 r'$\frac{\pi}{2}$',
+                 r'$\pi$'),
+                fontsize=16)
+        else:
+            axes2[1, n_items_i].axis('off')
 
-            axes4[n_items_i-1].set_ylim([0., 0.3])
-            axes4[n_items_i-1].set_xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
-            axes4[n_items_i-1].set_xticklabels((r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'), fontsize=16)
+        # f2.suptitle(dataset['name'])
 
-        utils.scatter_marginals(utils.dropnan(dataset['data_to_fit'][n_items]['item_features'][:, 0, 0]), utils.dropnan(dataset['data_to_fit'][n_items]['response']), xlabel ='Target angle', ylabel='Response angle', title='%s histogram responses, %d items' % (dataset['name'], n_items), figsize=(9, 9), factor_axis=1.1, bins=61)
+        f3 = utils.scatter_marginals(
+            utils.dropnan(
+                dataset['data_to_fit'][n_items]['item_features'][:, 0, 0]),
+            utils.dropnan(dataset['data_to_fit'][n_items]['response']),
+            xlabel='Target',
+            ylabel='Response',
+            # title='%s, %d items' % (
+                # dataset['name'], n_items),
+            figsize=(9, 9),
+            factor_axis=1.1,
+            bins=61)
+        f3_all.append(f3)
         # utils.scatter_marginals(utils.dropnan(dataset['item_angle'][dataset['angle_trials'] & dataset['3_items_trials'], 0]), utils.dropnan(dataset['probe_angle'][dataset['angle_trials'] & dataset['3_items_trials']]), xlabel ='Target angle', ylabel='Response angle', title='%s Angle trials, 3 items' % (dataset['name']), figsize=(9, 9), factor_axis=1.1, bins=61)
         # utils.scatter_marginals(utils.dropnan(dataset['item_angle'][dataset['angle_trials'] & dataset['6_items_trials'], 0]), utils.dropnan(dataset['probe_angle'][dataset['angle_trials'] & dataset['6_items_trials']]), xlabel ='Target angle', ylabel='Response angle', title='%s Angle trials, 6 items' % (dataset['name']), figsize=(9, 9), factor_axis=1.1, bins=61)
 
-    f3.canvas.draw()
-    f4.canvas.draw()
+    f2.canvas.draw()
 
     if dataio is not None:
-        plt.figure(f3.number)
+        plt.figure(f2.number)
         # plt.tight_layout()
-        dataio.save_current_figure("hist_error_target_persubj_{label}_{unique_id}.pdf")
-        plt.figure(f4.number)
-        # plt.tight_layout()
-        dataio.save_current_figure("hist_error_nontarget_persubj_{label}_{unique_id}.pdf")
+        dataio.save_current_figure("hist_error_persubj_{label}_{unique_id}.pdf")
+
+    return f1, f2, f3_all
 
 
 def plots_em_mixtures(dataset, dataio=None, use_sem=True):
@@ -387,7 +453,7 @@ def plots_bays2009(dataset, dataio=None):
     Some plots for the Bays2009 data
     '''
 
-    # plots_histograms_errors_targets_nontargets_nitems(dataset, dataio)
+    plots_histograms_errors_targets_nontargets_nitems(dataset, dataio)
 
     # plots_precision(dataset, dataio)
 
@@ -402,7 +468,7 @@ def plots_gorgo11(dataset, dataio=None):
     '''
     plots_histograms_errors_targets_nontargets_nitems(dataset, dataio)
 
-    plots_precision(dataset, dataio)
+    # plots_precision(dataset, dataio)
 
     plots_em_mixtures(dataset, dataio)
 
@@ -595,12 +661,12 @@ def plots_dualrecall(dataset):
 
         # Regroup some data
         dataset_grouped_nona_conditems = dataset_pd.dropna(subset=['error']).groupby(['cond_name', 'n_items'])
-        dataset_grouped_nona_conditems_mean = dataset_grouped_nona_conditems.mean()[['mixt_target', 'mixt_nontarget', 'mixt_random', 'kappa', 'train_LL', 'test_LL']]
+        dataset_grouped_nona_conditems_mean = dataset_grouped_nona_conditems.mean()[['mixt_target', 'mixt_nontargets_sum', 'mixt_random', 'kappa', 'train_LL', 'test_LL']]
 
         # Show inferred mixture proportions and kappa
         if to_plot['em_fits']:
-            # ax = dataset_grouped_nona_conditems_mean[['mixt_target', 'mixt_nontarget', 'mixt_random', 'kappa']].plot(secondary_y='kappa', kind='bar')
-            ax = dataset_grouped_nona_conditems_mean[['mixt_target', 'mixt_nontarget', 'mixt_random']].plot(kind='bar')
+            # ax = dataset_grouped_nona_conditems_mean[['mixt_target', 'mixt_nontargets_sum', 'mixt_random', 'kappa']].plot(secondary_y='kappa', kind='bar')
+            ax = dataset_grouped_nona_conditems_mean[['mixt_target', 'mixt_nontargets_sum', 'mixt_random']].plot(kind='bar')
             ax.set_ylabel('Mixture proportions')
 
             ax = dataset_grouped_nona_conditems_mean[['kappa']].plot(kind='bar')
@@ -644,7 +710,7 @@ def plots_dualrecall(dataset):
                 i += 1
 
         # Extract some parameters
-        fitted_parameters = dataset_grouped_nona_conditems_mean.iloc[0].loc[['kappa', 'mixt_target', 'mixt_nontarget', 'mixt_random']]
+        fitted_parameters = dataset_grouped_nona_conditems_mean.iloc[0].loc[['kappa', 'mixt_target', 'mixt_nontargets_sum', 'mixt_random']]
         print fitted_parameters
 
 
@@ -733,7 +799,7 @@ def plot_compare_bic_collapsed_mixture_model(dataset, dataio=None):
     print 'Original non-collapsed BIC: ', np.sum(separate_bic)
 
     f, ax = plt.subplots()
-    ax.plot(np.sum(separate_bic, axis=-1), collapsed_bic, 'x', markersize=10)
+    ax.plot(np.sum(separate_bic, axis=-1), collapsed_bic, 'o', markersize=10)
 
     ixx = np.linspace(collapsed_bic.min()*0.95, collapsed_bic.max()*1.05, 100)
     ax.plot(ixx, ixx, '--k')
@@ -742,6 +808,8 @@ def plot_compare_bic_collapsed_mixture_model(dataset, dataio=None):
     ax.set_xlabel('Non-collapsed BIC per subject')
     ax.set_ylabel('Collapsed BIC per subject')
     f.canvas.draw()
+
+    return separate_bic, collapsed_bic
 
 
 def plots_collapsed_em_mixtures(dataset, dataio=None, use_sem=True):
@@ -759,7 +827,7 @@ def plots_collapsed_em_mixtures(dataset, dataio=None, use_sem=True):
 
     # Mixture probabilities
     utils.plot_mean_std_area(T_space_exp, dataset['collapsed_em_fits']['mean']['mixt_target'], np.ma.masked_invalid(dataset['collapsed_em_fits'][errorbars]['mixt_target']).filled(0.0), xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Target')
-    utils.plot_mean_std_area(T_space_exp, np.ma.masked_invalid(dataset['collapsed_em_fits']['mean']['mixt_nontargets_sum']).filled(0.0), np.ma.masked_invalid(dataset['collapsed_em_fits'][errorbars]['mixt_nontargets_sum']).filled(0.0), xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Nontarget')
+    utils.plot_mean_std_area(T_space_exp, np.ma.masked_invalid(dataset['collapsed_em_fits']['mean']['mixt_nontargets']).filled(0.0), np.ma.masked_invalid(dataset['collapsed_em_fits'][errorbars]['mixt_nontargets']).filled(0.0), xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Nontarget')
     utils.plot_mean_std_area(T_space_exp, dataset['collapsed_em_fits']['mean']['mixt_random'], np.ma.masked_invalid(dataset['collapsed_em_fits'][errorbars]['mixt_random']).filled(0.0), xlabel='Number of items', ylabel="Mixture probabilities", ax_handle=ax, linewidth=3, fmt='o-', markersize=5, label='Random')
 
     ax.legend(prop={'size':15})
@@ -815,7 +883,7 @@ def plot_compare_bic_collapsed_mixture_model_sequential(dataset, dataio=None):
         for n_items_i, n_items in enumerate(dataset['data_subject_split']['nitems_space']):
             for t_i, trecall in enumerate(np.arange(1, n_items + 1)):
                 trecall_i = n_items - trecall
-                bic_separate_subjects_nitems_trecall[subject_i, n_items_i, t_i] =dataset['em_fits_subjects_nitems_trecall'][subject_i, n_items_i, trecall_i]['bic']
+                bic_separate_subjects_nitems_trecall[subject_i, n_items_i, t_i] = dataset['em_fits_subjects_nitems_trecall'][subject_i, n_items_i, trecall_i]['bic']
                 ll_separate_subjects_nitems_trecall[subject_i, n_items_i, t_i] =dataset['em_fits_subjects_nitems_trecall'][subject_i, n_items_i, trecall_i]['train_LL']
 
     # Full double powerlaw model
@@ -837,7 +905,7 @@ def plot_compare_bic_collapsed_mixture_model_sequential(dataset, dataio=None):
     if False:
         f, axes = plt.subplots(nrows=1, ncols=2)
 
-        axes[0].plot(bic_separate_subjects_trecall.flatten(), bic_collapsed_subjects_trecall.flatten(), 'x', markersize=10)
+        axes[0].plot(bic_separate_subjects_trecall.flatten(), bic_collapsed_subjects_trecall.flatten(), 'o', markersize=10)
         ixx = np.linspace(min(bic_collapsed_subjects_trecall.min(), bic_separate_subjects_trecall.min())*0.95, max(bic_collapsed_subjects_trecall.max(), bic_separate_subjects_trecall.max())*1.05, 100)
         axes[0].plot(ixx, ixx, '--k')
         axes[0].set_aspect('equal')
@@ -846,7 +914,7 @@ def plot_compare_bic_collapsed_mixture_model_sequential(dataset, dataio=None):
         f.canvas.draw()
 
         # Plot Collapsed nitems vs separate (all)
-        axes[1].plot(bic_separate_subjects_nitems.flatten(), bic_collapsed_subjects_nitems.flatten(), 'x', markersize=10)
+        axes[1].plot(bic_separate_subjects_nitems.flatten(), bic_collapsed_subjects_nitems.flatten(), 'o', markersize=10)
         ixx = np.linspace(min(bic_collapsed_subjects_nitems.min(), bic_separate_subjects_nitems.min())*0.95, max(bic_collapsed_subjects_nitems.max(), bic_separate_subjects_nitems.max())*1.05, 100)
         axes[1].plot(ixx, ixx, '--k')
         axes[1].set_aspect('equal')
@@ -865,9 +933,9 @@ def plot_compare_bic_collapsed_mixture_model_sequential(dataset, dataio=None):
     bic_separate_subjects_nitems_sum = np.nansum(bic_separate_subjects_nitems, axis=-1)
 
     # Plot Collapsed trecall vs separate (per subject)
-    f, axes = plt.subplots(nrows=2, ncols=2)
+    f, axes = plt.subplots(nrows=2, ncols=2, figsize=(15, 15))
 
-    axes[0, 0].plot(bic_separate_subjects_trecall_sum.flatten(), bic_collapsed_subjects_trecall_sum.flatten(), 'x', markersize=10)
+    axes[0, 0].plot(bic_separate_subjects_trecall_sum.flatten(), bic_collapsed_subjects_trecall_sum.flatten(), 'o', markersize=10)
     ixx = np.linspace(min(bic_collapsed_subjects_trecall_sum.min(), bic_separate_subjects_trecall_sum.min())*0.95, max(bic_collapsed_subjects_trecall_sum.max(), bic_separate_subjects_trecall_sum.max())*1.05, 100)
     axes[0, 0].plot(ixx, ixx, '--k')
     axes[0, 0].set_aspect('equal')
@@ -876,7 +944,7 @@ def plot_compare_bic_collapsed_mixture_model_sequential(dataset, dataio=None):
     f.canvas.draw()
 
     # Plot Collapsed nitems vs separate (per subject)
-    axes[0, 1].plot(bic_separate_subjects_nitems_sum.flatten(), bic_collapsed_subjects_nitems_sum.flatten(), 'x', markersize=10)
+    axes[0, 1].plot(bic_separate_subjects_nitems_sum.flatten(), bic_collapsed_subjects_nitems_sum.flatten(), 'o', markersize=10)
     ixx = np.linspace(min(bic_collapsed_subjects_nitems_sum.min(), bic_separate_subjects_nitems_sum.min())*0.95, max(bic_collapsed_subjects_nitems_sum.max(), bic_separate_subjects_nitems_sum.max())*1.05, 100)
     axes[0, 1].plot(ixx, ixx, '--k')
     axes[0, 1].set_aspect('equal')
@@ -889,7 +957,7 @@ def plot_compare_bic_collapsed_mixture_model_sequential(dataset, dataio=None):
 
 
     # Plot double powerlaw vs collapsed nitems
-    axes[1, 0].plot(bic_collapsed_subjects_nitems_sum.flatten(), bic_collapsed_subjects_doublepowerlaw, 'x', markersize=10)
+    axes[1, 0].plot(bic_collapsed_subjects_nitems_sum.flatten(), bic_collapsed_subjects_doublepowerlaw, 'o', markersize=10)
     ixx = np.linspace(min(bic_collapsed_subjects_nitems_sum.min(), bic_collapsed_subjects_doublepowerlaw.min())*0.95, max(bic_collapsed_subjects_nitems_sum.max(), bic_collapsed_subjects_doublepowerlaw.max())*1.05, 100)
     axes[1, 0].plot(ixx, ixx, '--k')
     axes[1, 0].set_aspect('equal')
@@ -898,7 +966,7 @@ def plot_compare_bic_collapsed_mixture_model_sequential(dataset, dataio=None):
     f.canvas.draw()
 
     # Plot double powerlaw vs collapsed trecall
-    axes[1, 1].plot(bic_collapsed_subjects_trecall_sum.flatten(), bic_collapsed_subjects_doublepowerlaw, 'x', markersize=10)
+    axes[1, 1].plot(bic_collapsed_subjects_trecall_sum.flatten(), bic_collapsed_subjects_doublepowerlaw, 'o', markersize=10)
     ixx = np.linspace(min(bic_collapsed_subjects_trecall_sum.min(), bic_collapsed_subjects_doublepowerlaw.min())*0.95, max(bic_collapsed_subjects_trecall_sum.max(), bic_collapsed_subjects_doublepowerlaw.max())*1.05, 100)
     axes[1, 1].plot(ixx, ixx, '--k')
     axes[1, 1].set_aspect('equal')
@@ -906,7 +974,6 @@ def plot_compare_bic_collapsed_mixture_model_sequential(dataset, dataio=None):
     axes[1, 1].set_xlabel('Collapsed trecall BIC, subject')
     f.canvas.draw()
 
-    plt.show()
 
     # Works well. Overall quite a huge improvement in BIC, as I thought.
 

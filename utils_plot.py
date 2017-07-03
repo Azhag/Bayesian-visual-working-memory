@@ -1129,6 +1129,8 @@ def scatter_marginals(xdata, ydata, xlabel='', ylabel='', title='', scatter_mark
 
     ax.set_xlabel(xlabel)
 
+    return f
+
 
 def plot_vonmises_pdf(x, kappa, mu=0.0, scale=1.0, ax_handle=None, fignum=None, linewidth=1, fmt='-', markersize=1, color=None, xlabel=None, ylabel=None, label=''):
     '''
