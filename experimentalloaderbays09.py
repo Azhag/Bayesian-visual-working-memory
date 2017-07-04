@@ -8,6 +8,7 @@ import utils
 
 from experimentalloader import ExperimentalLoader
 
+
 class ExperimentalLoaderBays09(ExperimentalLoader):
     """
         Bays2009 dataset
@@ -41,7 +42,6 @@ class ExperimentalLoaderBays09(ExperimentalLoader):
         self.dataset['precision_subject_nitems_theo'] = np.nan*np.empty((self.dataset['subject_size'], self.dataset['n_items_size']))
         self.dataset['precision_subject_nitems_theo_nochance'] = np.nan*np.empty((self.dataset['subject_size'], self.dataset['n_items_size']))
         self.dataset['precision_subject_nitems_bays_notreatment'] = np.nan*np.empty((self.dataset['subject_size'], self.dataset['n_items_size']))
-
 
 
         # Fit mixture model

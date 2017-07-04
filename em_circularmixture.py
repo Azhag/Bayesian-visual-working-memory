@@ -12,10 +12,9 @@ import scipy.special as spsp
 import scipy.stats as spst
 from sklearn.cross_validation import KFold
 import statsmodels.distributions as stmodsdist
-
 import utils
-
 import progress
+
 
 def fit(responses, target_angle, nontarget_angles=np.array([[]]), initialisation_method='mixed', nb_initialisations=5, debug=False):
     '''
@@ -70,11 +69,10 @@ def fit(responses, target_angle, nontarget_angles=np.array([[]]), initialisation
             if debug:
                 print "E", i, LL, kappa, mixt_target, mixt_nontargets, mixt_random
             resp_ik[:, 0] = mixt_target * vonmisespdf(error_to_target, 0.0, kappa)
-            resp_r = mixt_random/(2.*np.pi)
+            resp_r = mixt_random / (2. * np.pi)
             if K > 0:
-                resp_ik[:, 1:] = mixt_nontargets/K * vonmisespdf(error_to_nontargets, 0.0, kappa)
+                resp_ik[:, 1:] = mixt_nontargets / K * vonmisespdf(error_to_nontargets, 0.0, kappa)
             W = np.sum(resp_ik, axis=1) + resp_r
-
 
             # Compute likelihood
             LL = np.nansum(np.log(W))
@@ -86,23 +84,23 @@ def fit(responses, target_angle, nontarget_angles=np.array([[]]), initialisation
                 break
 
             # M-step
-            mixt_target = np.nansum(resp_ik[:, 0]/W)/N
-            mixt_nontargets = np.nansum(resp_ik[:, 1:]/W[:, np.newaxis])/N
-            mixt_random = np.nansum(resp_r/W)/N
+            mixt_target = np.nansum(resp_ik[:, 0] / W) / N
+            mixt_nontargets = np.nansum(resp_ik[:, 1:] / W[:, np.newaxis]) / N
+            mixt_random = np.nansum(resp_r / W) / N
 
             # Update kappa, a bit harder. Could be done in complex angular coordinates I think.
-            rw = resp_ik/W[:, np.newaxis]
+            rw = resp_ik / W[:, np.newaxis]
             S = np.c_[np.sin(error_to_target), np.sin(error_to_nontargets)]
             C = np.c_[np.cos(error_to_target), np.cos(error_to_nontargets)]
-            r1 = np.nansum(S*rw)
-            r2 = np.nansum(C*rw)
+            r1 = np.nansum(S * rw)
+            r2 = np.nansum(C * rw)
 
             if np.abs(np.nansum(rw)) < 1e-10:
                 if debug:
                     print "Kappa diverged:", kappa, r1, r2, np.nansum(rw)
                 kappa = 0
             else:
-                R = (r1**2 + r2**2)**0.5/np.nansum(rw)
+                R = (r1**2 + r2**2)**0.5 / np.nansum(rw)
                 kappa = A1inv(R)
 
             if debug:
@@ -231,9 +229,10 @@ def cross_validation_kfold(responses, target_angle, nontarget_angles, K=2, shuff
     for param_name in fitted_params_names:
         exec(param_name + "_all = [fit['" + param_name + "'] for fit in fits_all]")
 
-    return dict(test_LL=test_LL, train_LL=np.array(train_LL_all), fits_all=fits_all, best_fit=best_fit, best_test_LL=best_test_LL, kappa_all=np.array(kappa_all), mixt_target_all=np.array(mixt_target_all), mixt_nontargets_all=np.array(mixt_nontargets_all), mixt_random_all=np.array(mixt_random_all))
-
-
+    return dict(test_LL=test_LL,
+                fits_all=fits_all,
+                best_fit=best_fit,
+                best_test_LL=best_test_LL)
 
 
 def initialise_parameters(N, K, method='fixed', nb_initialisations=10):
@@ -400,7 +399,7 @@ def aic(em_fit_result_dict):
     # - mixt_random: 1
     # - mixt_nontarget: 1
     # - kappa: 1
-    K = 4
+    K = 3 + int(em_fit_result_dict['K'] > 0)
 
     return utils.aic(K, em_fit_result_dict['train_LL'])
 
@@ -413,11 +412,9 @@ def bic(em_fit_result_dict, N):
     # Number of parameters:
     # - mixt_target: 1
     # - mixt_random: 1
-    # - mixt_nontarget: 1
+    # - mixt_nontarget: 1 if K > 0
     # - kappa: 1
-    K = 4
-
-    import pdb;pdb.set_trace()
+    K = 3 + int(em_fit_result_dict['K'] > 0)
 
     return utils.bic(K, em_fit_result_dict['train_LL'], N)
 
@@ -511,11 +508,6 @@ def test_bootstrap_nontargets():
     assert bootstrap_results['p_value'] > 0.05, "No misbinding here, should not reject H0"
 
 
-
-
-
 if __name__ == '__main__':
     test()
     # pass
-
-

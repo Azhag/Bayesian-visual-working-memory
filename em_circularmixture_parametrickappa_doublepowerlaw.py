@@ -367,18 +367,18 @@ def bic(em_fit_result_dict, LL_all):
 
 
     # First count the Loglikelihood
-    bic_tot = -2.*np.nansum(LL_all[np.tril_indices(LL_all.shape[0])])
+    bic_tot = -2. * np.nansum(LL_all[np.tril_indices(LL_all.shape[0])])
 
     # Then count alpha, beta and gamma, for all datapoints appropriately
     K = 3
-    bic_tot += K*np.log(np.nansum(np.isfinite(LL_all)))
+    bic_tot += K * np.log(np.nansum(np.isfinite(LL_all)))
 
     # Now do the mixture proportions per condition
     for nitems_i, nitems in enumerate(em_fit_result_dict['T_space']):
         for trecall_i, trecall in enumerate(em_fit_result_dict['T_space']):
             if trecall <= nitems:
                 K = 3
-                bic_tot += K*np.log(np.nansum(np.isfinite(LL_all[nitems_i, trecall_i])))
+                bic_tot += K * np.log(np.nansum(np.isfinite(LL_all[nitems_i, trecall_i])))
 
     return bic_tot
 

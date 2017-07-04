@@ -18,15 +18,16 @@ import utils
 
 import progress
 
+
 def fit(T_space, responses, targets_angle, nontargets_angles=np.array([[]]), initialisation_method='random', nb_initialisations=5, debug=False, force_random_less_than=None):
     '''
         Modified mixture model where we fit a parametric power law to kappa as a function of number of items.
         Assumes that we gather samples across samples N and times T.
 
         Return maximum likelihood values for a different mixture model, with:
-            - 1 probability of target
-            - 1 probability of nontarget
-            - 1 probability of random circular
+            - T probability of target
+            - T probability of nontarget
+            - T probability of random circular
             - alpha/beta parameters of kappa = alpha t**beta, where t=number of items
         Inputs in radian, in the -pi:pi range.
             - responses: TxN
@@ -47,7 +48,6 @@ def fit(T_space, responses, targets_angle, nontargets_angles=np.array([[]]), ini
     # nontargets_angles = nontargets_angles[not_nan_indices]
 
     Tnum = T_space.size
-    Tmax = T_space.max()
     N = float(np.sum(~np.isnan(responses)))/float(Tnum)
     max_iter = 1000
     epsilon = 1e-4
@@ -179,8 +179,11 @@ def numerical_M_step(T_space, resp_nik, errors_all, alpha, beta):
         '''
         LL_tot = 0
         for T_i, T in enumerate(args['T_space']):
-            LL_tot += np.nansum(args['resp_nik'][T_i]*compute_kappa(T, params[0], params[1])*np.cos(args['errors_all'][T_i])) \
-                -np.nansum(args['resp_nik'][T_i])*np.log(spsp.i0(compute_kappa(T, params[0], params[1])))
+            LL_tot += np.nansum(args['resp_nik'][T_i]*compute_kappa(
+                T, params[0], params[1])*np.cos(
+                    args['errors_all'][T_i])) - np.nansum(
+                        args['resp_nik'][T_i])*np.log(
+                            spsp.i0(compute_kappa(T, params[0], params[1])))
 
         if np.isnan(LL_tot):
             LL_tot = np.inf
@@ -227,9 +230,6 @@ def compute_responsibilities(responses, targets_angle, nontargets_angles, parame
 
     (alpha, beta, mixt_target, mixt_nontargets, mixt_random) = (parameters['alpha'], parameters['beta'], parameters['mixt_target'], parameters['mixt_nontargets'], parameters['mixt_random'])
 
-    # if nontargets_angles.size > 0:
-        # nontargets_angles = nontargets_angles[:, ~np.all(np.isnan(nontargets_angles), axis=0)]
-
     T = int(responses.shape[0])
 
     error_to_target = wrap(targets_angle - responses)
@@ -271,7 +271,6 @@ def cross_validation_kfold(responses, targets_angle, nontargets_angles, K=2, shu
     k_i = 0
     fits_all = []
 
-
     best_fit = None
 
     for train, test in kf:
@@ -296,9 +295,10 @@ def cross_validation_kfold(responses, targets_angle, nontargets_angles, K=2, shu
     for param_name in fitted_params_names:
         exec(param_name + "_all = [fit['" + param_name + "'] for fit in fits_all]")
 
-    return dict(test_LL=test_LL, train_LL=np.array(train_LL_all), fits_all=fits_all, best_fit=best_fit, best_test_LL=best_test_LL, kappa_all=np.array(kappa_all), mixt_target_all=np.array(mixt_target_all), mixt_nontargets_all=np.array(mixt_nontargets_all), mixt_random_all=np.array(mixt_random_all))
-
-
+    return dict(test_LL=test_LL,
+                fits_all=fits_all,
+                best_fit=best_fit,
+                best_test_LL=best_test_LL)
 
 
 def initialise_parameters(N, T_space, method='random', nb_initialisations=10):
@@ -398,7 +398,7 @@ def vonmisespdf(x, mu, K):
         Von Mises PDF (switch to Normal if high kappa)
     '''
     if K > 700.:
-        return np.sqrt(K)/(np.sqrt(2*np.pi))*np.exp(-0.5*(x -mu)**2.*K)
+        return np.sqrt(K)/(np.sqrt(2*np.pi))*np.exp(-0.5*(x - mu)**2.*K)
     else:
         return np.exp(K*np.cos(x-mu)) / (2.*np.pi * spsp.i0(K))
 
@@ -484,10 +484,10 @@ def aic(em_fit_result_dict):
     # Number of parameters:
     # - mixt_target: Tnum
     # - mixt_random: Tnum
-    # - mixt_nontargets: Tnum
+    # - mixt_nontargets: Tnum - 1
     # - alpha: 1
     # - beta: 1
-    K = em_fit_result_dict['mixt_target'].size + em_fit_result_dict['mixt_random'].size + em_fit_result_dict['mixt_nontargets'].size + 2
+    K = em_fit_result_dict['mixt_target'].size + em_fit_result_dict['mixt_random'].size + em_fit_result_dict['mixt_nontargets'].size + 1
 
     return utils.aic(K, em_fit_result_dict['train_LL'])
 
@@ -513,8 +513,7 @@ def bic(em_fit_result_dict, LL_all):
 
     # Finally, the mixture proportions per condition
     for T_i, T in enumerate(em_fit_result_dict['T_space']):
-        # K = 2. + (T-1)
-        K = 3
+        K = 2 + int(T > 1)
         bic_tot += K*np.log(np.nansum(np.isfinite(LL_all[T_i])))
 
     return bic_tot
