@@ -6,15 +6,14 @@ import matplotlib.pyplot as plt
 
 from experimentlauncher import *
 
-from datagenerator import *
 from hierarchicalrandomnetwork import *
 from randomfactorialnetwork import *
 from statisticsmeasurer import *
-from slicesampler import *
 from dataio import *
 from launchers import *
 import load_experimental_data
 
+import em_circularmixture
 import cPickle as pickle
 
 import utils
@@ -504,7 +503,7 @@ def plot_specific_stimuli():
     '''
 
     # Additional plot
-    data = np.load( '/Users/loicmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/code/git-bayesian-visual-working-memory/Experiments/specific_stimuli/specific_stimuli_mixed_sigmaxmindistance_autoset_M200_repetitions10_sigmaxrangebis_191013_outputs/mixed_specific_stimuli_additional_run_paper-launcher_do_mixed_special_stimuli-080172fc-428e-4854-b3c2-d8292ecfac61.npy').item()
+    data = np.load('/Users/loicmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/code/git-bayesian-visual-working-memory/Experiments/specific_stimuli/specific_stimuli_mixed_sigmaxmindistance_autoset_M200_repetitions10_sigmaxrangebis_191013_outputs/mixed_specific_stimuli_additional_run_paper-launcher_do_mixed_special_stimuli-080172fc-428e-4854-b3c2-d8292ecfac61.npy').item()
 
     ratio_space = data['ratio_space']
     result_all_precisions_mean = nanmean(data['result_all_precisions'], axis=-1)
@@ -522,7 +521,7 @@ def plot_specific_stimuli():
 
 
     # Plot precision
-    plot_mean_std_area(ratio_space, result_all_precisions_mean, result_all_precisions_std) #, xlabel='Ratio conjunctivity', ylabel='Precision of recall')
+    utils.plot_mean_std_area(ratio_space, result_all_precisions_mean, result_all_precisions_std)  #, xlabel='Ratio conjunctivity', ylabel='Precision of recall')
     # plt.title('Min distance %.3f' % min_distance)
     plt.ylim([0, np.max(result_all_precisions_mean + result_all_precisions_std)])
 
@@ -530,14 +529,14 @@ def plot_specific_stimuli():
         dataio.save_current_figure('mindist%.2f_precisionrecall_forpaper_{label}_{unique_id}.pdf' % min_distance)
 
     # Plot kappa fitted
-    plot_mean_std_area(ratio_space, result_em_fits_mean[:, 0], result_em_fits_std[:, 0]) #, xlabel='Ratio conjunctivity', ylabel='Fitted kappa')
+    utils.plot_mean_std_area(ratio_space, result_em_fits_mean[:, 0], result_em_fits_std[:, 0])  #, xlabel='Ratio conjunctivity', ylabel='Fitted kappa')
     # plt.title('Min distance %.3f' % min_distance)
     plt.ylim([-0.1, np.max(result_em_fits_mean[:, 0] + result_em_fits_std[:, 0])])
     if savefigs:
         dataio.save_current_figure('mindist%.2f_emkappa_forpaper_{label}_{unique_id}.pdf' % min_distance)
 
     # Plot kappa-stddev fitted. Easier to visualize
-    plot_mean_std_area(ratio_space, result_em_kappastddev_mean, result_em_kappastddev_std) #, xlabel='Ratio conjunctivity', ylabel='Fitted kappa_stddev')
+    utils.plot_mean_std_area(ratio_space, result_em_kappastddev_mean, result_em_kappastddev_std)  #, xlabel='Ratio conjunctivity', ylabel='Fitted kappa_stddev')
     # plt.title('Min distance %.3f' % min_distance)
     plt.ylim([0, 1.1*np.max(result_em_kappastddev_mean + result_em_kappastddev_std)])
     if savefigs:
@@ -545,7 +544,7 @@ def plot_specific_stimuli():
 
 
     # Plot LLH
-    plot_mean_std_area(ratio_space, result_em_fits_mean[:, -1], result_em_fits_std[:, -1]) #, xlabel='Ratio conjunctivity', ylabel='Loglikelihood of Mixture model fit')
+    utils.plot_mean_std_area(ratio_space, result_em_fits_mean[:, -1], result_em_fits_std[:, -1]) #, xlabel='Ratio conjunctivity', ylabel='Loglikelihood of Mixture model fit')
     # plt.title('Min distance %.3f' % min_distance)
     if savefigs:
         dataio.save_current_figure('mindist%.2f_emllh_forpaper_{label}_{unique_id}.pdf' % min_distance)
@@ -560,6 +559,89 @@ def plot_specific_stimuli():
     return locals()
 
 
+
+def compute_bootstrap_samples(dataset, nb_bootstrap_samples, angle_space):
+    responses_resampled = np.empty(
+        (np.unique(dataset['n_items']).size,
+         nb_bootstrap_samples),
+        dtype=np.object)
+    error_nontargets_resampled = np.empty(
+        (np.unique(dataset['n_items']).size,
+         nb_bootstrap_samples),
+        dtype=np.object)
+    error_targets_resampled = np.empty(
+        (np.unique(dataset['n_items']).size,
+         nb_bootstrap_samples),
+        dtype=np.object)
+    hist_cnts_nontarget_bootstraps_nitems = np.empty(
+        (np.unique(dataset['n_items']).size,
+         nb_bootstrap_samples,
+         angle_space.size - 1))*np.nan
+    hist_cnts_target_bootstraps_nitems = np.empty(
+        (np.unique(dataset['n_items']).size,
+         nb_bootstrap_samples,
+         angle_space.size - 1))*np.nan
+
+    bootstrap_data = {
+        'responses_resampled': responses_resampled,
+        'error_nontargets_resampled': error_nontargets_resampled,
+        'error_targets_resampled': error_targets_resampled,
+        'hist_cnts_nontarget_bootstraps_nitems': hist_cnts_nontarget_bootstraps_nitems,
+        'hist_cnts_target_bootstraps_nitems': hist_cnts_target_bootstraps_nitems,
+    }
+    for n_items_i, n_items in enumerate(np.unique(dataset['n_items'])):
+        # Data collapsed accross subjects
+        ids_filtered = (dataset['n_items'] == n_items).flatten()
+
+        if n_items > 1:
+            # Get random bootstrap nontargets
+            bootstrap_nontargets = utils.sample_angle(
+                dataset['item_angle'][ids_filtered, 1:n_items].shape + (nb_bootstrap_samples, ))
+
+            # Compute associated EM fits
+            # bootstrap_results = []
+            for bootstrap_i in progress.ProgressDisplay(np.arange(nb_bootstrap_samples), display=progress.SINGLE_LINE):
+
+                em_fit = em_circularmixture.fit(
+                    dataset['response'][ids_filtered, 0],
+                    dataset['item_angle'][ids_filtered, 0],
+                    bootstrap_nontargets[..., bootstrap_i])
+
+                # bootstrap_results.append(em_fit)
+
+                # Get EM samples
+                responses_resampled[n_items_i, bootstrap_i] = (
+                    em_circularmixture.sample_from_fit(
+                        em_fit,
+                        dataset['item_angle'][ids_filtered, 0],
+                        bootstrap_nontargets[..., bootstrap_i]))
+
+                # Compute the errors
+                error_nontargets_resampled[n_items_i, bootstrap_i] = (
+                    utils.wrap_angles(
+                        responses_resampled[n_items_i, bootstrap_i][:, np.newaxis] - bootstrap_nontargets[..., bootstrap_i]))
+                error_targets_resampled[n_items_i, bootstrap_i] = (
+                    utils.wrap_angles(
+                        responses_resampled[n_items_i, bootstrap_i] - dataset['item_angle'][ids_filtered, 0]))
+
+                # Bin everything
+                (hist_cnts_nontarget_bootstraps_nitems[n_items_i, bootstrap_i],
+                 _, _) = (
+                    utils.histogram_binspace(
+                        utils.dropnan(
+                            error_nontargets_resampled[n_items_i, bootstrap_i]),
+                        bins=angle_space,
+                        norm='density'))
+                (hist_cnts_target_bootstraps_nitems[n_items_i, bootstrap_i],
+                 _, _) = (
+                    utils.histogram_binspace(
+                        utils.dropnan(
+                            error_targets_resampled[n_items_i, bootstrap_i]),
+                        bins=angle_space,
+                        norm='density'))
+    return bootstrap_data
+
+
 def plot_bootstrap_randomsamples():
     '''
         Do histograms with random samples from bootstrap nontarget estimates
@@ -568,56 +650,62 @@ def plot_bootstrap_randomsamples():
     dataio = DataIO(label='plotpaper_bootstrap_randomized')
 
     nb_bootstrap_samples = 200
-    use_precomputed = True
+    dropboxdir = os.environ.get('WORKDIR_DROP',
+                                os.path.split(utils.__file__)[0])
+    datadir = os.path.join(dropboxdir,
+                           'Data/cache_bootstrap_randomsamples_papertheo/')
+    caching_save_filename = 'bootstrap_histo.npy'
 
     angle_space = np.linspace(-np.pi, np.pi, 51)
     bins_center = angle_space[:-1] + np.diff(angle_space)[0]/2
 
     data_bays2009 = load_experimental_data.load_data_bays09(fit_mixture_model=True)
 
+    data_bootstrap = dict()
+    should_compute_bootstrap = True
+    save_caching_file = False
+
     ## Super long simulation, use precomputed data maybe?
-    if use_precomputed:
-        data = pickle.load(open('/Users/loicmatthey/Dropbox/UCL/1-phd/Work/Visual_working_memory/code/git-bayesian-visual-working-memory/Data/cache_randomized_bootstrap_samples_plots_paper_theo_plotbootstrapsamples/bootstrap_histo_katz.npy', 'r'))
+    if caching_save_filename is not None:
+        caching_save_filename = os.path.join(datadir, caching_save_filename)
 
-        responses_resampled = data['responses_resampled']
-        error_nontargets_resampled = data['error_nontargets_resampled']
-        error_targets_resampled = data['error_targets_resampled']
-        hist_cnts_nontarget_bootstraps_nitems = data['hist_cnts_nontarget_bootstraps_nitems']
-        hist_cnts_target_bootstraps_nitems = data['hist_cnts_target_bootstraps_nitems']
-    else:
-        responses_resampled = np.empty((np.unique(data_bays2009['n_items']).size, nb_bootstrap_samples), dtype=np.object)
-        error_nontargets_resampled = np.empty((np.unique(data_bays2009['n_items']).size, nb_bootstrap_samples), dtype=np.object)
-        error_targets_resampled = np.empty((np.unique(data_bays2009['n_items']).size, nb_bootstrap_samples), dtype=np.object)
-        hist_cnts_nontarget_bootstraps_nitems = np.empty((np.unique(data_bays2009['n_items']).size, nb_bootstrap_samples, angle_space.size - 1))*np.nan
-        hist_cnts_target_bootstraps_nitems = np.empty((np.unique(data_bays2009['n_items']).size, nb_bootstrap_samples, angle_space.size - 1))*np.nan
+        if os.path.exists(caching_save_filename):
+            # Got file, open it and try to use its contents
+            try:
+                with open(caching_save_filename, 'r') as file_in:
+                    # Load and assign values
+                    cached_data = pickle.load(file_in)
+                    data_bootstrap.update(cached_data)
+                    should_compute_bootstrap = False
+                    print "reloaded bootstrap data from cache", caching_save_filename
 
-        for n_items_i, n_items in enumerate(np.unique(data_bays2009['n_items'])):
-            # Data collapsed accross subjects
-            ids_filtered = (data_bays2009['n_items'] == n_items).flatten()
+            except IOError:
+                print "Cannot load ", caching_save_filename
+        else:
+            # No file, create it after everything is computed
+            save_caching_file = True
 
-            if n_items > 1:
 
-                # Get random bootstrap nontargets
-                bootstrap_nontargets = utils.sample_angle(data_bays2009['item_angle'][ids_filtered, 1:n_items].shape + (nb_bootstrap_samples, ))
+    if should_compute_bootstrap:
+        data_bootstrap = compute_bootstrap_samples(
+            data_bays2009, nb_bootstrap_samples, angle_space)
 
-                # Compute associated EM fits
-                bootstrap_results = []
-                for bootstrap_i in progress.ProgressDisplay(np.arange(nb_bootstrap_samples), display=progress.SINGLE_LINE):
+    if save_caching_file:
+        try:
+            os.makedirs(datadir)
+            with open(caching_save_filename, 'w') as filecache_out:
+                pickle.dump(data_bootstrap, filecache_out, protocol=2)
 
-                    em_fit = em_circularmixture_allitems_uniquekappa.fit(data_bays2009['response'][ids_filtered, 0], data_bays2009['item_angle'][ids_filtered, 0], bootstrap_nontargets[..., bootstrap_i])
+        except IOError:
+            print "Error writing out to caching file ", caching_save_filename
 
-                    bootstrap_results.append(em_fit)
 
-                    # Get EM samples
-                    responses_resampled[n_items_i, bootstrap_i] = em_circularmixture_allitems_uniquekappa.sample_from_fit(em_fit, data_bays2009['item_angle'][ids_filtered, 0], bootstrap_nontargets[..., bootstrap_i])
-
-                    # Compute the errors
-                    error_nontargets_resampled[n_items_i, bootstrap_i] = utils.wrap_angles(responses_resampled[n_items_i, bootstrap_i][:, np.newaxis] - bootstrap_nontargets[..., bootstrap_i])
-                    error_targets_resampled[n_items_i, bootstrap_i] = utils.wrap_angles(responses_resampled[n_items_i, bootstrap_i] - data_bays2009['item_angle'][ids_filtered, 0])
-
-                    # Bin everything
-                    hist_cnts_nontarget_bootstraps_nitems[n_items_i, bootstrap_i], x, bins = utils.histogram_binspace(utils.dropnan(error_nontargets_resampled[n_items_i, bootstrap_i]), bins=angle_space, norm='density')
-                    hist_cnts_target_bootstraps_nitems[n_items_i, bootstrap_i], x, bins = utils.histogram_binspace(utils.dropnan(error_targets_resampled[n_items_i, bootstrap_i]), bins=angle_space, norm='density')
+    # Unpack for simplicity
+    responses_resampled = data_bootstrap['responses_resampled']
+    error_nontargets_resampled = data_bootstrap['error_nontargets_resampled']
+    error_targets_resampled = data_bootstrap['error_targets_resampled']
+    hist_cnts_nontarget_bootstraps_nitems = data_bootstrap['hist_cnts_nontarget_bootstraps_nitems']
+    hist_cnts_target_bootstraps_nitems = data_bootstrap['hist_cnts_target_bootstraps_nitems']
 
     # Now show average histogram
     hist_cnts_target_bootstraps_nitems_mean = np.mean(hist_cnts_target_bootstraps_nitems, axis=-2)
@@ -630,7 +718,7 @@ def plot_bootstrap_randomsamples():
 
     f1, axes1 = plt.subplots(ncols=np.unique(data_bays2009['n_items']).size-1, figsize=((np.unique(data_bays2009['n_items']).size-1)*6, 6), sharey=True)
     for n_items_i, n_items in enumerate(np.unique(data_bays2009['n_items'])):
-        if n_items>1:
+        if n_items > 1:
             utils.plot_mean_std_area(bins_center, hist_cnts_nontarget_bootstraps_nitems_mean[n_items_i], hist_cnts_nontarget_bootstraps_nitems_sem[n_items_i], ax_handle=axes1[n_items_i-1], color='k')
 
             # Now add the Data histograms

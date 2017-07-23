@@ -8,7 +8,6 @@ import utils
 
 from experimentalloader import ExperimentalLoader
 
-
 class ExperimentalLoaderBays09(ExperimentalLoader):
     """
         Bays2009 dataset
@@ -42,6 +41,7 @@ class ExperimentalLoaderBays09(ExperimentalLoader):
         self.dataset['precision_subject_nitems_theo'] = np.nan*np.empty((self.dataset['subject_size'], self.dataset['n_items_size']))
         self.dataset['precision_subject_nitems_theo_nochance'] = np.nan*np.empty((self.dataset['subject_size'], self.dataset['n_items_size']))
         self.dataset['precision_subject_nitems_bays_notreatment'] = np.nan*np.empty((self.dataset['subject_size'], self.dataset['n_items_size']))
+
 
 
         # Fit mixture model
@@ -86,7 +86,9 @@ class ExperimentalLoaderBays09(ExperimentalLoader):
 
         # Perform Bootstrap analysis if required
         if parameters.get('should_compute_bootstrap', False):
-            self.compute_bootstrap_cached(caching_save_filename=parameters.get('bootstrap_cache', None))
+            self.compute_bootstrap_cached(
+                caching_save_filename=parameters.get('bootstrap_cache', None),
+                nb_bootstrap_samples=parameters.get('nb_bootstrap_samples', 1000))
 
         # Do per subject and nitems, get average histogram
         self.compute_average_histograms()

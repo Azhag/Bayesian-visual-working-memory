@@ -54,12 +54,12 @@ def plots_boostrap(data_pbs, generator_module=None):
     savedata = True
 
     load_fit_bootstrap = True
-    plots_hist_cdf = False
+    plots_hist_cdf = True
     estimate_bootstrap = True
 
     should_fit_bootstrap = True
     # caching_bootstrap_filename = None
-    caching_bootstrap_filename = os.path.join(generator_module.pbs_submission_infos['simul_out_dir'], 'outputs', 'cache_bootstrap_bays09.pickle')
+    caching_bootstrap_filename = os.path.join(generator_module.pbs_submission_infos['simul_out_dir'], 'outputs', 'cache_bootstrap_gorgo11.pickle')
 
     plt.rcParams['font.size'] = 16
     #
@@ -73,7 +73,7 @@ def plots_boostrap(data_pbs, generator_module=None):
 
     dataio = DataIO(output_folder=generator_module.pbs_submission_infos['simul_out_dir'] + '/outputs/', label='global_' + dataset_infos['save_output_filename'])
 
-    dataset = load_experimental_data.load_data_bays09(fit_mixture_model=True)
+    dataset = load_experimental_data.load_data_gorgo11(fit_mixture_model=True)
 
     if load_fit_bootstrap:
         if caching_bootstrap_filename is not None:

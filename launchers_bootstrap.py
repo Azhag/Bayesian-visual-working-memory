@@ -241,9 +241,9 @@ def launcher_do_bootstrap_experimental(args):
     run_counter = 0
 
     # Load the data
-    if all_parameters['subaction'] == 'bays09' or all_parameters['subaction'] == '':
-        # Bays2009 dataset
-        dataset = load_experimental_data.load_data_bays09(fit_mixture_model=True)
+    dataset = load_experimental_data.load_data(
+        experiment_id=all_parameters.get('experiment_id', 'bays09'),
+        fit_mixture_model=True)
 
     # Result arrays
     result_bootstrap_nitems_samples = np.nan*np.empty((dataset['n_items_size'], all_parameters['num_repetitions']))
@@ -263,8 +263,7 @@ def launcher_do_bootstrap_experimental(args):
                 dataset['item_angle'][ids_filtered, 0],
                 dataset['item_angle'][ids_filtered, 1:n_items],
                 nb_bootstrap_samples=all_parameters['num_repetitions'],
-                resample_targets=False
-                )
+                resample_targets=False)
 
             result_bootstrap_nitems_samples[n_items_i] = bootstrap['nontarget_bootstrap_samples']
 
@@ -274,7 +273,7 @@ def launcher_do_bootstrap_experimental(args):
                 print "Nitems %d, subject %d" % (n_items, subject)
 
                 # Bootstrap per subject and nitems
-                ids_filtered = (dataset['subject']==subject).flatten() & (dataset['n_items'] == n_items).flatten()
+                ids_filtered = (dataset['subject'] == subject).flatten() & (dataset['n_items'] == n_items).flatten()
 
                 # Compute bootstrap if required
 

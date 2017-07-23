@@ -39,10 +39,10 @@ class ExperimentalLoaderGorgo11Simultaneous(ExperimentalLoader):
             del self.dataset['err']
 
         # Assign probe field correctly
-        self.dataset['probe'] = np.zeros(self.dataset['error'].shape, dtype= int)
+        self.dataset['probe'] = np.zeros(self.dataset['error'].shape, dtype=int)
 
         # Convert everything to radians, spanning a -np.pi:np.pi
-        if parameters.get('convert_radians', True):  #pylint: disable=E0602
+        if parameters.get('convert_radians', True):
             self.convert_wrap(multiply_factor=2, max_angle=np.pi)
 
         # Make some aliases
@@ -76,6 +76,12 @@ class ExperimentalLoaderGorgo11Simultaneous(ExperimentalLoader):
         if parameters.get('fit_mixture_model', False):
             self.fit_collapsed_mixture_model_cached(caching_save_filename=parameters.get('collapsed_mixture_model_cache', None))
 
+        # Perform Bootstrap analysis if required
+        if parameters.get('should_compute_bootstrap', False):
+            self.compute_bootstrap_cached(
+                caching_save_filename=parameters.get('bootstrap_cache', None),
+                nb_bootstrap_samples=parameters.get('nb_bootstrap_samples', 1000))
+
         # Perform Vtest for circular uniformity
         self.compute_vtest()
 
@@ -83,7 +89,7 @@ class ExperimentalLoaderGorgo11Simultaneous(ExperimentalLoader):
         self.compute_average_histograms()
 
 
-    def create_subject_arrays(self, double_precision=True   ):
+    def create_subject_arrays(self, double_precision=True):
         '''
             Create arrays with errors per subject and per num_target
             also create an array with the precision per subject and num_target directly

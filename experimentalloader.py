@@ -57,7 +57,7 @@ class ExperimentalLoader(object):
         for key in keys_to_convert:
             if key in self.dataset:
                 self.dataset[key + "_deg"] = self.dataset[key]
-                self.dataset[key] = utils.wrap_angles(np.deg2rad(multiply_factor * self.dataset[key]), bound=max_angle)
+                self.dataset[key] = utils.wrap_angles(np.deg2rad(multiply_factor*self.dataset[key]), bound=max_angle)
 
 
     def compute_all_errors(self):
@@ -344,8 +344,11 @@ class ExperimentalLoader(object):
                     ids_filter = (self.dataset['subject'] == subject).flatten() & (self.dataset['n_items'] == n_items).flatten()
 
                     # Compute bootstrap if required
-
-                    bootstrap = em_circmixtmodel.bootstrap_nontarget_stat(self.dataset['response'][ids_filter, 0], self.dataset['item_angle'][ids_filter, 0], self.dataset['item_angle'][ids_filter, 1:n_items], nb_bootstrap_samples=nb_bootstrap_samples)
+                    bootstrap = em_circmixtmodel.bootstrap_nontarget_stat(
+                        self.dataset['response'][ids_filter, 0],
+                        self.dataset['item_angle'][ids_filter, 0],
+                        self.dataset['item_angle'][ids_filter, 1:n_items],
+                        nb_bootstrap_samples=nb_bootstrap_samples)
                     self.dataset['bootstrap_subject_nitems'][subject_i, n_items_i] = bootstrap
                     self.dataset['bootstrap_subject_nitems_pval'][subject_i, n_items_i] = bootstrap['p_value']
 
