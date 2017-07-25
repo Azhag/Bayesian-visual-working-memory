@@ -77,7 +77,7 @@ class ExperimentalLoaderGorgo11Sequential(ExperimentalLoader):
             self.fit_collapsed_mixture_model_cached(caching_save_filename=parameters.get('collapsed_mixture_model_cache', None), saved_keys=['collapsed_em_fits_subjects_nitems', 'collapsed_em_fits_nitems', 'collapsed_em_fits_subjects_trecall', 'collapsed_em_fits_trecall', 'collapsed_em_fits_doublepowerlaw', 'collapsed_em_fits_doublepowerlaw_subjects', 'collapsed_em_fits_doublepowerlaw_array'])
 
         # Perform Vtest for circular uniformity
-        # self.compute_vtest()
+        self.compute_vtest()
 
         # Do per subject and nitems, get average histogram
         # self.compute_average_histograms()
@@ -98,7 +98,7 @@ class ExperimentalLoaderGorgo11Sequential(ExperimentalLoader):
 
 
 
-    def create_subject_arrays(self, double_precision=True   ):
+    def create_subject_arrays(self, double_precision=True):
         '''
             Create arrays with errors per subject and per num_target
             also create an array with the precision per subject and num_target directly
@@ -203,11 +203,17 @@ class ExperimentalLoaderGorgo11Sequential(ExperimentalLoader):
 
 
     def compute_vtest(self):
-        self.dataset['vtest_nitems'] = np.empty(self.dataset['n_items_size'])*np.nan
-        for n_items_i, n_items in enumerate(np.unique(self.dataset['n_items'])):
-            if n_items > 1:
-                self.dataset['vtest_nitems'][n_items_i] = utils.V_test(utils.dropnan(self.dataset['errors_nontarget_nitems'][n_items_i]).flatten())['pvalue']
-
+        unique_n_items = np.unique(self.dataset['n_items'])
+        self.dataset['vtest_nitems_trecall'] = np.empty((
+            unique_n_items.size, unique_n_items.size))*np.nan
+        for n_items_i, n_items in enumerate(unique_n_items):
+            for trecall_i, trecall in enumerate(np.arange(1, n_items+1)):
+                curr_errors = utils.dropnan(
+                    self.dataset['errors_nontarget_nitems_trecall'
+                                 ][n_items - 1, trecall - 1]).flatten()
+                if curr_errors.size > 0:
+                    (self.dataset['vtest_nitems_trecall'][n_items_i, trecall_i]
+                     ) = utils.V_test(curr_errors)['pvalue']
 
 
     def fit_mixture_model(self):
@@ -240,7 +246,11 @@ class ExperimentalLoaderGorgo11Sequential(ExperimentalLoader):
         for n_items_i, n_items in enumerate(unique_n_items):
             for subject_i, subject in enumerate(unique_subjects):
                 for trecall_i, trecall in enumerate(np.arange(1, n_items + 1)):
-                    ids_filtered = ((self.dataset['subject']==subject) & (self.dataset['n_items'] == n_items) & (self.dataset['probe'] == trecall) & (self.dataset.get('masked', False) == False)).flatten()
+                    ids_filtered = (
+                        (self.dataset['subject'] == subject) &
+                        (self.dataset['n_items'] == n_items) &
+                        (self.dataset['probe'] == trecall) &
+                        (not self.dataset.get('masked', False))).flatten()
                     # Invert the order of storage, 0 -> last item probed, 1 -> second to last item probe, etc...
                     # trecall_i = n_items - trecall
 
@@ -365,7 +375,7 @@ class ExperimentalLoaderGorgo11Sequential(ExperimentalLoader):
             self.dataset['data_subject_split']['subject_smallestN'][subject] = np.inf
 
             # Create dict(subject) -> dict(nitems_space, response, target, nontargets)
-            for n_items_i, n_items in enumerate(self.dataset['data_subject_split']['nitems_space'] ):
+            for n_items_i, n_items in enumerate(self.dataset['data_subject_split']['nitems_space']):
 
                 self.dataset['data_subject_split']['data_subject_nitems_trecall'][subject][n_items] = dict()
 
@@ -377,12 +387,17 @@ class ExperimentalLoaderGorgo11Sequential(ExperimentalLoader):
 
                     # Create dict(subject) -> dict(n_items) -> dict(trecall) -> dict(nitems_space, response, target, nontargets, N)
                     # Fix the trecall indexing along the way!
-                    self.dataset['data_subject_split']['data_subject_nitems_trecall'][subject][n_items][trecall] = dict(
-                            N=self.dataset['sizes_subject_nitems_trecall'][subject_i][n_items_i][trecall_i],
-                            responses=self.dataset['response_subject_nitems_trecall'][subject_i][n_items_i][trecall_i],
-                            targets=self.dataset['target_subject_nitems_trecall'][subject_i][n_items_i][trecall_i],
-                            nontargets=self.dataset['nontargets_subject_nitems_trecall'][subject_i][n_items_i][trecall_i][..., :(n_items - 1)]
-                        )
+                    (self.dataset[
+                        'data_subject_split'][
+                        'data_subject_nitems_trecall'][
+                        subject][
+                        n_items][
+                        trecall]
+                     ) = dict(
+                        N=self.dataset['sizes_subject_nitems_trecall'][subject_i][n_items_i][trecall_i],
+                        responses=self.dataset['response_subject_nitems_trecall'][subject_i][n_items_i][trecall_i],
+                        targets=self.dataset['target_subject_nitems_trecall'][subject_i][n_items_i][trecall_i],
+                        nontargets=self.dataset['nontargets_subject_nitems_trecall'][subject_i][n_items_i][trecall_i][..., :(n_items - 1)])
 
         # Find the smallest number of samples for later
         self.dataset['data_subject_split']['subject_smallestN'] = np.nanmin(np.nanmin(self.dataset['sizes_subject_nitems_trecall'], axis=-1), axis=-1)
@@ -393,11 +408,11 @@ class ExperimentalLoaderGorgo11Sequential(ExperimentalLoader):
 
             self.dataset['data_subject_split']['data_subject'][subject] = dict(
                 # Responses: TxTxN
-                responses = np.nan*np.empty((self.dataset['data_subject_split']['nitems_space'].size, self.dataset['data_subject_split']['nitems_space'].size, self.dataset['data_subject_split']['subject_smallestN'][subject_i])),
+                responses=np.nan*np.empty((self.dataset['data_subject_split']['nitems_space'].size, self.dataset['data_subject_split']['nitems_space'].size, self.dataset['data_subject_split']['subject_smallestN'][subject_i])),
                 # Targets: TxTxN
-                targets = np.nan*np.empty((self.dataset['data_subject_split']['nitems_space'].size, self.dataset['data_subject_split']['nitems_space'].size, self.dataset['data_subject_split']['subject_smallestN'][subject_i])),
+                targets=np.nan*np.empty((self.dataset['data_subject_split']['nitems_space'].size, self.dataset['data_subject_split']['nitems_space'].size, self.dataset['data_subject_split']['subject_smallestN'][subject_i])),
                 # Nontargets: TxTxNx(Tmax-1)
-                nontargets = np.nan*np.empty((self.dataset['data_subject_split']['nitems_space'].size, self.dataset['data_subject_split']['nitems_space'].size, self.dataset['data_subject_split']['subject_smallestN'][subject_i], self.dataset['data_subject_split']['nitems_space'].max()-1))
+                nontargets=np.nan*np.empty((self.dataset['data_subject_split']['nitems_space'].size, self.dataset['data_subject_split']['nitems_space'].size, self.dataset['data_subject_split']['subject_smallestN'][subject_i], self.dataset['data_subject_split']['nitems_space'].max()-1))
             )
 
             for n_items_i, n_items in enumerate(self.dataset['data_subject_split']['nitems_space']):
@@ -416,11 +431,11 @@ class ExperimentalLoaderGorgo11Sequential(ExperimentalLoader):
 
             self.dataset['data_subject_split']['data_subject_largest'][subject] = dict(
                 # Responses: TxTxN
-                responses = np.nan*np.empty((self.dataset['data_subject_split']['nitems_space'].size, self.dataset['data_subject_split']['nitems_space'].size, self.dataset['data_subject_split']['subject_largestN'][subject_i])),
+                responses=np.nan*np.empty((self.dataset['data_subject_split']['nitems_space'].size, self.dataset['data_subject_split']['nitems_space'].size, self.dataset['data_subject_split']['subject_largestN'][subject_i])),
                 # Targets: TxTxN
-                targets = np.nan*np.empty((self.dataset['data_subject_split']['nitems_space'].size, self.dataset['data_subject_split']['nitems_space'].size, self.dataset['data_subject_split']['subject_largestN'][subject_i])),
+                targets=np.nan*np.empty((self.dataset['data_subject_split']['nitems_space'].size, self.dataset['data_subject_split']['nitems_space'].size, self.dataset['data_subject_split']['subject_largestN'][subject_i])),
                 # Nontargets: TxTxNx(Tmax-1)
-                nontargets = np.nan*np.empty((self.dataset['data_subject_split']['nitems_space'].size, self.dataset['data_subject_split']['nitems_space'].size, self.dataset['data_subject_split']['subject_largestN'][subject_i], self.dataset['data_subject_split']['nitems_space'].max()-1))
+                nontargets=np.nan*np.empty((self.dataset['data_subject_split']['nitems_space'].size, self.dataset['data_subject_split']['nitems_space'].size, self.dataset['data_subject_split']['subject_largestN'][subject_i], self.dataset['data_subject_split']['nitems_space'].max()-1))
             )
 
             for n_items_i, n_items in enumerate(self.dataset['data_subject_split']['nitems_space']):
