@@ -82,6 +82,8 @@ def launcher_do_fitexperiment_subject_allmetrics(args):
 
             print ">> Computing LL90/95/97..."
             results['result_ll90_sum'] = self.sampler.compute_loglikelihood_top90percent(all_loglikelihoods=results['result_ll_n'])
+            results['result_ll92_sum'] = self.sampler.compute_loglikelihood_top_p_percent(0.92,
+                                                    all_loglikelihoods=results['result_ll_n'])
             results['result_ll95_sum'] = self.sampler.compute_loglikelihood_top_p_percent(0.95,
                                                     all_loglikelihoods=results['result_ll_n'])
             results['result_ll97_sum'] = self.sampler.compute_loglikelihood_top_p_percent(0.97,

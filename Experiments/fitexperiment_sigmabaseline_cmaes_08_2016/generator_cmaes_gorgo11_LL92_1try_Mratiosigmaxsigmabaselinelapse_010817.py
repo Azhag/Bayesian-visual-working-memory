@@ -30,7 +30,7 @@ partition = 'intel-ivy'
 num_repetitions = 3
 experiment_id = 'gorgo11'
 
-run_label = 'cmaes_gorgo11_ll92_1try_Mratiosigmaxsigmabaselinelapserate_repetitions{num_repetitions}_010817'
+run_label = 'cmaes_gorgo11_ll92_1try_Mratiosigmaxsigmabaselinelapserate_repetitions{num_repetitions}_020817'
 simul_out_dir = os.path.join(os.getcwd(), run_label.format(**locals()))
 
 parameter_generation = 'cma-es'
@@ -43,7 +43,7 @@ cma_tolfun = 1e-3
 cma_population_size = 'auto_10x'
 cma_boundary_handling = 'BoundPenalty'
 
-sleeping_period = dict(min=10, max=20)
+sleeping_period = dict(min=1, max=5)
 
 pbs_submission_infos = dict(description='''Fit experiments (gorgo11), using dist_ll92_allt ResultComputation), using the CMA-ES code. Now with sigma_baseline instead of sigma_output. Using new fixed Covariance matrix for Sampler, should change N=1 case most.
 
@@ -125,7 +125,7 @@ filtering_function_parameters = {'should_clamp': True}
 
 
 # ============================================================================
-sigmax_range = dict(low=0.005,
+sigmax_range = dict(low=0.05,
                     high=1.,
                     x0=0.2,
                     scaling=cma_sigma0/3.,
@@ -148,9 +148,9 @@ ratioconj_range = dict(low=0.0,
                        dtype=float,
                        )
 lapserate_range = dict(low=0.0,
-                       high=0.05,
-                       x0=0.025,
-                       scaling=cma_sigma0/40.,
+                       high=0.1,
+                       x0=0.05,
+                       scaling=cma_sigma0/20.,
                        dtype=float,
                        transform_fct=utils.tsfr_square,
                        transform_inv_fct=utils.tsfr_square_inv

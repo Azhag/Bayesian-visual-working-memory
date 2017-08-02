@@ -27,13 +27,10 @@ resource = ''
 partition = 'intel-ivy'
 
 
-num_repetitions = 5
+num_repetitions = 3
+experiment_id = 'gorgo11'
 
-experiment_id = 'bays09'
-# Vary me between 1-12 for bayes09
-experiment_subject = 12
-
-run_label = 'cmaes_subjects_bays09_ll_1try_Mratiosigmaxsigmabaselinelapserate_subject{experiment_subject}rep{num_repetitions}_160816'
+run_label = 'cmaes_hier_gorgo11_ll92_1try_Mratiosigxsigbaselapse_rep{num_repetitions}_020817'
 simul_out_dir = os.path.join(os.getcwd(), run_label.format(**locals()))
 
 parameter_generation = 'cma-es'
@@ -43,31 +40,33 @@ cma_use_bounds = True
 cma_use_auto_scaling = True
 cma_use_transforms = True
 cma_tolfun = 1e-3
-cma_population_size = 30
+cma_population_size = 'auto_10x'
 cma_boundary_handling = 'BoundPenalty'
 
-sleeping_period = dict(min=10, max=20)
+sleeping_period = dict(min=1, max=5)
 
-pbs_submission_infos = dict(description='''Fit experiments (bays09), using dist_ll_allt ResultComputation), using the CMA-ES code.
+pbs_submission_infos = dict(description='''Fit experiments (gorgo11), using dist_ll92_allt ResultComputation), using the CMA-ES code. Now with sigma_baseline instead of sigma_output. Using new fixed Covariance matrix for Sampler, should change N=1 case most.
 
-  !! PER SUBJECT FIT !!
-  Expects a new experiment_subject parameter.
+  HIERACHICAL POPULATION HERE.
 
-  Uses sigma_baseline instead of sigma_output; new fixed Covariance matrix for Sampler, should change N=1 case most.
-
-  Changes M, ratio_conj, sigmax, sigma baseline, lapse rate.
+  Changes M, ratio_hier, sigmax, sigma baseline, lapse rate.
   Looks at all t<=T. Use full LL score, all datapoints.
+
+  Playing with LL92/LL95/LL95 and see the effect.
   ''',
                             command='python $WORKDIR/experimentlauncher.py',
-                            other_options=dict(action_to_do='launcher_do_fitexperiment_subject_allmetrics',
-                                               code_type='mixed',
+                            other_options=dict(action_to_do='launcher_do_fitexperiment_allmetrics',
+                                               code_type='hierarchical',
                                                output_directory='.',
                                                experiment_id=experiment_id,
-                                               experiment_subject=experiment_subject,
+                                               type_layer_one='feature',
+                                               output_both_layers=None,
+                                               normalise_weights=1,
+                                               ratio_hierarchical=0.5,
+                                               threshold=1.0,
                                                bic_K=5,
-                                               ratio_conj=0.5,
-                                               session_id='cmaes_1try_Mratiosigmaxlapsesigmabase_bays09',
-                                               result_computation='dist_ll_allt',
+                                               session_id='cmaes_hier_1_Mratiosigxlapsesigbase_g11',
+                                               result_computation='dist_ll92_allt',
                                                M=100,
                                                sigmax=0.1,
                                                renormalize_sigma=None,
@@ -82,7 +81,7 @@ pbs_submission_infos = dict(description='''Fit experiments (bays09), using dist_
                                                selection_num_samples=1,
                                                selection_method='last',
                                                slice_width=0.07,
-                                               burn_samples=200,
+                                               burn_samples=100,
                                                num_repetitions=num_repetitions,
                                                enforce_min_distance=0.17,
                                                specific_stimuli_random_centers=None,
@@ -93,12 +92,12 @@ pbs_submission_infos = dict(description='''Fit experiments (bays09), using dist_
                                                label=run_label,
                                                experiment_data_dir=os.path.normpath(os.path.join(os.environ['WORKDIR_DROP'], '../../experimental_data')),
                                                ),
-                            walltime='0:30:00',
+                            walltime='1:00:00',
                             memory='2gb',
                             simul_out_dir=os.path.join(os.getcwd(), run_label.format(**locals())),
                             pbs_submit_cmd=submit_cmd,
                             source_dir=os.environ['WORKDIR_DROP'],
-                            submit_label='cmaes_sub_1try_b09',
+                            submit_label='cmaes_hier_1_g11',
                             resource=resource,
                             partition=partition,
                             qos='auto')
@@ -112,20 +111,20 @@ def filtering_function(new_parameters, dict_parameters_range, function_parameter
 
     or if should_clamp is False, will not change them
     '''
-    M_conj_prior = int(new_parameters['M']*new_parameters['ratio_conj'])
-    M_conj_true = int(np.floor(M_conj_prior**0.5)**2)
-    M_feat_true = int(np.floor((new_parameters['M']-M_conj_prior)/2.)*2.)
-    M_true = M_conj_true + M_feat_true
-    ratio_true = M_conj_true/float(M_true)
+    M_layer_two = int(np.round(
+        new_parameters['ratio_hierarchical'] * new_parameters['M']))
+    M_layer_one = new_parameters['M'] - M_layer_two
+
+    M_layer_one_fixed = int(M_layer_one/2)*2
+    M_layer_two_fixed = M_layer_one - M_layer_one_fixed + M_layer_two
+    ratio_correct = M_layer_two_fixed/float(new_parameters['M'])
 
     if function_parameters['should_clamp']:
-        # Clamp them and return true
-        new_parameters['M'] = M_true
-        new_parameters['ratio_conj'] = ratio_true
+        # Clamp and return true
+        new_parameters['ratio_hierarchical'] = ratio_correct
 
-        return True
-    else:
-        return np.allclose(M_true, new_parameters['M'])
+    return True
+
 
 filtering_function_parameters = {'should_clamp': True}
 
@@ -147,21 +146,21 @@ sigmabaseline_range = dict(low=0.0,
                            transform_fct=utils.tsfr_square,
                            transform_inv_fct=utils.tsfr_square_inv
                            )
-ratioconj_range = dict(low=0.0,
+ratiohier_range = dict(low=0.0,
                        high=1.0,
                        x0=0.5,
                        scaling=cma_sigma0/3.,
                        dtype=float,
                        )
 lapserate_range = dict(low=0.0,
-                       high=0.05,
+                       high=0.1,
                        x0=0.05,
                        scaling=cma_sigma0/10.,
                        dtype=float,
                        transform_fct=utils.tsfr_square,
                        transform_inv_fct=utils.tsfr_square_inv
                        )
-M_range = dict(low=6,
+M_range = dict(low=20,
                high=400,
                dtype=int
                )
@@ -169,7 +168,7 @@ M_range = dict(low=6,
 
 dict_parameters_range = dict(M=M_range,
                              lapse_rate=lapserate_range,
-                             ratio_conj=ratioconj_range,
+                             ratio_hierarchical=ratiohier_range,
                              sigmax=sigmax_range,
                              sigma_baseline=sigmabaseline_range
                              )
@@ -216,9 +215,9 @@ def best_parameters_callback(job, parameters=None):
                     burn_samples=200,
                     stimuli_generation='random',
                     stimuli_generation_recall='random',
-                    session_id='cmaes_bays09_1try_rerun_160816',
+                    session_id='cmaes_gorgo11_7try_rerun_080816',
                     result_computation='filenameoutput',
-                    label='%s_cmaes_bays09_1try_160816' % (curr_params_label)
+                    label='%s_cmaes_gorgo11_7try_080816' % (curr_params_label)
                 ))
                 pbs_submission_infos_copy['walltime'] = '40:00:00'
                 pbs_submission_infos_copy['submit_label'] = 'bestparam_rerun'
@@ -242,7 +241,9 @@ def best_parameters_callback(job, parameters=None):
 result_callback_function_infos = dict(function=best_parameters_callback, parameters=best_parameters_seen)
 
 # Callback after each iteration, let's save all candidates/fitness, and do a contour plot
-data_io = dataio.DataIO(label='cmaes_alliter_tracking', output_folder=os.path.join(simul_out_dir, 'outputs'))
+data_io = dataio.DataIO(label='cmaes_alliter_tracking',
+                        calling_function='',
+                        output_folder=os.path.join(simul_out_dir, 'outputs'))
 
 cma_iter_parameters = dict(ax=None, candidates=[], fitness=[], dataio=data_io)
 def cma_iter_plot_scatter3d_candidates(all_variables, parameters=None):
@@ -262,7 +263,7 @@ def cma_iter_plot_scatter3d_candidates(all_variables, parameters=None):
     # Save data
     if parameters['dataio'] is not None:
         parameters['dataio'].save_variables_default(locals(), ['candidates', 'fitness', 'parameter_names_sorted'])
-        parameters['dataio'].make_link_output_to_dropbox(dropbox_current_experiment_folder='fitexperiment_subject_cmaes_08_2016')
+        parameters['dataio'].make_link_output_to_dropbox(dropbox_current_experiment_folder='fitexperiment_sigmabaseline_cmaes_08_2016')
 
     # Do plot
     # if parameters['ax'] is None:
@@ -273,9 +274,9 @@ def cma_iter_plot_scatter3d_candidates(all_variables, parameters=None):
     # parameters['ax'][0].set_ylabel('Parameters')
     # parameters['ax'][0].legend(parameter_names_sorted)
 
-    # parameters['ax'][1].plot(time_space, fitness_arr, label='NLL90')
+    # parameters['ax'][1].plot(time_space, fitness_arr, label='NLL92')
     # parameters['ax'][1].set_xlabel('Time')
-    # parameters['ax'][1].set_ylabel('NLL90')
+    # parameters['ax'][1].set_ylabel('NLL92')
 
     # if parameters['dataio'] is not None:
     #     parameters['dataio'].save_current_figure('cmaes_optim_timeevolution_{label}_{unique_id}.pdf')

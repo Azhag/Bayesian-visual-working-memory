@@ -804,7 +804,7 @@ class SubmitPBS():
         for parameters_candidate_i, parameters_candidate in enumerate(list_parameters_candidates_dict):
 
             for param_name in parameter_names_sorted:
-                if parameters_candidate[param_name] < dict_parameters_range[param_name]['low'] or parameters_candidate[param_name] > dict_parameters_range[param_name]['high']:
+                if (parameters_candidate[param_name] < dict_parameters_range[param_name]['low']) or (parameters_candidate[param_name] > dict_parameters_range[param_name]['high']):
                     # wrong wrong wrong...
                     wrong_parameters_indices.append(parameters_candidate_i)
 
