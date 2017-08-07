@@ -297,6 +297,23 @@ def fix_M_ratioconj(M, ratio_conj):
 
     return M_corrected, ratio_corrected
 
+def convert_Mratiohierarchical_Mlowerhigher(M, ratio_hierarchical):
+    M_layer_two = np.asarray(np.round(
+        ratio_hierarchical * M)).astype(int)
+    M_layer_one = M - M_layer_two
+
+    return M_layer_one, M_layer_two
+
+def fix_ratiohierarchical(M, ratio_hierarchical):
+    M_layer_one, M_layer_two = convert_Mratiohierarchical_Mlowerhigher(
+        M, ratio_hierarchical)
+
+    M_layer_one_fixed = (np.asarray(M_layer_one)/2).astype(int)*2
+    M_layer_two_fixed = M_layer_one - M_layer_one_fixed + M_layer_two
+    ratio_correct = M_layer_two_fixed/np.asarray(M).astype(float)
+
+    return ratio_correct, M_layer_one_fixed, M_layer_two_fixed
+
 
 # ========= CALLBACK FOR CMA/ES TRANSFORMATIONS =====
 def tsfr_square(x):

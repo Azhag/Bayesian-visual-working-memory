@@ -380,7 +380,9 @@ class ExperimentalLoader(object):
                 self.dataset['data_to_fit'][n_items]['probe'] = np.unique(self.dataset['probe'][ids_n_items])
                 self.dataset['data_to_fit'][n_items]['item_features'] = np.empty((self.dataset['data_to_fit'][n_items]['N'], n_items, 2))
                 self.dataset['data_to_fit'][n_items]['response'] = np.empty((self.dataset['data_to_fit'][n_items]['N'], 1))
-                self.dataset['data_to_fit']['N_smallest'] = min(self.dataset['data_to_fit']['N_smallest'], self.dataset['data_to_fit'][n_items]['N'])
+                self.dataset['data_to_fit']['N_smallest'] = min(
+                    self.dataset['data_to_fit']['N_smallest'],
+                    self.dataset['data_to_fit'][n_items]['N'])
 
             self.dataset['data_to_fit'][n_items]['item_features'][..., 0] = self.dataset['item_angle'][ids_n_items, :n_items]
             self.dataset['data_to_fit'][n_items]['item_features'][..., 1] = self.dataset['item_colour'][ids_n_items, :n_items]

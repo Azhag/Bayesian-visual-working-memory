@@ -71,7 +71,8 @@ def launcher_do_fitexperiment_allmetrics(args):
             print results['result_ll_sum']
 
             print ">> Computing BIC..."
-            results['result_bic'] = self.sampler.compute_bic(K=parameters['bic_K'], LL=results['result_ll_sum'])
+            results['result_bic'] = self.sampler.compute_bic(
+                K=parameters['bic_K'], LL=results['result_ll_sum'])
 
             print ">> Computing LL90/92/95/97..."
             results['result_ll90_sum'] = self.sampler.compute_loglikelihood_top90percent(all_loglikelihoods=results['result_ll_n'])

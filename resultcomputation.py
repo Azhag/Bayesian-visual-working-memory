@@ -373,7 +373,9 @@ class ResultComputation():
         if res_variant in all_variables:
             # Average over repetitions and sum over the rest.
             repetitions_axis = all_variables.get('repetitions_axis', -1)
-            result_dist = np.nansum(utils.nanmean(-all_variables[res_variant], axis=repetitions_axis))
+            result_dist = np.nansum(
+                utils.nanmean(
+                    -all_variables[res_variant], axis=repetitions_axis))
 
             print result_dist
             return result_dist

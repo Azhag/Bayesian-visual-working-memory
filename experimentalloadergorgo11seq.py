@@ -2,30 +2,17 @@
     Small class system to simplify the process of loading Experimental datasets
 '''
 
-import sys
 import numpy as np
-import scipy.io as sio
-import matplotlib.pyplot as plt
-# import matplotlib.patches as plt_patches
-# import matplotlib.gridspec as plt_grid
-import os
-import os.path
-import cPickle as pickle
+import utils
+import experimentalloader
 # import bottleneck as bn
 import em_circularmixture
-import em_circularmixture_allitems_uniquekappa
 import em_circularmixture_parametrickappa
 import em_circularmixture_parametrickappa_doublepowerlaw
-import pandas as pd
 
 em_circular_mixture_to_use = em_circularmixture
 
-import dataio as DataIO
-
-import utils
-from experimentalloader import ExperimentalLoader
-
-class ExperimentalLoaderGorgo11Sequential(ExperimentalLoader):
+class ExperimentalLoaderGorgo11Sequential(experimentalloader.ExperimentalLoader):
     """docstring for ExperimentalLoaderGorgo11Sequential"""
     def __init__(self, dataset_description):
         super(self.__class__, self).__init__(dataset_description)
@@ -37,7 +24,7 @@ class ExperimentalLoaderGorgo11Sequential(ExperimentalLoader):
         '''
 
         # Convert everything to radians, spanning a -np.pi/2:np.pi
-        if parameters.get('convert_radians', True):  #pylint: disable=E0602
+        if parameters.get('convert_radians', True):  # pylint: disable=E0602
             self.convert_wrap()
 
         # Correct the probe field, Matlab format for indices...
@@ -58,6 +45,9 @@ class ExperimentalLoaderGorgo11Sequential(ExperimentalLoader):
         # Will remove delayed trials
         self.dataset['masked'] = self.dataset['delayed'] == 1
 
+        # Reconstruct the colour information_
+        self.reconstruct_colours()
+
         # Compute additional errors, between the response and all items
         self.compute_all_errors()
 
@@ -66,12 +56,24 @@ class ExperimentalLoaderGorgo11Sequential(ExperimentalLoader):
 
         # Fit the mixture model, and save the responsibilities per datapoint.
         if parameters.get('fit_mixture_model', False):
-            self.fit_mixture_model_cached(caching_save_filename=parameters.get('mixture_model_cache', None), saved_keys=['em_fits', 'em_fits_nitems_mean_arrays', 'em_fits_nitems_trecall', 'em_fits_nitems_trecall_arrays', 'em_fits_nitems_trecall_mean', 'em_fits_nitems_trecall_mean_arrays', 'em_fits_subjects_nitems', 'em_fits_subjects_nitems_arrays', 'em_fits_subjects_nitems_trecall', 'em_fits_subjects_nitems_trecall_arrays',])
+            self.fit_mixture_model_cached(
+                caching_save_filename=parameters.get(
+                    'mixture_model_cache', None),
+                saved_keys=['em_fits', 'em_fits_nitems_mean_arrays',
+                            'em_fits_nitems_trecall',
+                            'em_fits_nitems_trecall_arrays',
+                            'em_fits_nitems_trecall_mean',
+                            'em_fits_nitems_trecall_mean_arrays',
+                            'em_fits_subjects_nitems',
+                            'em_fits_subjects_nitems_arrays',
+                            'em_fits_subjects_nitems_trecall',
+                            'em_fits_subjects_nitems_trecall_arrays'])
 
         ## Save item in a nice format for the model fit
         # self.generate_data_to_fit()
-
         self.generate_data_subject_split()
+        self.generate_data_to_fit()
+
 
         if parameters.get('fit_mixture_model', False):
             self.fit_collapsed_mixture_model_cached(caching_save_filename=parameters.get('collapsed_mixture_model_cache', None), saved_keys=['collapsed_em_fits_subjects_nitems', 'collapsed_em_fits_nitems', 'collapsed_em_fits_subjects_trecall', 'collapsed_em_fits_trecall', 'collapsed_em_fits_doublepowerlaw', 'collapsed_em_fits_doublepowerlaw_subjects', 'collapsed_em_fits_doublepowerlaw_array'])
@@ -82,6 +84,19 @@ class ExperimentalLoaderGorgo11Sequential(ExperimentalLoader):
         # Do per subject and nitems, get average histogram
         # self.compute_average_histograms()
 
+    def reconstruct_colours(self):
+        ''' Will recreate angular colour probes
+        '''
+        self.dataset['item_colour_id'] = self.dataset['item_colour'][:]
+
+        # Create linearly spaced "colors"
+        nb_colours = np.nanmax(self.dataset['item_colour'])
+
+        # Handle np.nan with an indexing trick
+        angular_colours = np.r_[np.nan, np.linspace(-np.pi, np.pi, nb_colours, endpoint=False)]
+        self.dataset['item_colour'] = angular_colours[
+            np.ma.masked_invalid(
+                self.dataset['item_colour']).filled(fill_value=0.0).astype(int)]
 
     def extract_target_nontargets_columns(self, data, probe):
         '''
@@ -118,6 +133,7 @@ class ExperimentalLoaderGorgo11Sequential(ExperimentalLoader):
 
         self.dataset['response_subject_nitems_trecall'] = np.empty((unique_subjects.size, unique_n_items.size, unique_n_items.size), dtype=np.object)
         self.dataset['item_angle_subject_nitems_trecall'] = np.empty((unique_subjects.size, unique_n_items.size, unique_n_items.size), dtype=np.object)
+        self.dataset['item_colour_subject_nitems_trecall'] = np.empty((unique_subjects.size, unique_n_items.size, unique_n_items.size), dtype=np.object)
         self.dataset['target_subject_nitems_trecall'] = np.empty((unique_subjects.size, unique_n_items.size, unique_n_items.size), dtype=np.object)
         self.dataset['nontargets_subject_nitems_trecall'] = np.empty((unique_subjects.size, unique_n_items.size, unique_n_items.size), dtype=np.object)
 
@@ -140,7 +156,12 @@ class ExperimentalLoaderGorgo11Sequential(ExperimentalLoader):
         for n_items_i, n_items in enumerate(unique_n_items):
             for subject_i, subject in enumerate(unique_subjects):
                 for trecall_i, trecall in enumerate(np.arange(1, n_items+1)):
-                    ids_filtered = ((self.dataset['subject']==subject) & (self.dataset['n_items'] == n_items) & (self.dataset['probe'] == trecall) & (self.dataset.get('masked', False) == False)).flatten()
+                    ids_filtered = (
+                        (self.dataset['subject'] == subject) &
+                        (self.dataset['n_items'] == n_items) &
+                        (self.dataset['probe'] == trecall) &
+                        (~self.dataset['masked'])
+                    ).flatten()
 
                     # Invert the order of storage, 0 -> last item probed, 1 -> second to last item probe, etc...
                     # trecall_i = n_items - trecall
@@ -155,6 +176,7 @@ class ExperimentalLoaderGorgo11Sequential(ExperimentalLoader):
                     # TODO (lmatthey) trecall here is inverted, should really fix it somehow...
                     self.dataset['response_subject_nitems_trecall'][subject_i, n_items_i, trecall_i] = self.dataset['response'][ids_filtered].flatten()
                     self.dataset['item_angle_subject_nitems_trecall'][subject_i, n_items_i, trecall_i] = self.dataset['item_angle'][ids_filtered]
+                    self.dataset['item_colour_subject_nitems_trecall'][subject_i, n_items_i, trecall_i] = self.dataset['item_colour'][ids_filtered]
 
                     # Save target item and nontargets as well
                     self.dataset['target_subject_nitems_trecall'][subject_i, n_items_i, trecall_i], self.dataset['nontargets_subject_nitems_trecall'][subject_i, n_items_i, trecall_i] = self.extract_target_nontargets_columns(self.dataset['item_angle'][ids_filtered], trecall)
@@ -167,15 +189,6 @@ class ExperimentalLoaderGorgo11Sequential(ExperimentalLoader):
                     self.dataset['precision_subject_nitems_trecall_theo'][subject_i, n_items_i, trecall_i] = self.compute_precision(self.dataset['errors_subject_nitems_trecall'][subject_i, n_items_i, trecall_i], remove_chance_level=False, correct_orientation=True, use_wrong_precision=False)
                     self.dataset['precision_subject_nitems_trecall_theo_nochance'][subject_i, n_items_i, trecall_i] = self.compute_precision(self.dataset['errors_subject_nitems_trecall'][subject_i, n_items_i, trecall_i], remove_chance_level=True, correct_orientation=False, use_wrong_precision=False)
                     self.dataset['precision_subject_nitems_trecall_bays_notreatment'][subject_i, n_items_i, trecall_i] = self.compute_precision(self.dataset['errors_subject_nitems_trecall'][subject_i, n_items_i, trecall_i], remove_chance_level=False, correct_orientation=True, use_wrong_precision=True)
-
-        # if double_precision:
-        #     precision_subject_nitems *= 2.
-        #     precision_subject_nitems_theo *= 2.
-        #     # self.dataset['precision_subject_nitems_theo_nochance'] *= 2.
-        #     self.dataset['precision_subject_nitems_bays_notreatment'] *= 2.
-
-
-        # self.dataset['errors_nitems_trecall'] = np.array([utils.flatten_list(self.dataset['errors_subject_nitems_trecall'][:, n_items_i]) for n_items_i in xrange(unique_n_items.size)])
 
 
         # Store all/average subjects data
@@ -366,6 +379,7 @@ class ExperimentalLoaderGorgo11Sequential(ExperimentalLoader):
         self.dataset['data_subject_split']['data_subject_largest'] = dict()
         self.dataset['data_subject_split']['subject_smallestN'] = dict()
         self.dataset['data_subject_split']['subject_largestN'] = dict()
+        self.dataset['data_subject_split']['N_smallest'] = np.inf
 
         for subject_i, subject in enumerate(self.dataset['data_subject_split']['subjects_space']):
 
@@ -387,20 +401,37 @@ class ExperimentalLoaderGorgo11Sequential(ExperimentalLoader):
 
                     # Create dict(subject) -> dict(n_items) -> dict(trecall) -> dict(nitems_space, response, target, nontargets, N)
                     # Fix the trecall indexing along the way!
+                    N = self.dataset['sizes_subject_nitems_trecall'][subject_i][n_items_i][trecall_i]
+                    responses = self.dataset['response_subject_nitems_trecall'][subject_i][n_items_i][trecall_i]
+                    targets = self.dataset['target_subject_nitems_trecall'][subject_i][n_items_i][trecall_i]
+                    nontargets = self.dataset['nontargets_subject_nitems_trecall'][subject_i][n_items_i][trecall_i][..., :(n_items - 1)]
+                    # stimuli in a form ready for DataGenerator
+                    item_features = np.empty((N, n_items, 2))
+                    item_features[..., 0] = self.dataset[
+                        'item_angle_subject_nitems_trecall'][
+                        subject_i, n_items_i, trecall_i][:, :n_items]
+                    item_features[..., 1] = self.dataset[
+                        'item_colour_subject_nitems_trecall'][
+                        subject_i, n_items_i, trecall_i][:, :n_items]
+
                     (self.dataset[
                         'data_subject_split'][
                         'data_subject_nitems_trecall'][
                         subject][
                         n_items][
-                        trecall]
-                     ) = dict(
-                        N=self.dataset['sizes_subject_nitems_trecall'][subject_i][n_items_i][trecall_i],
-                        responses=self.dataset['response_subject_nitems_trecall'][subject_i][n_items_i][trecall_i],
-                        targets=self.dataset['target_subject_nitems_trecall'][subject_i][n_items_i][trecall_i],
-                        nontargets=self.dataset['nontargets_subject_nitems_trecall'][subject_i][n_items_i][trecall_i][..., :(n_items - 1)])
+                        trecall]) = dict(
+                            N=N,
+                            responses=responses[:],
+                            targets=targets[:],
+                            nontargets=nontargets[:],
+                            item_features=item_features)
+
 
         # Find the smallest number of samples for later
         self.dataset['data_subject_split']['subject_smallestN'] = np.nanmin(np.nanmin(self.dataset['sizes_subject_nitems_trecall'], axis=-1), axis=-1)
+        self.dataset['data_subject_split']['N_smallest'] = int(min(
+            np.min(self.dataset['data_subject_split']['subject_smallestN']),
+            self.dataset['data_subject_split']['N_smallest']))
 
         # Now redo a run through the data, but store everything per subject, in a matrix with TxTxN' (T objects, T recall times, N_small_sub datapoints).
         # To be precise, only Tr <= T is there.
@@ -417,11 +448,10 @@ class ExperimentalLoaderGorgo11Sequential(ExperimentalLoader):
 
             for n_items_i, n_items in enumerate(self.dataset['data_subject_split']['nitems_space']):
                 for trecall_i, trecall in enumerate(np.arange(1, n_items+1)):
-                    self.dataset['data_subject_split']['data_subject_nitems_trecall'][subject][n_items][trecall]['responses']
-
                     self.dataset['data_subject_split']['data_subject'][subject]['responses'][n_items_i, trecall_i] = self.dataset['data_subject_split']['data_subject_nitems_trecall'][subject][n_items][trecall]['responses'][:self.dataset['data_subject_split']['subject_smallestN'][subject_i]]
 
                     self.dataset['data_subject_split']['data_subject'][subject]['targets'][n_items_i, trecall_i] = self.dataset['data_subject_split']['data_subject_nitems_trecall'][subject][n_items][trecall]['targets'][:self.dataset['data_subject_split']['subject_smallestN'][subject_i]]
+
                     self.dataset['data_subject_split']['data_subject'][subject]['nontargets'][n_items_i, trecall_i, :, :(n_items - 1)] = self.dataset['data_subject_split']['data_subject_nitems_trecall'][subject][n_items][trecall]['nontargets'][:self.dataset['data_subject_split']['subject_smallestN'][subject_i]]
 
         # Do the same, but try to keep as much of the data as possible
@@ -499,7 +529,13 @@ class ExperimentalLoaderGorgo11Sequential(ExperimentalLoader):
             # Now do the correct fit, with double powerlaw on nitems+trecall
             print 'Double powerlaw fit'
 
-            params_fit_double = em_circularmixture_parametrickappa_doublepowerlaw.fit(self.dataset['data_subject_split']['nitems_space'], subject_data_dict['responses'], subject_data_dict['targets'], subject_data_dict['nontargets'], debug=False)
+            params_fit_double = (
+                em_circularmixture_parametrickappa_doublepowerlaw.fit(
+                    self.dataset['data_subject_split']['nitems_space'],
+                    subject_data_dict['responses'],
+                    subject_data_dict['targets'],
+                    subject_data_dict['nontargets'],
+                    debug=False))
             self.dataset['collapsed_em_fits_doublepowerlaw_subjects'][subject] = params_fit_double
 
 
