@@ -22,15 +22,14 @@ submit_cmd = 'sbatch'
 
 resource = ''
 
-# partition = 'wrkstn'
+partition = 'wrkstn'
 # partition = 'test'
-partition = 'intel-ivy'
+# partition = 'intel-ivy'
 
 
 num_repetitions = 3
-experiment_id = 'gorgo11'
 
-run_label = 'cmaes_gorgo11sequential_ll92_1try_Mratiosigmaxsigmabaselinelapserate_repetitions{num_repetitions}_080817'
+run_label = 'cmaes_gorgo11sequential_ll92_1try_Mratiosigmaxsigmabaselinelapseratealpha_repetitions{num_repetitions}_080817'
 simul_out_dir = os.path.join(os.getcwd(), run_label.format(**locals()))
 
 parameter_generation = 'cma-es'
@@ -56,7 +55,7 @@ pbs_submission_infos = dict(description='''Fit sequential experiment (gorgo11 se
                             other_options=dict(action_to_do='launcher_do_fitexperiment_sequential_allmetrics',
                                                code_type='mixed',
                                                output_directory='.',
-                                               experiment_id=experiment_id,
+                                               experiment_id='gorgo11_sequential',
                                                bic_K=5,
                                                ratio_conj=0.5,
                                                session_id='cmaes_1try_Mratiosigxlrsigbase_gorgo11seq',
@@ -158,7 +157,7 @@ lapserate_range = dict(low=0.0,
 alpha_range = dict(low=0.01,
                    high=1.0,
                    x0=0.5,
-                   scaling=cma_sigma0/3.
+                   scaling=cma_sigma0/3.,
                    dtype=float
                    )
 M_range = dict(low=6,

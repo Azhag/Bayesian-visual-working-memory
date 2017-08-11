@@ -79,7 +79,7 @@ def plot_emmixture_mean_error(T_space, mean, yerror, ax=None, dataio=None, title
 
 
 
-def plots_check_bias_nontarget(dataset, dataio=None):
+def plot_check_bias_nontarget(dataset, dataio=None):
     '''
         Get an histogram of the errors between the response and all non targets
             If biased towards 0-values, should indicate misbinding errors.
@@ -103,7 +103,7 @@ def plots_check_bias_nontarget(dataset, dataio=None):
 
 
 
-def plots_check_bias_bestnontarget(dataset, dataio=None):
+def plot_check_bias_bestnontarget(dataset, dataio=None):
     '''
         Get an histogram of errors between response and best nontarget.
         Should be more biased towards 0 than the overall average
@@ -125,7 +125,7 @@ def plots_check_bias_bestnontarget(dataset, dataio=None):
 
 
 
-def plots_check_bias_nontarget_randomized(dataset, dataio=None):
+def plot_check_bias_nontarget_randomized(dataset, dataio=None):
     '''
         Plot the histogram of errors to nontargets, after replacing all nontargets by random angles.
         If show similar bias, would be indication of low predictive power of distribution of errors to nontargets.
@@ -175,7 +175,7 @@ def plots_check_bias_nontarget_randomized(dataset, dataio=None):
 
 
 
-def plots_check_oblique_effect(data, nb_bins=100):
+def plot_check_oblique_effect(data, nb_bins=100):
     '''
         Humans are more precise for vertical and horizontal bars than diagonal orientations.
 
@@ -218,7 +218,7 @@ def plots_check_oblique_effect(data, nb_bins=100):
     plt.plot(discrete_x, avg_error, 'ro')
 
 
-def plots_histograms_errors_targets_nontargets_nitems(dataset, dataio=None):
+def plot_histograms_errors_targets_nontargets_nitems(dataset, dataio=None):
     '''
         Create subplots showing histograms of errors to targets and nontargets
 
@@ -228,144 +228,147 @@ def plots_histograms_errors_targets_nontargets_nitems(dataset, dataio=None):
     angle_space = np.linspace(-np.pi, np.pi, 51)
     bins_center = angle_space[:-1] + np.diff(angle_space)[0]/2
 
-    # Histogram, collapsing across subjects
-    f1, axes1 = plt.subplots(ncols=dataset['n_items_size'],
+    #### Histograms of errors / errors to nontargets, collapsing across subjects
+    if False:
+        f1, axes1 = plt.subplots(ncols=dataset['n_items_size'],
                              nrows=2,
                              figsize=(dataset['n_items_size']*6, 12),
                              )
 
-    for n_items_i, n_items in enumerate(np.unique(dataset['n_items'])):
-        utils.hist_angular_data(
-            dataset['errors_nitems'][n_items_i],
-            bins=angle_space,
-            title='N=%d' % (n_items),
-            norm='density',
-            ax_handle=axes1[0, n_items_i],
-            pretty_xticks=True)
-        axes1[0, n_items_i].set_ylim([0., 2.0])
-
-        if n_items > 1:
+        for n_items_i, n_items in enumerate(np.unique(dataset['n_items'])):
             utils.hist_angular_data(
-                utils.dropnan(dataset['errors_nontarget_nitems'][n_items_i]),
+                dataset['errors_nitems'][n_items_i],
                 bins=angle_space,
-                # title='Nontarget %s N=%d' % (dataset['name'], n_items),
+                title='N=%d' % (n_items),
                 norm='density',
-                ax_handle=axes1[1, n_items_i],
+                ax_handle=axes1[0, n_items_i],
                 pretty_xticks=True)
+            axes1[0, n_items_i].set_ylim([0., 2.0])
 
-            axes1[1, n_items_i].text(
-                0.02,
-                0.96,
-                "Vtest pval: %.4f" % (dataset['vtest_nitems'][n_items_i]),
-                transform=axes1[1, n_items_i].transAxes,
-                horizontalalignment='left',
-                fontsize=13)
+            if n_items > 1:
+                utils.hist_angular_data(
+                    utils.dropnan(dataset['errors_nontarget_nitems'][n_items_i]),
+                    bins=angle_space,
+                    # title='Nontarget %s N=%d' % (dataset['name'], n_items),
+                    norm='density',
+                    ax_handle=axes1[1, n_items_i],
+                    pretty_xticks=True)
 
-            axes1[1, n_items_i].set_ylim([0., 0.3])
-        else:
-            axes1[1, n_items_i].axis('off')
+                axes1[1, n_items_i].text(
+                    0.02,
+                    0.96,
+                    "Vtest pval: %.4f" % (dataset['vtest_nitems'][n_items_i]),
+                    transform=axes1[1, n_items_i].transAxes,
+                    horizontalalignment='left',
+                    fontsize=13)
 
-    # f1.suptitle(dataset['name'])
+                axes1[1, n_items_i].set_ylim([0., 0.3])
+            else:
+                axes1[1, n_items_i].axis('off')
 
-    f1.canvas.draw()
+        # f1.suptitle(dataset['name'])
 
-    if dataio is not None:
-        plt.figure(f1.number)
-        # plt.tight_layout()
-        dataio.save_current_figure("hist_error_all_{label}_{unique_id}.pdf")
+        f1.canvas.draw()
 
-    # Do per subject and nitems, using average histogram
-    f2, axes2 = plt.subplots(ncols=dataset['n_items_size'],
-                             nrows=2,
-                             figsize=(dataset['n_items_size']*6, 12))
-    f3_all = []
+        if dataio is not None:
+            plt.figure(f1.number)
+            # plt.tight_layout()
+            dataio.save_current_figure("hist_error_all_{label}_{unique_id}.pdf")
 
-    for n_items_i, n_items in enumerate(np.unique(dataset['n_items'])):
+    ### Histograms per subject and nitems
+    if True:
+        f2, axes2 = plt.subplots(ncols=dataset['n_items_size'],
+                                 nrows=2,
+                                 figsize=(dataset['n_items_size']*6, 12))
+        for n_items_i, n_items in enumerate(np.unique(dataset['n_items'])):
 
-        axes2[0, n_items_i].bar(
-            bins_center,
-            dataset['hist_cnts_target_nitems_stats']['mean'][n_items_i],
-            width=2.*np.pi/(angle_space.size-1),
-            align='center',
-            yerr=dataset['hist_cnts_target_nitems_stats']['sem'][n_items_i])
-        # axes3[n_items_i].set_title('N=%d' % n_items)
-        axes2[0, n_items_i].set_title('N=%d' % n_items)
-        axes2[0, n_items_i].set_xlim(
-            [bins_center[0]-np.pi/(angle_space.size-1),
-             bins_center[-1]+np.pi/(angle_space.size-1)])
-        axes2[0, n_items_i].set_ylim([0., 2.0])
-        axes2[0, n_items_i].set_xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
-        axes2[0, n_items_i].set_xticklabels(
-            (r'$-\pi$',
-             r'$-\frac{\pi}{2}$',
-             r'$0$',
-             r'$\frac{\pi}{2}$',
-             r'$\pi$'),
-            fontsize=16)
-
-        if n_items > 1:
-            axes2[1, n_items_i].bar(
+            axes2[0, n_items_i].bar(
                 bins_center,
-                dataset['hist_cnts_nontarget_nitems_stats']['mean'][n_items_i],
-                yerr=dataset['hist_cnts_nontarget_nitems_stats']['sem'][n_items_i],
+                dataset['hist_cnts_target_nitems_stats']['mean'][n_items_i],
                 width=2.*np.pi/(angle_space.size-1),
-                align='center')
-            # axes2[1, n_items_i].set_title('N=%d' % n_items)
-            # axes2[1, n_items_i].text(0.02, 0.96, "Vtest pval: %.4f" % (pvalue_nontarget_subject_nitems_mean[n_items_i]), transform=axes2[1, n_items_i].transAxes, horizontalalignment='left', fontsize=13)
-            axes2[1, n_items_i].text(
-                0.02,
-                0.96,
-                "Vtest pval: %.4f" % (dataset['vtest_nitems'][n_items_i]),
-                transform=axes2[1, n_items_i].transAxes,
-                horizontalalignment='left',
-                fontsize=14)
-
-            # TODO Add bootstrap there instead.
-            # axes2[1, n_items_i].set_title('Nontarget, subject, N=%d' % n_items)
-            axes2[1, n_items_i].set_xlim(
+                align='center',
+                yerr=dataset['hist_cnts_target_nitems_stats']['sem'][n_items_i])
+            # axes3[n_items_i].set_title('N=%d' % n_items)
+            axes2[0, n_items_i].set_title('N=%d' % n_items)
+            axes2[0, n_items_i].set_xlim(
                 [bins_center[0]-np.pi/(angle_space.size-1),
                  bins_center[-1]+np.pi/(angle_space.size-1)])
-            axes2[1, n_items_i].set_ylim([0., 0.3])
-            axes2[1, n_items_i].set_xticks(
-                (-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
-            axes2[1, n_items_i].set_xticklabels(
+            axes2[0, n_items_i].set_ylim([0., 2.0])
+            axes2[0, n_items_i].set_xticks((-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
+            axes2[0, n_items_i].set_xticklabels(
                 (r'$-\pi$',
                  r'$-\frac{\pi}{2}$',
                  r'$0$',
                  r'$\frac{\pi}{2}$',
                  r'$\pi$'),
                 fontsize=16)
-        else:
-            axes2[1, n_items_i].axis('off')
 
-        # f2.suptitle(dataset['name'])
+            if n_items > 1:
+                axes2[1, n_items_i].bar(
+                    bins_center,
+                    dataset['hist_cnts_nontarget_nitems_stats']['mean'][n_items_i],
+                    yerr=dataset['hist_cnts_nontarget_nitems_stats']['sem'][n_items_i],
+                    width=2.*np.pi/(angle_space.size-1),
+                    align='center')
+                # axes2[1, n_items_i].set_title('N=%d' % n_items)
+                # axes2[1, n_items_i].text(0.02, 0.96, "Vtest pval: %.4f" % (pvalue_nontarget_subject_nitems_mean[n_items_i]), transform=axes2[1, n_items_i].transAxes, horizontalalignment='left', fontsize=13)
+                axes2[1, n_items_i].text(
+                    0.02,
+                    0.96,
+                    "Vtest pval: %.4f" % (dataset['vtest_nitems'][n_items_i]),
+                    transform=axes2[1, n_items_i].transAxes,
+                    horizontalalignment='left',
+                    fontsize=14)
 
-        f3 = utils.scatter_marginals(
-            utils.dropnan(
-                dataset['data_to_fit'][n_items]['item_features'][:, 0, 0]),
-            utils.dropnan(dataset['data_to_fit'][n_items]['response']),
-            xlabel='Target',
-            ylabel='Response',
-            # title='%s, %d items' % (
-                # dataset['name'], n_items),
-            figsize=(9, 9),
-            factor_axis=1.1,
-            bins=61)
-        f3_all.append(f3)
-        # utils.scatter_marginals(utils.dropnan(dataset['item_angle'][dataset['angle_trials'] & dataset['3_items_trials'], 0]), utils.dropnan(dataset['probe_angle'][dataset['angle_trials'] & dataset['3_items_trials']]), xlabel ='Target angle', ylabel='Response angle', title='%s Angle trials, 3 items' % (dataset['name']), figsize=(9, 9), factor_axis=1.1, bins=61)
-        # utils.scatter_marginals(utils.dropnan(dataset['item_angle'][dataset['angle_trials'] & dataset['6_items_trials'], 0]), utils.dropnan(dataset['probe_angle'][dataset['angle_trials'] & dataset['6_items_trials']]), xlabel ='Target angle', ylabel='Response angle', title='%s Angle trials, 6 items' % (dataset['name']), figsize=(9, 9), factor_axis=1.1, bins=61)
+                # TODO Add bootstrap there instead.
+                # axes2[1, n_items_i].set_title('Nontarget, subject, N=%d' % n_items)
+                axes2[1, n_items_i].set_xlim(
+                    [bins_center[0]-np.pi/(angle_space.size-1),
+                     bins_center[-1]+np.pi/(angle_space.size-1)])
+                axes2[1, n_items_i].set_ylim([0., 0.3])
+                axes2[1, n_items_i].set_xticks(
+                    (-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
+                axes2[1, n_items_i].set_xticklabels(
+                    (r'$-\pi$',
+                     r'$-\frac{\pi}{2}$',
+                     r'$0$',
+                     r'$\frac{\pi}{2}$',
+                     r'$\pi$'),
+                    fontsize=16)
+            else:
+                axes2[1, n_items_i].axis('off')
 
-    f2.canvas.draw()
+            # f2.suptitle(dataset['name'])
 
-    if dataio is not None:
-        plt.figure(f2.number)
-        # plt.tight_layout()
-        dataio.save_current_figure("hist_error_persubj_{label}_{unique_id}.pdf")
+        f2.canvas.draw()
+
+        if dataio is not None:
+            plt.figure(f2.number)
+            # plt.tight_layout()
+            dataio.save_current_figure("hist_error_persubj_{label}_{unique_id}.pdf")
+
+
+    ### Scatter marginals, 3-parts figures
+    if True:
+        f3_all = []
+        for n_items_i, n_items in enumerate(np.unique(dataset['n_items'])):
+            f3 = utils.scatter_marginals(
+                utils.dropnan(
+                    dataset['data_to_fit'][n_items]['item_features'][:, 0, 0]),
+                utils.dropnan(dataset['data_to_fit'][n_items]['response']),
+                xlabel='Target',
+                ylabel='Response',
+                # title='%s, %d items' % (
+                    # dataset['name'], n_items),
+                figsize=(9, 9),
+                factor_axis=1.1,
+                bins=61)
+            f3_all.append(f3)
 
     return f1, f2, f3_all
 
 
-def plots_em_mixtures(dataset, dataio=None, use_sem=True):
+def plot_em_mixtures(dataset, dataio=None, use_sem=True):
     '''
         Do plots for the mixture models and kappa
     '''
@@ -413,7 +416,7 @@ def plots_em_mixtures(dataset, dataio=None, use_sem=True):
     if dataio is not None:
         dataio.save_current_figure('emfits_kappa_{label}_{unique_id}.pdf')
 
-def plots_precision(dataset, dataio=None, use_sem=True):
+def plot_precision(dataset, dataio=None, use_sem=True):
     '''
         Do plots for the mixture models and kappa
     '''
@@ -447,93 +450,7 @@ def plots_precision(dataset, dataio=None, use_sem=True):
             dataio.save_current_figure('%s_{label}_{unique_id}.pdf' % precision_title)
 
 
-def plots_bays2009(dataset, dataio=None):
-    '''
-
-    Some plots for the Bays2009 data
-    '''
-
-    plots_histograms_errors_targets_nontargets_nitems(dataset, dataio)
-
-    # plots_precision(dataset, dataio)
-
-    plots_em_mixtures(dataset, dataio)
-
-    # plots_collapsed_em_mixtures(dataset, dataio)
-
-
-def plots_gorgo11(dataset, dataio=None):
-    '''
-        Plots for Gorgo11, assuming sequential data
-    '''
-    plots_histograms_errors_targets_nontargets_nitems(dataset, dataio)
-
-    # plots_precision(dataset, dataio)
-
-    plots_em_mixtures(dataset, dataio)
-
-    plots_collapsed_em_mixtures(dataset, dataio)
-
-
-def plots_gorgo11_sequential(dataset, dataio=None):
-    '''
-        Plots for Gorgo11 sequential, different
-    '''
-
-    maxItems = 5
-    itemSpace = np.arange(maxItems)
-    itemIndices = np.arange(dataset['n_items_size']) < maxItems
-
-    # Fig 6
-    plt.figure()
-    plt.plot(np.nanmean(dataset['em_fits_subjects_nitems_arrays'], axis=0)[:maxItems, 0], 'o-', linewidth=2)
-    plt.title('kappa, across trecalls')
-    plt.xlabel('t_recall')
-    plt.xticks(itemSpace, itemSpace+1)
-
-    plt.figure()
-    plt.plot(np.nanmean(dataset['em_fits_subjects_nitems_arrays'], axis=0)[:maxItems, 1:(maxItems-1)], 'o-', linewidth=2)
-    plt.title('mixture probs, across trecalls')
-    plt.xlabel('t_recall')
-    plt.xticks(itemSpace, itemSpace+1)
-    plt.legend(('target', 'nontarget', 'random'))
-
-    # fig 7
-    plt.figure()
-    plt.plot(utils.fliplr_nonan(dataset['em_fits_nitems_trecall_arrays'][:maxItems, :maxItems, 0]).T, 'o-', linewidth=2)
-    plt.title('EM kappa')
-    plt.xlabel('t_recall')
-    plt.xticks(itemSpace, itemSpace+1)
-    plt.legend([str(x) for x in itemSpace+1])
-
-    plt.figure()
-    plt.plot(utils.fliplr_nonan(dataset['em_fits_nitems_trecall_arrays'][:maxItems, :maxItems, 1]).T, 'o-', linewidth=2)
-    plt.title('EM target')
-    plt.xlabel('t_recall')
-    plt.xticks(itemSpace, itemSpace+1)
-    plt.legend([str(x) for x in itemSpace+1])
-
-    plt.figure()
-    plt.plot(utils.fliplr_nonan(dataset['em_fits_nitems_trecall_arrays'][:maxItems, :maxItems, 2]).T, 'o-', linewidth=2)
-    plt.title('EM nontarget')
-    plt.xlabel('t_recall')
-    plt.xticks(itemSpace, itemSpace+1)
-    plt.legend([str(x) for x in itemSpace+1])
-
-    plt.figure()
-    plt.plot(utils.fliplr_nonan(dataset['em_fits_nitems_trecall_arrays'][:maxItems, :maxItems, 3]).T, 'o-', linewidth=2)
-    plt.title('EM random')
-    plt.xlabel('t_recall')
-    plt.xticks(itemSpace, itemSpace+1)
-    plt.legend([str(x) for x in itemSpace+1])
-
-    # Marginals
-    # utils.scatter_marginals(utils.dropnan(dataset['data_to_fit'][n_items]['item_features'][:, 0, 0]), utils.dropnan(dataset['data_to_fit'][n_items]['response']), xlabel ='Target angle', ylabel='Response angle', title='%s histogram responses, %d items' % (dataset['name'], n_items), figsize=(9, 9), factor_axis=1.1, bins=61)
-
-
-
-
-def plots_dualrecall(dataset):
+def plot_dualrecall(dataset):
     '''
         Create plots for the double recall dataset
     '''
@@ -812,7 +729,7 @@ def plot_compare_bic_collapsed_mixture_model(dataset, dataio=None):
     return separate_bic, collapsed_bic
 
 
-def plots_collapsed_em_mixtures(dataset, dataio=None, use_sem=True):
+def plot_collapsed_em_mixtures(dataset, dataio=None, use_sem=True):
     '''
         Do plots for the mixture models and kappa
     '''
@@ -1004,138 +921,154 @@ def plot_compare_bic_collapsed_mixture_model_sequential(dataset, dataio=None):
     # Works well. Overall quite a huge improvement in BIC, as I thought.
 
 
+def plot_sequential_histograms_errors(dataset, dataio=None):
+    '''
+        Create subplots showing histograms of errors to targets and nontargets
+    '''
 
-def plots_gorgo11_sequential_collapsed(dataset, dataio=None, use_sem=True):
+    angle_space = np.linspace(-np.pi, np.pi, 51)
+    bins_center = angle_space[:-1] + np.diff(angle_space)[0]/2
+    f1, f2, f3_all = None, None, None
+
+    #### Histograms of errors / errors to nontargets, collapsing across subjects
+    if True:
+        f1, axes1 = plt.subplots(
+            ncols=dataset['n_items_size'],
+            nrows=2*dataset['n_items_size'],
+            figsize=(15, 30))
+
+        for n_items_i, n_items in enumerate(np.unique(dataset['n_items'])):
+            for trecall_i, trecall in enumerate(np.unique(dataset['n_items'])):
+                if trecall <= n_items:
+                    utils.hist_angular_data(
+                        dataset['errors_nitems_trecall'][n_items_i, trecall_i],
+                        bins=angle_space,
+                        # title='N=%d, trecall=%d' % (n_items, trecall),
+                        norm='density',
+                        ax_handle=axes1[2*n_items_i, trecall_i],
+                        pretty_xticks=False)
+                    axes1[2*n_items_i, trecall_i].set_ylim([0., 1.4])
+                    axes1[2*n_items_i, trecall_i].xaxis.set_major_locator(
+                        plt.NullLocator())
+                    axes1[2*n_items_i, trecall_i].yaxis.set_major_locator(
+                        plt.NullLocator())
+
+
+                    if n_items > 1:
+                        utils.hist_angular_data(
+                            utils.dropnan(dataset['errors_nontarget_nitems_trecall'][n_items_i, trecall_i]),
+                            bins=angle_space,
+                            # title='Nontarget %s N=%d' % (dataset['name'], n_items),
+                            norm='density',
+                            ax_handle=axes1[2*n_items_i + 1, trecall_i],
+                            pretty_xticks=False)
+
+                        axes1[2*n_items_i + 1, trecall_i].set_ylim([0., 0.3])
+                    # else:
+                        # axes1[2*n_items_i + 1, trecall_i].axis('off')
+
+                    axes1[2*n_items_i + 1, trecall_i].xaxis.set_major_locator(plt.NullLocator())
+                    axes1[2*n_items_i + 1, trecall_i].yaxis.set_major_locator(plt.NullLocator())
+
+
+                else:
+                    axes1[2*n_items_i, trecall_i].axis('off')
+                    axes1[2*n_items_i + 1, trecall_i].axis('off')
+
+        # f1.suptitle(dataset['name'])
+        f1.canvas.draw()
+        plt.tight_layout()
+
+        if dataio is not None:
+            plt.figure(f1.number)
+            # plt.tight_layout()
+            dataio.save_current_figure("hist_error_all_{label}_{unique_id}.pdf")
+
+    ### Scatter marginals, 3-parts figures
+    if False:
+        f3_all = []
+        for n_items_i, n_items in enumerate(np.unique(dataset['n_items'])):
+            f3 = utils.scatter_marginals(
+                utils.dropnan(
+                    dataset['data_to_fit'][n_items]['item_features'][:, 0, 0]),
+                utils.dropnan(dataset['data_to_fit'][n_items]['response']),
+                xlabel='Target',
+                ylabel='Response',
+                # title='%s, %d items' % (
+                    # dataset['name'], n_items),
+                figsize=(9, 9),
+                factor_axis=1.1,
+                bins=61)
+            f3_all.append(f3)
+
+    return f1, f2, f3_all
+
+
+
+def plot_sequential_em_mixtures(dataset, dataio=None):
+    maxItems = 5
+    itemSpace = np.arange(maxItems)
+    itemIndices = np.arange(dataset['n_items_size']) < maxItems
+
+    # Fig 6
+    plt.figure()
+    plt.plot(np.nanmean(dataset['em_fits_subjects_nitems_arrays'], axis=0)[:maxItems, 0], 'o-', linewidth=2)
+    plt.title('kappa, across trecalls')
+    plt.xlabel('t_recall')
+    plt.xticks(itemSpace, itemSpace+1)
+
+    plt.figure()
+    plt.plot(np.nanmean(dataset['em_fits_subjects_nitems_arrays'], axis=0)[:maxItems, 1:(maxItems-1)], 'o-', linewidth=2)
+    plt.title('mixture probs, across trecalls')
+    plt.xlabel('t_recall')
+    plt.xticks(itemSpace, itemSpace+1)
+    plt.legend(('target', 'nontarget', 'random'))
+
+    # fig 7
+    plt.figure()
+    plt.plot(utils.fliplr_nonan(dataset['em_fits_nitems_trecall_arrays'][:maxItems, :maxItems, 0]).T, 'o-', linewidth=2)
+    plt.title('EM kappa')
+    plt.xlabel('t_recall')
+    plt.xticks(itemSpace, itemSpace+1)
+    plt.legend([str(x) for x in itemSpace+1])
+
+    plt.figure()
+    plt.plot(utils.fliplr_nonan(dataset['em_fits_nitems_trecall_arrays'][:maxItems, :maxItems, 1]).T, 'o-', linewidth=2)
+    plt.title('EM target')
+    plt.xlabel('t_recall')
+    plt.xticks(itemSpace, itemSpace+1)
+    plt.legend([str(x) for x in itemSpace+1])
+
+    plt.figure()
+    plt.plot(utils.fliplr_nonan(dataset['em_fits_nitems_trecall_arrays'][:maxItems, :maxItems, 2]).T, 'o-', linewidth=2)
+    plt.title('EM nontarget')
+    plt.xlabel('t_recall')
+    plt.xticks(itemSpace, itemSpace+1)
+    plt.legend([str(x) for x in itemSpace+1])
+
+    plt.figure()
+    plt.plot(utils.fliplr_nonan(dataset['em_fits_nitems_trecall_arrays'][:maxItems, :maxItems, 3]).T, 'o-', linewidth=2)
+    plt.title('EM random')
+    plt.xlabel('t_recall')
+    plt.xticks(itemSpace, itemSpace+1)
+    plt.legend([str(x) for x in itemSpace+1])
+
+
+
+def plot_sequential_collapsed_doublepowerlaw(dataset, dataio=None, use_sem=True):
     '''
         Plots for Gorgo11 sequential, collapsed mixture model
     '''
 
     maxItems = 5
     itemSpace = np.arange(maxItems)
-
     T_space_exp = dataset['data_subject_split']['nitems_space']
-
     if use_sem:
         errorbars = 'sem'
     else:
         errorbars = 'std'
 
-    ####### Fit per t_recall, nitem on the x-axis #####
-    ##
-    # Fig 6, now for trecall=last only. Makes sense.
-    if False:
-        trecall_fixed = 1
-
-        plot_kappa_mean_error(
-            T_space_exp,
-            dataset['collapsed_em_fits_trecall']['mean'][trecall_fixed]['kappa'],
-            dataset['collapsed_em_fits_trecall'][errorbars][trecall_fixed]['kappa'],
-            title='collapsed_trecall')
-
-        if dataio is not None:
-            dataio.save_current_figure('fig6_trecalllast_kappa_{label}_{unique_id}.pdf')
-
-        # Mixture probabilities
-        ax = plot_emmixture_mean_error(
-            T_space_exp,
-            dataset['collapsed_em_fits_trecall']['mean'][trecall_fixed]['mixt_target'],
-            dataset['collapsed_em_fits_trecall'][errorbars][trecall_fixed]['mixt_target'],
-            title='collapsed_trecall',
-            label='Target')
-        ax = plot_emmixture_mean_error(
-            T_space_exp,
-            dataset['collapsed_em_fits_trecall']['mean'][trecall_fixed]['mixt_nontargets'],
-            dataset['collapsed_em_fits_trecall'][errorbars][trecall_fixed]['mixt_nontargets'],
-            title='collapsed_trecall',
-            label='Nontarget',
-            ax=ax)
-        ax = plot_emmixture_mean_error(
-            T_space_exp,
-            dataset['collapsed_em_fits_trecall']['mean'][trecall_fixed]['mixt_random'],
-            dataset['collapsed_em_fits_trecall'][errorbars][trecall_fixed]['mixt_random'],
-            title='collapsed_trecall',
-            label='Random',
-            ax=ax)
-
-        if dataio is not None:
-            dataio.save_current_figure('fig6_trecalllast_mixt_{label}_{unique_id}.pdf')
-
-    # Now do for all possible trecall
-    if False:
-        f, ax = plt.subplots()
-        for trecall in xrange(1, 7):
-            ax = plot_kappa_mean_error(T_space_exp[(trecall-1):], dataset['collapsed_em_fits_trecall']['mean'][trecall]['kappa'], dataset['collapsed_em_fits_trecall'][errorbars][trecall]['kappa'], title='collapsed_trecall', ax=ax, label='tr=-%d' % trecall, xlabel='nitems')
-
-        if dataio is not None:
-            dataio.save_current_figure('collapsed_trecall_kappa_{label}_{unique_id}.pdf')
-
-        _, ax_target = plt.subplots()
-        _, ax_nontarget = plt.subplots()
-        _, ax_random = plt.subplots()
-        for trecall in xrange(1, 7):
-            ax_target = plot_emmixture_mean_error(T_space_exp[(trecall-1):], dataset['collapsed_em_fits_trecall']['mean'][trecall]['mixt_target'], dataset['collapsed_em_fits_trecall'][errorbars][trecall]['mixt_target'], title='Target collapsed_trecall', ax=ax_target, label='tr=-%d' % trecall, xlabel='nitems')
-            ax_nontarget = plot_emmixture_mean_error(T_space_exp[(trecall-1):], dataset['collapsed_em_fits_trecall']['mean'][trecall]['mixt_nontargets'], dataset['collapsed_em_fits_trecall'][errorbars][trecall]['mixt_nontargets'], title='Nontarget collapsed_trecall', ax=ax_nontarget, label='tr=-%d' % trecall, xlabel='nitems')
-            ax_random = plot_emmixture_mean_error(T_space_exp[(trecall-1):], dataset['collapsed_em_fits_trecall']['mean'][trecall]['mixt_random'], dataset['collapsed_em_fits_trecall'][errorbars][trecall]['mixt_random'], title='Random collapsed_trecall', ax=ax_random, label='tr=-%d' % trecall, xlabel='nitems')
-
-        if dataio is not None:
-            plt.figure(ax_target.get_figure().number)
-            dataio.save_current_figure('collapsed_trecall_mixttarget_{label}_{unique_id}.pdf')
-
-            plt.figure(ax_nontarget.get_figure().number)
-            dataio.save_current_figure('collapsed_trecall_mixtnontarget_{label}_{unique_id}.pdf')
-
-            plt.figure(ax_random.get_figure().number)
-            dataio.save_current_figure('collapsed_trecall_mixtrandom_{label}_{unique_id}.pdf')
-
-    ####### Fit per nitem, t_recall on the x-axis #####
-    ##
-    # fig 7
-    if False:
-        f, ax = plt.subplots()
-        for nitem in xrange(1, 7):
-            ax = plot_kappa_mean_error(T_space_exp[:nitem], dataset['collapsed_em_fits_nitems']['mean'][nitem]['kappa'], dataset['collapsed_em_fits_nitems'][errorbars][nitem]['kappa'], title='collapsed_nitem', ax=ax, label='%d items' % nitem, xlabel='T_recall')
-
-        if dataio is not None:
-            dataio.save_current_figure('fig7_nitem_kappa_{label}_{unique_id}.pdf')
-
-        _, ax_target = plt.subplots()
-        _, ax_nontarget = plt.subplots()
-        _, ax_random = plt.subplots()
-        for nitem in xrange(1, 7):
-            ax_target = plot_emmixture_mean_error(T_space_exp[:nitem], dataset['collapsed_em_fits_nitems']['mean'][nitem]['mixt_target'], dataset['collapsed_em_fits_nitems'][errorbars][nitem]['mixt_target'], title='Target collapsed_nitem', ax=ax_target, label='%d items' % nitem, xlabel='T_recall')
-            ax_nontarget = plot_emmixture_mean_error(T_space_exp[:nitem], dataset['collapsed_em_fits_nitems']['mean'][nitem]['mixt_nontargets'], dataset['collapsed_em_fits_nitems'][errorbars][nitem]['mixt_nontargets'], title='Nontarget collapsed_nitem', ax=ax_nontarget, label='%d items' % nitem, xlabel='T_recall')
-            ax_random = plot_emmixture_mean_error(T_space_exp[:nitem], dataset['collapsed_em_fits_nitems']['mean'][nitem]['mixt_random'], dataset['collapsed_em_fits_nitems'][errorbars][nitem]['mixt_random'], title='Random collapsed_nitem', ax=ax_random, label='%d items' % nitem, xlabel='T_recall')
-
-        if dataio is not None:
-            dataio.save_current_figure('fig7_nitem_mixt_{label}_{unique_id}.pdf')
-
-    # Show BIC scores
-    if False:
-        collapsed_trecall_bic = np.array([np.sum(dataset['collapsed_em_fits_trecall']['values'][trecall]['bic']) for trecall in T_space_exp])
-        collapsed_nitems_bic = np.array([np.sum(dataset['collapsed_em_fits_nitems']['values'][nitems]['bic']) for nitems in T_space_exp])
-
-        f, axes = plt.subplots(nrows=1, ncols=3)
-        axes[0].bar(T_space_exp, collapsed_trecall_bic, align='center')
-        axes[0].set_title('BIC collapsed_trecall')
-        axes[0].set_xticks(T_space_exp)
-        axes[0].set_xlabel('nitems')
-        axes[0].set_ylim([0.0, 1.05*max(collapsed_trecall_bic.max(), collapsed_nitems_bic.max())])
-        axes[1].bar(T_space_exp, collapsed_nitems_bic, align='center')
-        axes[1].set_title('BIC collapsed_nitems')
-        axes[1].set_xlabel('trecall')
-        axes[1].set_xticks(T_space_exp)
-        axes[1].set_ylim([0.0, 1.05*max(collapsed_trecall_bic.max(), collapsed_nitems_bic.max())])
-
-        # Add the overall BIC sum
-        axes[2].bar(np.array([1,2]), [np.sum(collapsed_trecall_bic), np.sum(collapsed_nitems_bic), ], align='center')
-        axes[2].set_xticks(np.array([1,2]))
-        axes[2].set_xticklabels(['Collapsed_trecall', 'Collapsed_nitems'])
-        axes[2].set_title('BIC total summed')
-
-        f.canvas.draw()
-
-        if dataio is not None:
-            dataio.save_current_figure('bic_comparison_sequential_{label}_{unique_id}.pdf')
+    ####### SINGLE POWERLAW
 
     ######## Double powerlaw collapsed model
     if False:
@@ -1274,7 +1207,176 @@ def plots_gorgo11_sequential_collapsed(dataset, dataio=None, use_sem=True):
                 axes[1, 1] = plot_emmixture_mean_error(T_space_exp[:nitems], dataset['collapsed_em_fits_doublepowerlaw_subjects'][subject]['mixt_random_tr'][nitems_i, :nitems], dataset['collapsed_em_fits_doublepowerlaw_subjects'][subject]['mixt_target_tr'][nitems_i, :nitems]*0.0, title='Random, subject %d' % (subject), ax=axes[1, 1], label='%d items' % nitems, xlabel='T_recall')
 
 
+def plot_sequential_collapsed_singlepowerlaw(dataset, dataio=None):
+
+    maxItems = 5
+    itemSpace = np.arange(maxItems)
+    T_space_exp = dataset['data_subject_split']['nitems_space']
+    if use_sem:
+        errorbars = 'sem'
+    else:
+        errorbars = 'std'
+
+    ####### Fit per t_recall, nitem on the x-axis #####
+    ##
+    # Fig 6, now for trecall=last only. Makes sense.
+    if True:
+        trecall_fixed = 1
+
+        plot_kappa_mean_error(
+            T_space_exp,
+            dataset['collapsed_em_fits_trecall']['mean'][trecall_fixed]['kappa'],
+            dataset['collapsed_em_fits_trecall'][errorbars][trecall_fixed]['kappa'],
+            title='collapsed_trecall')
+
+        if dataio is not None:
+            dataio.save_current_figure('fig6_trecalllast_kappa_{label}_{unique_id}.pdf')
+
+        # Mixture probabilities
+        ax = plot_emmixture_mean_error(
+            T_space_exp,
+            dataset['collapsed_em_fits_trecall']['mean'][trecall_fixed]['mixt_target'],
+            dataset['collapsed_em_fits_trecall'][errorbars][trecall_fixed]['mixt_target'],
+            title='collapsed_trecall',
+            label='Target')
+        ax = plot_emmixture_mean_error(
+            T_space_exp,
+            dataset['collapsed_em_fits_trecall']['mean'][trecall_fixed]['mixt_nontargets'],
+            dataset['collapsed_em_fits_trecall'][errorbars][trecall_fixed]['mixt_nontargets'],
+            title='collapsed_trecall',
+            label='Nontarget',
+            ax=ax)
+        ax = plot_emmixture_mean_error(
+            T_space_exp,
+            dataset['collapsed_em_fits_trecall']['mean'][trecall_fixed]['mixt_random'],
+            dataset['collapsed_em_fits_trecall'][errorbars][trecall_fixed]['mixt_random'],
+            title='collapsed_trecall',
+            label='Random',
+            ax=ax)
+
+        if dataio is not None:
+            dataio.save_current_figure('fig6_trecalllast_mixt_{label}_{unique_id}.pdf')
+
+    # Now do for all possible trecall
+    if False:
+        f, ax = plt.subplots()
+        for trecall in xrange(1, 7):
+            ax = plot_kappa_mean_error(T_space_exp[(trecall-1):], dataset['collapsed_em_fits_trecall']['mean'][trecall]['kappa'], dataset['collapsed_em_fits_trecall'][errorbars][trecall]['kappa'], title='collapsed_trecall', ax=ax, label='tr=-%d' % trecall, xlabel='nitems')
+
+        if dataio is not None:
+            dataio.save_current_figure('collapsed_trecall_kappa_{label}_{unique_id}.pdf')
+
+        _, ax_target = plt.subplots()
+        _, ax_nontarget = plt.subplots()
+        _, ax_random = plt.subplots()
+        for trecall in xrange(1, 7):
+            ax_target = plot_emmixture_mean_error(T_space_exp[(trecall-1):], dataset['collapsed_em_fits_trecall']['mean'][trecall]['mixt_target'], dataset['collapsed_em_fits_trecall'][errorbars][trecall]['mixt_target'], title='Target collapsed_trecall', ax=ax_target, label='tr=-%d' % trecall, xlabel='nitems')
+            ax_nontarget = plot_emmixture_mean_error(T_space_exp[(trecall-1):], dataset['collapsed_em_fits_trecall']['mean'][trecall]['mixt_nontargets'], dataset['collapsed_em_fits_trecall'][errorbars][trecall]['mixt_nontargets'], title='Nontarget collapsed_trecall', ax=ax_nontarget, label='tr=-%d' % trecall, xlabel='nitems')
+            ax_random = plot_emmixture_mean_error(T_space_exp[(trecall-1):], dataset['collapsed_em_fits_trecall']['mean'][trecall]['mixt_random'], dataset['collapsed_em_fits_trecall'][errorbars][trecall]['mixt_random'], title='Random collapsed_trecall', ax=ax_random, label='tr=-%d' % trecall, xlabel='nitems')
+
+        if dataio is not None:
+            plt.figure(ax_target.get_figure().number)
+            dataio.save_current_figure('collapsed_trecall_mixttarget_{label}_{unique_id}.pdf')
+
+            plt.figure(ax_nontarget.get_figure().number)
+            dataio.save_current_figure('collapsed_trecall_mixtnontarget_{label}_{unique_id}.pdf')
+
+            plt.figure(ax_random.get_figure().number)
+            dataio.save_current_figure('collapsed_trecall_mixtrandom_{label}_{unique_id}.pdf')
+
+    ####### Fit per nitem, t_recall on the x-axis #####
+    ##
+    # fig 7
+    if True:
+        f, ax = plt.subplots()
+        for nitem in xrange(1, 7):
+            ax = plot_kappa_mean_error(T_space_exp[:nitem], dataset['collapsed_em_fits_nitems']['mean'][nitem]['kappa'], dataset['collapsed_em_fits_nitems'][errorbars][nitem]['kappa'], title='collapsed_nitem', ax=ax, label='%d items' % nitem, xlabel='T_recall')
+
+        if dataio is not None:
+            dataio.save_current_figure('fig7_nitem_kappa_{label}_{unique_id}.pdf')
+
+        _, ax_target = plt.subplots()
+        _, ax_nontarget = plt.subplots()
+        _, ax_random = plt.subplots()
+        for nitem in xrange(1, 7):
+            ax_target = plot_emmixture_mean_error(T_space_exp[:nitem], dataset['collapsed_em_fits_nitems']['mean'][nitem]['mixt_target'], dataset['collapsed_em_fits_nitems'][errorbars][nitem]['mixt_target'], title='Target collapsed_nitem', ax=ax_target, label='%d items' % nitem, xlabel='T_recall')
+            ax_nontarget = plot_emmixture_mean_error(T_space_exp[:nitem], dataset['collapsed_em_fits_nitems']['mean'][nitem]['mixt_nontargets'], dataset['collapsed_em_fits_nitems'][errorbars][nitem]['mixt_nontargets'], title='Nontarget collapsed_nitem', ax=ax_nontarget, label='%d items' % nitem, xlabel='T_recall')
+            ax_random = plot_emmixture_mean_error(T_space_exp[:nitem], dataset['collapsed_em_fits_nitems']['mean'][nitem]['mixt_random'], dataset['collapsed_em_fits_nitems'][errorbars][nitem]['mixt_random'], title='Random collapsed_nitem', ax=ax_random, label='%d items' % nitem, xlabel='T_recall')
+
+        if dataio is not None:
+            dataio.save_current_figure('fig7_nitem_mixt_{label}_{unique_id}.pdf')
+
+    # Show BIC scores
+    if True:
+        collapsed_trecall_bic = np.array([np.sum(dataset['collapsed_em_fits_trecall']['values'][trecall]['bic']) for trecall in T_space_exp])
+        collapsed_nitems_bic = np.array([np.sum(dataset['collapsed_em_fits_nitems']['values'][nitems]['bic']) for nitems in T_space_exp])
+
+        f, axes = plt.subplots(nrows=1, ncols=3)
+        axes[0].bar(T_space_exp, collapsed_trecall_bic, align='center')
+        axes[0].set_title('BIC collapsed_trecall')
+        axes[0].set_xticks(T_space_exp)
+        axes[0].set_xlabel('nitems')
+        axes[0].set_ylim([0.0, 1.05*max(collapsed_trecall_bic.max(), collapsed_nitems_bic.max())])
+        axes[1].bar(T_space_exp, collapsed_nitems_bic, align='center')
+        axes[1].set_title('BIC collapsed_nitems')
+        axes[1].set_xlabel('trecall')
+        axes[1].set_xticks(T_space_exp)
+        axes[1].set_ylim([0.0, 1.05*max(collapsed_trecall_bic.max(), collapsed_nitems_bic.max())])
+
+        # Add the overall BIC sum
+        axes[2].bar(np.array([1,2]), [np.sum(collapsed_trecall_bic), np.sum(collapsed_nitems_bic), ], align='center')
+        axes[2].set_xticks(np.array([1,2]))
+        axes[2].set_xticklabels(['Collapsed_trecall', 'Collapsed_nitems'])
+        axes[2].set_title('BIC total summed')
+
+        f.canvas.draw()
+
+        if dataio is not None:
+            dataio.save_current_figure('bic_comparison_sequential_{label}_{unique_id}.pdf')
 
 
+############################################################################
+############################################################################
+
+def plots_bays2009(dataset, dataio=None):
+    '''
+
+    Some plots for the Bays2009 data
+    '''
+
+    plot_histograms_errors_targets_nontargets_nitems(dataset, dataio)
+
+    # plot_precision(dataset, dataio)
+
+    plot_em_mixtures(dataset, dataio)
+
+    # plot_collapsed_em_mixtures(dataset, dataio)
+
+
+def plots_gorgo11(dataset, dataio=None):
+    '''
+        Plots for Gorgo11, assuming sequential data
+    '''
+    plot_histograms_errors_targets_nontargets_nitems(dataset, dataio)
+
+    # plot_precision(dataset, dataio)
+
+    plot_em_mixtures(dataset, dataio)
+
+    plot_collapsed_em_mixtures(dataset, dataio)
+
+
+def plots_gorgo11_sequential(dataset, dataio=None):
+    '''
+        Plots for Gorgo11 sequential, different
+    '''
+
+    # plot_sequential_em_mixtures(dataset, dataio)
+
+    plot_sequential_collapsed_doublepowerlaw(dataset, dataio)
+
+    # plot_sequential_collapsed_singlepowerlaw(dataset, dataio)
+
+    plot_sequential_histograms_errors(dataset, dataio)
 
 

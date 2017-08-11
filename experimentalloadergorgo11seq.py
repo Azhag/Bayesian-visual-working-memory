@@ -164,7 +164,7 @@ class ExperimentalLoaderGorgo11Sequential(experimentalloader.ExperimentalLoader)
                     ).flatten()
 
                     # Invert the order of storage, 0 -> last item probed, 1 -> second to last item probe, etc...
-                    # trecall_i = n_items - trecall
+                    trecall_i = n_items - trecall
 
                     # Get the errors
                     self.dataset['errors_all_subject_nitems_trecall'][subject_i, n_items_i, trecall_i] = self.dataset['errors_all'][ids_filtered]
