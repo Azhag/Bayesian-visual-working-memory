@@ -18,26 +18,24 @@ class PlotsFitExperimentSequential(object):
 
     """
     def __init__(self, fit_experiment_sequential,
-                 do_distrib_errors_fig5=True,
-                 do_memcurves_fig6=True,
-                 do_mixtcurves_fig13=True,
-                 do_distrib_errors_data_fig2=True,
+                 do_histograms_errors_triangle=True,
+                 do_mixtcurves_lasttrecall_fig6=True,
+                 do_mixtcurves_collapsedpowerlaw_fig7=True,
                  ):
 
         self.fit_exp = fit_experiment_sequential
         self.experiment_id = self.fit_exp.experiment_id
 
         self.result_em_fits_stats = None
-        self.do_distrib_errors_fig5 = do_distrib_errors_fig5
-        self.do_memcurves_fig6 = do_memcurves_fig6
-        self.do_mixtcurves_fig13 = do_mixtcurves_fig13
-        self.do_distrib_errors_data_fig2 = do_distrib_errors_data_fig2
+        self.do_histograms_errors_triangle = do_histograms_errors_triangle
+        self.do_mixtcurves_lasttrecall_fig6 = do_mixtcurves_lasttrecall_fig6
+        self.do_mixtcurves_collapsedpowerlaw_fig7 = do_mixtcurves_collapsedpowerlaw_fig7
 
-        print "Doing Paper plots for %s. \nFig5 %d, Fig6 %d, Fig13 %d" % (
+        print "Doing Sequential plots for %s. \nHist %d, Fig6 %d, Fig7 %d" % (
             self.experiment_id,
-            self.do_distrib_errors_fig5,
-            self.do_memcurves_fig6,
-            self.do_mixtcurves_fig13
+            self.do_histograms_errors_triangle,
+            self.do_mixtcurves_lasttrecall_fig6,
+            self.do_mixtcurves_collapsedpowerlaw_fig7
         )
 
 
@@ -47,217 +45,86 @@ class PlotsFitExperimentSequential(object):
 
             These correspond to a particular experiment_id only, not multiple.
         '''
-        if self.do_distrib_errors_data_fig2:
-            self.plots_distrib_errors_data_fig2()
-        if self.do_distrib_errors_fig5:
-            self.plots_distrib_errors_fig5()
-        if self.do_memcurves_fig6 or self.do_mixtcurves_fig13:
-            self.plots_memmixtcurves_fig6fig13()
+        if self.do_histograms_errors_triangle:
+            self.plots_histograms_errors_triangle()
+        if self.do_mixtcurves_lasttrecall_fig6:
+            self.plots_mixtcurves_lasttrecall_fig6()
+        if self.do_mixtcurves_collapsedpowerlaw_fig7:
+            self.plots_mixtcurves_collapsedpowerlaw_fig7()
 
 
-    def plots_distrib_errors_data_fig2(self, size=6):
+    def plots_histograms_errors_triangle(self, size=12):
         '''
-            HUMAN DATA for Fig5
-            Same as plots_distrib_errors_fig5, but for the Experimental data
-
-            Series of plots reproducing Fig 2 - Distribution of errors in human subjects
+            Histograms of errors, for all n_items/trecall conditions.
         '''
-        f, axes = plt.subplots(nrows=2,
-                               ncols=self.fit_exp.T_space.size,
-                               figsize=(2*size, size)
-                               )
 
-        for t_i, T in enumerate(self.fit_exp.T_space):
-            print "DATA T %d" % T
+        # Do the plots
+        f, axes = plt.subplots(
+            ncols=self.fit_exp.T_space.size,
+            nrows=2*self.fit_exp.T_space.size,
+            figsize=(size, 2*size))
 
-            self.fit_exp.setup_experimental_stimuli_T(T)
-            self.fit_exp.restore_responses('human')
+        angle_space = np.linspace(-np.pi, np.pi, 51)
+        for n_items_i, n_items in enumerate(self.fit_exp.T_space):
+            for trecall_i, trecall in enumerate(self.fit_exp.T_space):
+                if trecall <= n_items:
+                    print "\n=== N items: {}, trecall: {}".format(
+                        n_items, trecall)
 
-            self.fit_exp.sampler.plot_histogram_errors(bins=41, ax_handle=axes[0, t_i], norm='density')
-            axes[0, t_i].set_title('')
-            axes[0, t_i].set_ylim((0, 2))
+                    # Sample
+                    self.fit_exp.setup_experimental_stimuli(n_items, trecall)
 
-            if T > 1:
-                self.fit_exp.sampler.plot_histogram_bias_nontarget(bins=41, ax_handle=axes[1, t_i], show_parameters=False)
-                axes[1, t_i].set_title('')
-                axes[1, t_i].set_ylim((0, 0.3))
-            else:
-                axes[1, t_i].axis('off')
+                    if 'samples' in self.fit_exp.get_names_stored_responses():
+                        self.fit_exp.restore_responses('samples')
+                    else:
+                        self.fit_exp.sampler.force_sampling_round()
+                        self.fit_exp.store_responses('samples')
 
-        f.suptitle('Fig2 - Human distribution errors', y=0.95)
+                    (responses, targets, nontargets) = self.fit_exp.sampler.collect_responses()
+
+                    # Targets
+                    errors_targets = utils.wrap_angles(targets - responses)
+                    utils.hist_angular_data(
+                        errors_targets,
+                        bins=angle_space,
+                        # title='N=%d, trecall=%d' % (n_items, trecall),
+                        norm='density',
+                        ax_handle=axes[2*n_items_i, trecall_i],
+                        pretty_xticks=False)
+                    axes[2*n_items_i, trecall_i].set_ylim([0., 1.4])
+                    axes[2*n_items_i, trecall_i].xaxis.set_major_locator(
+                        plt.NullLocator())
+                    axes[2*n_items_i, trecall_i].yaxis.set_major_locator(
+                        plt.NullLocator())
+
+                    # Nontargets
+                    if n_items > 1:
+                        errors_nontargets = utils.wrap_angles((
+                            responses[:, np.newaxis] - nontargets).flatten())
+
+                        utils.hist_angular_data(
+                            errors_nontargets,
+                            bins=angle_space,
+                            # title='Nontarget %s N=%d' % (dataset['name'], n_items),
+                            norm='density',
+                            ax_handle=axes[2*n_items_i + 1, trecall_i],
+                            pretty_xticks=False)
+
+                        axes[2*n_items_i + 1, trecall_i].set_ylim([0., 0.3])
+
+                    axes[2*n_items_i + 1, trecall_i].xaxis.set_major_locator(plt.NullLocator())
+                    axes[2*n_items_i + 1, trecall_i].yaxis.set_major_locator(plt.NullLocator())
+                else:
+                    axes[2*n_items_i, trecall_i].axis('off')
+                    axes[2*n_items_i + 1, trecall_i].axis('off')
+
         return axes
 
 
-    def plots_distrib_errors_fig5(self, size=6):
-        '''
-            Series of plots reproducing Fig 5 - Distribution of errors of the
-            model
-
-            Arranged as in the paper.
-        '''
-
-        f, axes = plt.subplots(nrows=2,
-                               ncols=self.fit_exp.T_space.size,
-                               figsize=(2*size, size)
-                               )
-
-        for t_i, T in enumerate(self.fit_exp.T_space):
-            print "MODEL T %d" % T
-
-            self.fit_exp.setup_experimental_stimuli_T(T)
-            if 'samples' in self.fit_exp.get_names_stored_responses():
-                self.fit_exp.restore_responses('samples')
-            else:
-                self.fit_exp.sampler.force_sampling_round()
-                self.fit_exp.store_responses('samples')
-
-            self.fit_exp.sampler.plot_histogram_errors(bins=41, ax_handle=axes[0, t_i], norm='density')
-            axes[0, t_i].set_title('')
-            axes[0, t_i].set_ylim((0, 2))
-
-            if T > 1:
-                self.fit_exp.sampler.plot_histogram_bias_nontarget(bins=41, ax_handle=axes[1, t_i], show_parameters=False)
-                axes[1, t_i].set_title('')
-                axes[1, t_i].set_ylim((0, 0.3))
-            else:
-                axes[1, t_i].axis('off')
-
-        f.suptitle('Fig5 - Model distribution errors', y=0.95)
-        return axes
-
-
-    def plots_KS_comparison_fig2fig5(self,
-                                     bins=41,
-                                     show_pval=True,
-                                     size=6
-                                     ):
-        '''
-            Will plot the ECDF of data/samples and then do Kolmogorov-Smirnov /Kuiper 2-samples tests on them.
-        '''
-
-        f, axes = plt.subplots(nrows=2,
-                               ncols=self.fit_exp.T_space.size,
-                               figsize=(size*2, size)
-                               )
-
-        result_KS = dict(human=dict(),
-                         model=dict(),
-                         ks_pval=dict(),
-                         kuiper_pval=dict()
-                         )
-
-        warnings.simplefilter("ignore")
-
-        for t_i, T in enumerate(self.fit_exp.T_space):
-            result_KS['ks_pval'][T] = dict()
-            result_KS['kuiper_pval'][T] = dict()
-
-            self.fit_exp.setup_experimental_stimuli_T(T)
-
-            # Human histograms and CDF
-            self.fit_exp.restore_responses('human')
-            result_KS['human'][T] = self.fit_exp.sampler.compute_errors_alltargets_histograms(bins=bins)
-
-            # Samples histograms and CDF
-            if 'samples' in self.fit_exp.get_names_stored_responses():
-                self.fit_exp.restore_responses('samples')
-            else:
-                self.fit_exp.sampler.force_sampling_round()
-                self.fit_exp.store_responses('samples')
-            result_KS['model'][T] = self.fit_exp.sampler.compute_errors_alltargets_histograms(bins=bins)
-
-            # Compute K-S 2-samples tests stats
-            for condition in ['targets', 'nontargets']:
-                if condition in result_KS['human'][T]:
-                    ks_out = spst.ks_2samp(
-                        result_KS['human'][T][condition]['samples'],
-                        result_KS['model'][T][condition]['samples']
-                    )
-
-                    result_KS['ks_pval'][T][condition] = \
-                        ks_out.pvalue
-
-                    result_KS['kuiper_pval'][T][condition] = \
-                        pycircstat.tests.kuiper(
-                            result_KS['human'][T][condition]['samples'],
-                            result_KS['model'][T][condition]['samples'])[0][0]
-
-            ### Plot everything
-            axes[0, t_i].plot(result_KS['human'][T]['targets']['x'],
-                              result_KS['human'][T]['targets']['ecdf'],
-                              label='data'
-                              )
-            axes[0, t_i].plot(result_KS['model'][T]['targets']['x'],
-                              result_KS['model'][T]['targets']['ecdf'],
-                              label='model'
-                              )
-            axes[0, t_i].set_title('')
-            axes[0, t_i].set_xlim((-np.pi, np.pi))
-            # axes[0, t_i].set_ylim((0, 2))
-
-            if show_pval:
-                axes[0, t_i].text(
-                    0.02, 0.99,
-                    "KS p: %.2f" % result_KS['ks_pval'][T]['targets'],
-                    transform=axes[0, t_i].transAxes,
-                    horizontalalignment='left',
-                    verticalalignment='top'
-                )
-                axes[0, t_i].text(
-                    0.02, 0.9,
-                    "Kuiper p: %.2f" % result_KS['kuiper_pval'][T]['targets'],
-                    transform=axes[0, t_i].transAxes,
-                    horizontalalignment='left',
-                    verticalalignment='top'
-                )
-
-            if T > 1:
-                axes[1, t_i].plot(result_KS['human'][T]['nontargets']['x'],
-                                  result_KS['human'][T]['nontargets']['ecdf'],
-                                  label='data'
-                                  )
-                axes[1, t_i].plot(result_KS['model'][T]['nontargets']['x'],
-                                  result_KS['model'][T]['nontargets']['ecdf'],
-                                  label='model'
-                                  )
-                axes[1, t_i].set_title('')
-                axes[1, t_i].set_xlim((-np.pi, np.pi))
-
-                if show_pval:
-                    axes[1, t_i].text(
-                        0.02, 0.99,
-                        "KS p: %.2f" % result_KS['ks_pval'][T]['nontargets'],
-                        transform=axes[1, t_i].transAxes,
-                        horizontalalignment='left',
-                        verticalalignment='top'
-                    )
-                    axes[1, t_i].text(
-                        0.02, 0.9,
-                        "Kuiper p: %.2f" % result_KS['kuiper_pval'][T]['nontargets'],
-                        transform=axes[1, t_i].transAxes,
-                        horizontalalignment='left',
-                        verticalalignment='top'
-                    )
-            else:
-                axes[1, t_i].axis('off')
-
-        axes[1, 1].legend(loc='center',
-                          bbox_to_anchor=(0.5, 0.5),
-                          bbox_transform=axes[1, 0].transAxes
-                          )
-
-        f.suptitle('ECDF between human and model')
-
-        return axes, result_KS
-
-
-
-    def plots_memmixtcurves_fig6fig13(self,
-                                      num_repetitions=1,
-                                      use_cache=True,
-                                      layout='vertical',
-                                      size=6
-                                      ):
+    def plots_mixtcurves_lasttrecall_fig6(self,
+                                          num_repetitions=1,
+                                          use_cache=True,
+                                          size=6):
         '''
             Plots the memory fidelity for all T and the mixture proportions for all T
         '''
@@ -269,7 +136,7 @@ class PlotsFitExperimentSequential(object):
             result_em_fits = np.nan*np.ones((self.fit_exp.T_space.size, 5, num_repetitions))
 
             for T_i, T in enumerate(self.fit_exp.T_space):
-                self.fit_exp.setup_experimental_stimuli_T(T)
+                self.fit_exp.setup_experimental_stimuli(T, trecall)
 
                 for repet_i in xrange(num_repetitions):
                     print "%.2f%%, %s left - %s" % (search_progress.percentage(), search_progress.time_remaining_str(), search_progress.eta_str())
@@ -296,16 +163,11 @@ class PlotsFitExperimentSequential(object):
                 std=utils.nanstd(result_em_fits, axis=-1)
             )
 
-        # Do the plots
         if self.do_memcurves_fig6 and self.do_mixtcurves_fig13:
-            if layout == 'vertical':
-                f, axes = plt.subplots(nrows=2, figsize=(size, size*2))
-            else:
-                f, axes = plt.subplots(ncols=2, figsize=(size*2, size))
+            f, axes = plt.subplots(nrows=2, figsize=(size, size*2))
         else:
             f, ax = plt.subplots(figsize=(size, size))
             axes = [ax]
-        ax_i = 0
 
         if self.do_memcurves_fig6:
             self.__plot_memcurves(self.result_em_fits_stats,
@@ -323,6 +185,132 @@ class PlotsFitExperimentSequential(object):
             ax_i += 1
 
         return axes
+
+
+
+    # def plots_KS_comparison_fig2fig5(self,
+    #                                  bins=41,
+    #                                  show_pval=True,
+    #                                  size=6
+    #                                  ):
+    #     '''
+    #         Will plot the ECDF of data/samples and then do Kolmogorov-Smirnov /Kuiper 2-samples tests on them.
+    #     '''
+
+    #     f, axes = plt.subplots(nrows=2,
+    #                            ncols=self.fit_exp.T_space.size,
+    #                            figsize=(size*2, size)
+    #                            )
+
+    #     result_KS = dict(human=dict(),
+    #                      model=dict(),
+    #                      ks_pval=dict(),
+    #                      kuiper_pval=dict()
+    #                      )
+
+    #     warnings.simplefilter("ignore")
+
+    #     for t_i, T in enumerate(self.fit_exp.T_space):
+    #         result_KS['ks_pval'][T] = dict()
+    #         result_KS['kuiper_pval'][T] = dict()
+
+    #         self.fit_exp.setup_experimental_stimuli(T)
+
+    #         # Human histograms and CDF
+    #         self.fit_exp.restore_responses('human')
+    #         result_KS['human'][T] = self.fit_exp.sampler.compute_errors_alltargets_histograms(bins=bins)
+
+    #         # Samples histograms and CDF
+    #         if 'samples' in self.fit_exp.get_names_stored_responses():
+    #             self.fit_exp.restore_responses('samples')
+    #         else:
+    #             self.fit_exp.sampler.force_sampling_round()
+    #             self.fit_exp.store_responses('samples')
+    #         result_KS['model'][T] = self.fit_exp.sampler.compute_errors_alltargets_histograms(bins=bins)
+
+    #         # Compute K-S 2-samples tests stats
+    #         for condition in ['targets', 'nontargets']:
+    #             if condition in result_KS['human'][T]:
+    #                 ks_out = spst.ks_2samp(
+    #                     result_KS['human'][T][condition]['samples'],
+    #                     result_KS['model'][T][condition]['samples']
+    #                 )
+
+    #                 result_KS['ks_pval'][T][condition] = \
+    #                     ks_out.pvalue
+
+    #                 result_KS['kuiper_pval'][T][condition] = \
+    #                     pycircstat.tests.kuiper(
+    #                         result_KS['human'][T][condition]['samples'],
+    #                         result_KS['model'][T][condition]['samples'])[0][0]
+
+    #         ### Plot everything
+    #         axes[0, t_i].plot(result_KS['human'][T]['targets']['x'],
+    #                           result_KS['human'][T]['targets']['ecdf'],
+    #                           label='data'
+    #                           )
+    #         axes[0, t_i].plot(result_KS['model'][T]['targets']['x'],
+    #                           result_KS['model'][T]['targets']['ecdf'],
+    #                           label='model'
+    #                           )
+    #         axes[0, t_i].set_title('')
+    #         axes[0, t_i].set_xlim((-np.pi, np.pi))
+    #         # axes[0, t_i].set_ylim((0, 2))
+
+    #         if show_pval:
+    #             axes[0, t_i].text(
+    #                 0.02, 0.99,
+    #                 "KS p: %.2f" % result_KS['ks_pval'][T]['targets'],
+    #                 transform=axes[0, t_i].transAxes,
+    #                 horizontalalignment='left',
+    #                 verticalalignment='top'
+    #             )
+    #             axes[0, t_i].text(
+    #                 0.02, 0.9,
+    #                 "Kuiper p: %.2f" % result_KS['kuiper_pval'][T]['targets'],
+    #                 transform=axes[0, t_i].transAxes,
+    #                 horizontalalignment='left',
+    #                 verticalalignment='top'
+    #             )
+
+    #         if T > 1:
+    #             axes[1, t_i].plot(result_KS['human'][T]['nontargets']['x'],
+    #                               result_KS['human'][T]['nontargets']['ecdf'],
+    #                               label='data'
+    #                               )
+    #             axes[1, t_i].plot(result_KS['model'][T]['nontargets']['x'],
+    #                               result_KS['model'][T]['nontargets']['ecdf'],
+    #                               label='model'
+    #                               )
+    #             axes[1, t_i].set_title('')
+    #             axes[1, t_i].set_xlim((-np.pi, np.pi))
+
+    #             if show_pval:
+    #                 axes[1, t_i].text(
+    #                     0.02, 0.99,
+    #                     "KS p: %.2f" % result_KS['ks_pval'][T]['nontargets'],
+    #                     transform=axes[1, t_i].transAxes,
+    #                     horizontalalignment='left',
+    #                     verticalalignment='top'
+    #                 )
+    #                 axes[1, t_i].text(
+    #                     0.02, 0.9,
+    #                     "Kuiper p: %.2f" % result_KS['kuiper_pval'][T]['nontargets'],
+    #                     transform=axes[1, t_i].transAxes,
+    #                     horizontalalignment='left',
+    #                     verticalalignment='top'
+    #                 )
+    #         else:
+    #             axes[1, t_i].axis('off')
+
+    #     axes[1, 1].legend(loc='center',
+    #                       bbox_to_anchor=(0.5, 0.5),
+    #                       bbox_transform=axes[1, 0].transAxes
+    #                       )
+
+    #     f.suptitle('ECDF between human and model')
+
+    #     return axes, result_KS
 
 
     # Memory curve kappa

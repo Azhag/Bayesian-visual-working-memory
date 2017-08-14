@@ -22,7 +22,8 @@ import dataio as DataIO
 import utils
 
 
-def plot_kappa_mean_error(T_space, mean, yerror, ax=None, dataio=None, title='', **args):
+def plot_kappa_mean_error(T_space, mean, yerror, ax=None, dataio=None, title='',
+                          **args):
     '''
         !!! IMPORTANT !!!
 
@@ -34,10 +35,19 @@ def plot_kappa_mean_error(T_space, mean, yerror, ax=None, dataio=None, title='',
     if ax is None:
         f, ax = plt.subplots()
 
-    ax = utils.plot_mean_std_area(T_space, mean, np.ma.masked_invalid(yerror).filled(0.0), ax_handle=ax, linewidth=3, markersize=8, fmt='o-', **args)
+    ax = utils.plot_mean_std_area(
+        T_space,
+        mean,
+        np.ma.masked_invalid(yerror).filled(0.0),
+        ax_handle=ax,
+        linewidth=3,
+        markersize=8,
+        fmt='o-',
+        **args)
 
-    ax.legend(prop={'size':15}, loc='best')
-    ax.set_title('Kappa: %s' % title)
+    ax.legend(prop={'size': 15}, loc='best')
+    if title:
+        ax.set_title('Kappa: %s' % title)
     ax.set_xlim([0.9, T_space.max()+0.1])
     ax.set_ylim([0.0, max(np.max(mean)*1.1, ax.get_ylim()[1])])
     ax.set_xticks(range(1, T_space.max()+1))
@@ -50,7 +60,8 @@ def plot_kappa_mean_error(T_space, mean, yerror, ax=None, dataio=None, title='',
     return ax
 
 
-def plot_emmixture_mean_error(T_space, mean, yerror, ax=None, dataio=None, title='', **args):
+def plot_emmixture_mean_error(T_space, mean, yerror, ax=None, dataio=None,
+                              title='', **args):
     '''
         !!! IMPORTANT !!!
 
@@ -64,9 +75,10 @@ def plot_emmixture_mean_error(T_space, mean, yerror, ax=None, dataio=None, title
     utils.plot_mean_std_area(T_space, mean, np.ma.masked_invalid(yerror).filled(0.0), ax_handle=ax, linewidth=3, fmt='o-', markersize=8, **args)
 
     ax.legend(prop={'size': 15}, loc='best')
-    ax.set_title('Mixture prop: %s' % title)
+    if title:
+        ax.set_title('Mixture prop: %s' % title)
     ax.set_xlim([0.9, T_space.max() + 0.1])
-    ax.set_ylim([0.0, 1.1])
+    ax.set_ylim([0.0, 1.01])
     ax.set_xticks(range(1, T_space.max()+1))
     ax.set_xticklabels(range(1, T_space.max()+1))
 
@@ -927,7 +939,6 @@ def plot_sequential_histograms_errors(dataset, dataio=None):
     '''
 
     angle_space = np.linspace(-np.pi, np.pi, 51)
-    bins_center = angle_space[:-1] + np.diff(angle_space)[0]/2
     f1, f2, f3_all = None, None, None
 
     #### Histograms of errors / errors to nontargets, collapsing across subjects
@@ -1005,63 +1016,63 @@ def plot_sequential_histograms_errors(dataset, dataio=None):
 
 
 
-def plot_sequential_em_mixtures(dataset, dataio=None):
-    maxItems = 5
-    itemSpace = np.arange(maxItems)
-    itemIndices = np.arange(dataset['n_items_size']) < maxItems
+# def plot_sequential_em_mixtures(dataset, dataio=None):
+#     maxItems = 5
+#     itemSpace = np.arange(maxItems)
+#     itemIndices = np.arange(dataset['n_items_size']) < maxItems
 
-    # Fig 6
-    plt.figure()
-    plt.plot(np.nanmean(dataset['em_fits_subjects_nitems_arrays'], axis=0)[:maxItems, 0], 'o-', linewidth=2)
-    plt.title('kappa, across trecalls')
-    plt.xlabel('t_recall')
-    plt.xticks(itemSpace, itemSpace+1)
+#     # Fig 6
+#     plt.figure()
+#     plt.plot(np.nanmean(dataset['em_fits_subjects_nitems_arrays'], axis=0)[:maxItems, 0], 'o-', linewidth=2)
+#     plt.title('kappa, across trecalls')
+#     plt.xlabel('t_recall')
+#     plt.xticks(itemSpace, itemSpace+1)
 
-    plt.figure()
-    plt.plot(np.nanmean(dataset['em_fits_subjects_nitems_arrays'], axis=0)[:maxItems, 1:(maxItems-1)], 'o-', linewidth=2)
-    plt.title('mixture probs, across trecalls')
-    plt.xlabel('t_recall')
-    plt.xticks(itemSpace, itemSpace+1)
-    plt.legend(('target', 'nontarget', 'random'))
+#     plt.figure()
+#     plt.plot(np.nanmean(dataset['em_fits_subjects_nitems_arrays'], axis=0)[:maxItems, 1:(maxItems-1)], 'o-', linewidth=2)
+#     plt.title('mixture probs, across trecalls')
+#     plt.xlabel('t_recall')
+#     plt.xticks(itemSpace, itemSpace+1)
+#     plt.legend(('target', 'nontarget', 'random'))
 
-    # fig 7
-    plt.figure()
-    plt.plot(utils.fliplr_nonan(dataset['em_fits_nitems_trecall_arrays'][:maxItems, :maxItems, 0]).T, 'o-', linewidth=2)
-    plt.title('EM kappa')
-    plt.xlabel('t_recall')
-    plt.xticks(itemSpace, itemSpace+1)
-    plt.legend([str(x) for x in itemSpace+1])
+#     # fig 7
+#     plt.figure()
+#     plt.plot(utils.fliplr_nonan(dataset['em_fits_nitems_trecall_arrays'][:maxItems, :maxItems, 0]).T, 'o-', linewidth=2)
+#     plt.title('EM kappa')
+#     plt.xlabel('t_recall')
+#     plt.xticks(itemSpace, itemSpace+1)
+#     plt.legend([str(x) for x in itemSpace+1])
 
-    plt.figure()
-    plt.plot(utils.fliplr_nonan(dataset['em_fits_nitems_trecall_arrays'][:maxItems, :maxItems, 1]).T, 'o-', linewidth=2)
-    plt.title('EM target')
-    plt.xlabel('t_recall')
-    plt.xticks(itemSpace, itemSpace+1)
-    plt.legend([str(x) for x in itemSpace+1])
+#     plt.figure()
+#     plt.plot(utils.fliplr_nonan(dataset['em_fits_nitems_trecall_arrays'][:maxItems, :maxItems, 1]).T, 'o-', linewidth=2)
+#     plt.title('EM target')
+#     plt.xlabel('t_recall')
+#     plt.xticks(itemSpace, itemSpace+1)
+#     plt.legend([str(x) for x in itemSpace+1])
 
-    plt.figure()
-    plt.plot(utils.fliplr_nonan(dataset['em_fits_nitems_trecall_arrays'][:maxItems, :maxItems, 2]).T, 'o-', linewidth=2)
-    plt.title('EM nontarget')
-    plt.xlabel('t_recall')
-    plt.xticks(itemSpace, itemSpace+1)
-    plt.legend([str(x) for x in itemSpace+1])
+#     plt.figure()
+#     plt.plot(utils.fliplr_nonan(dataset['em_fits_nitems_trecall_arrays'][:maxItems, :maxItems, 2]).T, 'o-', linewidth=2)
+#     plt.title('EM nontarget')
+#     plt.xlabel('t_recall')
+#     plt.xticks(itemSpace, itemSpace+1)
+#     plt.legend([str(x) for x in itemSpace+1])
 
-    plt.figure()
-    plt.plot(utils.fliplr_nonan(dataset['em_fits_nitems_trecall_arrays'][:maxItems, :maxItems, 3]).T, 'o-', linewidth=2)
-    plt.title('EM random')
-    plt.xlabel('t_recall')
-    plt.xticks(itemSpace, itemSpace+1)
-    plt.legend([str(x) for x in itemSpace+1])
+#     plt.figure()
+#     plt.plot(utils.fliplr_nonan(dataset['em_fits_nitems_trecall_arrays'][:maxItems, :maxItems, 3]).T, 'o-', linewidth=2)
+#     plt.title('EM random')
+#     plt.xlabel('t_recall')
+#     plt.xticks(itemSpace, itemSpace+1)
+#     plt.legend([str(x) for x in itemSpace+1])
 
 
 
-def plot_sequential_collapsed_doublepowerlaw(dataset, dataio=None, use_sem=True):
+def plot_sequential_collapsed_doublepowerlaw(dataset,
+                                             dataio=None,
+                                             use_sem=True):
     '''
         Plots for Gorgo11 sequential, collapsed mixture model
     '''
 
-    maxItems = 5
-    itemSpace = np.arange(maxItems)
     T_space_exp = dataset['data_subject_split']['nitems_space']
     if use_sem:
         errorbars = 'sem'
@@ -1071,82 +1082,100 @@ def plot_sequential_collapsed_doublepowerlaw(dataset, dataio=None, use_sem=True)
     ####### SINGLE POWERLAW
 
     ######## Double powerlaw collapsed model
-    if False:
+    if True:
         # Fig 6, trecall=last, nitems on the x-axis
-        f, axes = plt.subplots(1, 2)
-        axes[0] = plot_kappa_mean_error(T_space_exp, dataset['collapsed_em_fits_doublepowerlaw']['mean']['kappa'][:, 0], dataset['collapsed_em_fits_doublepowerlaw'][errorbars]['kappa'][:, 0], title='Kappa', ax=axes[0], xlabel='items', ylabel='Kappa')
-        axes[1] = plot_emmixture_mean_error(T_space_exp, dataset['collapsed_em_fits_doublepowerlaw']['mean']['mixt_target_tr'][:, 0], dataset['collapsed_em_fits_doublepowerlaw'][errorbars]['mixt_target_tr'][:, 0], title='Mixture proportions', ax=axes[1], label='Target', xlabel='items', ylabel='Mixture proportions')
-        axes[1] = plot_emmixture_mean_error(T_space_exp, dataset['collapsed_em_fits_doublepowerlaw']['mean']['mixt_nontargets_tr'][:, 0], dataset['collapsed_em_fits_doublepowerlaw'][errorbars]['mixt_nontargets_tr'][:, 0], title='Mixture proportions', ax=axes[1], label='Nontargets', xlabel='items', ylabel='Mixture proportions')
-        axes[1] = plot_emmixture_mean_error(T_space_exp, dataset['collapsed_em_fits_doublepowerlaw']['mean']['mixt_random_tr'][:, 0], dataset['collapsed_em_fits_doublepowerlaw'][errorbars]['mixt_random_tr'][:, 0], title='Mixture proportions', ax=axes[1], label='Random', xlabel='items', ylabel='Mixture proportions')
-        f.suptitle('Fig 6: Last trecall')
+        f1, axes1 = plt.subplots(nrows=1, ncols=2, figsize=(12, 6))
+        plot_kappa_mean_error(
+            T_space_exp,
+            dataset['collapsed_em_fits_doublepowerlaw']['mean'][
+                'kappa'][:, 0],
+            dataset['collapsed_em_fits_doublepowerlaw'][errorbars][
+                'kappa'][:, 0],
+            xlabel='items', ylabel='Kappa', ax=axes1[0])
+        plot_emmixture_mean_error(
+            T_space_exp,
+            dataset['collapsed_em_fits_doublepowerlaw']['mean'][
+                'mixt_target_tr'][:, 0],
+            dataset['collapsed_em_fits_doublepowerlaw'][errorbars][
+                'mixt_target_tr'][:, 0],
+            label='Target', ax=axes1[1])
+        plot_emmixture_mean_error(
+            T_space_exp,
+            dataset['collapsed_em_fits_doublepowerlaw']['mean'][
+                'mixt_nontargets_tr'][:, 0],
+            dataset['collapsed_em_fits_doublepowerlaw'][errorbars][
+                'mixt_nontargets_tr'][:, 0],
+            label='Nontargets', ax=axes1[1])
+        plot_emmixture_mean_error(
+            T_space_exp,
+            dataset['collapsed_em_fits_doublepowerlaw']['mean'][
+                'mixt_random_tr'][:, 0],
+            dataset['collapsed_em_fits_doublepowerlaw'][errorbars][
+                'mixt_random_tr'][:, 0],
+            label='Random',
+            xlabel='items', ylabel='Mixture proportions', ax=axes1[1])
+
+        f1.suptitle('Fig 6: Last trecall')
 
         if dataio is not None:
             dataio.save_current_figure('fig6_doublepowerlaw_{label}_{unique_id}.pdf')
 
     # Fig 7, kappa and mixtures, one plot per nitems, trecall on the x-axis
     if True:
-        f, ax = plt.subplots()
-        for nitems_i, nitems in enumerate(xrange(1, 7)):
-            ax = plot_kappa_mean_error(
+        f2, axes2 = plt.subplots(nrows=2, ncols=2, figsize=(10, 10))
+
+        for nitems_i, nitems in enumerate(T_space_exp):
+            plot_kappa_mean_error(
                 T_space_exp[:nitems],
-                dataset['collapsed_em_fits_doublepowerlaw']['mean']['kappa'][nitems_i, :nitems],
-                dataset['collapsed_em_fits_doublepowerlaw'][errorbars]['kappa'][nitems_i, :nitems],
+                dataset['collapsed_em_fits_doublepowerlaw']['mean'][
+                    'kappa'][nitems_i, :nitems],
+                dataset['collapsed_em_fits_doublepowerlaw'][errorbars][
+                    'kappa'][nitems_i, :nitems],
                 # title='collapsed_doublepowerlaw',
-                ax=ax,
+                ax=axes2[0, 0],
                 label='%d items' % nitems,
-                xlabel='Reverse sequential order',
+                xlabel='Serial order (reversed)',
                 zorder=7 - nitems)
 
-            ax.set_title('')
-
-        if dataio is not None:
-            dataio.save_current_figure('fig7_doublepowerlaw_kappa_{label}_{unique_id}.pdf')
-
-        _, ax_target = plt.subplots()
-        _, ax_nontarget = plt.subplots()
-        _, ax_random = plt.subplots()
-        for nitems in np.arange(1, 7):
-            ax_target = plot_emmixture_mean_error(
+            plot_emmixture_mean_error(
                 T_space_exp[:nitems],
-                dataset['collapsed_em_fits_doublepowerlaw']['mean']['mixt_target_tr'][nitems - 1, :nitems],
-                dataset['collapsed_em_fits_doublepowerlaw'][errorbars]['mixt_target_tr'][nitems - 1, :nitems],
+                dataset['collapsed_em_fits_doublepowerlaw']['mean'][
+                    'mixt_target_tr'][nitems - 1, :nitems],
+                dataset['collapsed_em_fits_doublepowerlaw'][errorbars][
+                    'mixt_target_tr'][nitems - 1, :nitems],
                 # title='Target collapsed_doublepowerlaw',
-                ax=ax_target,
+                ax=axes2[0, 1],
                 label='%d items' % nitems,
-                xlabel='Reverse sequential order',
+                xlabel='Serial order (reversed)',
                 zorder=7 - nitems)
-            ax_nontarget = plot_emmixture_mean_error(
+            plot_emmixture_mean_error(
                 T_space_exp[:nitems],
-                dataset['collapsed_em_fits_doublepowerlaw']['mean']['mixt_nontargets_tr'][nitems - 1, :nitems],
-                dataset['collapsed_em_fits_doublepowerlaw'][errorbars]['mixt_nontargets_tr'][nitems - 1, :nitems],
+                dataset['collapsed_em_fits_doublepowerlaw']['mean'][
+                    'mixt_nontargets_tr'][nitems - 1, :nitems],
+                dataset['collapsed_em_fits_doublepowerlaw'][errorbars][
+                    'mixt_nontargets_tr'][nitems - 1, :nitems],
                 # title='Nontarget collapsed_doublepowerlaw',
-                ax=ax_nontarget,
+                ax=axes2[1, 0],
                 label='%d items' % nitems,
-                xlabel='Reverse sequential order',
+                xlabel='Serial order (reversed)',
                 zorder=7 - nitems)
-            ax_random = plot_emmixture_mean_error(
+            plot_emmixture_mean_error(
                 T_space_exp[:nitems],
-                dataset['collapsed_em_fits_doublepowerlaw']['mean']['mixt_random_tr'][nitems - 1, :nitems],
-                dataset['collapsed_em_fits_doublepowerlaw'][errorbars]['mixt_random_tr'][nitems - 1, :nitems],
+                dataset['collapsed_em_fits_doublepowerlaw']['mean'][
+                    'mixt_random_tr'][nitems - 1, :nitems],
+                dataset['collapsed_em_fits_doublepowerlaw'][errorbars][
+                    'mixt_random_tr'][nitems - 1, :nitems],
                 # title='Random collapsed_doublepowerlaw',
-                ax=ax_random,
+                ax=axes2[1, 1],
                 label='%d items' % nitems,
-                xlabel='Reverse sequential order',
+                xlabel='Serial order (reversed)',
                 zorder=7 - nitems)
 
-            ax_target.set_title('')
-            ax_nontarget.set_title('')
-            ax_random.set_title('')
+        f2.suptitle('Fig7: Collapsed Powerlaw fits')
 
         if dataio is not None:
-            plt.figure(ax_target.get_figure().number)
-            dataio.save_current_figure('fig7_doublepowerlaw_mixttarget_{label}_{unique_id}.pdf')
-
-            plt.figure(ax_nontarget.get_figure().number)
-            dataio.save_current_figure('fig7_doublepowerlaw_mixtnontarget_{label}_{unique_id}.pdf')
-
-            plt.figure(ax_random.get_figure().number)
-            dataio.save_current_figure('fig7_doublepowerlaw_mixtrandom_{label}_{unique_id}.pdf')
+            plt.figure(f2.number)
+            dataio.save_current_figure('fig7_doublepowerlaw_{label}_{unique_id}.pdf')
 
     ## Checking parameters of kappa()
     if False:
@@ -1173,7 +1202,17 @@ def plot_sequential_collapsed_doublepowerlaw(dataset, dataio=None, use_sem=True)
     if False:
         fig = plt.figure()
         ax = Axes3D(fig)
-        utils.scatter3d(kappa_theta_all[:, 1], kappa_theta_all[:, 2], kappa_theta_all[:, 0], s=50, c=dataset['data_subject_split']['subjects_space'], xlabel='beta [nitems]', ylabel='gamma [trecall]',  zlabel='alpha [kappa max]', title='Kappa parameters per subject', ax_handle=ax)
+        utils.scatter3d(
+            kappa_theta_all[:, 1],
+            kappa_theta_all[:, 2],
+            kappa_theta_all[:, 0],
+            c=dataset['data_subject_split']['subjects_space'],
+            s=50,
+            xlabel='beta [nitems]',
+            ylabel='gamma [trecall]',
+            zlabel='alpha [kappa max]',
+            title='Kappa parameters per subject',
+            ax_handle=ax)
 
         # Now kappa directly
         fig = plt.figure()
@@ -1197,142 +1236,170 @@ def plot_sequential_collapsed_doublepowerlaw(dataset, dataio=None, use_sem=True)
     if False:
         for subject_i, subject in enumerate(dataset['data_subject_split']['subjects_space']):
             f, axes = plt.subplots(2, 2)
-            for nitems_i, nitems in enumerate(xrange(1, 7)):
-                axes[0, 0] = plot_kappa_mean_error(T_space_exp[:nitems], dataset['collapsed_em_fits_doublepowerlaw_subjects'][subject]['kappa'][nitems_i, :nitems], dataset['collapsed_em_fits_doublepowerlaw_subjects'][subject]['kappa'][nitems_i, :nitems]*0.0, title='Subject %d \nbeta %.1f, gamma %.1f, alpha %d' % (subject, dataset['collapsed_em_fits_doublepowerlaw_subjects'][subject]['kappa_theta'][1], dataset['collapsed_em_fits_doublepowerlaw_subjects'][subject]['kappa_theta'][2], dataset['collapsed_em_fits_doublepowerlaw_subjects'][subject]['kappa_theta'][0]), ax=axes[0, 0], label='%d items' % nitems, xlabel='T_recall')
+            for nitems_i, nitems in enumerate(T_space_exp):
+                axes[0, 0] = plot_kappa_mean_error(
+                    T_space_exp[:nitems],
+                    dataset['collapsed_em_fits_doublepowerlaw_subjects'][subject]['kappa'][nitems_i, :nitems],
+                    dataset['collapsed_em_fits_doublepowerlaw_subjects'][subject]['kappa'][nitems_i, :nitems]*0.0,
+                    title='Subject %d \nbeta %.1f, gamma %.1f, alpha %d' % (
+                        subject,
+                        dataset['collapsed_em_fits_doublepowerlaw_subjects'][subject]['kappa_theta'][1],
+                        dataset['collapsed_em_fits_doublepowerlaw_subjects'][subject]['kappa_theta'][2],
+                        dataset['collapsed_em_fits_doublepowerlaw_subjects'][subject]['kappa_theta'][0]),
+                    ax=axes[0, 0],
+                    label='%d items' % nitems,
+                    xlabel='T_recall')
                 axes[0, 0].set_ylim((0.0, 15.5))
 
-            for nitems_i, nitems in enumerate(xrange(1, 7)):
-                axes[0, 1] = plot_emmixture_mean_error(T_space_exp[:nitems], dataset['collapsed_em_fits_doublepowerlaw_subjects'][subject]['mixt_target_tr'][nitems_i, :nitems], dataset['collapsed_em_fits_doublepowerlaw_subjects'][subject]['mixt_target_tr'][nitems_i, :nitems]*0.0, title='Target, subject %d' % (subject), ax=axes[0, 1], label='%d items' % nitems, xlabel='T_recall')
-                axes[1, 0] = plot_emmixture_mean_error(T_space_exp[:nitems], dataset['collapsed_em_fits_doublepowerlaw_subjects'][subject]['mixt_nontargets_tr'][nitems_i, :nitems], dataset['collapsed_em_fits_doublepowerlaw_subjects'][subject]['mixt_target_tr'][nitems_i, :nitems]*0.0, title='Nontarget, subject %d' % (subject), ax=axes[1, 0], label='%d items' % nitems, xlabel='T_recall')
-                axes[1, 1] = plot_emmixture_mean_error(T_space_exp[:nitems], dataset['collapsed_em_fits_doublepowerlaw_subjects'][subject]['mixt_random_tr'][nitems_i, :nitems], dataset['collapsed_em_fits_doublepowerlaw_subjects'][subject]['mixt_target_tr'][nitems_i, :nitems]*0.0, title='Random, subject %d' % (subject), ax=axes[1, 1], label='%d items' % nitems, xlabel='T_recall')
+            for nitems_i, nitems in enumerate(T_space_exp):
+                axes[0, 1] = plot_emmixture_mean_error(
+                    T_space_exp[:nitems],
+                    dataset['collapsed_em_fits_doublepowerlaw_subjects'][subject]['mixt_target_tr'][nitems_i, :nitems],
+                    dataset['collapsed_em_fits_doublepowerlaw_subjects'][subject]['mixt_target_tr'][nitems_i, :nitems]*0.0,
+                    title='Target, subject %d' % (subject),
+                    ax=axes[0, 1],
+                    label='%d items' % nitems,
+                    xlabel='T_recall')
+                axes[1, 0] = plot_emmixture_mean_error(T_space_exp[:nitems],
+                    dataset['collapsed_em_fits_doublepowerlaw_subjects'][subject]['mixt_nontargets_tr'][nitems_i, :nitems],
+                    dataset['collapsed_em_fits_doublepowerlaw_subjects'][subject]['mixt_target_tr'][nitems_i, :nitems]*0.0,
+                    title='Nontarget, subject %d' % (subject),
+                    ax=axes[1, 0],
+                    label='%d items' % nitems,
+                    xlabel='T_recall')
+                axes[1, 1] = plot_emmixture_mean_error(T_space_exp[:nitems],
+                    dataset['collapsed_em_fits_doublepowerlaw_subjects'][subject]['mixt_random_tr'][nitems_i, :nitems],
+                    dataset['collapsed_em_fits_doublepowerlaw_subjects'][subject]['mixt_target_tr'][nitems_i, :nitems]*0.0,
+                    title='Random, subject %d' % (subject),
+                    ax=axes[1, 1],
+                    label='%d items' % nitems,
+                    xlabel='T_recall')
 
 
-def plot_sequential_collapsed_singlepowerlaw(dataset, dataio=None):
+# def plot_sequential_collapsed_singlepowerlaw(dataset, dataio=None, use_sem=True):
 
-    maxItems = 5
-    itemSpace = np.arange(maxItems)
-    T_space_exp = dataset['data_subject_split']['nitems_space']
-    if use_sem:
-        errorbars = 'sem'
-    else:
-        errorbars = 'std'
+#     T_space_exp = dataset['data_subject_split']['nitems_space']
+#     if use_sem:
+#         errorbars = 'sem'
+#     else:
+#         errorbars = 'std'
 
-    ####### Fit per t_recall, nitem on the x-axis #####
-    ##
-    # Fig 6, now for trecall=last only. Makes sense.
-    if True:
-        trecall_fixed = 1
+#     ####### Fit per t_recall, nitem on the x-axis #####
+#     ##
+#     # Fig 6, now for trecall=last only. Makes sense.
+#     if True:
+#         trecall_fixed = 1
 
-        plot_kappa_mean_error(
-            T_space_exp,
-            dataset['collapsed_em_fits_trecall']['mean'][trecall_fixed]['kappa'],
-            dataset['collapsed_em_fits_trecall'][errorbars][trecall_fixed]['kappa'],
-            title='collapsed_trecall')
+#         plot_kappa_mean_error(
+#             T_space_exp,
+#             dataset['collapsed_em_fits_trecall']['mean'][trecall_fixed]['kappa'],
+#             dataset['collapsed_em_fits_trecall'][errorbars][trecall_fixed]['kappa'],
+#             title='collapsed_trecall')
 
-        if dataio is not None:
-            dataio.save_current_figure('fig6_trecalllast_kappa_{label}_{unique_id}.pdf')
+#         if dataio is not None:
+#             dataio.save_current_figure('fig6_trecalllast_kappa_{label}_{unique_id}.pdf')
 
-        # Mixture probabilities
-        ax = plot_emmixture_mean_error(
-            T_space_exp,
-            dataset['collapsed_em_fits_trecall']['mean'][trecall_fixed]['mixt_target'],
-            dataset['collapsed_em_fits_trecall'][errorbars][trecall_fixed]['mixt_target'],
-            title='collapsed_trecall',
-            label='Target')
-        ax = plot_emmixture_mean_error(
-            T_space_exp,
-            dataset['collapsed_em_fits_trecall']['mean'][trecall_fixed]['mixt_nontargets'],
-            dataset['collapsed_em_fits_trecall'][errorbars][trecall_fixed]['mixt_nontargets'],
-            title='collapsed_trecall',
-            label='Nontarget',
-            ax=ax)
-        ax = plot_emmixture_mean_error(
-            T_space_exp,
-            dataset['collapsed_em_fits_trecall']['mean'][trecall_fixed]['mixt_random'],
-            dataset['collapsed_em_fits_trecall'][errorbars][trecall_fixed]['mixt_random'],
-            title='collapsed_trecall',
-            label='Random',
-            ax=ax)
+#         # Mixture probabilities
+#         ax = plot_emmixture_mean_error(
+#             T_space_exp,
+#             dataset['collapsed_em_fits_trecall']['mean'][trecall_fixed]['mixt_target'],
+#             dataset['collapsed_em_fits_trecall'][errorbars][trecall_fixed]['mixt_target'],
+#             title='collapsed_trecall',
+#             label='Target')
+#         ax = plot_emmixture_mean_error(
+#             T_space_exp,
+#             dataset['collapsed_em_fits_trecall']['mean'][trecall_fixed]['mixt_nontargets'],
+#             dataset['collapsed_em_fits_trecall'][errorbars][trecall_fixed]['mixt_nontargets'],
+#             title='collapsed_trecall',
+#             label='Nontarget',
+#             ax=ax)
+#         ax = plot_emmixture_mean_error(
+#             T_space_exp,
+#             dataset['collapsed_em_fits_trecall']['mean'][trecall_fixed]['mixt_random'],
+#             dataset['collapsed_em_fits_trecall'][errorbars][trecall_fixed]['mixt_random'],
+#             title='collapsed_trecall',
+#             label='Random',
+#             ax=ax)
 
-        if dataio is not None:
-            dataio.save_current_figure('fig6_trecalllast_mixt_{label}_{unique_id}.pdf')
+#         if dataio is not None:
+#             dataio.save_current_figure('fig6_trecalllast_mixt_{label}_{unique_id}.pdf')
 
-    # Now do for all possible trecall
-    if False:
-        f, ax = plt.subplots()
-        for trecall in xrange(1, 7):
-            ax = plot_kappa_mean_error(T_space_exp[(trecall-1):], dataset['collapsed_em_fits_trecall']['mean'][trecall]['kappa'], dataset['collapsed_em_fits_trecall'][errorbars][trecall]['kappa'], title='collapsed_trecall', ax=ax, label='tr=-%d' % trecall, xlabel='nitems')
+#     # Now do for all possible trecall
+#     if False:
+#         f, ax = plt.subplots()
+#         for trecall in xrange(1, 7):
+#             ax = plot_kappa_mean_error(T_space_exp[(trecall-1):], dataset['collapsed_em_fits_trecall']['mean'][trecall]['kappa'], dataset['collapsed_em_fits_trecall'][errorbars][trecall]['kappa'], title='collapsed_trecall', ax=ax, label='tr=-%d' % trecall, xlabel='nitems')
 
-        if dataio is not None:
-            dataio.save_current_figure('collapsed_trecall_kappa_{label}_{unique_id}.pdf')
+#         if dataio is not None:
+#             dataio.save_current_figure('collapsed_trecall_kappa_{label}_{unique_id}.pdf')
 
-        _, ax_target = plt.subplots()
-        _, ax_nontarget = plt.subplots()
-        _, ax_random = plt.subplots()
-        for trecall in xrange(1, 7):
-            ax_target = plot_emmixture_mean_error(T_space_exp[(trecall-1):], dataset['collapsed_em_fits_trecall']['mean'][trecall]['mixt_target'], dataset['collapsed_em_fits_trecall'][errorbars][trecall]['mixt_target'], title='Target collapsed_trecall', ax=ax_target, label='tr=-%d' % trecall, xlabel='nitems')
-            ax_nontarget = plot_emmixture_mean_error(T_space_exp[(trecall-1):], dataset['collapsed_em_fits_trecall']['mean'][trecall]['mixt_nontargets'], dataset['collapsed_em_fits_trecall'][errorbars][trecall]['mixt_nontargets'], title='Nontarget collapsed_trecall', ax=ax_nontarget, label='tr=-%d' % trecall, xlabel='nitems')
-            ax_random = plot_emmixture_mean_error(T_space_exp[(trecall-1):], dataset['collapsed_em_fits_trecall']['mean'][trecall]['mixt_random'], dataset['collapsed_em_fits_trecall'][errorbars][trecall]['mixt_random'], title='Random collapsed_trecall', ax=ax_random, label='tr=-%d' % trecall, xlabel='nitems')
+#         _, ax_target = plt.subplots()
+#         _, ax_nontarget = plt.subplots()
+#         _, ax_random = plt.subplots()
+#         for trecall in xrange(1, 7):
+#             ax_target = plot_emmixture_mean_error(T_space_exp[(trecall-1):], dataset['collapsed_em_fits_trecall']['mean'][trecall]['mixt_target'], dataset['collapsed_em_fits_trecall'][errorbars][trecall]['mixt_target'], title='Target collapsed_trecall', ax=ax_target, label='tr=-%d' % trecall, xlabel='nitems')
+#             ax_nontarget = plot_emmixture_mean_error(T_space_exp[(trecall-1):], dataset['collapsed_em_fits_trecall']['mean'][trecall]['mixt_nontargets'], dataset['collapsed_em_fits_trecall'][errorbars][trecall]['mixt_nontargets'], title='Nontarget collapsed_trecall', ax=ax_nontarget, label='tr=-%d' % trecall, xlabel='nitems')
+#             ax_random = plot_emmixture_mean_error(T_space_exp[(trecall-1):], dataset['collapsed_em_fits_trecall']['mean'][trecall]['mixt_random'], dataset['collapsed_em_fits_trecall'][errorbars][trecall]['mixt_random'], title='Random collapsed_trecall', ax=ax_random, label='tr=-%d' % trecall, xlabel='nitems')
 
-        if dataio is not None:
-            plt.figure(ax_target.get_figure().number)
-            dataio.save_current_figure('collapsed_trecall_mixttarget_{label}_{unique_id}.pdf')
+#         if dataio is not None:
+#             plt.figure(ax_target.get_figure().number)
+#             dataio.save_current_figure('collapsed_trecall_mixttarget_{label}_{unique_id}.pdf')
 
-            plt.figure(ax_nontarget.get_figure().number)
-            dataio.save_current_figure('collapsed_trecall_mixtnontarget_{label}_{unique_id}.pdf')
+#             plt.figure(ax_nontarget.get_figure().number)
+#             dataio.save_current_figure('collapsed_trecall_mixtnontarget_{label}_{unique_id}.pdf')
 
-            plt.figure(ax_random.get_figure().number)
-            dataio.save_current_figure('collapsed_trecall_mixtrandom_{label}_{unique_id}.pdf')
+#             plt.figure(ax_random.get_figure().number)
+#             dataio.save_current_figure('collapsed_trecall_mixtrandom_{label}_{unique_id}.pdf')
 
-    ####### Fit per nitem, t_recall on the x-axis #####
-    ##
-    # fig 7
-    if True:
-        f, ax = plt.subplots()
-        for nitem in xrange(1, 7):
-            ax = plot_kappa_mean_error(T_space_exp[:nitem], dataset['collapsed_em_fits_nitems']['mean'][nitem]['kappa'], dataset['collapsed_em_fits_nitems'][errorbars][nitem]['kappa'], title='collapsed_nitem', ax=ax, label='%d items' % nitem, xlabel='T_recall')
+#     ####### Fit per nitem, t_recall on the x-axis #####
+#     ##
+#     # fig 7
+#     if True:
+#         f, ax = plt.subplots()
+#         for nitem in xrange(1, 7):
+#             ax = plot_kappa_mean_error(T_space_exp[:nitem], dataset['collapsed_em_fits_nitems']['mean'][nitem]['kappa'], dataset['collapsed_em_fits_nitems'][errorbars][nitem]['kappa'], title='collapsed_nitem', ax=ax, label='%d items' % nitem, xlabel='T_recall')
 
-        if dataio is not None:
-            dataio.save_current_figure('fig7_nitem_kappa_{label}_{unique_id}.pdf')
+#         if dataio is not None:
+#             dataio.save_current_figure('fig7_nitem_kappa_{label}_{unique_id}.pdf')
 
-        _, ax_target = plt.subplots()
-        _, ax_nontarget = plt.subplots()
-        _, ax_random = plt.subplots()
-        for nitem in xrange(1, 7):
-            ax_target = plot_emmixture_mean_error(T_space_exp[:nitem], dataset['collapsed_em_fits_nitems']['mean'][nitem]['mixt_target'], dataset['collapsed_em_fits_nitems'][errorbars][nitem]['mixt_target'], title='Target collapsed_nitem', ax=ax_target, label='%d items' % nitem, xlabel='T_recall')
-            ax_nontarget = plot_emmixture_mean_error(T_space_exp[:nitem], dataset['collapsed_em_fits_nitems']['mean'][nitem]['mixt_nontargets'], dataset['collapsed_em_fits_nitems'][errorbars][nitem]['mixt_nontargets'], title='Nontarget collapsed_nitem', ax=ax_nontarget, label='%d items' % nitem, xlabel='T_recall')
-            ax_random = plot_emmixture_mean_error(T_space_exp[:nitem], dataset['collapsed_em_fits_nitems']['mean'][nitem]['mixt_random'], dataset['collapsed_em_fits_nitems'][errorbars][nitem]['mixt_random'], title='Random collapsed_nitem', ax=ax_random, label='%d items' % nitem, xlabel='T_recall')
+#         _, ax_target = plt.subplots()
+#         _, ax_nontarget = plt.subplots()
+#         _, ax_random = plt.subplots()
+#         for nitem in xrange(1, 7):
+#             ax_target = plot_emmixture_mean_error(T_space_exp[:nitem], dataset['collapsed_em_fits_nitems']['mean'][nitem]['mixt_target'], dataset['collapsed_em_fits_nitems'][errorbars][nitem]['mixt_target'], title='Target collapsed_nitem', ax=ax_target, label='%d items' % nitem, xlabel='T_recall')
+#             ax_nontarget = plot_emmixture_mean_error(T_space_exp[:nitem], dataset['collapsed_em_fits_nitems']['mean'][nitem]['mixt_nontargets'], dataset['collapsed_em_fits_nitems'][errorbars][nitem]['mixt_nontargets'], title='Nontarget collapsed_nitem', ax=ax_nontarget, label='%d items' % nitem, xlabel='T_recall')
+#             ax_random = plot_emmixture_mean_error(T_space_exp[:nitem], dataset['collapsed_em_fits_nitems']['mean'][nitem]['mixt_random'], dataset['collapsed_em_fits_nitems'][errorbars][nitem]['mixt_random'], title='Random collapsed_nitem', ax=ax_random, label='%d items' % nitem, xlabel='T_recall')
 
-        if dataio is not None:
-            dataio.save_current_figure('fig7_nitem_mixt_{label}_{unique_id}.pdf')
+#         if dataio is not None:
+#             dataio.save_current_figure('fig7_nitem_mixt_{label}_{unique_id}.pdf')
 
-    # Show BIC scores
-    if True:
-        collapsed_trecall_bic = np.array([np.sum(dataset['collapsed_em_fits_trecall']['values'][trecall]['bic']) for trecall in T_space_exp])
-        collapsed_nitems_bic = np.array([np.sum(dataset['collapsed_em_fits_nitems']['values'][nitems]['bic']) for nitems in T_space_exp])
+#     # Show BIC scores
+#     if True:
+#         collapsed_trecall_bic = np.array([np.sum(dataset['collapsed_em_fits_trecall']['values'][trecall]['bic']) for trecall in T_space_exp])
+#         collapsed_nitems_bic = np.array([np.sum(dataset['collapsed_em_fits_nitems']['values'][nitems]['bic']) for nitems in T_space_exp])
 
-        f, axes = plt.subplots(nrows=1, ncols=3)
-        axes[0].bar(T_space_exp, collapsed_trecall_bic, align='center')
-        axes[0].set_title('BIC collapsed_trecall')
-        axes[0].set_xticks(T_space_exp)
-        axes[0].set_xlabel('nitems')
-        axes[0].set_ylim([0.0, 1.05*max(collapsed_trecall_bic.max(), collapsed_nitems_bic.max())])
-        axes[1].bar(T_space_exp, collapsed_nitems_bic, align='center')
-        axes[1].set_title('BIC collapsed_nitems')
-        axes[1].set_xlabel('trecall')
-        axes[1].set_xticks(T_space_exp)
-        axes[1].set_ylim([0.0, 1.05*max(collapsed_trecall_bic.max(), collapsed_nitems_bic.max())])
+#         f, axes = plt.subplots(nrows=1, ncols=3)
+#         axes[0].bar(T_space_exp, collapsed_trecall_bic, align='center')
+#         axes[0].set_title('BIC collapsed_trecall')
+#         axes[0].set_xticks(T_space_exp)
+#         axes[0].set_xlabel('nitems')
+#         axes[0].set_ylim([0.0, 1.05*max(collapsed_trecall_bic.max(), collapsed_nitems_bic.max())])
+#         axes[1].bar(T_space_exp, collapsed_nitems_bic, align='center')
+#         axes[1].set_title('BIC collapsed_nitems')
+#         axes[1].set_xlabel('trecall')
+#         axes[1].set_xticks(T_space_exp)
+#         axes[1].set_ylim([0.0, 1.05*max(collapsed_trecall_bic.max(), collapsed_nitems_bic.max())])
 
-        # Add the overall BIC sum
-        axes[2].bar(np.array([1,2]), [np.sum(collapsed_trecall_bic), np.sum(collapsed_nitems_bic), ], align='center')
-        axes[2].set_xticks(np.array([1,2]))
-        axes[2].set_xticklabels(['Collapsed_trecall', 'Collapsed_nitems'])
-        axes[2].set_title('BIC total summed')
+#         # Add the overall BIC sum
+#         axes[2].bar(np.array([1,2]), [np.sum(collapsed_trecall_bic), np.sum(collapsed_nitems_bic), ], align='center')
+#         axes[2].set_xticks(np.array([1,2]))
+#         axes[2].set_xticklabels(['Collapsed_trecall', 'Collapsed_nitems'])
+#         axes[2].set_title('BIC total summed')
 
-        f.canvas.draw()
+#         f.canvas.draw()
 
-        if dataio is not None:
-            dataio.save_current_figure('bic_comparison_sequential_{label}_{unique_id}.pdf')
+#         if dataio is not None:
+#             dataio.save_current_figure('bic_comparison_sequential_{label}_{unique_id}.pdf')
 
 
 ############################################################################

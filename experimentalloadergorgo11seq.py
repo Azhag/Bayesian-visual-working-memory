@@ -74,7 +74,6 @@ class ExperimentalLoaderGorgo11Sequential(experimentalloader.ExperimentalLoader)
         self.generate_data_subject_split()
         self.generate_data_to_fit()
 
-
         if parameters.get('fit_mixture_model', False):
             self.fit_collapsed_mixture_model_cached(caching_save_filename=parameters.get('collapsed_mixture_model_cache', None), saved_keys=['collapsed_em_fits_subjects_nitems', 'collapsed_em_fits_nitems', 'collapsed_em_fits_subjects_trecall', 'collapsed_em_fits_trecall', 'collapsed_em_fits_doublepowerlaw', 'collapsed_em_fits_doublepowerlaw_subjects', 'collapsed_em_fits_doublepowerlaw_array'])
 
@@ -476,6 +475,46 @@ class ExperimentalLoaderGorgo11Sequential(experimentalloader.ExperimentalLoader)
                     self.dataset['data_subject_split']['data_subject_largest'][subject]['responses'][n_items_i, trecall_i, :curr_size] = self.dataset['data_subject_split']['data_subject_nitems_trecall'][subject][n_items][trecall]['responses']
                     self.dataset['data_subject_split']['data_subject_largest'][subject]['targets'][n_items_i, trecall_i, :curr_size] = self.dataset['data_subject_split']['data_subject_nitems_trecall'][subject][n_items][trecall]['targets']
                     self.dataset['data_subject_split']['data_subject_largest'][subject]['nontargets'][n_items_i, trecall_i, :curr_size, :(n_items - 1)] = self.dataset['data_subject_split']['data_subject_nitems_trecall'][subject][n_items][trecall]['nontargets']
+
+
+    def generate_data_to_fit(self):
+        self.dataset['data_to_fit'] = dict()
+        self.dataset['data_to_fit']['nitems_space'] = np.unique(
+            self.dataset['n_items'])
+        self.dataset['data_to_fit']['N_smallest'] = np.inf
+
+        for n_items_i, n_items in enumerate(self.dataset['data_subject_split']['nitems_space']):
+
+            self.dataset['data_to_fit'][n_items] = dict()
+            for trecall in np.arange(1, n_items+1):
+
+                data_subjects = dict(N=0)
+                for subject_i, subject in enumerate(self.dataset['data_subject_split']['subjects_space']):
+
+                    curr_subject_data = self.dataset[
+                        'data_subject_split'][
+                        'data_subject_nitems_trecall'][
+                        subject][
+                        n_items][
+                        trecall]
+
+                    # Concatenate all sub-arrays into one per subject.
+                    for key, data in curr_subject_data.iteritems():
+                        if key == 'N':
+                            data_subjects[key] += data
+                        else:
+                            if key in data_subjects:
+                                data_subjects[key] = np.concatenate((data_subjects[key], data))
+                            else:
+                                data_subjects[key] = data[:]
+
+                self.dataset['data_to_fit']['N_smallest'] = min(
+                    self.dataset['data_to_fit']['N_smallest'],
+                    data_subjects['N'])
+
+                self.dataset['data_to_fit'][n_items][trecall] = data_subjects
+
+
 
 
     def fit_collapsed_mixture_model(self):

@@ -22,15 +22,14 @@ submit_cmd = 'sbatch'
 
 resource = ''
 
-partition = 'wrkstn'
+# partition = 'wrkstn'
 # partition = 'test'
-# partition = 'intel-ivy'
+partition = 'intel-ivy'
 
 
 num_repetitions = 3
 
-# run_label = 'cmaes_gorgo11sequential_ll92_1try_Mratiosigmaxsigmabaselinelapseratealpha_repetitions{num_repetitions}_080817'
-run_label = 'cmaes_gorgo11sequential_ll_3try_Mratiosigxsigbaselinelapsealpha_rep{num_repetitions}_130817'
+run_label = 'cmaes_gorgo11sequential_ll_4try_Mratiosigxsigbaselapsealpha_rep{num_repetitions}_130817'
 simul_out_dir = os.path.join(os.getcwd(), run_label.format(**locals()))
 
 parameter_generation = 'cma-es'
@@ -50,6 +49,8 @@ pbs_submission_infos = dict(description='''Fit sequential experiment (gorgo11 se
   Changes M, ratio_conj, sigmax, sigma baseline, lapse rate.
   Looks at all subjects, T and trecall.
 
+  Combine all data across subjects here.
+
   Computes full LL, LL90, LL92, LL95, LL97.
   ''',
                             command='python $WORKDIR/experimentlauncher.py',
@@ -59,8 +60,8 @@ pbs_submission_infos = dict(description='''Fit sequential experiment (gorgo11 se
                                                experiment_id='gorgo11_sequential',
                                                bic_K=5,
                                                ratio_conj=0.5,
-                                               session_id='cmaes_1try_Mratiosigxlrsigbase_gorgo11seq',
-                                               result_computation='dist_ll_allt',
+                                               session_id='cmaes_4try_Mratiosigxlrsigbase_gorgo11seq',
+                                               result_computation='dist_ll92_allt',
                                                M=100,
                                                sigmax=0.1,
                                                renormalize_sigma=None,
@@ -92,7 +93,7 @@ pbs_submission_infos = dict(description='''Fit sequential experiment (gorgo11 se
                             simul_out_dir=os.path.join(os.getcwd(), run_label.format(**locals())),
                             pbs_submit_cmd=submit_cmd,
                             source_dir=os.environ['WORKDIR_DROP'],
-                            submit_label='cmaes_gorgoseq_1',
+                            submit_label='cmaes_gorgoseq_4',
                             resource=resource,
                             partition=partition,
                             qos='auto')
@@ -125,9 +126,9 @@ filtering_function_parameters = {'should_clamp': True}
 
 
 # ============================================================================
-sigmax_range = dict(low=0.05,
+sigmax_range = dict(low=0.01,
                     high=1.,
-                    x0=0.2,
+                    x0=0.3,
                     scaling=cma_sigma0/3.,
                     dtype=float,
                     transform_fct=utils.tsfr_square,

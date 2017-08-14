@@ -23,14 +23,14 @@ import load_experimental_data
 import utils
 
 
-class FitExperimentSequentialSubjectAll(object):
+class FitExperimentSequentialAll(object):
     '''
         Loads sequential experimental data, set up DataGenerator and associated RFN, Sampler to optimize parameters.
 
         This version loads a unique dataset and will automatically run processings over all the possible nitems in it.
     '''
 
-    def __init__(self, parameters={}, debug=True):
+    def __init__(self, parameters, debug=True):
         '''
             FitExperimentSequentialAll takes a parameters dict, same as a full launcher_
 
@@ -50,7 +50,6 @@ class FitExperimentSequentialSubjectAll(object):
         self.num_datapoints = -1
         self.em_fits_arrays = None
 
-        self.subject = parameters.get('experiment_subject', 0)
         self.parameters = parameters
         self.debug = debug
 
@@ -68,8 +67,8 @@ class FitExperimentSequentialSubjectAll(object):
         self.init_filter_datapoints()
 
         if self.debug:
-            print "FitExperimentSequentialSubjectAll: subject %d, %s dataset. %d datapoints" % (
-                (self.subject, self.experiment_id, self.num_datapoints))
+            print "FitExperimentSequentialAll: %s dataset. %d datapoints" % (
+                (self.experiment_id, self.num_datapoints))
 
 
     def load_dataset(self):
@@ -82,12 +81,11 @@ class FitExperimentSequentialSubjectAll(object):
             data_dir=self.data_dir,
             fit_mixture_model=True
         )
-        self.subject_space = self.experimental_dataset['data_subject_split']['subjects_space']
-        assert self.subject in self.subject_space, "Subject id not found in dataset!"
 
-        self.experiment_data_to_fit = self.experimental_dataset['data_subject_split']['data_subject_nitems_trecall'][self.subject]
-        self.T_space = self.experimental_dataset['data_subject_split']['nitems_space']
-        self.num_datapoints = int(self.experimental_dataset['data_subject_split']['subject_smallestN'][self.subject - 1])
+        self.experiment_data_to_fit = self.experimental_dataset['data_to_fit']
+        self.T_space = self.experimental_dataset['data_to_fit']['nitems_space']
+        self.num_datapoints = int(
+            self.experimental_dataset['data_to_fit']['N_smallest'])
 
     def init_filter_datapoints(self):
         '''
@@ -142,7 +140,7 @@ class FitExperimentSequentialSubjectAll(object):
                 # Update parameters
                 self.parameters['T'] = T
                 self.parameters['N'] = self.num_datapoints
-                self.parameters['fixed_cued_feature_time'] = trecall - 1
+                self.parameters['fixed_cued_feature_time'] = T - trecall
 
                 self.parameters['stimuli_to_use'] = (
                     self.experiment_data_to_fit[T][trecall]['item_features'][
@@ -274,6 +272,49 @@ class FitExperimentSequentialSubjectAll(object):
         distances['mixt_kl'] = utils.KL_div(data_mixture_means[1:4, curr_T_i], model_fits[1:4])
 
         return distances
+
+
+class FitExperimentSequentialSubjectAll(FitExperimentSequentialAll):
+    '''
+        Loads sequential experimental data for a single subject, set up DataGenerator and associated RFN, Sampler to optimize parameters.
+
+        This version loads a unique dataset and will automatically run processings over all the possible nitems in it.
+    '''
+
+    def __init__(self, parameters, debug=True):
+        '''
+            FitExperimentSequentialSubjectAll takes a parameters dict, same as a full launcher_
+
+            Will then instantiate a Sampler and force a specific DataGenerator with constrained data from human experimental data.
+
+            Requires experiment_id to be set.
+        '''
+        self.subject = parameters['experiment_subject']
+
+        super(self.__class__, self).__init__(parameters, debug=False)
+
+        if self.debug:
+            print "FitExperimentSequentialSubjectAll: subject %d, %s dataset. %d datapoints" % (
+                (self.subject, self.experiment_id, self.num_datapoints))
+
+
+    def load_dataset(self):
+        '''
+            Load and select dataset given the parameters.
+        '''
+        assert self.experiment_id == 'gorgo11_sequential', "Only this one supported here"
+        self.experimental_dataset = load_experimental_data.load_data(
+            experiment_id=self.experiment_id,
+            data_dir=self.data_dir,
+            fit_mixture_model=True
+        )
+        self.subject_space = self.experimental_dataset['data_subject_split']['subjects_space']
+        assert self.subject in self.subject_space, "Subject id not found in dataset!"
+
+        self.experiment_data_to_fit = self.experimental_dataset['data_subject_split']['data_subject_nitems_trecall'][self.subject]
+        self.T_space = self.experimental_dataset['data_subject_split']['nitems_space']
+        self.num_datapoints = int(self.experimental_dataset['data_subject_split']['subject_smallestN'][self.subject - 1])
+
 
 
 ###########################################################################
