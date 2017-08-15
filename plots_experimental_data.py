@@ -1140,9 +1140,9 @@ def plot_sequential_collapsed_doublepowerlaw(dataset,
             plot_emmixture_mean_error(
                 T_space_exp[:nitems],
                 dataset['collapsed_em_fits_doublepowerlaw']['mean'][
-                    'mixt_target_tr'][nitems - 1, :nitems],
+                    'mixt_target_tr'][nitems_i, :nitems],
                 dataset['collapsed_em_fits_doublepowerlaw'][errorbars][
-                    'mixt_target_tr'][nitems - 1, :nitems],
+                    'mixt_target_tr'][nitems_i, :nitems],
                 # title='Target collapsed_doublepowerlaw',
                 ax=axes2[0, 1],
                 label='%d items' % nitems,
@@ -1151,9 +1151,9 @@ def plot_sequential_collapsed_doublepowerlaw(dataset,
             plot_emmixture_mean_error(
                 T_space_exp[:nitems],
                 dataset['collapsed_em_fits_doublepowerlaw']['mean'][
-                    'mixt_nontargets_tr'][nitems - 1, :nitems],
+                    'mixt_nontargets_tr'][nitems_i, :nitems],
                 dataset['collapsed_em_fits_doublepowerlaw'][errorbars][
-                    'mixt_nontargets_tr'][nitems - 1, :nitems],
+                    'mixt_nontargets_tr'][nitems_i, :nitems],
                 # title='Nontarget collapsed_doublepowerlaw',
                 ax=axes2[1, 0],
                 label='%d items' % nitems,
@@ -1162,9 +1162,9 @@ def plot_sequential_collapsed_doublepowerlaw(dataset,
             plot_emmixture_mean_error(
                 T_space_exp[:nitems],
                 dataset['collapsed_em_fits_doublepowerlaw']['mean'][
-                    'mixt_random_tr'][nitems - 1, :nitems],
+                    'mixt_random_tr'][nitems_i, :nitems],
                 dataset['collapsed_em_fits_doublepowerlaw'][errorbars][
-                    'mixt_random_tr'][nitems - 1, :nitems],
+                    'mixt_random_tr'][nitems_i, :nitems],
                 # title='Random collapsed_doublepowerlaw',
                 ax=axes2[1, 1],
                 label='%d items' % nitems,

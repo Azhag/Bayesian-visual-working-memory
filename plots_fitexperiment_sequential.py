@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-import collections
 import matplotlib.pyplot as plt
 import numpy as np
 import progress
@@ -9,9 +8,55 @@ import pycircstat
 import scipy.stats as spst
 import utils
 import warnings
-
 # plt.rcParams['font.size'] = 24
 
+
+def _plot_kappa_mean_error(T_space, mean, yerror, ax=None, title='', **args):
+        '''
+            Main plotting function to show the evolution of Kappa.
+        '''
+
+        if ax is None:
+            f, ax = plt.subplots()
+
+        ax = utils.plot_mean_std_area(
+            T_space, mean, np.ma.masked_invalid(yerror).filled(0.0),
+            ax_handle=ax, linewidth=3, markersize=8, **args)
+
+        # ax.legend(prop={'size': 15}, loc='best')
+        if title:
+            ax.set_title('Kappa: %s' % title)
+        ax.set_xlim([0.9, T_space.max()+0.1])
+        ax.set_ylim([0.0, max(np.max(mean)*1.1, ax.get_ylim()[1])])
+        ax.set_xticks(range(1, T_space.max()+1))
+        ax.set_xticklabels(range(1, T_space.max()+1))
+        ax.get_figure().canvas.draw()
+
+        return ax
+
+def _plot_emmixture_mean_error(T_space, mean, yerror, ax=None, title='',
+                                **args):
+    '''
+        Main plotting function to show the evolution of an EM Mixture.
+    '''
+    if ax is None:
+        f, ax = plt.subplots()
+
+    utils.plot_mean_std_area(
+        T_space, mean, np.ma.masked_invalid(yerror).filled(0.0),
+        ax_handle=ax, linewidth=3, markersize=8, **args)
+
+    # ax.legend(prop={'size': 15}, loc='best')
+    if title:
+        ax.set_title('Mixture prop: %s' % title)
+    ax.set_xlim([0.9, T_space.max() + 0.1])
+    ax.set_ylim([0.0, 1.01])
+    ax.set_xticks(range(1, T_space.max()+1))
+    ax.set_xticklabels(range(1, T_space.max()+1))
+
+    ax.get_figure().canvas.draw()
+
+    return ax
 
 class PlotsFitExperimentSequential(object):
     """
@@ -27,7 +72,7 @@ class PlotsFitExperimentSequential(object):
         self.fit_exp = fit_experiment_sequential
         self.experiment_id = self.fit_exp.experiment_id
 
-        self.result_em_fits_stats = None
+        self.collapsed_em_fits = None
         self.do_histograms_errors_triangle = do_histograms_errors_triangle
         self.do_mixtcurves_lasttrecall_fig6 = do_mixtcurves_lasttrecall_fig6
         self.do_mixtcurves_collapsedpowerlaw_fig7 = do_mixtcurves_collapsedpowerlaw_fig7
@@ -123,6 +168,7 @@ class PlotsFitExperimentSequential(object):
         return axes
 
 
+
     def plots_mixtcurves_lasttrecall_fig6(self,
                                           num_repetitions=1,
                                           use_cache=True,
@@ -135,272 +181,231 @@ class PlotsFitExperimentSequential(object):
             This reproduces Figure 6 in Gorgo 11.
         '''
 
-        if self.collapsed_em_fits is None or not use_cache:
-            # Collect all data to fit.
-            T = self.fit_exp.T_space.size
+        T_space = self.fit_exp.T_space
+        data_em_fits = self.fit_exp.get_data_em_fits()
+        model_em_fits = self.fit_exp.get_model_em_fits(
+            num_repetitions, use_cache)
 
-            search_progress = progress.Progress(
-                T*(T + 1)/2.*num_repetitions)
+        if use_sem:
+            errorbars = 'sem'
+        else:
+            errorbars = 'std'
 
-            params_fit_double_all = []
-            for repet_i in xrange(num_repetitions):
-                model_data_dict = {
-                    'responses': np.nan*np.empty((T,
-                                                T,
-                                                self.fit_exp.num_datapoints)),
-                    'targets': np.nan*np.empty((T,
-                                                T,
-                                                self.fit_exp.num_datapoints)),
-                    'nontargets': np.nan*np.empty((T,
-                                                T,
-                                                self.fit_exp.num_datapoints,
-                                                T - 1))}
+        f, axes = plt.subplots(nrows=1, ncols=2, figsize=(12, 6))
+        # Memory fidelity last trecall
+        # Data
+        _plot_kappa_mean_error(
+            T_space,
+            data_em_fits['mean'][
+                'kappa'][:, 0],
+            data_em_fits[errorbars][
+                'kappa'][:, 0],
+            label="Data",
+            fmt="o-",
+            ax=axes[0])
+        # Model
+        _plot_kappa_mean_error(
+            T_space,
+            model_em_fits['mean'][
+                'kappa'][:, 0],
+            model_em_fits[errorbars][
+                'kappa'][:, 0],
+            label='Model',
+            fmt="s--",
+            ax=axes[0],
+            xlabel='items', ylabel='Memory error $[rad^{-2}]$')
+        axes[0].legend(loc='upper right', bbox_to_anchor=(1., 1.))
 
-                for n_items_i, n_items in enumerate(self.fit_exp.T_space):
-                    for trecall_i, trecall in enumerate(self.fit_exp.T_space):
-                        if trecall <= n_items:
-                            self.fit_exp.setup_experimental_stimuli(n_items,
-                                                                    trecall)
+        # Mixture proportions last trecall
+        # Data
+        _plot_emmixture_mean_error(
+            T_space,
+            data_em_fits['mean'][
+                'mixt_target_tr'][:, 0],
+            data_em_fits[errorbars][
+                'mixt_target_tr'][:, 0],
+            label='Data Target',
+            fmt="o-",
+            ax=axes[1])
+        _plot_emmixture_mean_error(
+            T_space,
+            data_em_fits['mean'][
+                'mixt_nontargets_tr'][:, 0],
+            data_em_fits[errorbars][
+                'mixt_nontargets_tr'][:, 0],
+            label='Data Nontargets',
+            fmt="o-",
+            ax=axes[1])
+        _plot_emmixture_mean_error(
+            T_space,
+            data_em_fits['mean'][
+                'mixt_random_tr'][:, 0],
+            data_em_fits[errorbars][
+                'mixt_random_tr'][:, 0],
+            label='Data Random',
+            fmt="o-",
+            ax=axes[1])
+        # Model
+        _plot_emmixture_mean_error(
+            T_space,
+            model_em_fits['mean'][
+                'mixt_target_tr'][:, 0],
+            model_em_fits[errorbars][
+                'mixt_target_tr'][:, 0],
+            label='Model Target',
+            fmt="s--",
+            ax=axes[1])
+        _plot_emmixture_mean_error(
+            T_space,
+            model_em_fits['mean'][
+                'mixt_nontargets_tr'][:, 0],
+            model_em_fits[errorbars][
+                'mixt_nontargets_tr'][:, 0],
+            label='Model Nontargets',
+            fmt="s--",
+            ax=axes[1])
+        _plot_emmixture_mean_error(
+            T_space,
+            model_em_fits['mean'][
+                'mixt_random_tr'][:, 0],
+            model_em_fits[errorbars][
+                'mixt_random_tr'][:, 0],
+            label='Model Random',
+            fmt="s--",
+            ax=axes[1],
+            xlabel='items', ylabel='Mixture proportions')
+        axes[1].legend(loc='upper left', bbox_to_anchor=(1., 1.))
 
-                            print "== Fit for N={}, trecall={}. %d/%d".format(
-                                n_items, trecall, repet_i+1, num_repetitions)
-                            print "%.2f%%, %s left - %s" % (
-                                search_progress.percentage(),
-                                search_progress.time_remaining_str(),
-                                search_progress.eta_str())
+        f.suptitle('Fig 6: Last trecall')
+        f.canvas.draw()
 
-                            if ('samples' in self.fit_exp.get_names_stored_responses() and
-                                repet_i < 1):
-                                self.fit_exp.restore_responses('samples')
-                            else:
-                                self.fit_exp.sampler.force_sampling_round()
-                                self.fit_exp.store_responses('samples')
+        return axes
 
-                            responses, targets, nontargets = (
-                                self.fit_exp.sampler.collect_responses())
+    def plots_mixtcurves_collapsedpowerlaw_fig7(self,
+                                                num_repetitions=1,
+                                                use_cache=True,
+                                                use_sem=True,
+                                                size=6):
+        '''
+            Plots memory fidelity and mixture proportions for all nitems, with
+            trecall on the x-axis.
 
-                            # collect all data
-                            model_data_dict['responses'][
-                                n_items_i,
-                                trecall_i] = responses
-                            model_data_dict['targets'][
-                                n_items_i,
-                                trecall_i] = targets
-                            model_data_dict['nontargets'][
-                                n_items_i,
-                                trecall_i,
-                                :,
-                                :n_items_i] = nontargets
-
-                            search_progress.increment()
-
-                # Fit the collapsed mixture model
-                params_fit_double = (
-                    em_circularmixture_parametrickappa_doublepowerlaw.fit(
-                        self.fit_exp.T_space,
-                        model_data_dict['responses'],
-                        model_data_dict['targets'],
-                        model_data_dict['nontargets'],
-                        debug=True))
-                params_fit_double_all.append(params_fit_double)
-
-            # Get statistics of powerlaw fits
-            self.collapsed_em_fits = collections.defaultdict(dict)
-            emfits_keys = params_fit_double.keys()
-            for key in emfits_keys:
-                repets_param_fit_curr = [
-                    param_fit_double[key]
-                    for param_fit_double in params_fit_double_all]
-                self.collapsed_em_fits['mean'][key] = np.mean(
-                    repets_param_fit_curr, axis=0)
-                self.collapsed_em_fits['std'][key] = np.std(
-                    repets_param_fit_curr, axis=0)
-                self.collapsed_em_fits['sem'][key] = (
-                    self.collapsed_em_fits['std'][key] / np.sqrt(
-                        num_repetitions))
+            This reproduces Figure 7 in Gorgo 11.
+        '''
+        T_space = self.fit_exp.T_space
+        data_em_fits = self.fit_exp.get_data_em_fits()
+        model_em_fits = self.fit_exp.get_model_em_fits(
+            num_repetitions, use_cache)
 
         # Do the plot
         if use_sem:
             errorbars = 'sem'
         else:
             errorbars = 'std'
+        f, axes = plt.subplots(nrows=2, ncols=2, figsize=(10, 10))
 
-        f1, axes1 = plt.subplots(nrows=1, ncols=2, figsize=(12, 6))
-        plot_kappa_mean_error(
-            self.collapsed_em_fits['mean'][
-                'kappa'][:, 0],
-            self.collapsed_em_fits[errorbars][
-                'kappa'][:, 0],
-            xlabel='items', ylabel='Kappa', ax=axes1[0])
-        plot_emmixture_mean_error(
-            T_space_exp,
-            self.collapsed_em_fits['mean'][
-                'mixt_target_tr'][:, 0],
-            self.collapsed_em_fits[errorbars][
-                'mixt_target_tr'][:, 0],
-            label='Target', ax=axes1[1])
-        plot_emmixture_mean_error(
-            T_space_exp,
-            self.collapsed_em_fits['mean'][
-                'mixt_nontargets_tr'][:, 0],
-            self.collapsed_em_fits[errorbars][
-                'mixt_nontargets_tr'][:, 0],
-            label='Nontargets', ax=axes1[1])
-        plot_emmixture_mean_error(
-            T_space_exp,
-            self.collapsed_em_fits['mean'][
-                'mixt_random_tr'][:, 0],
-            self.collapsed_em_fits[errorbars][
-                'mixt_random_tr'][:, 0],
-            label='Random',
-            xlabel='items', ylabel='Mixture proportions', ax=axes1[1])
+        # Data
+        for nitems_i, nitems in enumerate(T_space):
+            # Memory fidelity
+            _plot_kappa_mean_error(
+                T_space[:nitems],
+                data_em_fits['mean'][
+                    'kappa'][nitems_i, :nitems],
+                data_em_fits[errorbars][
+                    'kappa'][nitems_i, :nitems],
+                label='Data: %d items' % nitems,
+                xlabel='Serial order (reversed)',
+                fmt="o-",
+                zorder=7 - nitems,
+                ax=axes[0, 0])
 
-        f1.suptitle('Fig 6: Last trecall')
+            # Mixture proportions
+            _plot_emmixture_mean_error(
+                T_space[:nitems],
+                data_em_fits['mean'][
+                    'mixt_target_tr'][nitems_i, :nitems],
+                data_em_fits[errorbars][
+                    'mixt_target_tr'][nitems_i, :nitems],
+                label='Data: %d items' % nitems,
+                xlabel='Serial order (reversed)',
+                fmt="o-",
+                zorder=7 - nitems,
+                ax=axes[0, 1])
+            _plot_emmixture_mean_error(
+                T_space[:nitems],
+                data_em_fits['mean'][
+                    'mixt_nontargets_tr'][nitems_i, :nitems],
+                data_em_fits[errorbars][
+                    'mixt_nontargets_tr'][nitems_i, :nitems],
+                label='Data: %d items' % nitems,
+                xlabel='Serial order (reversed)',
+                fmt="o-",
+                zorder=7 - nitems,
+                ax=axes[1, 0])
+            _plot_emmixture_mean_error(
+                T_space[:nitems],
+                data_em_fits['mean'][
+                    'mixt_random_tr'][nitems_i, :nitems],
+                data_em_fits[errorbars][
+                    'mixt_random_tr'][nitems_i, :nitems],
+                label='Data: %d items' % nitems,
+                xlabel='Serial order (reversed)',
+                fmt="o-",
+                zorder=7 - nitems,
+                ax=axes[1, 1])
 
+        # Model
+        for nitems_i, nitems in enumerate(T_space):
+            # Memory fidelity
+            _plot_kappa_mean_error(
+                T_space[:nitems],
+                model_em_fits['mean'][
+                    'kappa'][nitems_i, :nitems],
+                model_em_fits[errorbars][
+                    'kappa'][nitems_i, :nitems],
+                label='Model: %d items' % nitems,
+                xlabel='Serial order (reversed)',
+                fmt="s--",
+                zorder=7 - nitems,
+                ax=axes[0, 0])
 
-    # Memory curve kappa
-    def __plot_memory_fidelity(self, model_em_fits, suptitle_text=None, ax=None):
-        '''
-            Nice plot for the memory fidelity, as in Fig6 of the paper theo
+            # Mixture proportions
+            _plot_emmixture_mean_error(
+                T_space[:nitems],
+                model_em_fits['mean'][
+                    'mixt_target_tr'][nitems_i, :nitems],
+                model_em_fits[errorbars][
+                    'mixt_target_tr'][nitems_i, :nitems],
+                label='Model: %d items' % nitems,
+                xlabel='Serial order (reversed)',
+                fmt="s--",
+                zorder=7 - nitems,
+                ax=axes[0, 1])
+            _plot_emmixture_mean_error(
+                T_space[:nitems],
+                model_em_fits['mean'][
+                    'mixt_nontargets_tr'][nitems_i, :nitems],
+                model_em_fits[errorbars][
+                    'mixt_nontargets_tr'][nitems_i, :nitems],
+                label='Model: %d items' % nitems,
+                xlabel='Serial order (reversed)',
+                fmt="s--",
+                zorder=7 - nitems,
+                ax=axes[1, 0])
+            _plot_emmixture_mean_error(
+                T_space[:nitems],
+                model_em_fits['mean'][
+                    'mixt_random_tr'][nitems_i, :nitems],
+                model_em_fits[errorbars][
+                    'mixt_random_tr'][nitems_i, :nitems],
+                label='Model: %d items' % nitems,
+                xlabel='Serial order (reversed)',
+                fmt="s--",
+                zorder=7 - nitems,
+                ax=axes[1, 1])
 
-            Changes to using the subject fits if FitExperimentAllTSubject used.
-        '''
+        axes[0, 1].legend(loc='upper left', bbox_to_anchor=(1., 1.))
 
-        T_space = self.fit_exp.T_space
-        data_em_fits = self.fit_exp.get_em_fits_arrays()
+        f.canvas.draw()
 
-        if ax is None:
-            _, ax = plt.subplots()
-        else:
-            ax.hold(False)
-
-        ax = utils.plot_mean_std_area(
-            T_space,
-            data_em_fits['mean'][0],
-            data_em_fits['std'][0],
-            linewidth=3, fmt='o-', markersize=8,
-            label='Data',
-            ax_handle=ax
-        )
-
-        ax.hold(True)
-
-        ax = utils.plot_mean_std_area(
-            T_space,
-            model_em_fits['mean'][..., 0],
-            model_em_fits['std'][..., 0],
-            xlabel='Number of items',
-            ylabel="Memory error $[rad^{-2}]$",
-            linewidth=3,
-            fmt='o-', markersize=8,
-            label='Model',
-            ax_handle=ax
-        )
-
-        ax.legend(loc='upper right',
-                  bbox_to_anchor=(1., 1.)
-                  )
-        ax.set_xlim([0.9, T_space.max()+0.1])
-        ax.set_xticks(range(1, T_space.max()+1))
-        ax.set_xticklabels(range(1, T_space.max()+1))
-
-        if suptitle_text:
-            ax.set_title(suptitle_text)
-            # ax.get_figure().suptitle(suptitle_text)
-        ax.hold(False)
-        ax.get_figure().canvas.draw()
-
-        return ax
-
-
-    def __plot_mixtcurves(self, model_em_fits, suptitle_text=None, ax=None):
-        '''
-            Similar kind of plot, but showing the mixture proportions, as in Figure13
-        '''
-        T_space = self.fit_exp.T_space
-        data_em_fits = self.fit_exp.get_em_fits_arrays()
-
-        if ax is None:
-            _, ax = plt.subplots()
-        else:
-            ax.hold(False)
-
-
-        model_em_fits['mean'][np.isnan(model_em_fits['mean'])] = 0.0
-        model_em_fits['std'][np.isnan(model_em_fits['std'])] = 0.0
-
-        # Show model fits
-        utils.plot_mean_std_area(
-            T_space,
-            model_em_fits['mean'][..., 1],
-            model_em_fits['std'][..., 1],
-            xlabel='Number of items',
-            ylabel="Mixture probabilities",
-            ax_handle=ax, linewidth=3, fmt='o-', markersize=5,
-            label='Target',
-        )
-        ax.hold(True)
-        utils.plot_mean_std_area(
-            T_space,
-            model_em_fits['mean'][..., 2],
-            model_em_fits['std'][..., 2],
-            xlabel='Number of items',
-            ylabel="Mixture probabilities",
-            ax_handle=ax, linewidth=3, fmt='o-', markersize=5,
-            label='Nontarget'
-        )
-        utils.plot_mean_std_area(
-            T_space,
-            model_em_fits['mean'][..., 3],
-            model_em_fits['std'][..., 3],
-            xlabel='Number of items',
-            ylabel="Mixture probabilities",
-            ax_handle=ax, linewidth=3, fmt='o-', markersize=5,
-            label='Random'
-        )
-
-        # Now data
-        utils.plot_mean_std_area(
-            T_space,
-            data_em_fits['mean'][1],
-            data_em_fits['std'][1],
-            xlabel='Number of items',
-            ylabel="Mixture probabilities",
-            ax_handle=ax, linewidth=2, fmt='o--', markersize=5,
-            label='Data target'
-        )
-        utils.plot_mean_std_area(
-            T_space,
-            data_em_fits['mean'][2],
-            data_em_fits['std'][2],
-            xlabel='Number of items',
-            ylabel="Mixture probabilities",
-            ax_handle=ax, linewidth=2, fmt='o--', markersize=5, label='Data nontarget'
-        )
-        utils.plot_mean_std_area(
-            T_space,
-            data_em_fits['mean'][3],
-            data_em_fits['std'][3],
-            xlabel='Number of items',
-            ylabel="Mixture probabilities",
-            ax_handle=ax, linewidth=2, fmt='o--', markersize=5, label='Data random'
-        )
-
-        ax.legend(loc='upper left',
-                  bbox_to_anchor=(1., 1.)
-                  )
-
-        ax.set_xlim([0.9, T_space.max() + 0.1])
-        ax.set_ylim([0.0, 1.1])
-        ax.set_xticks(range(1, T_space.max() + 1))
-        ax.set_xticklabels(range(1, T_space.max() + 1))
-
-        if suptitle_text:
-            ax.set_title(suptitle_text)
-            # ax.get_figure().suptitle(suptitle_text)
-
-        ax.get_figure().canvas.draw()
-
-        ax.hold(False)
-
-        return ax
+        return axes

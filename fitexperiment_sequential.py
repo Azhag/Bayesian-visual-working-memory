@@ -14,13 +14,14 @@ import numpy as np
 # import scipy as sp
 # import scipy.optimize as spopt
 # import scipy.stats as spst
-
-# import progress
+import collections
+import progress
 
 import experimentlauncher
 import launchers
 import load_experimental_data
 import utils
+import em_circularmixture_parametrickappa_doublepowerlaw
 
 
 class FitExperimentSequentialAll(object):
@@ -48,7 +49,8 @@ class FitExperimentSequentialAll(object):
         self.experiment_data_to_fit = None
         self.T_space = None
         self.num_datapoints = -1
-        self.em_fits_arrays = None
+        self.data_em_fits = None
+        self.model_em_fits = None
 
         self.parameters = parameters
         self.debug = debug
@@ -190,21 +192,6 @@ class FitExperimentSequentialAll(object):
         return self.cache_responses[
             (self.enforced_T, self.enforced_trecall)].keys()
 
-
-    def get_em_fits_arrays(self):
-        '''
-            Give a numpy array of the current EM Fits.
-
-            Returns:
-            * dict(mean=np.array, std=np.array)
-        '''
-
-        if self.em_fits_arrays is None:
-            self.em_fits_arrays = self.experimental_dataset['collapsed_em_fits_doublepowerlaw']
-
-        return self.em_fits_arrays
-
-
     def apply_fct_dataset(self, T, trecall, fct_infos):
         '''
             Apply a function after having forced a specific dataset
@@ -245,33 +232,103 @@ class FitExperimentSequentialAll(object):
         else:
             return result_all
 
-
-    def compute_dist_experimental_em_fits_currentT(self, model_fits):
+    def get_data_em_fits(self):
         '''
-            Given provided model_fits array, compute the distance to
-            the loaded Experimental Data em fits.
+            Give a numpy array of the current EM Fits.
 
-            Inputs:
-            * model_fits:   [array 6x1] ['kappa', 'mixt_target', 'mixt_nontargets_sum', 'mixt_random', 'train_LL', 'bic']
-
-
-            Returns dict:
-            * kappa MSE
-            * mixture prop MSE
-            * summed MSE
-            * mixture prop KL divergence
+            Returns:
+            * dict(mean=np.array, std=np.array)
         '''
 
-        distances = dict()
+        if self.data_em_fits is None:
+            self.data_em_fits = self.experimental_dataset['collapsed_em_fits_doublepowerlaw']
 
-        # TODO (lmatthey): use the EM Fits on the actual current subset here, instead of the full dataset!
-        data_mixture_means = self.get_em_fits_arrays()['mean']
+        return self.data_em_fits
 
-        curr_T_i = np.nonzero(self.T_space == self.enforced_T)[0][0]
-        distances['all_mse'] = (data_mixture_means[:4, curr_T_i] - model_fits[:4])**2.
-        distances['mixt_kl'] = utils.KL_div(data_mixture_means[1:4, curr_T_i], model_fits[1:4])
 
-        return distances
+    def get_model_em_fits(self, num_repetitions=1, use_cache=True):
+        '''Will setup experimental data, sample from the model, and fit a
+        collapsed powerlaw mixture model on the outcome.
+        '''
+        if self.model_em_fits is None or not use_cache:
+            # Collect all data to fit.
+            T = self.T_space.size
+
+            model_data_dict = {
+                'responses': np.nan*np.empty((T, T, self.num_datapoints)),
+                'targets': np.nan*np.empty((T, T, self.num_datapoints)),
+                'nontargets': np.nan*np.empty((
+                    T, T, self.num_datapoints, T - 1))}
+
+            search_progress = progress.Progress(
+                T*(T + 1)/2.*num_repetitions)
+
+            params_fit_double_all = []
+            for repet_i in xrange(num_repetitions):
+                for n_items_i, n_items in enumerate(self.T_space):
+                    for trecall_i, trecall in enumerate(self.T_space):
+                        if trecall <= n_items:
+                            self.setup_experimental_stimuli(n_items, trecall)
+
+                            print ("{:.2f}%, {} left - {} "
+                                   "== Data, N={}, trecall={}. {}/{}. ").format(
+                                       search_progress.percentage(),
+                                       search_progress.time_remaining_str(),
+                                       search_progress.eta_str(),
+                                       n_items, trecall, repet_i+1,
+                                       num_repetitions)
+
+                            if ('samples' in
+                                    self.get_names_stored_responses()
+                                    and repet_i < 1):
+                                self.restore_responses('samples')
+                            else:
+                                self.sampler.force_sampling_round()
+                                self.store_responses('samples')
+
+                            responses, targets, nontargets = (
+                                self.sampler.collect_responses())
+
+                            # collect all data
+                            model_data_dict['responses'][
+                                n_items_i,
+                                trecall_i] = responses
+                            model_data_dict['targets'][
+                                n_items_i,
+                                trecall_i] = targets
+                            model_data_dict['nontargets'][
+                                n_items_i,
+                                trecall_i,
+                                :,
+                                :n_items_i] = nontargets
+
+                            search_progress.increment()
+
+                # Fit the collapsed mixture model
+                params_fit_double = (
+                    em_circularmixture_parametrickappa_doublepowerlaw.fit(
+                        self.T_space,
+                        model_data_dict['responses'],
+                        model_data_dict['targets'],
+                        model_data_dict['nontargets']))
+                params_fit_double_all.append(params_fit_double)
+
+            # Store statistics of powerlaw fits
+            self.model_em_fits = collections.defaultdict(dict)
+            emfits_keys = params_fit_double.keys()
+            for key in emfits_keys:
+                repets_param_fit_curr = [
+                    param_fit_double[key]
+                    for param_fit_double in params_fit_double_all]
+                self.model_em_fits['mean'][key] = np.mean(
+                    repets_param_fit_curr, axis=0)
+                self.model_em_fits['std'][key] = np.std(
+                    repets_param_fit_curr, axis=0)
+                self.model_em_fits['sem'][key] = (
+                    self.model_em_fits['std'][key] / np.sqrt(
+                        num_repetitions))
+
+        return self.model_em_fits
 
 
 class FitExperimentSequentialSubjectAll(FitExperimentSequentialAll):

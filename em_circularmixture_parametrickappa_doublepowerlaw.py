@@ -92,7 +92,7 @@ def fit(T_space, responses, targets_angle, nontargets_angles=np.array([[]]), ini
 
             # E-step
             if debug:
-                print "E", i, LL, dLL, kappa_theta, gamma, mixt_target_tr, mixt_nontargets_tr, mixt_random_tr
+                print "E", i, LL, dLL, kappa_theta, mixt_target_tr, mixt_nontargets_tr, mixt_random_tr
             for T_i, T in enumerate(T_space):
                 for trecall_i, trecall in enumerate(T_space):
                     if trecall <= T:
