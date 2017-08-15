@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-import numpy as np
+import collections
 import matplotlib.pyplot as plt
+import numpy as np
 import progress
-import utils
-import scipy.stats as spst
 import pycircstat
+import scipy.stats as spst
+import utils
 import warnings
 
 # plt.rcParams['font.size'] = 24
@@ -80,7 +81,8 @@ class PlotsFitExperimentSequential(object):
                         self.fit_exp.sampler.force_sampling_round()
                         self.fit_exp.store_responses('samples')
 
-                    (responses, targets, nontargets) = self.fit_exp.sampler.collect_responses()
+                    responses, targets, nontargets = (
+                        self.fit_exp.sampler.collect_responses())
 
                     # Targets
                     errors_targets = utils.wrap_angles(targets - responses)
@@ -124,197 +126,140 @@ class PlotsFitExperimentSequential(object):
     def plots_mixtcurves_lasttrecall_fig6(self,
                                           num_repetitions=1,
                                           use_cache=True,
+                                          use_sem=True,
                                           size=6):
         '''
-            Plots the memory fidelity for all T and the mixture proportions for all T
+            Plots memory fidelity and mixture proportions for the last item
+            recall.
+
+            This reproduces Figure 6 in Gorgo 11.
         '''
 
-        if self.result_em_fits_stats is None or not use_cache:
-            search_progress = progress.Progress(self.fit_exp.T_space.size*num_repetitions)
+        if self.collapsed_em_fits is None or not use_cache:
+            # Collect all data to fit.
+            T = self.fit_exp.T_space.size
 
-            # kappa, mixt_target, mixt_nontarget, mixt_random, ll
-            result_em_fits = np.nan*np.ones((self.fit_exp.T_space.size, 5, num_repetitions))
+            search_progress = progress.Progress(
+                T*(T + 1)/2.*num_repetitions)
 
-            for T_i, T in enumerate(self.fit_exp.T_space):
-                self.fit_exp.setup_experimental_stimuli(T, trecall)
+            params_fit_double_all = []
+            for repet_i in xrange(num_repetitions):
+                model_data_dict = {
+                    'responses': np.nan*np.empty((T,
+                                                T,
+                                                self.fit_exp.num_datapoints)),
+                    'targets': np.nan*np.empty((T,
+                                                T,
+                                                self.fit_exp.num_datapoints)),
+                    'nontargets': np.nan*np.empty((T,
+                                                T,
+                                                self.fit_exp.num_datapoints,
+                                                T - 1))}
 
-                for repet_i in xrange(num_repetitions):
-                    print "%.2f%%, %s left - %s" % (search_progress.percentage(), search_progress.time_remaining_str(), search_progress.eta_str())
-                    print "Fit for T=%d, %d/%d" % (T, repet_i+1, num_repetitions)
+                for n_items_i, n_items in enumerate(self.fit_exp.T_space):
+                    for trecall_i, trecall in enumerate(self.fit_exp.T_space):
+                        if trecall <= n_items:
+                            self.fit_exp.setup_experimental_stimuli(n_items,
+                                                                    trecall)
 
-                    if 'samples' in self.fit_exp.get_names_stored_responses() and repet_i < 1:
-                        self.fit_exp.restore_responses('samples')
-                    else:
-                        self.fit_exp.sampler.force_sampling_round()
-                        self.fit_exp.store_responses('samples')
+                            print "== Fit for N={}, trecall={}. %d/%d".format(
+                                n_items, trecall, repet_i+1, num_repetitions)
+                            print "%.2f%%, %s left - %s" % (
+                                search_progress.percentage(),
+                                search_progress.time_remaining_str(),
+                                search_progress.eta_str())
 
-                    # Fit mixture model
-                    curr_params_fit = self.fit_exp.sampler.fit_mixture_model(use_all_targets=False)
-                    result_em_fits[T_i, :, repet_i] = [curr_params_fit[key]
-                        for key in ('kappa', 'mixt_target',
-                                    'mixt_nontargets_sum', 'mixt_random',
-                                    'train_LL')]
+                            if ('samples' in self.fit_exp.get_names_stored_responses() and
+                                repet_i < 1):
+                                self.fit_exp.restore_responses('samples')
+                            else:
+                                self.fit_exp.sampler.force_sampling_round()
+                                self.fit_exp.store_responses('samples')
 
-                    search_progress.increment()
+                            responses, targets, nontargets = (
+                                self.fit_exp.sampler.collect_responses())
 
-            # Get stats of EM Fits
-            self.result_em_fits_stats = dict(
-                mean=utils.nanmean(result_em_fits, axis=-1),
-                std=utils.nanstd(result_em_fits, axis=-1)
-            )
+                            # collect all data
+                            model_data_dict['responses'][
+                                n_items_i,
+                                trecall_i] = responses
+                            model_data_dict['targets'][
+                                n_items_i,
+                                trecall_i] = targets
+                            model_data_dict['nontargets'][
+                                n_items_i,
+                                trecall_i,
+                                :,
+                                :n_items_i] = nontargets
 
-        if self.do_memcurves_fig6 and self.do_mixtcurves_fig13:
-            f, axes = plt.subplots(nrows=2, figsize=(size, size*2))
+                            search_progress.increment()
+
+                # Fit the collapsed mixture model
+                params_fit_double = (
+                    em_circularmixture_parametrickappa_doublepowerlaw.fit(
+                        self.fit_exp.T_space,
+                        model_data_dict['responses'],
+                        model_data_dict['targets'],
+                        model_data_dict['nontargets'],
+                        debug=True))
+                params_fit_double_all.append(params_fit_double)
+
+            # Get statistics of powerlaw fits
+            self.collapsed_em_fits = collections.defaultdict(dict)
+            emfits_keys = params_fit_double.keys()
+            for key in emfits_keys:
+                repets_param_fit_curr = [
+                    param_fit_double[key]
+                    for param_fit_double in params_fit_double_all]
+                self.collapsed_em_fits['mean'][key] = np.mean(
+                    repets_param_fit_curr, axis=0)
+                self.collapsed_em_fits['std'][key] = np.std(
+                    repets_param_fit_curr, axis=0)
+                self.collapsed_em_fits['sem'][key] = (
+                    self.collapsed_em_fits['std'][key] / np.sqrt(
+                        num_repetitions))
+
+        # Do the plot
+        if use_sem:
+            errorbars = 'sem'
         else:
-            f, ax = plt.subplots(figsize=(size, size))
-            axes = [ax]
+            errorbars = 'std'
 
-        if self.do_memcurves_fig6:
-            self.__plot_memcurves(self.result_em_fits_stats,
-                                  suptitle_text='Memory fidelity',
-                                  ax=axes[ax_i]
-                                  )
-            ax_i += 1
+        f1, axes1 = plt.subplots(nrows=1, ncols=2, figsize=(12, 6))
+        plot_kappa_mean_error(
+            self.collapsed_em_fits['mean'][
+                'kappa'][:, 0],
+            self.collapsed_em_fits[errorbars][
+                'kappa'][:, 0],
+            xlabel='items', ylabel='Kappa', ax=axes1[0])
+        plot_emmixture_mean_error(
+            T_space_exp,
+            self.collapsed_em_fits['mean'][
+                'mixt_target_tr'][:, 0],
+            self.collapsed_em_fits[errorbars][
+                'mixt_target_tr'][:, 0],
+            label='Target', ax=axes1[1])
+        plot_emmixture_mean_error(
+            T_space_exp,
+            self.collapsed_em_fits['mean'][
+                'mixt_nontargets_tr'][:, 0],
+            self.collapsed_em_fits[errorbars][
+                'mixt_nontargets_tr'][:, 0],
+            label='Nontargets', ax=axes1[1])
+        plot_emmixture_mean_error(
+            T_space_exp,
+            self.collapsed_em_fits['mean'][
+                'mixt_random_tr'][:, 0],
+            self.collapsed_em_fits[errorbars][
+                'mixt_random_tr'][:, 0],
+            label='Random',
+            xlabel='items', ylabel='Mixture proportions', ax=axes1[1])
 
-
-        if self.do_mixtcurves_fig13:
-            self.__plot_mixtcurves(self.result_em_fits_stats,
-                                   suptitle_text='Mixture proportions',
-                                   ax=axes[ax_i]
-                                   )
-            ax_i += 1
-
-        return axes
-
-
-
-    # def plots_KS_comparison_fig2fig5(self,
-    #                                  bins=41,
-    #                                  show_pval=True,
-    #                                  size=6
-    #                                  ):
-    #     '''
-    #         Will plot the ECDF of data/samples and then do Kolmogorov-Smirnov /Kuiper 2-samples tests on them.
-    #     '''
-
-    #     f, axes = plt.subplots(nrows=2,
-    #                            ncols=self.fit_exp.T_space.size,
-    #                            figsize=(size*2, size)
-    #                            )
-
-    #     result_KS = dict(human=dict(),
-    #                      model=dict(),
-    #                      ks_pval=dict(),
-    #                      kuiper_pval=dict()
-    #                      )
-
-    #     warnings.simplefilter("ignore")
-
-    #     for t_i, T in enumerate(self.fit_exp.T_space):
-    #         result_KS['ks_pval'][T] = dict()
-    #         result_KS['kuiper_pval'][T] = dict()
-
-    #         self.fit_exp.setup_experimental_stimuli(T)
-
-    #         # Human histograms and CDF
-    #         self.fit_exp.restore_responses('human')
-    #         result_KS['human'][T] = self.fit_exp.sampler.compute_errors_alltargets_histograms(bins=bins)
-
-    #         # Samples histograms and CDF
-    #         if 'samples' in self.fit_exp.get_names_stored_responses():
-    #             self.fit_exp.restore_responses('samples')
-    #         else:
-    #             self.fit_exp.sampler.force_sampling_round()
-    #             self.fit_exp.store_responses('samples')
-    #         result_KS['model'][T] = self.fit_exp.sampler.compute_errors_alltargets_histograms(bins=bins)
-
-    #         # Compute K-S 2-samples tests stats
-    #         for condition in ['targets', 'nontargets']:
-    #             if condition in result_KS['human'][T]:
-    #                 ks_out = spst.ks_2samp(
-    #                     result_KS['human'][T][condition]['samples'],
-    #                     result_KS['model'][T][condition]['samples']
-    #                 )
-
-    #                 result_KS['ks_pval'][T][condition] = \
-    #                     ks_out.pvalue
-
-    #                 result_KS['kuiper_pval'][T][condition] = \
-    #                     pycircstat.tests.kuiper(
-    #                         result_KS['human'][T][condition]['samples'],
-    #                         result_KS['model'][T][condition]['samples'])[0][0]
-
-    #         ### Plot everything
-    #         axes[0, t_i].plot(result_KS['human'][T]['targets']['x'],
-    #                           result_KS['human'][T]['targets']['ecdf'],
-    #                           label='data'
-    #                           )
-    #         axes[0, t_i].plot(result_KS['model'][T]['targets']['x'],
-    #                           result_KS['model'][T]['targets']['ecdf'],
-    #                           label='model'
-    #                           )
-    #         axes[0, t_i].set_title('')
-    #         axes[0, t_i].set_xlim((-np.pi, np.pi))
-    #         # axes[0, t_i].set_ylim((0, 2))
-
-    #         if show_pval:
-    #             axes[0, t_i].text(
-    #                 0.02, 0.99,
-    #                 "KS p: %.2f" % result_KS['ks_pval'][T]['targets'],
-    #                 transform=axes[0, t_i].transAxes,
-    #                 horizontalalignment='left',
-    #                 verticalalignment='top'
-    #             )
-    #             axes[0, t_i].text(
-    #                 0.02, 0.9,
-    #                 "Kuiper p: %.2f" % result_KS['kuiper_pval'][T]['targets'],
-    #                 transform=axes[0, t_i].transAxes,
-    #                 horizontalalignment='left',
-    #                 verticalalignment='top'
-    #             )
-
-    #         if T > 1:
-    #             axes[1, t_i].plot(result_KS['human'][T]['nontargets']['x'],
-    #                               result_KS['human'][T]['nontargets']['ecdf'],
-    #                               label='data'
-    #                               )
-    #             axes[1, t_i].plot(result_KS['model'][T]['nontargets']['x'],
-    #                               result_KS['model'][T]['nontargets']['ecdf'],
-    #                               label='model'
-    #                               )
-    #             axes[1, t_i].set_title('')
-    #             axes[1, t_i].set_xlim((-np.pi, np.pi))
-
-    #             if show_pval:
-    #                 axes[1, t_i].text(
-    #                     0.02, 0.99,
-    #                     "KS p: %.2f" % result_KS['ks_pval'][T]['nontargets'],
-    #                     transform=axes[1, t_i].transAxes,
-    #                     horizontalalignment='left',
-    #                     verticalalignment='top'
-    #                 )
-    #                 axes[1, t_i].text(
-    #                     0.02, 0.9,
-    #                     "Kuiper p: %.2f" % result_KS['kuiper_pval'][T]['nontargets'],
-    #                     transform=axes[1, t_i].transAxes,
-    #                     horizontalalignment='left',
-    #                     verticalalignment='top'
-    #                 )
-    #         else:
-    #             axes[1, t_i].axis('off')
-
-    #     axes[1, 1].legend(loc='center',
-    #                       bbox_to_anchor=(0.5, 0.5),
-    #                       bbox_transform=axes[1, 0].transAxes
-    #                       )
-
-    #     f.suptitle('ECDF between human and model')
-
-    #     return axes, result_KS
+        f1.suptitle('Fig 6: Last trecall')
 
 
     # Memory curve kappa
-    def __plot_memcurves(self, model_em_fits, suptitle_text=None, ax=None):
+    def __plot_memory_fidelity(self, model_em_fits, suptitle_text=None, ax=None):
         '''
             Nice plot for the memory fidelity, as in Fig6 of the paper theo
 

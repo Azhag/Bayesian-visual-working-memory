@@ -132,7 +132,14 @@ def fit(T_space, responses, targets_angle, nontargets_angles=np.array([[]]), ini
                 kappa_theta = numerical_M_step(T_space, resp_trnk, errors_all_trnk, kappa_theta)
 
             # BIC
-            result_dict = dict(kappa_theta=kappa_theta, kappa=compute_kappa_all(T_space, kappa_theta), mixt_target_tr=mixt_target_tr, mixt_nontargets_tr=mixt_nontargets_tr, mixt_random_tr=mixt_random_tr, train_LL=LL, T_space=T_space)
+            result_dict = dict(
+                kappa_theta=kappa_theta,
+                kappa=compute_kappa_all(T_space, kappa_theta),
+                mixt_target_tr=mixt_target_tr,
+                mixt_nontargets_tr=mixt_nontargets_tr,
+                mixt_random_tr=mixt_random_tr,
+                train_LL=LL,
+                T_space=T_space)
             bic_curr = bic(result_dict, np.log(W_trn))
 
             if debug:

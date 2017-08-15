@@ -604,9 +604,12 @@ class ExperimentalLoaderGorgo11Sequential(experimentalloader.ExperimentalLoader)
 
             # Need to extract the values for a subject/nitems pair, for all keys of em_fits. Annoying dictionary indexing needed
             emfits_keys = params_fit.keys()
-            for trecall_i, trecall in enumerate(self.dataset['data_subject_split']['nitems_space']):
+            for trecall_i, trecall in enumerate(
+                    self.dataset['data_subject_split']['nitems_space']):
                 for key in emfits_keys:
-                    values_allsubjects = [self.dataset['collapsed_em_fits_subjects_trecall'][subject][trecall][key] for subject in self.dataset['data_subject_split']['subjects_space']]
+                    values_allsubjects = [
+                        self.dataset['collapsed_em_fits_subjects_trecall'][subject][trecall][key]
+                        for subject in self.dataset['data_subject_split']['subjects_space']]
 
                     self.dataset['collapsed_em_fits_trecall']['mean'].setdefault(trecall, dict())[key] = np.mean(values_allsubjects, axis=0)
                     self.dataset['collapsed_em_fits_trecall']['std'].setdefault(trecall, dict())[key] = np.std(values_allsubjects, axis=0)
