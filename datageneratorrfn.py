@@ -277,7 +277,9 @@ class DataGeneratorRFN(DataGenerator):
             self.Y[i] = self.all_Y[i, -1].copy()
 
         # For convenience, store the list of nontargets objects.
-        self.nontargets_indices = np.array([[t for t in xrange(self.T) if t != self.cued_features[n, 1]] for n in xrange(self.N)], dtype='int')
+        self.nontargets_indices = np.array(
+            [[t for t in xrange(self.T) if t != self.cued_features[n, 1]]
+                for n in xrange(self.N)], dtype='int')
 
 
 

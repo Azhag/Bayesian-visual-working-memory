@@ -13,6 +13,7 @@ import numpy as np
 import utils
 from dataio import *
 import progress
+import collections
 
 import load_experimental_data
 from fitexperiment_sequential import FitExperimentSequentialAll
@@ -23,7 +24,7 @@ def _fitexperiment_work_unit(fit_exp, all_parameters, outputs_data=None):
     """ Performs a piece of FitExperimentSequential work
     """
     if outputs_data is None:
-        outputs_data = dict()
+        outputs_data = collections.defaultdict(list)
 
     # Setup and evaluate some statistics
     def compute_everything(self, parameters):
@@ -62,7 +63,7 @@ def _fitexperiment_work_unit(fit_exp, all_parameters, outputs_data=None):
     # Put everything back together.
     # This actually flattens everything
     for key in res_listdicts[0]:
-        outputs_data.setdefault(key, []).append(
+        outputs_data[key].append(
             np.nansum([res[key] for res in res_listdicts]))
 
     return outputs_data
@@ -70,7 +71,8 @@ def _fitexperiment_work_unit(fit_exp, all_parameters, outputs_data=None):
 
 def launcher_do_fitexperiment_sequential_subjects_allmetrics(args):
     '''
-        Given a single experiment_id, will run the model on all (T, trecall) in the experimental data.
+        Given a single experiment_id, will run the model on all (T, trecall) in the experimental data, per subject (summed metric).
+
         Most likely you want gorgo11_seq.
         Computes several metrics (LL, BIC) and can additionally sample from the model and check the Mixture model
         summary statistics fits.
@@ -78,7 +80,7 @@ def launcher_do_fitexperiment_sequential_subjects_allmetrics(args):
         If inference_method is not none, also fits a EM mixture model, get the precision and the fisher information
     '''
 
-    print "Doing a piece of work for launcher_do_fitexperiment_sequential_allmetrics"
+    print "Doing a piece of work for launcher_do_fitexperiment_sequential_subjects_allmetrics"
 
 
     all_parameters = utils.argparse_2_dict(args)
@@ -98,7 +100,7 @@ def launcher_do_fitexperiment_sequential_subjects_allmetrics(args):
     # Result arrays
     # sizes depend on the experiment.
     T_space = None
-    all_outputs_data = dict()
+    all_outputs_data = collections.defaultdict(list)
 
     experimental_dataset = load_experimental_data.load_data(
         experiment_id=all_parameters['experiment_id'])
@@ -108,7 +110,7 @@ def launcher_do_fitexperiment_sequential_subjects_allmetrics(args):
         all_parameters['num_repetitions']*subject_space.size)
 
     for repet_i in xrange(all_parameters['num_repetitions']):
-        curr_outputs_data = dict()
+        curr_outputs_data = collections.defaultdict(list)
         for subject in subject_space:
             all_parameters['experiment_subject'] = subject
 
@@ -122,10 +124,10 @@ def launcher_do_fitexperiment_sequential_subjects_allmetrics(args):
                 search_progress.eta_str())
 
             fit_exp = FitExperimentSequentialSubjectAll(all_parameters)
-            all_outputs_data = _fitexperiment_work_unit(
-                fit_exp, all_parameters, all_outputs_data)
+            _fitexperiment_work_unit(
+                fit_exp, all_parameters, curr_outputs_data)
 
-            print all_outputs_data
+            print curr_outputs_data
 
             ### /Work ###
 
@@ -134,20 +136,21 @@ def launcher_do_fitexperiment_sequential_subjects_allmetrics(args):
             search_progress.increment()
             if run_counter % save_every == 0 or search_progress.done():
                 data_to_save = locals()
-                data_to_save.update(all_outputs_data)
+                data_to_save.update(curr_outputs_data)
                 dataio.save_variables_default(data_to_save)
             run_counter += 1
 
         # Summing across subjects, will still have num_repetitions to average over.
         for key in curr_outputs_data:
-            all_outputs_data.setdefault(key, []).append(
+            all_outputs_data[key].append(
                 np.nansum(curr_outputs_data[key]))
 
     # Convert results to arrays
     # Put the repetition axis at the last dimension, it's kinda my convention...
     for key in all_outputs_data:
         all_outputs_data[key] = np.array(all_outputs_data[key])
-        all_outputs_data[key] = all_outputs_data[key].transpose(np.roll(np.arange(all_outputs_data[key].ndim), -1))
+        all_outputs_data[key] = all_outputs_data[key].transpose(
+            np.roll(np.arange(all_outputs_data[key].ndim), -1))
 
     ### /Work ###
 
@@ -164,7 +167,8 @@ def launcher_do_fitexperiment_sequential_subjects_allmetrics(args):
 
 def launcher_do_fitexperiment_sequential_subject_allmetrics(args):
     '''
-        Given a single experiment_id, will run the model on all (T, trecall) in the experimental data.
+        Given a single experiment_id, will run the model on all (T, trecall) in the experimental data, for a fixed subject.
+
         Most likely you want gorgo11_seq.
         Computes several metrics (LL, BIC) and can additionally sample from the model and check the Mixture model
         summary statistics fits.
@@ -172,7 +176,7 @@ def launcher_do_fitexperiment_sequential_subject_allmetrics(args):
         If inference_method is not none, also fits a EM mixture model, get the precision and the fisher information
     '''
 
-    print "Doing a piece of work for launcher_do_fitexperiment_sequential_singlesubject_allmetrics"
+    print "Doing a piece of work for launcher_do_fitexperiment_sequential_subject_allmetrics"
 
 
     all_parameters = utils.argparse_2_dict(args)
@@ -192,7 +196,7 @@ def launcher_do_fitexperiment_sequential_subject_allmetrics(args):
     # Result arrays
     # sizes depend on the experiment.
     T_space = None
-    all_outputs_data = dict()
+    all_outputs_data = collections.defaultdict(list)
 
     experimental_dataset = load_experimental_data.load_data(
         experiment_id=all_parameters['experiment_id'])
@@ -212,7 +216,7 @@ def launcher_do_fitexperiment_sequential_subject_allmetrics(args):
                 search_progress.eta_str())
 
         fit_exp = FitExperimentSequentialSubjectAll(all_parameters)
-        all_outputs_data = _fitexperiment_work_unit(
+        _fitexperiment_work_unit(
             fit_exp, all_parameters, all_outputs_data)
         print all_outputs_data
         ### /Work ###
@@ -248,7 +252,8 @@ def launcher_do_fitexperiment_sequential_subject_allmetrics(args):
 
 def launcher_do_fitexperiment_sequential_allmetrics(args):
     '''
-        Given a single experiment_id, will run the model on all (T, trecall) in the experimental data.
+        Given a single experiment_id, will run the model on all (T, trecall) in the experimental data (collapse across subjects).
+
         Most likely you want gorgo11_seq.
         Computes several metrics (LL, BIC) and can additionally sample from the model and check the Mixture model
         summary statistics fits.
@@ -276,7 +281,7 @@ def launcher_do_fitexperiment_sequential_allmetrics(args):
     # Result arrays
     # sizes depend on the experiment.
     T_space = None
-    all_outputs_data = dict()
+    all_outputs_data = collections.defaultdict(list)
 
     experimental_dataset = load_experimental_data.load_data(
         experiment_id=all_parameters['experiment_id'])
@@ -294,7 +299,7 @@ def launcher_do_fitexperiment_sequential_allmetrics(args):
                 search_progress.eta_str())
 
         fit_exp = FitExperimentSequentialAll(all_parameters)
-        all_outputs_data = _fitexperiment_work_unit(
+        _fitexperiment_work_unit(
             fit_exp, all_parameters, all_outputs_data)
         print all_outputs_data
         ### /Work ###

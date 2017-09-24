@@ -22,14 +22,14 @@ submit_cmd = 'sbatch'
 
 resource = ''
 
-# partition = 'wrkstn'
+partition = 'wrkstn'
 # partition = 'test'
-partition = 'intel-ivy'
+# partition = 'intel-ivy'
 
 
 num_repetitions = 3
 
-run_label = 'cmaes_gorgo11sequential_ll_4try_Mratiosigxsigbaselapsealpha_rep{num_repetitions}_130817'
+run_label = 'cmaes_gorgo11sequential_ll92_3try_Mratiosigxsigbaselapsealpha_rep{num_repetitions}_170817'
 simul_out_dir = os.path.join(os.getcwd(), run_label.format(**locals()))
 
 parameter_generation = 'cma-es'
@@ -44,7 +44,8 @@ cma_boundary_handling = 'BoundPenalty'
 
 sleeping_period = dict(min=1, max=5)
 
-pbs_submission_infos = dict(description='''Fit sequential experiment (gorgo11 sequential), using dist_ll92_allt ResultComputation), using the CMA-ES code. Now with sigma_baseline instead of sigma_output. Using new fixed Covariance matrix for Sampler, should change N=1 case most.
+pbs_submission_infos = dict(
+  description='''Fit sequential experiment (gorgo11 sequential), using dist_ll92_allt ResultComputation), using the CMA-ES code. Now with sigma_baseline instead of sigma_output. Using new fixed Covariance matrix for Sampler, should change N=1 case most.
 
   Changes M, ratio_conj, sigmax, sigma baseline, lapse rate.
   Looks at all subjects, T and trecall.
@@ -53,51 +54,51 @@ pbs_submission_infos = dict(description='''Fit sequential experiment (gorgo11 se
 
   Computes full LL, LL90, LL92, LL95, LL97.
   ''',
-                            command='python $WORKDIR/experimentlauncher.py',
-                            other_options=dict(action_to_do='launcher_do_fitexperiment_sequential_allmetrics',
-                                               code_type='mixed',
-                                               output_directory='.',
-                                               experiment_id='gorgo11_sequential',
-                                               bic_K=5,
-                                               ratio_conj=0.5,
-                                               session_id='cmaes_4try_Mratiosigxlrsigbase_gorgo11seq',
-                                               result_computation='dist_ll92_allt',
-                                               M=100,
-                                               sigmax=0.1,
-                                               renormalize_sigma=None,
-                                               N=200,
-                                               T=1,
-                                               alpha=1,
-                                               sigmay=0.00001,
-                                               sigma_baseline=0.001,
-                                               sigma_output=0.0,
-                                               lapse_rate=0.0,
-                                               inference_method='none',
-                                               num_samples=100,
-                                               selection_num_samples=1,
-                                               selection_method='last',
-                                               slice_width=0.07,
-                                               burn_samples=200,
-                                               num_repetitions=num_repetitions,
-                                               enforce_min_distance=0.17,
-                                               specific_stimuli_random_centers=None,
-                                               stimuli_generation='random',
-                                               stimuli_generation_recall='random',
-                                               autoset_parameters=None,
-                                               collect_responses=None,
-                                               label=run_label,
-                                               experiment_data_dir=os.path.normpath(os.path.join(os.environ['WORKDIR_DROP'], '../../experimental_data')),
-                                               ),
-                            walltime='1:00:00',
-                            memory='2gb',
-                            simul_out_dir=os.path.join(os.getcwd(), run_label.format(**locals())),
-                            pbs_submit_cmd=submit_cmd,
-                            source_dir=os.environ['WORKDIR_DROP'],
-                            submit_label='cmaes_gorgoseq_4',
-                            resource=resource,
-                            partition=partition,
-                            qos='auto')
-
+  command='python $WORKDIR/experimentlauncher.py',
+  other_options=dict(
+    action_to_do='launcher_do_fitexperiment_sequential_allmetrics',
+    code_type='mixed',
+    output_directory='.',
+    experiment_id='gorgo11_sequential',
+    bic_K=5,
+    ratio_conj=0.5,
+    session_id='cmaes_3try_Mratiosigxlrsigbase_gorgo11seq',
+    result_computation='dist_ll92_allt',
+    M=100,
+    sigmax=0.1,
+    renormalize_sigma=None,
+    N=500,
+    T=1,
+    alpha=1,
+    sigmay=0.00001,
+    sigma_baseline=0.001,
+    sigma_output=0.0,
+    lapse_rate=0.0,
+    inference_method='none',
+    num_samples=100,
+    selection_num_samples=1,
+    selection_method='last',
+    slice_width=0.07,
+    burn_samples=100,
+    num_repetitions=num_repetitions,
+    enforce_min_distance=0.17,
+    specific_stimuli_random_centers=None,
+    stimuli_generation='random',
+    stimuli_generation_recall='random',
+    autoset_parameters=None,
+    label=run_label,
+    experiment_data_dir=os.path.normpath(
+      os.path.join(os.environ['WORKDIR_DROP'], '../../experimental_data')),
+    ),
+  walltime='1:00:00',
+  memory='2gb',
+  simul_out_dir=os.path.join(os.getcwd(), run_label.format(**locals())),
+  pbs_submit_cmd=submit_cmd,
+  source_dir=os.environ['WORKDIR_DROP'],
+  submit_label='cmaes_gorgoseq_3',
+  resource=resource,
+  partition=partition,
+  qos='auto')
 
 
 ## Define our filtering function
