@@ -439,12 +439,12 @@ class ResultComputation():
         '''
             Use the median of LL to get a score.
         '''
-        if 'result_ll_median' in all_variables:
+        if 'result_ll_n' in all_variables:
             repetitions_axis = all_variables.get('repetitions_axis', -1)
-            result_dist = np.nanmedian(
-                utils.nanmean(
-                    -all_variables['result_ll_median'], axis=repetitions_axis))
-            import pdb; pdb.set_trace()
+            data_ll = -all_variables['result_ll_n']
+            data_ll = data_ll.reshape(-1, data_ll.shape[repetitions_axis])
+            result_dist = utils.nanmean(np.nanmedian(data_ll, axis=0))
+
             print result_dist
             return result_dist
         else:
