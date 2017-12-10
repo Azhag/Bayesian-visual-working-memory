@@ -43,7 +43,7 @@ cma_tolfun = 1e-3
 cma_population_size = 'auto_10x'
 cma_boundary_handling = 'BoundPenalty'
 
-sleeping_period = dict(min=10, max=20)
+sleeping_period = dict(min=1, max=5)
 
 pbs_submission_infos = dict(
     description='''Fit experiments (bays09), using dist_ll_median_allt ResultComputation), using the CMA-ES code. Now with sigma_baseline instead of sigma_output. Using new fixed Covariance matrix for Sampler, should change N=1 case most.
