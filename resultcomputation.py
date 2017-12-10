@@ -435,6 +435,20 @@ class ResultComputation():
         return self._compute_dist_llvariant(all_variables,
                                             variant='ll97')
 
+    def compute_result_dist_ll_median_allt(self, all_variables):
+        '''
+            Use the median of LL to get a score.
+        '''
+        if 'result_ll_median' in all_variables:
+            repetitions_axis = all_variables.get('repetitions_axis', -1)
+            result_dist = np.nanmedian(
+                utils.nanmean(
+                    -all_variables['result_ll_median'], axis=repetitions_axis))
+            import pdb; pdb.set_trace()
+            print result_dist
+            return result_dist
+        else:
+            raise ValueError("%s was not found in the outputs" % res_variant)
 
     def compute_result_dist_prodll_allt(self, all_variables):
         '''

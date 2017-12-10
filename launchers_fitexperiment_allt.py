@@ -70,6 +70,10 @@ def launcher_do_fitexperiment_allmetrics(args):
             results['result_ll_sum'] = np.nansum(results['result_ll_n'])
             print results['result_ll_sum']
 
+            print ">> Computing LL median..."
+            results['result_ll_median'] = np.nanmedian(results['result_ll_n'])
+            print results['result_ll_median']
+
             print ">> Computing BIC..."
             results['result_bic'] = self.sampler.compute_bic(
                 K=parameters['bic_K'], LL=results['result_ll_sum'])
