@@ -22,9 +22,9 @@ submit_cmd = 'sbatch'
 
 resource = ''
 
-partition = 'wrkstn'
+# partition = 'wrkstn'
 # partition = 'test'
-# partition = 'intel-ivy'
+partition = 'intel-ivy'
 
 
 num_repetitions = 3
@@ -61,8 +61,8 @@ pbs_submission_infos = dict(
     experiment_id=experiment_id,
     bic_K=5,
     ratio_conj=0.5,
-    session_id='cmaes_1try_Mratiosigmaxlapsesigmabase_gorgo11',
-    result_computation='dist_ll92_allt',
+    session_id='cmaes_2try_Mratiosigmaxlapsesigmabase_gorgo11',
+    result_computation='dist_ll_median_allt',
     M=100,
     sigmax=0.1,
     renormalize_sigma=None,
@@ -93,7 +93,7 @@ pbs_submission_infos = dict(
   simul_out_dir=os.path.join(os.getcwd(), run_label.format(**locals())),
   pbs_submit_cmd=submit_cmd,
   source_dir=os.environ['WORKDIR_DROP'],
-  submit_label='cmaes_1try_gorgo',
+  submit_label='cmaes_2try_gorgo',
   resource=resource,
   partition=partition,
   qos='auto')
