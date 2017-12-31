@@ -241,7 +241,7 @@ def plot_histograms_errors_targets_nontargets_nitems(dataset, dataio=None):
     bins_center = angle_space[:-1] + np.diff(angle_space)[0]/2
 
     #### Histograms of errors / errors to nontargets, collapsing across subjects
-    if False:
+    if True:
         f1, axes1 = plt.subplots(ncols=dataset['n_items_size'],
                              nrows=2,
                              figsize=(dataset['n_items_size']*6, 12),
@@ -1411,7 +1411,7 @@ def plots_bays2009(dataset, dataio=None):
     Some plots for the Bays2009 data
     '''
 
-    plot_histograms_errors_targets_nontargets_nitems(dataset, dataio)
+    # plot_histograms_errors_targets_nontargets_nitems(dataset, dataio)
 
     # plot_precision(dataset, dataio)
 
