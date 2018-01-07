@@ -1858,7 +1858,11 @@ class Sampler:
         angle_space = np.linspace(-np.pi, np.pi, bins)
 
         # Get histograms of bias to nontargets.
-        utils.hist_samples_density_estimation(errors_nontargets, bins=angle_space, title='Errors between response and non-targets, N=%d' % (self.T), filename='hist_bias_nontargets_%ditems_{label}_{unique_id}.pdf' % (self.T), dataio=dataio, ax_handle=ax_handle, show_parameters=show_parameters)
+        # utils.hist_samples_density_estimation(errors_nontargets, bins=angle_space, title='Errors between response and non-targets, N=%d' % (self.T), filename='hist_bias_nontargets_%ditems_{label}_{unique_id}.pdf' % (self.T), dataio=dataio, ax_handle=ax_handle, show_parameters=show_parameters)
+        utils.hist_angular_data(
+            errors_nontargets, bins=angle_space,
+            title='Errors between response and non-targets, N=%d' % (self.T),
+            norm='density', in_degrees=in_degrees, ax_handle=ax_handle)
 
         # Compute Vtest score
         vtest_dict = utils.V_test(errors_nontargets)

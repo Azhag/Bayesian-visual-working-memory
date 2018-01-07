@@ -31,29 +31,33 @@ def _fitexperiment_work_unit(fit_exp, all_parameters, outputs_data=None):
         results = dict()
 
         print ">> Computing LL all N..."
-        result_ll_n = self.sampler.compute_loglikelihood_N()
+        results['result_ll_n'] = self.sampler.compute_loglikelihood_N().flatten()
 
         print ">> Computing LL sum..."
-        results['result_ll_sum'] = np.nansum(result_ll_n)
+        results['result_ll_sum'] = np.nansum(results['result_ll_n'])
         print results['result_ll_sum']
 
         print ">> Computing BIC..."
         results['result_bic'] = self.sampler.compute_bic(
             K=parameters['bic_K'], LL=results['result_ll_sum'])
 
+        print ">> Computing LL median..."
+        results['result_ll_median'] = np.nanmedian(results['result_ll_n'])
+        print results['result_ll_median']
+
         print ">> Computing LL90/92/95/97..."
         results['result_ll90_sum'] = (
             self.sampler.compute_loglikelihood_top90percent(
-                all_loglikelihoods=result_ll_n))
+                all_loglikelihoods=results['result_ll_n']))
         results['result_ll92_sum'] = (
             self.sampler.compute_loglikelihood_top_p_percent(
-                0.92, all_loglikelihoods=result_ll_n))
+                0.92, all_loglikelihoods=results['result_ll_n']))
         results['result_ll95_sum'] = (
             self.sampler.compute_loglikelihood_top_p_percent(
-                0.95, all_loglikelihoods=result_ll_n))
+                0.95, all_loglikelihoods=results['result_ll_n']))
         results['result_ll97_sum'] = (
             self.sampler.compute_loglikelihood_top_p_percent(
-                0.97, all_loglikelihoods=result_ll_n))
+                0.97, all_loglikelihoods=results['result_ll_n']))
 
         return results
 
@@ -64,7 +68,21 @@ def _fitexperiment_work_unit(fit_exp, all_parameters, outputs_data=None):
     # This actually flattens everything
     for key in res_listdicts[0]:
         outputs_data[key].append(
-            np.nansum([res[key] for res in res_listdicts]))
+            np.array([res[key] for res in res_listdicts]).flatten())
+
+    if not all_parameters['inference_method'] == 'none':
+        # Fit mixture model
+        print " fit mixture model..."
+        model_fits = fit_exp.get_model_em_fits()
+
+        emfits_distances = fit_exp.compute_dist_experimental_em_fits(model_fits)
+        results = {
+            'result_emfit_mse': emfits_distances['all_mse'],
+            'result_emfit_mixt_kl': emfits_distances['mixt_kl']
+        }
+        for key, res in results.iteritems():
+            outputs_data[key].append(np.nansum(res))
+
 
     return outputs_data
 

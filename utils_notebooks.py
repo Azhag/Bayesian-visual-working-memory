@@ -59,7 +59,6 @@ def process_em_fits(array_name, array):
                                          'LL',
                                          'bic'])]
 
-
     outputs.append((array_name + '_fidelity', 1./utils_directional_stats.kappa_to_stddev(emfits_all[:, 0])**2.))
     outputs.append((array_name + '_stddev', utils_directional_stats.kappa_to_stddev(emfits_all[:, 0])))
 
@@ -85,7 +84,7 @@ def construct_pandas_dataframe(data_pbs, pandas_columns_with_processing, num_rep
         if filter_data is None:
             repeats_completed = data_pbs.dict_arrays[result_array_name]['repeats_completed']
             filter_data = repeats_completed == (num_repetitions - 1)
-        res_array = res_array[filter_data]
+        res_array = res_array[filter_data[:res_array.shape[0]]]
 
         # Keep parameters
         if result_parameters_flat is None:

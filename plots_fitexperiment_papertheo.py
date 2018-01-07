@@ -56,7 +56,7 @@ class PlotsFitExperimentAllTPaperTheo(object):
             self.plots_memmixtcurves_fig6fig13()
 
 
-    def plots_distrib_errors_data_fig2(self, size=6):
+    def plots_distrib_errors_data_fig2(self, size=6, nice_xticks=True):
         '''
             HUMAN DATA for Fig5
             Same as plots_distrib_errors_fig5, but for the Experimental data
@@ -78,10 +78,24 @@ class PlotsFitExperimentAllTPaperTheo(object):
             axes[0, t_i].set_title('')
             axes[0, t_i].set_ylim((0, 2))
 
+            if nice_xticks:
+                axes[0, t_i].set_xticks(
+                    (-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
+                axes[0, t_i].set_xticklabels(
+                    (r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'),
+                    fontsize=15)
+
             if T > 1:
                 self.fit_exp.sampler.plot_histogram_bias_nontarget(bins=41, ax_handle=axes[1, t_i], show_parameters=False)
                 axes[1, t_i].set_title('')
                 axes[1, t_i].set_ylim((0, 0.3))
+
+                if nice_xticks:
+                    axes[1, t_i].set_xticks(
+                        (-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
+                    axes[1, t_i].set_xticklabels(
+                        (r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'),
+                        fontsize=15)
             else:
                 axes[1, t_i].axis('off')
 
@@ -89,7 +103,8 @@ class PlotsFitExperimentAllTPaperTheo(object):
         return axes
 
 
-    def plots_distrib_errors_fig5(self, size=6):
+    def plots_distrib_errors_fig5(self, size=6, show_fits=False,
+                                  nice_xticks=True):
         '''
             Series of plots reproducing Fig 5 - Distribution of errors of the
             model
@@ -116,10 +131,24 @@ class PlotsFitExperimentAllTPaperTheo(object):
             axes[0, t_i].set_title('')
             axes[0, t_i].set_ylim((0, 2))
 
+            if nice_xticks:
+                axes[0, t_i].set_xticks(
+                    (-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
+                axes[0, t_i].set_xticklabels(
+                    (r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'),
+                    fontsize=15)
+
             if T > 1:
                 self.fit_exp.sampler.plot_histogram_bias_nontarget(bins=41, ax_handle=axes[1, t_i], show_parameters=False)
                 axes[1, t_i].set_title('')
                 axes[1, t_i].set_ylim((0, 0.3))
+
+                if nice_xticks:
+                    axes[1, t_i].set_xticks(
+                        (-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
+                    axes[1, t_i].set_xticklabels(
+                        (r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'),
+                        fontsize=15)
             else:
                 axes[1, t_i].axis('off')
 
@@ -130,7 +159,8 @@ class PlotsFitExperimentAllTPaperTheo(object):
     def plots_KS_comparison_fig2fig5(self,
                                      bins=41,
                                      show_pval=True,
-                                     size=6
+                                     size=6,
+                                     nice_xticks=True,
                                      ):
         '''
             Will plot the ECDF of data/samples and then do Kolmogorov-Smirnov /Kuiper 2-samples tests on them.
@@ -195,7 +225,12 @@ class PlotsFitExperimentAllTPaperTheo(object):
             axes[0, t_i].set_title('')
             axes[0, t_i].set_xlim((-np.pi, np.pi))
             # axes[0, t_i].set_ylim((0, 2))
-
+            if nice_xticks:
+                axes[0, t_i].set_xticks(
+                    (-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
+                axes[0, t_i].set_xticklabels(
+                    (r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'),
+                    fontsize=15)
             if show_pval:
                 axes[0, t_i].text(
                     0.02, 0.99,
@@ -224,6 +259,12 @@ class PlotsFitExperimentAllTPaperTheo(object):
                 axes[1, t_i].set_title('')
                 axes[1, t_i].set_xlim((-np.pi, np.pi))
 
+                if nice_xticks:
+                    axes[1, t_i].set_xticks(
+                        (-np.pi, -np.pi/2, 0, np.pi/2., np.pi))
+                    axes[1, t_i].set_xticklabels(
+                        (r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$', r'$\pi$'),
+                        fontsize=15)
                 if show_pval:
                     axes[1, t_i].text(
                         0.02, 0.99,
@@ -358,7 +399,7 @@ class PlotsFitExperimentAllTPaperTheo(object):
             model_em_fits['mean'][..., 0],
             model_em_fits['std'][..., 0],
             xlabel='Number of items',
-            ylabel="Memory error $[rad^{-2}]$",
+            ylabel="Memory fidelity $[rad^{-2}]$",
             linewidth=3,
             fmt='o-', markersize=8,
             label='Model',
@@ -403,7 +444,7 @@ class PlotsFitExperimentAllTPaperTheo(object):
             model_em_fits['mean'][..., 1],
             model_em_fits['std'][..., 1],
             xlabel='Number of items',
-            ylabel="Mixture probabilities",
+            ylabel="Mixture proportions",
             ax_handle=ax, linewidth=3, fmt='o-', markersize=5,
             label='Target',
         )

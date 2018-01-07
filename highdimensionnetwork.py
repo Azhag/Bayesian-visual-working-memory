@@ -679,7 +679,19 @@ class HighDimensionNetwork(object):
 
     ######################## PLOTS ######################################
 
-    def plot_coverage_feature_space(self, axes=(0, 1), nb_stddev=1.0, specific_neurons=None, alpha_ellipses=0.5, facecolor='rand', ax=None, lim_factor=1.0):
+    def plot_coverage_feature_space(self,
+                                    axes=(0, 1),
+                                    nb_stddev=1.0,
+                                    specific_neurons=None,
+                                    alpha_ellipses=0.5,
+                                    facecolor='rand',
+                                    ax=None,
+                                    lim_factor=1.0,
+                                    edgecolor=None,
+                                    linewidth=None,
+                                    scale_width=1.,
+                                    scale_height=1.
+                                    ):
         '''
             Show the features.
             Choose the 2 dimensions you want first.
@@ -688,12 +700,25 @@ class HighDimensionNetwork(object):
         if specific_neurons is None:
             specific_neurons = self._ALL_NEURONS
 
-
-        ells = [Ellipse(xy=self.neurons_preferred_stimulus[m, axes], width=nb_stddev*utils.kappa_to_stddev(self.neurons_sigma[m, axes[0]]), height=nb_stddev*utils.kappa_to_stddev(self.neurons_sigma[m, axes[1]]), angle=-np.degrees(self.neurons_angle[m])) for m in specific_neurons if not self.mask_neurons_unset[m]]
+        ells = []
+        for m in specific_neurons:
+            if not self.mask_neurons_unset[m]:
+                width = scale_width * nb_stddev * utils.kappa_to_stddev(
+                    self.neurons_sigma[m, axes[0]])
+                height = scale_height * nb_stddev * utils.kappa_to_stddev(
+                    self.neurons_sigma[m, axes[1]])
+                new_el = Ellipse(
+                    xy=self.neurons_preferred_stimulus[m, axes],
+                    width=width,
+                    height=height,
+                    angle=-np.degrees(self.neurons_angle[m]))
+                ells.append(new_el)
 
         if ax is None:
             fig = plt.figure()
             ax = fig.add_subplot(111, aspect='equal')
+        else:
+            fig = ax.figure
 
         for e in ells:
             ax.add_artist(e)
@@ -701,10 +726,14 @@ class HighDimensionNetwork(object):
             e.set_alpha(alpha_ellipses)
             if facecolor is 'rand':
                 e.set_facecolor(np.random.rand(3))
-            elif facecolor is False or facecolor is None or facecolor == 'none' or facecolor == 'None':
+            elif (facecolor is False or facecolor is None or
+                  facecolor == 'none' or facecolor == 'None'):
                 e.set_facecolor('none')
             else:
                 e.set_facecolor(facecolor)
+            if edgecolor:
+                e.set_edgecolor(edgecolor)
+            e.set_linewidth(linewidth)
             e.set_transform(ax.transData)
 
         # ax.autoscale_view()
@@ -721,12 +750,9 @@ class HighDimensionNetwork(object):
         ax.set_xlabel('Orientation', fontsize=14)
         ax.set_ylabel('Color', fontsize=14)
 
-        ax.set_title('%d vs %d' % (axes[0]+1, axes[1]+1))
+        # ax.set_title('%d vs %d' % (axes[0]+1, axes[1]+1))
         fig.set_tight_layout(True)
 
-        plt.draw()
-
-        plt.show()
 
         return ax
 

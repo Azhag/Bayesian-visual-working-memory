@@ -330,6 +330,39 @@ class FitExperimentSequentialAll(object):
 
         return self.model_em_fits
 
+    def compute_dist_experimental_em_fits(self, model_fits):
+        '''
+            Given provided model_fits array, compute the distance to
+            the loaded Experimental Data em fits.
+
+            Inputs:
+            * model_fits: dict created above.
+
+            Returns dict:
+            * kappa MSE
+            * mixture prop MSE
+            * summed MSE
+            * mixture prop KL divergence
+        '''
+
+        distances = dict()
+
+        data_em_fits_means = self.get_data_em_fits()['mean']
+        data_target = np.array([
+            data_em_fits_means[key]
+            for key in ['kappa', 'mixt_target_tr', 'mixt_nontargets_tr',
+                        'mixt_random_tr']])
+        model_target = np.array([
+            model_fits['mean'][key]
+            for key in ['kappa', 'mixt_target_tr', 'mixt_nontargets_tr',
+                        'mixt_random_tr']])
+
+        distances['all_mse'] = (data_target - model_target)**2.
+        distances['mixt_kl'] = utils.KL_div(
+            data_target[1:], model_target[1:], axis=0)
+
+        return distances
+
 
 class FitExperimentSequentialSubjectAll(FitExperimentSequentialAll):
     '''
@@ -455,4 +488,3 @@ if __name__ == '__main__':
 
     for key, val in all_vars.iteritems():
         locals()[key] = val
-
