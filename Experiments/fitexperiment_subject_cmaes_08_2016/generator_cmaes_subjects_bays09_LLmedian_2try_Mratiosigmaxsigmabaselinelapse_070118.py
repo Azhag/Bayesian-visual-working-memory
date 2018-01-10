@@ -11,6 +11,7 @@ import dataio
 import copy
 import submitpbs
 # from functools import partial
+import sys
 
 # Commit > @d0d5ff8f2
 
@@ -33,7 +34,7 @@ experiment_id = 'bays09'
 # Vary me between 1-12 for bayes09
 experiment_subject = 1
 
-run_label = 'cmaes_subjects_bays09_ll92_2try_Mratiosigmaxsigmabaselinelapserate_subject{experiment_subject}rep{num_repetitions}_070118'
+run_label = 'cmaes_subjects_bays09_llmedian_2try_Mratiosigmaxsigmabaselinelapserate_subject{experiment_subject}rep{num_repetitions}_070118'
 simul_out_dir = os.path.join(os.getcwd(), run_label.format(**locals()))
 
 parameter_generation = 'cma-es'
@@ -69,7 +70,7 @@ pbs_submission_infos = dict(
         experiment_subject=experiment_subject,
         bic_K=5,
         ratio_conj=0.5,
-        session_id='cmaes_2try_Mratiosigmaxlapsesigmabase_bays09',
+        session_id='cmaes_2try_Mratiosigmaxlapsesigmabase_bays09_sub%d' % experiment_subject,
         result_computation='dist_ll_median_allt',
         M=100,
         sigmax=0.1,
@@ -103,7 +104,7 @@ pbs_submission_infos = dict(
     simul_out_dir=os.path.join(os.getcwd(), run_label.format(**locals())),
     pbs_submit_cmd=submit_cmd,
     source_dir=os.environ['WORKDIR_DROP'],
-    submit_label='cmaes_sub_2try_b09',
+    submit_label='sub%d_2try_b09' % experiment_subject,
     resource=resource,
     partition=partition,
     qos='auto')

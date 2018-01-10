@@ -85,7 +85,11 @@ class ResultComputation():
         return np.random.rand()
 
 
-    def compute_result_distemfits_dataset(self, all_variables, experiment_id='bays09', cache_array_name='result_dist_bays09', variable_selection_slice=slice(None, 4), variable_selection_slice_cache=slice(None, None), metric='mse'):
+    def compute_result_distemfits_dataset(
+        self, all_variables, experiment_id='bays09',
+        cache_array_name='result_dist_bays09',
+        variable_selection_slice=slice(None, 4),
+        variable_selection_slice_cache=slice(None, None), metric='mse'):
         '''
             Result is the distance (sum squared) to experimental data fits
 
@@ -361,6 +365,37 @@ class ResultComputation():
 
         # Extract the filename
         return all_variables['dataio'].filename
+
+    def compute_result_dist_collapsedemfit_gorgo11seq(self, all_variables):
+        '''
+            Use the collapsed mixture fits to Gorgo11 Sequential.
+            Should be precomputed by FitExperimentSequential
+        '''
+        if 'result_emfit_mse' in all_variables:
+            repetitions_axis = all_variables.get('repetitions_axis', -1)
+            data_fits = all_variables['result_emfit_mse']
+            result_dist = utils.nanmean(data_fits, axis=repetitions_axis)
+
+            print result_dist
+            return result_dist
+        else:
+            raise ValueError("%s was not found in the outputs" % res_variant)
+
+    def compute_result_dist_emfit_scaled(self, all_variables):
+        '''
+            Use the scaled MSE to the mixture model fits.
+            Should have been precomputed by launchers_fitexperiment_allt.
+        '''
+        if 'result_emfit_mse_scaled' in all_variables:
+            repetitions_axis = all_variables.get('repetitions_axis', -1)
+            data_fits = all_variables['result_emfit_mse_scaled']
+            result_dist = np.nansum(
+                utils.nanmean(data_fits, axis=repetitions_axis))
+
+            print result_dist
+            return result_dist
+        else:
+            raise ValueError("%s was not found in the outputs" % res_variant)
 
 
     def _compute_dist_llvariant(self, all_variables, variant='ll'):

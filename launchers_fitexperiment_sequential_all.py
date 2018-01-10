@@ -309,7 +309,7 @@ def launcher_do_fitexperiment_sequential_allmetrics(args):
 
     for repet_i in xrange(all_parameters['num_repetitions']):
         ### WORK WORK WORK work? ###
-        print "\n\nrep %d/%d | %.2f%%, %s left - %s" % (
+        print "\n\n\n\nrep %d/%d | %.2f%%, %s left - %s" % (
                 repet_i+1,
                 all_parameters['num_repetitions'],
                 search_progress.percentage(),

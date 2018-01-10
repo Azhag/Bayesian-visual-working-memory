@@ -191,7 +191,7 @@ class PlotsFitExperimentSequential(object):
         else:
             errorbars = 'std'
 
-        f, axes = plt.subplots(nrows=1, ncols=2, figsize=(12, 6))
+        f, axes = plt.subplots(nrows=1, ncols=2, figsize=(12, 5))
         # Memory fidelity last trecall
         # Data
         _plot_kappa_mean_error(
@@ -211,40 +211,12 @@ class PlotsFitExperimentSequential(object):
             model_em_fits[errorbars][
                 'kappa'][:, 0],
             label='Model',
-            fmt="s--",
+            fmt="o-",
             ax=axes[0],
-            xlabel='items', ylabel='Memory error $[rad^{-2}]$')
+            xlabel='items', ylabel='Memory fidelity $[rad^{-2}]$')
         axes[0].legend(loc='upper right', bbox_to_anchor=(1., 1.))
 
         # Mixture proportions last trecall
-        # Data
-        _plot_emmixture_mean_error(
-            T_space,
-            data_em_fits['mean'][
-                'mixt_target_tr'][:, 0],
-            data_em_fits[errorbars][
-                'mixt_target_tr'][:, 0],
-            label='Data Target',
-            fmt="o-",
-            ax=axes[1])
-        _plot_emmixture_mean_error(
-            T_space,
-            data_em_fits['mean'][
-                'mixt_nontargets_tr'][:, 0],
-            data_em_fits[errorbars][
-                'mixt_nontargets_tr'][:, 0],
-            label='Data Nontargets',
-            fmt="o-",
-            ax=axes[1])
-        _plot_emmixture_mean_error(
-            T_space,
-            data_em_fits['mean'][
-                'mixt_random_tr'][:, 0],
-            data_em_fits[errorbars][
-                'mixt_random_tr'][:, 0],
-            label='Data Random',
-            fmt="o-",
-            ax=axes[1])
         # Model
         _plot_emmixture_mean_error(
             T_space,
@@ -252,8 +224,8 @@ class PlotsFitExperimentSequential(object):
                 'mixt_target_tr'][:, 0],
             model_em_fits[errorbars][
                 'mixt_target_tr'][:, 0],
-            label='Model Target',
-            fmt="s--",
+            label='Target',
+            fmt="o-",
             ax=axes[1])
         _plot_emmixture_mean_error(
             T_space,
@@ -261,8 +233,8 @@ class PlotsFitExperimentSequential(object):
                 'mixt_nontargets_tr'][:, 0],
             model_em_fits[errorbars][
                 'mixt_nontargets_tr'][:, 0],
-            label='Model Nontargets',
-            fmt="s--",
+            label='Nontarget',
+            fmt="o-",
             ax=axes[1])
         _plot_emmixture_mean_error(
             T_space,
@@ -270,10 +242,38 @@ class PlotsFitExperimentSequential(object):
                 'mixt_random_tr'][:, 0],
             model_em_fits[errorbars][
                 'mixt_random_tr'][:, 0],
-            label='Model Random',
-            fmt="s--",
+            label='Random',
+            fmt="o-",
             ax=axes[1],
             xlabel='items', ylabel='Mixture proportions')
+        # Data
+        _plot_emmixture_mean_error(
+            T_space,
+            data_em_fits['mean'][
+                'mixt_target_tr'][:, 0],
+            data_em_fits[errorbars][
+                'mixt_target_tr'][:, 0],
+            label='Data target',
+            fmt="s--",
+            ax=axes[1])
+        _plot_emmixture_mean_error(
+            T_space,
+            data_em_fits['mean'][
+                'mixt_nontargets_tr'][:, 0],
+            data_em_fits[errorbars][
+                'mixt_nontargets_tr'][:, 0],
+            label='Data nontarget',
+            fmt="s--",
+            ax=axes[1])
+        _plot_emmixture_mean_error(
+            T_space,
+            data_em_fits['mean'][
+                'mixt_random_tr'][:, 0],
+            data_em_fits[errorbars][
+                'mixt_random_tr'][:, 0],
+            label='Data random',
+            fmt="s--",
+            ax=axes[1])
         axes[1].legend(loc='upper left', bbox_to_anchor=(1., 1.))
 
         f.suptitle('Fig 6: Last trecall')
@@ -302,7 +302,8 @@ class PlotsFitExperimentSequential(object):
             errorbars = 'sem'
         else:
             errorbars = 'std'
-        f, axes = plt.subplots(nrows=2, ncols=2, figsize=(10, 10))
+        _, axes_data = plt.subplots(nrows=2, ncols=2, figsize=(10, 10))
+        _, axes_model = plt.subplots(nrows=2, ncols=2, figsize=(10, 10))
 
         # Data
         for nitems_i, nitems in enumerate(T_space):
@@ -313,11 +314,13 @@ class PlotsFitExperimentSequential(object):
                     'kappa'][nitems_i, :nitems],
                 data_em_fits[errorbars][
                     'kappa'][nitems_i, :nitems],
-                label='Data: %d items' % nitems,
+                label='%d items' % nitems,
                 xlabel='Serial order (reversed)',
                 fmt="o-",
                 zorder=7 - nitems,
-                ax=axes[0, 0])
+                ax=axes_data[0, 0])
+
+            axes_data[0, 0].set_ylim((0, 11))
 
             # Mixture proportions
             _plot_emmixture_mean_error(
@@ -326,33 +329,33 @@ class PlotsFitExperimentSequential(object):
                     'mixt_target_tr'][nitems_i, :nitems],
                 data_em_fits[errorbars][
                     'mixt_target_tr'][nitems_i, :nitems],
-                label='Data: %d items' % nitems,
+                label='%d items' % nitems,
                 xlabel='Serial order (reversed)',
                 fmt="o-",
                 zorder=7 - nitems,
-                ax=axes[0, 1])
+                ax=axes_data[0, 1])
             _plot_emmixture_mean_error(
                 T_space[:nitems],
                 data_em_fits['mean'][
                     'mixt_nontargets_tr'][nitems_i, :nitems],
                 data_em_fits[errorbars][
                     'mixt_nontargets_tr'][nitems_i, :nitems],
-                label='Data: %d items' % nitems,
+                label='%d items' % nitems,
                 xlabel='Serial order (reversed)',
                 fmt="o-",
                 zorder=7 - nitems,
-                ax=axes[1, 0])
+                ax=axes_data[1, 0])
             _plot_emmixture_mean_error(
                 T_space[:nitems],
                 data_em_fits['mean'][
                     'mixt_random_tr'][nitems_i, :nitems],
                 data_em_fits[errorbars][
                     'mixt_random_tr'][nitems_i, :nitems],
-                label='Data: %d items' % nitems,
+                label='%d items' % nitems,
                 xlabel='Serial order (reversed)',
                 fmt="o-",
                 zorder=7 - nitems,
-                ax=axes[1, 1])
+                ax=axes_data[1, 1])
 
         # Model
         for nitems_i, nitems in enumerate(T_space):
@@ -363,11 +366,12 @@ class PlotsFitExperimentSequential(object):
                     'kappa'][nitems_i, :nitems],
                 model_em_fits[errorbars][
                     'kappa'][nitems_i, :nitems],
-                label='Model: %d items' % nitems,
+                label='%d items' % nitems,
                 xlabel='Serial order (reversed)',
-                fmt="s--",
+                fmt="o-",
                 zorder=7 - nitems,
-                ax=axes[0, 0])
+                ax=axes_model[0, 0])
+            axes_model[0, 0].set_ylim((0, 11))
 
             # Mixture proportions
             _plot_emmixture_mean_error(
@@ -376,36 +380,38 @@ class PlotsFitExperimentSequential(object):
                     'mixt_target_tr'][nitems_i, :nitems],
                 model_em_fits[errorbars][
                     'mixt_target_tr'][nitems_i, :nitems],
-                label='Model: %d items' % nitems,
+                label='%d items' % nitems,
                 xlabel='Serial order (reversed)',
-                fmt="s--",
+                fmt="o-",
                 zorder=7 - nitems,
-                ax=axes[0, 1])
+                ax=axes_model[0, 1])
             _plot_emmixture_mean_error(
                 T_space[:nitems],
                 model_em_fits['mean'][
                     'mixt_nontargets_tr'][nitems_i, :nitems],
                 model_em_fits[errorbars][
                     'mixt_nontargets_tr'][nitems_i, :nitems],
-                label='Model: %d items' % nitems,
+                label='%d items' % nitems,
                 xlabel='Serial order (reversed)',
-                fmt="s--",
+                fmt="o-",
                 zorder=7 - nitems,
-                ax=axes[1, 0])
+                ax=axes_model[1, 0])
             _plot_emmixture_mean_error(
                 T_space[:nitems],
                 model_em_fits['mean'][
                     'mixt_random_tr'][nitems_i, :nitems],
                 model_em_fits[errorbars][
                     'mixt_random_tr'][nitems_i, :nitems],
-                label='Model: %d items' % nitems,
+                label='%d items' % nitems,
                 xlabel='Serial order (reversed)',
-                fmt="s--",
+                fmt="o-",
                 zorder=7 - nitems,
-                ax=axes[1, 1])
+                ax=axes_model[1, 1])
 
-        axes[0, 1].legend(loc='upper left', bbox_to_anchor=(1., 1.))
+        axes_data[0, 1].legend(loc='upper left', bbox_to_anchor=(1., 1.))
+        axes_model[0, 1].legend(loc='upper left', bbox_to_anchor=(1., 1.))
 
-        f.canvas.draw()
+        axes_data[0, 0].figure.canvas.draw()
+        axes_model[0, 0].figure.canvas.draw()
 
-        return axes
+        return axes_data, axes_model

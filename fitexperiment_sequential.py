@@ -356,7 +356,9 @@ class FitExperimentSequentialAll(object):
             model_fits['mean'][key]
             for key in ['kappa', 'mixt_target_tr', 'mixt_nontargets_tr',
                         'mixt_random_tr']])
-
+        # Let's cheat, and renormalize Kappa by the kappa at T=0.
+        model_target[0] /= data_target[0, 0, 0]
+        data_target[0] /= data_target[0, 0, 0]
         distances['all_mse'] = (data_target - model_target)**2.
         distances['mixt_kl'] = utils.KL_div(
             data_target[1:], model_target[1:], axis=0)

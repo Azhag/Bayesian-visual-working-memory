@@ -23,7 +23,7 @@ import utils
 
 
 def plot_kappa_mean_error(T_space, mean, yerror, ax=None, dataio=None, title='',
-                          **args):
+                          fmt='o-', legend=True, **args):
     '''
         !!! IMPORTANT !!!
 
@@ -42,10 +42,10 @@ def plot_kappa_mean_error(T_space, mean, yerror, ax=None, dataio=None, title='',
         ax_handle=ax,
         linewidth=3,
         markersize=8,
-        fmt='o-',
+        fmt=fmt,
         **args)
-
-    ax.legend(prop={'size': 15}, loc='best')
+    if legend:
+        ax.legend(prop={'size': 15}, loc='best')
     if title:
         ax.set_title('Kappa: %s' % title)
     ax.set_xlim([0.9, T_space.max()+0.1])
@@ -61,7 +61,7 @@ def plot_kappa_mean_error(T_space, mean, yerror, ax=None, dataio=None, title='',
 
 
 def plot_emmixture_mean_error(T_space, mean, yerror, ax=None, dataio=None,
-                              title='', **args):
+                              title='', fmt='o-', legend=True, **args):
     '''
         !!! IMPORTANT !!!
 
@@ -72,9 +72,12 @@ def plot_emmixture_mean_error(T_space, mean, yerror, ax=None, dataio=None,
     if ax is None:
         f, ax = plt.subplots()
 
-    utils.plot_mean_std_area(T_space, mean, np.ma.masked_invalid(yerror).filled(0.0), ax_handle=ax, linewidth=3, fmt='o-', markersize=8, **args)
+    utils.plot_mean_std_area(
+        T_space, mean, np.ma.masked_invalid(yerror).filled(0.0),
+        ax_handle=ax, linewidth=3, fmt=fmt, markersize=8, **args)
 
-    ax.legend(prop={'size': 15}, loc='best')
+    if legend:
+        ax.legend(prop={'size': 15}, loc='best')
     if title:
         ax.set_title('Mixture prop: %s' % title)
     ax.set_xlim([0.9, T_space.max() + 0.1])
@@ -1091,7 +1094,7 @@ def plot_sequential_collapsed_doublepowerlaw(dataset,
                 'kappa'][:, 0],
             dataset['collapsed_em_fits_doublepowerlaw'][errorbars][
                 'kappa'][:, 0],
-            xlabel='items', ylabel='Kappa', ax=axes1[0])
+            label='Data', xlabel='items', ylabel='Kappa', ax=axes1[0])
         plot_emmixture_mean_error(
             T_space_exp,
             dataset['collapsed_em_fits_doublepowerlaw']['mean'][
@@ -1114,7 +1117,7 @@ def plot_sequential_collapsed_doublepowerlaw(dataset,
                 'mixt_random_tr'][:, 0],
             label='Random',
             xlabel='items', ylabel='Mixture proportions', ax=axes1[1])
-
+        axes1[1].legend(loc='upper left', bbox_to_anchor=(1., 1.))
         f1.suptitle('Fig 6: Last trecall')
 
         if dataio is not None:
@@ -1135,6 +1138,7 @@ def plot_sequential_collapsed_doublepowerlaw(dataset,
                 ax=axes2[0, 0],
                 label='%d items' % nitems,
                 xlabel='Serial order (reversed)',
+                legend=False,
                 zorder=7 - nitems)
 
             plot_emmixture_mean_error(
@@ -1158,6 +1162,7 @@ def plot_sequential_collapsed_doublepowerlaw(dataset,
                 ax=axes2[1, 0],
                 label='%d items' % nitems,
                 xlabel='Serial order (reversed)',
+                legend=False,
                 zorder=7 - nitems)
             plot_emmixture_mean_error(
                 T_space_exp[:nitems],
@@ -1169,7 +1174,10 @@ def plot_sequential_collapsed_doublepowerlaw(dataset,
                 ax=axes2[1, 1],
                 label='%d items' % nitems,
                 xlabel='Serial order (reversed)',
+                legend=False,
                 zorder=7 - nitems)
+
+        axes2[0, 1].legend(loc='upper left', bbox_to_anchor=(1., 1.))
 
         f2.suptitle('Fig7: Collapsed Powerlaw fits')
 
@@ -1274,6 +1282,8 @@ def plot_sequential_collapsed_doublepowerlaw(dataset,
                     ax=axes[1, 1],
                     label='%d items' % nitems,
                     xlabel='T_recall')
+
+    return axes1, axes2
 
 
 # def plot_sequential_collapsed_singlepowerlaw(dataset, dataio=None, use_sem=True):

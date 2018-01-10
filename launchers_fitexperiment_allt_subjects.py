@@ -10,12 +10,10 @@ Copyright (c) 2016 . All rights reserved.
 
 import numpy as np
 
-
 import utils
 from dataio import *
 from fitexperiment_allt_subjects import *
 import progress
-
 
 
 def launcher_do_fitexperiment_subject_allmetrics(args):
@@ -30,7 +28,6 @@ def launcher_do_fitexperiment_subject_allmetrics(args):
 
     print "Doing a piece of work for launcher_do_fitexperiment_subject_allmetrics"
 
-
     all_parameters = utils.argparse_2_dict(args)
     print all_parameters
 
@@ -39,8 +36,9 @@ def launcher_do_fitexperiment_subject_allmetrics(args):
 
     # Create DataIO
     #  (complete label with current variable state)
-    dataio = DataIO(output_folder=all_parameters['output_directory'],
-                    label=all_parameters['label'].format(**all_parameters))
+    dataio = DataIO(
+        output_folder=all_parameters['output_directory'],
+        label=all_parameters['label'].format(**all_parameters))
     save_every = 1
     run_counter = 0
 
@@ -52,10 +50,8 @@ def launcher_do_fitexperiment_subject_allmetrics(args):
     search_progress = progress.Progress(all_parameters['num_repetitions'])
     for repet_i in xrange(all_parameters['num_repetitions']):
         print "\n\n%d/%d | %.2f%%, %s left - %s" % (
-            repet_i+1,
-            all_parameters['num_repetitions'],
-            search_progress.percentage(),
-            search_progress.time_remaining_str(),
+            repet_i + 1, all_parameters['num_repetitions'],
+            search_progress.percentage(), search_progress.time_remaining_str(),
             search_progress.eta_str())
 
         ### WORK WORK WORK work? ###
@@ -74,20 +70,27 @@ def launcher_do_fitexperiment_subject_allmetrics(args):
             results['result_ll_sum'] = np.nansum(results['result_ll_n'])
             print results['result_ll_sum']
 
+            print ">> Computing LL median..."
+            results['result_ll_median'] = np.nanmedian(results['result_ll_n'])
+            print results['result_ll_median']
+
             print ">> Computing BIC..."
             results['result_bic'] = self.sampler.compute_bic(
-                K=parameters['bic_K'],
-                LL=results['result_ll_sum']
-            )
+                K=parameters['bic_K'], LL=results['result_ll_sum'])
 
             print ">> Computing LL90/95/97..."
-            results['result_ll90_sum'] = self.sampler.compute_loglikelihood_top90percent(all_loglikelihoods=results['result_ll_n'])
-            results['result_ll92_sum'] = self.sampler.compute_loglikelihood_top_p_percent(0.92,
-                                                    all_loglikelihoods=results['result_ll_n'])
-            results['result_ll95_sum'] = self.sampler.compute_loglikelihood_top_p_percent(0.95,
-                                                    all_loglikelihoods=results['result_ll_n'])
-            results['result_ll97_sum'] = self.sampler.compute_loglikelihood_top_p_percent(0.97,
-                                                    all_loglikelihoods=results['result_ll_n'])
+            results['result_ll90_sum'] = (
+                self.sampler.compute_loglikelihood_top90percent(
+                    all_loglikelihoods=results['result_ll_n']))
+            results['result_ll92_sum'] = (
+                self.sampler.compute_loglikelihood_top_p_percent(
+                    0.92, all_loglikelihoods=results['result_ll_n']))
+            results['result_ll95_sum'] = (
+                self.sampler.compute_loglikelihood_top_p_percent(
+                    0.95, all_loglikelihoods=results['result_ll_n']))
+            results['result_ll97_sum'] = (
+                self.sampler.compute_loglikelihood_top_p_percent(
+                    0.97, all_loglikelihoods=results['result_ll_n']))
 
             # If sampling_method is not none, try to get em_fits and others
             if not parameters['inference_method'] == 'none':
@@ -104,26 +107,41 @@ def launcher_do_fitexperiment_subject_allmetrics(args):
 
                 # Fit mixture model
                 print " fit mixture model..."
-                curr_params_fit = self.sampler.fit_mixture_model(use_all_targets=False)
-                results['result_em_fits'] = np.array([curr_params_fit[key] for key in ['kappa', 'mixt_target', 'mixt_nontargets_sum', 'mixt_random', 'train_LL', 'bic']])
+                curr_params_fit = self.sampler.fit_mixture_model(
+                    use_all_targets=False)
+                results['result_em_fits'] = np.array([
+                    curr_params_fit[key]
+                    for key in [
+                        'kappa', 'mixt_target', 'mixt_nontargets_sum',
+                        'mixt_random', 'train_LL', 'bic'
+                    ]
+                ])
 
                 # Compute distances to data mixture model
-                emfits_distances = self.compute_dist_experimental_em_fits_currentT(results['result_em_fits'])
+                emfits_distances = (
+                    self.compute_dist_experimental_em_fits_currentT(
+                        results['result_em_fits']))
                 results['result_emfit_mse'] = emfits_distances['all_mse']
                 results['result_emfit_mixt_kl'] = emfits_distances['mixt_kl']
 
                 # Compute fisher info
                 print " compute fisher info"
-                results['result_fi_theo'] = self.sampler.estimate_fisher_info_theocov(use_theoretical_cov=False)
-                results['result_fi_theocov'] = self.sampler.estimate_fisher_info_theocov(use_theoretical_cov=True)
+                results['result_fi_theo'] = (
+                    self.sampler.estimate_fisher_info_theocov(
+                        use_theoretical_cov=False))
+                results['result_fi_theocov'] = (
+                    self.sampler.estimate_fisher_info_theocov(
+                        use_theoretical_cov=True))
 
             return results
 
-        res_listdicts = fit_exp.apply_fct_datasets_allT(dict(fct=compute_everything, parameters=all_parameters))
+        res_listdicts = fit_exp.apply_fct_datasets_allT(
+            dict(fct=compute_everything, parameters=all_parameters))
 
         # Put everything back together (yeah advanced python muck)
         for key in res_listdicts[0]:
-            all_outputs_data.setdefault(key, []).append(np.array([res[key] for res in res_listdicts]))
+            all_outputs_data.setdefault(key, []).append(
+                np.array([res[key] for res in res_listdicts]))
 
         # print "CURRENT RESULTS:"
         # print res_listdicts
@@ -143,7 +161,8 @@ def launcher_do_fitexperiment_subject_allmetrics(args):
     # Put the repetition axis at the last dimension, it's kinda my convention...
     for key in res_listdicts[0]:
         all_outputs_data[key] = np.array(all_outputs_data[key])
-        all_outputs_data[key] = all_outputs_data[key].transpose(np.roll(np.arange(all_outputs_data[key].ndim), -1))
+        all_outputs_data[key] = all_outputs_data[key].transpose(
+            np.roll(np.arange(all_outputs_data[key].ndim), -1))
 
     ### /Work ###
 
@@ -156,5 +175,3 @@ def launcher_do_fitexperiment_subject_allmetrics(args):
 
     print "All finished"
     return locals()
-
-
