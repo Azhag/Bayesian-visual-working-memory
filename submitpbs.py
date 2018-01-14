@@ -981,7 +981,7 @@ class SubmitPBS():
         self.jobs_tracking_dict[job.job_name]['number_submissions'] += 1
 
 
-    def wait_all_jobs_collect_results(self, result_callback_function_infos=None, sleeping_period=dict(min=60, max=180), completion_progress=None, pbs_submission_infos=None, max_number_submissions=3):
+    def wait_all_jobs_collect_results(self, result_callback_function_infos=None, sleeping_period=dict(min=60, max=180), completion_progress=None, pbs_submission_infos=None, max_number_submissions=1):
         '''
             Wait for all Jobs to be completed, and collect the results when they are
             Optionally accepts a callback method on finding a result.

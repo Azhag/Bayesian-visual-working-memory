@@ -30,7 +30,9 @@ partition = 'intel-ivy'
 num_repetitions = 3
 experiment_id = 'gorgo11'
 
-run_label = 'cmaes_hier_gorgo11_4try_emfitscaled_Mratiosigmaxsigmabaselinelapserate_repetitions{num_repetitions}_100118'
+# This was a mistake, with only layer 2 outputted
+# run_label = 'cmaes_hier_gorgo11_4try_emfitscaled_Mratiosigmaxsigmabaselinelapserate_repetitions{num_repetitions}_100118'
+run_label = 'cmaes_hier_gorgo11_4try_emfitscaled_Mratiosigmaxsigmabaselinelapserate_repetitions{num_repetitions}_110118'
 simul_out_dir = os.path.join(os.getcwd(), run_label.format(**locals()))
 
 parameter_generation = 'cma-es'
@@ -63,6 +65,7 @@ pbs_submission_infos = dict(
         output_directory='.',
         experiment_id=experiment_id,
         type_layer_one='feature',
+        output_both_layers=None,
         normalise_weights=1,
         ratio_hierarchical=0.5,
         threshold=1.0,

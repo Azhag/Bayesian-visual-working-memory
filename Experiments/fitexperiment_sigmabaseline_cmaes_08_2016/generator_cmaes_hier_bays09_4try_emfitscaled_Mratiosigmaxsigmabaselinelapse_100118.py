@@ -24,14 +24,16 @@ submit_cmd = 'sbatch'
 
 resource = ''
 
-# partition = 'wrkstn'
+partition = 'wrkstn'
 # partition = 'test'
-partition = 'intel-ivy'
+# partition = 'intel-ivy'
 
 num_repetitions = 3
 experiment_id = 'bays09'
 
-run_label = 'cmaes_hier_bays09_4try_emfitscaled_Mratiosigmaxsigmabaselinelapserate_repetitions{num_repetitions}_100118'
+# This was a mistake, with only layer 2 outputted
+# run_label = 'cmaes_hier_bays09_4try_emfitscaled_Mratiosigmaxsigmabaselinelapserate_repetitions{num_repetitions}_100118'
+run_label = 'cmaes_hier_bays09_4try_emfitscaled_Mratiosigmaxsigmabaselinelapserate_repetitions{num_repetitions}_110118'
 simul_out_dir = os.path.join(os.getcwd(), run_label.format(**locals()))
 
 parameter_generation = 'cma-es'
@@ -65,6 +67,7 @@ pbs_submission_infos = dict(
         experiment_id=experiment_id,
         type_layer_one='feature',
         normalise_weights=1,
+        output_both_layers=None,
         ratio_hierarchical=0.5,
         threshold=1.0,
         bic_K=5,

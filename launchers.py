@@ -9,6 +9,7 @@ Copyright (c) 2012 . All rights reserved.
 """
 
 from datagenerator import *
+from datageneratorrfn import *
 from hierarchicalrandomnetwork import *
 from randomfactorialnetwork import *
 from statisticsmeasurer import *

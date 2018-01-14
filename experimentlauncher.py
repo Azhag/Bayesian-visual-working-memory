@@ -131,7 +131,7 @@ class ExperimentLauncher(object):
             help='How the new sample is chosen from a set of samples. Median is closer to the ML value but could have weird effects.')
         parser.add_argument('--slice_width', type=float, default=np.pi/40.,
             help='Size of bin width for Slice Sampler. Smaller usually better but slower.')
-        parser.add_argument('--stimuli_generation', choices=['constant', 'random', 'random_smallrange', 'constant_separated', 'separated', 'specific_stimuli'],
+        parser.add_argument('--stimuli_generation', choices=['constant', 'random', 'random_smallrange', 'constant_separated', 'separated', 'specific_stimuli', 'random_fixed_first'],
             default='random',
             help='How to generate the dataset.')
         parser.add_argument('--stimuli_generation_recall', choices=['constant', 'random', 'random_smallrange', 'constant_separated', 'separated'], default='random',

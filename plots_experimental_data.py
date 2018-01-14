@@ -942,14 +942,17 @@ def plot_sequential_histograms_errors(dataset, dataio=None):
     '''
 
     angle_space = np.linspace(-np.pi, np.pi, 51)
-    f1, f2, f3_all = None, None, None
 
     #### Histograms of errors / errors to nontargets, collapsing across subjects
     if True:
-        f1, axes1 = plt.subplots(
+        f1, axes_target = plt.subplots(
             ncols=dataset['n_items_size'],
-            nrows=2*dataset['n_items_size'],
-            figsize=(15, 30))
+            nrows=dataset['n_items_size'],
+            figsize=(5, 5))
+        f2, axes_nontarget = plt.subplots(
+            ncols=dataset['n_items_size'],
+            nrows=dataset['n_items_size'],
+            figsize=(5, 5))
 
         for n_items_i, n_items in enumerate(np.unique(dataset['n_items'])):
             for trecall_i, trecall in enumerate(np.unique(dataset['n_items'])):
@@ -959,14 +962,13 @@ def plot_sequential_histograms_errors(dataset, dataio=None):
                         bins=angle_space,
                         # title='N=%d, trecall=%d' % (n_items, trecall),
                         norm='density',
-                        ax_handle=axes1[2*n_items_i, trecall_i],
+                        ax_handle=axes_target[n_items_i, trecall_i],
                         pretty_xticks=False)
-                    axes1[2*n_items_i, trecall_i].set_ylim([0., 1.4])
-                    axes1[2*n_items_i, trecall_i].xaxis.set_major_locator(
+                    axes_target[n_items_i, trecall_i].set_ylim([0., 1.4])
+                    axes_target[n_items_i, trecall_i].xaxis.set_major_locator(
                         plt.NullLocator())
-                    axes1[2*n_items_i, trecall_i].yaxis.set_major_locator(
+                    axes_target[n_items_i, trecall_i].yaxis.set_major_locator(
                         plt.NullLocator())
-
 
                     if n_items > 1:
                         utils.hist_angular_data(
@@ -974,24 +976,34 @@ def plot_sequential_histograms_errors(dataset, dataio=None):
                             bins=angle_space,
                             # title='Nontarget %s N=%d' % (dataset['name'], n_items),
                             norm='density',
-                            ax_handle=axes1[2*n_items_i + 1, trecall_i],
+                            ax_handle=axes_nontarget[n_items_i, trecall_i],
                             pretty_xticks=False)
 
-                        axes1[2*n_items_i + 1, trecall_i].set_ylim([0., 0.3])
-                    # else:
-                        # axes1[2*n_items_i + 1, trecall_i].axis('off')
+                        axes_nontarget[n_items_i, trecall_i].set_ylim([0., 0.3])
+                        axes_nontarget[
+                            n_items_i, trecall_i].xaxis.set_major_locator(
+                                plt.NullLocator())
+                        axes_nontarget[
+                            n_items_i, trecall_i].yaxis.set_major_locator(
+                                plt.NullLocator())
+                    else:
+                        axes_nontarget[n_items_i, trecall_i].axis('off')
 
-                    axes1[2*n_items_i + 1, trecall_i].xaxis.set_major_locator(plt.NullLocator())
-                    axes1[2*n_items_i + 1, trecall_i].yaxis.set_major_locator(plt.NullLocator())
+                    # axes1[2*n_items_i + 1, trecall_i].xaxis.set_major_locator(plt.NullLocator())
+                    # axes1[2*n_items_i + 1, trecall_i].yaxis.set_major_locator(plt.NullLocator())
 
 
                 else:
-                    axes1[2*n_items_i, trecall_i].axis('off')
-                    axes1[2*n_items_i + 1, trecall_i].axis('off')
+                    axes_target[n_items_i, trecall_i].axis('off')
+                    axes_nontarget[n_items_i, trecall_i].axis('off')
 
         # f1.suptitle(dataset['name'])
+        f1.subplots_adjust(
+            left=0, bottom=0, right=1, top=1, wspace=0.05, hspace=0.05)
+        f2.subplots_adjust(
+            left=0, bottom=0, right=1, top=1, wspace=0.05, hspace=0.05)
         f1.canvas.draw()
-        plt.tight_layout()
+        f2.canvas.draw()
 
         if dataio is not None:
             plt.figure(f1.number)
@@ -1015,7 +1027,7 @@ def plot_sequential_histograms_errors(dataset, dataio=None):
                 bins=61)
             f3_all.append(f3)
 
-    return f1, f2, f3_all
+    return axes_target, axes_nontarget
 
 
 

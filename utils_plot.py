@@ -567,7 +567,7 @@ def pcolor_2d_data(data, x=None, y=None, xlabel='', ylabel='', title='', colorba
 
 
 
-def contourf_interpolate_data(all_points, data, xlabel='', ylabel='', title='', interpolation_numpoints=200, interpolation_method='linear', mask_when_nearest=True, contour_numlevels=20, show_scatter=True, show_colorbar=True, fignum=None, ax_handle=None, mask_x_condition=None, mask_y_condition=None, log_scale=False):
+def contourf_interpolate_data(all_points, data, xlabel='', ylabel='', title='', interpolation_numpoints=200, interpolation_method='linear', mask_when_nearest=True, contour_numlevels=20, show_scatter=True, show_colorbar=True, fignum=None, ax_handle=None, mask_x_condition=None, mask_y_condition=None, log_scale=False, cmap=None, levels=None):
     '''
         Take (x,y) and z tuples, construct an interpolation with them and plot them nicely.
 
@@ -610,9 +610,14 @@ def contourf_interpolate_data(all_points, data, xlabel='', ylabel='', title='', 
         ax_handle = f.add_subplot(111)
 
     if log_scale:
-        cs = ax_handle.contourf(param1_space_int, param2_space_int, data_interpol, contour_numlevels, locator=plttic.LogLocator())   # cmap=plt.cm.jet
+        cs = ax_handle.contourf(
+            param1_space_int, param2_space_int, data_interpol,
+            contour_numlevels, locator=plttic.LogLocator(), cmap=cmap,
+            levels=levels)   # cmap=plt.cm.jet
     else:
-        cs = ax_handle.contourf(param1_space_int, param2_space_int, data_interpol, contour_numlevels)   # cmap=plt.cm.jet
+        cs = ax_handle.contourf(
+            param1_space_int, param2_space_int, data_interpol,
+            contour_numlevels, cmap=cmap, levels=levels)   # cmap=plt.cm.jet
     ax_handle.set_xlabel(xlabel)
     ax_handle.set_ylabel(ylabel)
     ax_handle.set_title(title)
@@ -1129,7 +1134,7 @@ def scatter_marginals(xdata, ydata, xlabel='', ylabel='', title='', scatter_mark
 
     ax.set_xlabel(xlabel)
 
-    return f
+    return ax
 
 
 def plot_vonmises_pdf(x, kappa, mu=0.0, scale=1.0, ax_handle=None, fignum=None, linewidth=1, fmt='-', markersize=1, color=None, xlabel=None, ylabel=None, label=''):

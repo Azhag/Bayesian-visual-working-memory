@@ -1332,10 +1332,13 @@ class Sampler:
 
             Return marginal inverse Fisher Information (units of variance, not like other functions)
         '''
-
+        # FI_estimates = self.random_network.compute_marginal_inverse_FI(
+        #     self.inv_covariance_fixed_contrib,
+        #     nitems=self.T,
+        #     min_distance=self.data_gen.enforce_min_distance)
         FI_estimates = self.random_network.compute_marginal_inverse_FI(
-            self.T,
             self.inv_covariance_fixed_contrib,
+            items_thetas=self.data_gen.stimuli_correct,
             min_distance=self.data_gen.enforce_min_distance)
 
         return FI_estimates

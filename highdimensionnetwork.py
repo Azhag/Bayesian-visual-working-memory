@@ -314,14 +314,15 @@ class HighDimensionNetwork(object):
         return output
 
 
-    def get_derivative_network_response(self, derivative_feature_target=0, stimulus_input=None):
+    def get_derivative_network_response(self,
+                                        derivative_feature_target=0,
+                                        stimulus_input=None):
         '''
             Compute and return the derivative of the network response.
         '''
 
         if stimulus_input is None:
             stimulus_input = self.default_stimulus_input
-
 
         dmu_specific_feature = stimulus_input[derivative_feature_target] - self.neurons_preferred_stimulus[:, derivative_feature_target]
 
@@ -514,7 +515,10 @@ class HighDimensionNetwork(object):
         '''
 
         if items_thetas is None:
-            all_items = [np.array([0.0, 0.0])]
+            # target_item = utils.sample_angle(2)
+            # target_item[0] = 0
+            target_item = np.zeros(2)
+            all_items = [target_item]
             # Add extra items
             for item_i in xrange(nitems - 1):
                 new_item = utils.sample_angle(size=2)
@@ -532,8 +536,10 @@ class HighDimensionNetwork(object):
         # Compute all derivatives
         deriv_mu = np.zeros((2*nitems, self.M))
         for i in xrange(nitems):
-            deriv_mu[2*i] = self.get_derivative_network_response(derivative_feature_target=0, stimulus_input=items_thetas[i])
-            deriv_mu[2*i + 1] = self.get_derivative_network_response(derivative_feature_target=1, stimulus_input=items_thetas[i])
+            deriv_mu[2*i] = self.get_derivative_network_response(
+                derivative_feature_target=0, stimulus_input=items_thetas[i])
+            deriv_mu[2*i + 1] = self.get_derivative_network_response(
+                derivative_feature_target=1, stimulus_input=items_thetas[i])
         deriv_mu[np.isnan(deriv_mu)] = 0.0
 
         # Compute the Fisher information matrix
@@ -548,14 +554,15 @@ class HighDimensionNetwork(object):
 
 
     def compute_marginal_inverse_FI(self,
-                                    nitems,
                                     inv_cov_stim,
+                                    nitems=1,
                                     max_n_samples=int(1e5),
+                                    items_thetas=None,
                                     min_distance=0.1,
                                     convergence_epsilon=1e-7,
                                     debug=True):
         '''
-            Compute a Monte Carlo estimate of the Marginal Inverse Fisher Information
+            Compute a Monte Carlo estimate of the Marginal Inverse Fisher Information (with first item at (0, 0))
             Averages over stimuli values. Requires the inverse of the covariance of the memory.
 
             Returns dict(inv_FI, inv_FI_std, FI, FI_std)
@@ -577,12 +584,19 @@ class HighDimensionNetwork(object):
         new_estimates = np.zeros(4)
         previous_estimates = np.zeros(4)
 
+        if items_thetas is not None:
+            max_n_samples = items_thetas.shape[0]
+            items = items_thetas.shape[1]
+
         for i in xrange(max_n_samples):
             # Get sample of invFI and FI
-            inv_FI_sample, FI_sample = self.compute_sample_inverse_FI(
-                inv_cov_stim, nitems=nitems, min_distance=min_distance
-            )
-
+            if items_thetas is not None:
+                inv_FI_sample, FI_sample = self.compute_sample_inverse_FI(
+                    inv_cov_stim, items_thetas=items_thetas[i],
+                    min_distance=min_distance)
+            else:
+                inv_FI_sample, FI_sample = self.compute_sample_inverse_FI(
+                    inv_cov_stim, nitems=nitems, min_distance=min_distance)
             # Compute mean
             inv_FI_cum += inv_FI_sample/float(max_n_samples)
             FI_cum += FI_sample/float(max_n_samples)

@@ -1272,7 +1272,8 @@ class Sampler:
             sigma = np.mean(np.diag(computed_cov))**0.5
 
         # Compute the theoretical FI
-        return self.random_network.compute_fisher_information_theoretical(sigma=sigma)
+        return self.random_network.compute_fisher_information_theoretical(
+            sigma=sigma)
 
 
     def estimate_marginal_inverse_fisher_info_montecarlo(self):
