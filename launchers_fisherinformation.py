@@ -28,34 +28,49 @@ def launcher_check_fisher_fit_1obj_2016(args):
         print "WARNING> you do not have enough samples I think!", all_parameters['burn_samples'] + all_parameters['num_samples']
 
     if 'plots_during_simulation_callback' in all_parameters:
-        plots_during_simulation_callback = all_parameters['plots_during_simulation_callback']
+        plots_during_simulation_callback = all_parameters[
+            'plots_during_simulation_callback']
         del all_parameters['plots_during_simulation_callback']
     else:
         plots_during_simulation_callback = None
 
     # Create DataIO
     #  (complete label with current variable state)
-    dataio = DataIO.DataIO(output_folder=all_parameters['output_directory'], label=all_parameters['label'].format(**all_parameters))
+    dataio = DataIO.DataIO(
+        output_folder=all_parameters['output_directory'],
+        label=all_parameters['label'].format(**all_parameters))
     save_every = 1
     run_counter = 0
 
     # Result arrays
-    result_all_precisions = np.nan*np.empty((all_parameters['num_repetitions']), dtype=float)
-    result_FI_rc_curv = np.nan*np.empty((all_parameters['N'], all_parameters['num_repetitions']), dtype=float)
-    result_FI_rc_theo = np.nan*np.empty((all_parameters['N'], all_parameters['num_repetitions']), dtype=float)
-    result_FI_rc_theocov = np.nan*np.empty((all_parameters['N'], all_parameters['num_repetitions']), dtype=float)
-    result_FI_rc_theo_largeN = np.nan*np.empty((all_parameters['num_repetitions']), dtype=float)
-    result_marginal_inv_FI = np.nan*np.ones((2, all_parameters['num_repetitions']))
-    result_marginal_FI = np.nan*np.ones((2, all_parameters['num_repetitions']))
+    result_all_precisions = np.nan * np.empty(
+        (all_parameters['num_repetitions']), dtype=float)
+    result_FI_rc_curv = np.nan * np.empty(
+        (all_parameters['N'], all_parameters['num_repetitions']), dtype=float)
+    result_FI_rc_theo = np.nan * np.empty(
+        (all_parameters['N'], all_parameters['num_repetitions']), dtype=float)
+    result_FI_rc_theocov = np.nan * np.empty(
+        (all_parameters['N'], all_parameters['num_repetitions']), dtype=float)
+    result_FI_rc_theo_circulant = np.nan * np.empty(
+        (all_parameters['N'], all_parameters['num_repetitions']), dtype=float)
+    result_FI_rc_theo_largeN = np.nan * np.empty(
+        (all_parameters['num_repetitions']), dtype=float)
+    result_marginal_inv_FI = np.nan * np.ones(
+        (2, all_parameters['num_repetitions']))
+    result_marginal_FI = np.nan * np.ones((2,
+                                           all_parameters['num_repetitions']))
 
-    result_em_fits = np.nan*np.empty((6, all_parameters['num_repetitions']))
+    result_em_fits = np.nan * np.empty((6, all_parameters['num_repetitions']))
 
     search_progress = progress.Progress(all_parameters['num_repetitions'])
 
     for repet_i in xrange(all_parameters['num_repetitions']):
-        print "%.2f%%, %s left - %s" % (search_progress.percentage(), search_progress.time_remaining_str(), search_progress.eta_str())
+        print "%.2f%%, %s left - %s" % (search_progress.percentage(),
+                                        search_progress.time_remaining_str(),
+                                        search_progress.eta_str())
 
-        print "Fisher Info check, rep %d/%d" % (repet_i+1, all_parameters['num_repetitions'])
+        print "Fisher Info check, rep %d/%d" % (
+            repet_i + 1, all_parameters['num_repetitions'])
 
         ### WORK WORK WORK work? ###
 
@@ -71,38 +86,54 @@ def launcher_check_fisher_fit_1obj_2016(args):
 
         # Theoretical Fisher info
         print "theoretical FI"
-        result_FI_rc_theo[:, repet_i] = sampler.estimate_fisher_info_theocov(use_theoretical_cov=False)
-        result_FI_rc_theocov[:, repet_i] = sampler.estimate_fisher_info_theocov(use_theoretical_cov=True)
-        result_FI_rc_theo_largeN[repet_i] = sampler.estimate_fisher_info_theocov_largen(use_theoretical_cov=True)
-
+        result_FI_rc_theo[:, repet_i] = (
+            sampler.estimate_fisher_info_theocov(use_theoretical_cov=False))
+        result_FI_rc_theocov[:, repet_i] = (
+            sampler.estimate_fisher_info_theocov(use_theoretical_cov=True))
+        result_FI_rc_theo_largeN[repet_i] = (
+            sampler.estimate_fisher_info_theocov_largen(
+                use_theoretical_cov=True))
+        result_FI_rc_theo_circulant[:, repet_i] = (
+            sampler.estimate_fisher_info_circulant())
         # Fisher Info from curvature
         print "Compute fisher from curvature"
-        fi_curv_dict = sampler.estimate_fisher_info_from_posterior_avg(num_points=500, full_stats=True)
+        fi_curv_dict = sampler.estimate_fisher_info_from_posterior_avg(
+            num_points=500, full_stats=True)
         result_FI_rc_curv[:, repet_i] = fi_curv_dict['all']
 
         # Fit mixture model
         print "fit mixture model..."
         curr_params_fit = sampler.fit_mixture_model(use_all_targets=False)
-        curr_params_fit['mixt_nontargets_sum'] = np.sum(curr_params_fit['mixt_nontargets'])
-        result_em_fits[..., repet_i] = [curr_params_fit[key] for key in ('kappa', 'mixt_target', 'mixt_nontargets_sum', 'mixt_random', 'train_LL', 'bic')]
+        curr_params_fit['mixt_nontargets_sum'] = np.sum(
+            curr_params_fit['mixt_nontargets'])
+        result_em_fits[..., repet_i] = [
+            curr_params_fit[key]
+            for key in ('kappa', 'mixt_target', 'mixt_nontargets_sum',
+                        'mixt_random', 'train_LL', 'bic')
+        ]
 
         # Compute marginal inverse fisher info
         print "compute marginal inverse fisher info"
-        marginal_fi_dict = sampler.estimate_marginal_inverse_fisher_info_montecarlo()
-        result_marginal_inv_FI[:, repet_i] = [marginal_fi_dict[key]
-            for key in ('inv_FI', 'inv_FI_std')]
-        result_marginal_FI[:, repet_i] = [marginal_fi_dict[key]
-            for key in ('FI', 'FI_std')]
+        marginal_fi_dict = sampler.estimate_marginal_inverse_fisher_info_montecarlo(
+        )
+        result_marginal_inv_FI[:, repet_i] = [
+            marginal_fi_dict[key] for key in ('inv_FI', 'inv_FI_std')
+        ]
+        result_marginal_FI[:, repet_i] = [
+            marginal_fi_dict[key] for key in ('FI', 'FI_std')
+        ]
 
         ## Run callback function if exists
         if plots_during_simulation_callback:
             print "Doing plots..."
             try:
                 # Best super safe, if this fails then the simulation must continue!
-                plots_during_simulation_callback['function'](locals(), plots_during_simulation_callback['parameters'])
+                plots_during_simulation_callback['function'](
+                    locals(), plots_during_simulation_callback['parameters'])
                 print "plots done."
             except Exception:
-                print "error during plotting callback function", plots_during_simulation_callback['function'], plots_during_simulation_callback['parameters']
+                print "error during plotting callback function", plots_during_simulation_callback[
+                    'function'], plots_during_simulation_callback['parameters']
 
         ### /Work ###
         search_progress.increment()

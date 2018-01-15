@@ -298,7 +298,8 @@ class Sampler:
         mean_fixed_contrib = self.n_means_end[t] + np.dot(ATmtc, self.n_means_start[t])
         ATtcB = np.dot(ATmtc, self.time_weights[1, t])
         # inv_covariance_fixed_contrib = self.n_covariances_end[t] + np.dot(ATmtc, np.dot(self.n_covariances_start[t], ATmtc))   # + np.dot(ATtcB, np.dot(self.random_network.get_network_covariance_combined(), ATtcB.T))
-        covariance_fixed_contrib = ATmtc**2.*(self.sigma_x**2. + self.sigma_y**2.)*np.eye(self.M) + self.sigma_baseline**2.*np.eye(self.M)
+        covariance_fixed_contrib = ATmtc**2.*(
+            self.sigma_x**2. + self.sigma_y**2.)*np.eye(self.M) + self.sigma_baseline**2.*np.eye(self.M)
         if self.T > 1:
             covariance_fixed_contrib += self.n_covariances_measured[-2]
 
@@ -1332,14 +1333,14 @@ class Sampler:
 
             Return marginal inverse Fisher Information (units of variance, not like other functions)
         '''
-        # FI_estimates = self.random_network.compute_marginal_inverse_FI(
-        #     self.inv_covariance_fixed_contrib,
-        #     nitems=self.T,
-        #     min_distance=self.data_gen.enforce_min_distance)
         FI_estimates = self.random_network.compute_marginal_inverse_FI(
             self.inv_covariance_fixed_contrib,
-            items_thetas=self.data_gen.stimuli_correct,
+            nitems=self.T,
             min_distance=self.data_gen.enforce_min_distance)
+        # FI_estimates = self.random_network.compute_marginal_inverse_FI(
+        #     self.inv_covariance_fixed_contrib,
+        #     items_thetas=np.roll(self.data_gen.stimuli_correct, 1, axis=1),
+        #     min_distance=self.data_gen.enforce_min_distance)
 
         return FI_estimates
 
