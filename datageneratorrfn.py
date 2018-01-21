@@ -200,14 +200,14 @@ class DataGeneratorRFN(DataGenerator):
                 self.stimuli_correct[n, :, r] = angle_generator(self.T)
 
                 # Enforce minimal distance between different times
-                if random_generation and self.enforce_min_distance > 0. and (
-                        not enforce_distance_cued_feature_only
-                        or cued_feature_R == r):
+                if (random_generation and self.enforce_min_distance > 0.
+                        and (not enforce_distance_cued_feature_only
+                             or cued_feature_R == r)):
                     tries = 0
-                    while np.any(
+                    while (np.any(
                             pdist(self.stimuli_correct[n, :, r][:, np.newaxis],
-                                  'chebyshev') < self.enforce_min_distance
-                    ) and tries < 1000:
+                                  'chebyshev') < self.enforce_min_distance)
+                           and tries < 1000):
                         # Some are too close, resample
                         self.stimuli_correct[n, :, r] = angle_generator(self.T)
                         tries += 1

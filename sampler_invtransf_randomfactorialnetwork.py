@@ -1333,14 +1333,17 @@ class Sampler:
 
             Return marginal inverse Fisher Information (units of variance, not like other functions)
         '''
-        FI_estimates = self.random_network.compute_marginal_inverse_FI(
-            self.inv_covariance_fixed_contrib,
-            nitems=self.T,
-            min_distance=self.data_gen.enforce_min_distance)
+        # inv_cov = np.linalg.inv(
+        #     (self.sigma_baseline**2. + self.T*self.sigma_x**2. + self.T*self.sigma_y**2.)*np.eye(self.M)
+        # )
         # FI_estimates = self.random_network.compute_marginal_inverse_FI(
         #     self.inv_covariance_fixed_contrib,
-        #     items_thetas=np.roll(self.data_gen.stimuli_correct, 1, axis=1),
+        #     nitems=self.T,
         #     min_distance=self.data_gen.enforce_min_distance)
+        FI_estimates = self.random_network.compute_marginal_inverse_FI(
+            self.inv_covariance_fixed_contrib,
+            items_thetas=np.roll(self.data_gen.stimuli_correct, 1, axis=1),
+            min_distance=self.data_gen.enforce_min_distance)
 
         return FI_estimates
 
@@ -1587,21 +1590,23 @@ class Sampler:
         plt.legend(['Fit', 'Posterior'])
 
 
-    def plot_bias_close_feature(self, dataio=None):
+    def plot_bias_close_feature(self, dataio=None, markersize=3):
         '''
             Reproduces plots from load_experimental_data, to see the difference between the model and humans.
         '''
 
         assert self.T == 2, 'Only implemented for 2 objects right now'
 
-        response, target_recall_feature, nontarget_recall_feature = self.collect_responses()
+        response, target_recall_feature, nontarget_recall_feature = (
+            self.collect_responses())
         nontarget_recall_feature = nontarget_recall_feature.flatten()
 
-        bias_to_nontarget = np.abs(utils.wrap_angles(response - nontarget_recall_feature))
-        bias_to_target = np.abs(utils.wrap_angles(response - target_recall_feature))
+        bias_to_nontarget = np.abs(
+            utils.wrap_angles(response - nontarget_recall_feature))
+        bias_to_target = np.abs(
+            utils.wrap_angles(response - target_recall_feature))
 
         # ratio_biases = bias_to_nontarget / bias_to_target
-
         target_2d = self.data_gen.stimuli_correct[:self.N, 1]
         nontarget_2d = self.data_gen.stimuli_correct[:self.N, 0]
 
@@ -1609,43 +1614,68 @@ class Sampler:
         dist_target_nontarget_torus = utils.dist_torus(target_2d, nontarget_2d)
 
         # Distance only looking at recalled feature
-        dist_target_nontarget_recalled = np.abs(utils.wrap_angles(target_recall_feature - nontarget_recall_feature))
+        dist_target_nontarget_recalled = np.abs(
+            utils.wrap_angles(
+                target_recall_feature - nontarget_recall_feature))
 
         # Distance only looking at cued feature.
         # Needs more work. They are only a few possible values, so we can group them and get a boxplot for each
-        dist_target_nontarget_cue = np.abs(utils.wrap_angles((target_2d[:, 1] - nontarget_2d[:, 1])))
+        dist_target_nontarget_cue = np.abs(
+            utils.wrap_angles((target_2d[:, 1] - nontarget_2d[:, 1])))
 
         # Check if the response is closer to the target or nontarget, in relative terms.
         # Need to compute a ratio linking bias_to_target and bias_to_nontarget.
         # Two possibilities: response was between target and nontarget, or response was "behind" the target.
-        ratio_response_close_to_nontarget = bias_to_nontarget/dist_target_nontarget_recalled
-        indices_filter_other_side = bias_to_nontarget > dist_target_nontarget_recalled
-        ratio_response_close_to_nontarget[indices_filter_other_side] = bias_to_nontarget[indices_filter_other_side]/(dist_target_nontarget_recalled[indices_filter_other_side] + bias_to_target[indices_filter_other_side])
+        ratio_response_close_to_nontarget = (
+            bias_to_nontarget/dist_target_nontarget_recalled)
+        indices_filter_other_side = (
+            bias_to_nontarget > dist_target_nontarget_recalled)
+        ratio_response_close_to_nontarget[indices_filter_other_side] = (
+            bias_to_nontarget[indices_filter_other_side]/(dist_target_nontarget_recalled[indices_filter_other_side] + bias_to_target[indices_filter_other_side]))
 
-        f, ax = plt.subplots(2, 2)
-        ax[0, 0].plot(dist_target_nontarget_torus, bias_to_nontarget, 'x')
+        f, ax = plt.subplots(2, 2, figsize=(8, 8))
+        ax[0, 0].plot(
+            dist_target_nontarget_torus, bias_to_nontarget, 'o', markersize=markersize)
         ax[0, 0].set_xlabel('Distance full feature space')
         ax[0, 0].set_ylabel('Error to nontarget')
+        ax[0, 0].set_xlim((0, 4.5))
+        ax[0, 0].set_ylim((0, np.pi))
 
-        ax[0, 1].plot(dist_target_nontarget_cue, bias_to_nontarget, 'x')
+        ax[0, 1].plot(
+            dist_target_nontarget_cue, bias_to_nontarget, 'o', markersize=markersize)
         ax[0, 1].set_xlabel('Distance cued feature only')
         ax[0, 1].set_ylabel('Error to nontarget')
+        ax[0, 1].set_xlim((0, np.pi))
+        ax[0, 1].set_ylim((0, np.pi))
 
-        # ax[1, 0].plot(dist_target_nontarget_recalled, np.ma.masked_greater(ratio_biases, 100), 'x')
-        ax[1, 0].plot(dist_target_nontarget_recalled, bias_to_nontarget, 'x')
-        # ax[1, 0].plot(dist_target_nontarget_recalled, np.ma.masked_greater(bias_to_nontarget/dist_target_nontarget_recalled, 30), 'x')
+        # ax[1, 0].plot(
+        # dist_target_nontarget_recalled, np.ma.masked_greater(ratio_biases, 100), 'o', markersize=markersize)
+        ax[1, 0].plot(
+            dist_target_nontarget_recalled, bias_to_nontarget, 'o',
+            markersize=markersize)
+        # ax[1, 0].plot(dist_target_nontarget_recalled, np.ma.masked_greater(bias_to_nontarget/dist_target_nontarget_recalled, 30), 'o', markersize=markersize)
         ax[1, 0].set_xlabel('Distance recalled feature only')
         ax[1, 0].set_ylabel('Error to nontarget')
+        ax[1, 0].set_xlim((0, np.pi))
+        ax[1, 0].set_ylim((0, np.pi))
 
-        ax[1, 1].plot(dist_target_nontarget_recalled, ratio_response_close_to_nontarget, 'x')
+        ax[1, 1].plot(
+            dist_target_nontarget_recalled, ratio_response_close_to_nontarget,
+            'o', markersize=markersize)
         ax[1, 1].set_xlabel('Distance recalled feature only')
         ax[1, 1].set_ylabel('Normalised distance to nontarget')
+        ax[1, 1].set_xlim((0, np.pi))
+        ax[1, 1].set_ylim((0, 1.05))
 
-        f.suptitle('Effect of distance between items on bias of response towards nontarget')
+        # f.suptitle('Effect of distance between items on bias of response towards nontarget')
+        f.tight_layout()
 
         if dataio:
             f.set_size_inches(16, 16, forward=True)
-            dataio.save_current_figure('plot_bias_close_feature_model_{label}_{unique_id}.pdf')
+            dataio.save_current_figure(
+                'plot_bias_close_feature_model_{label}_{unique_id}.pdf')
+
+        return ax
 
     #################
 

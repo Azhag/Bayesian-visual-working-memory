@@ -17,6 +17,8 @@ import matplotlib.cm as cmx
 import matplotlib.colors as mcolors
 from mpl_toolkits.mplot3d import Axes3D
 
+import seaborn as sns
+
 import dataio as DataIO
 
 import utils
@@ -646,7 +648,7 @@ def plot_dualrecall(dataset):
         print fitted_parameters
 
 
-def plot_bias_close_feature(dataset, dataio=None):
+def plot_bias_close_feature(dataset, dataio=None, markersize=3):
     '''
         Check if there is a bias in the response towards closest item (either closest wrt cued feature, or wrt all features)
     '''
@@ -682,32 +684,45 @@ def plot_bias_close_feature(dataset, dataio=None):
     indices_filter_other_side = bias_to_nontarget > dist_target_nontarget_recalled
     ratio_response_close_to_nontarget[indices_filter_other_side] = bias_to_nontarget[indices_filter_other_side]/(dist_target_nontarget_recalled[indices_filter_other_side] + bias_to_target[indices_filter_other_side])
 
-    f, ax = plt.subplots(2, 2)
-    ax[0, 0].plot(dist_target_nontarget_torus, bias_to_nontarget, 'x')
+    f, ax = plt.subplots(2, 2, figsize=(8, 8))
+    ax[0, 0].plot(
+        dist_target_nontarget_torus, bias_to_nontarget, 'o',
+        markersize=markersize)
     ax[0, 0].set_xlabel('Distance full feature space')
     ax[0, 0].set_ylabel('Error to nontarget')
+    ax[0, 0].set_xlim((0, 4.5))
+    ax[0, 0].set_ylim((0, np.pi))
 
-    ax[0, 1].boxplot(bias_to_nontarget_grouped_dist_cue, positions=dist_distinct_values)
+    sns.boxplot(
+        x=dist_distinct_values, y=bias_to_nontarget_grouped_dist_cue,
+        orient='v', ax=ax[0, 1])
+#     ax[0, 1].boxplot(bias_to_nontarget_grouped_dist_cue, positions=dist_distinct_values)
     ax[0, 1].set_ylabel('Error to nontarget')
     ax[0, 1].set_xlabel('Distance cued feature only')
+    ax[0, 1].set_xticklabels(["%.2f" % x for x in dist_distinct_values])
+    ax[0, 1].set_ylim((0, np.pi))
 
-    # ax[1, 0].plot(dist_target_nontarget_recalled, np.ma.masked_greater(ratio_biases, 100), 'x')
-    ax[1, 0].plot(dist_target_nontarget_recalled, bias_to_nontarget, 'x')
-    # ax[1, 0].plot(dist_target_nontarget_recalled, np.ma.masked_greater(bias_to_nontarget/dist_target_nontarget_recalled, 30), 'x')
+    ax[1, 0].plot(dist_target_nontarget_recalled, bias_to_nontarget, 'o',
+                  markersize=markersize)
     ax[1, 0].set_xlabel('Distance recalled feature only')
     ax[1, 0].set_ylabel('Error to nontarget')
+    ax[1, 0].set_xlim((0, np.pi))
+    ax[1, 0].set_ylim((0, np.pi))
 
-    ax[1, 1].plot(dist_target_nontarget_recalled, ratio_response_close_to_nontarget, 'x')
+    ax[1, 1].plot(dist_target_nontarget_recalled,
+                  ratio_response_close_to_nontarget,
+                  'o', markersize=markersize)
     ax[1, 1].set_xlabel('Distance recalled feature only')
-    ax[1, 1].set_ylabel('Normalised distance to nontarget')
-
-
-    f.suptitle('Effect of distance between items on bias of response towards nontarget')
+    ax[1, 1].set_ylabel('Normalised distance\nto nontarget')
+    ax[1, 1].set_ylim((0, 1.05))
+    ax[1, 1].set_xlim((0, np.pi))
+    f.tight_layout()
 
     if dataio:
         f.set_size_inches(16, 16, forward=True)
         dataio.save_current_figure('plot_bias_close_feature_{label}_{unique_id}.pdf')
 
+    return ax
 
 
 def plot_compare_bic_collapsed_mixture_model(dataset, dataio=None):
