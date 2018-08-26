@@ -2,6 +2,7 @@ import os
 import numpy as np
 import experimentlauncher
 import inspect
+import utils
 
 # Commit @d8c9acb
 
@@ -12,7 +13,7 @@ parameters_entryscript = dict(
 submit_jobs = True
 
 parameter_generation = 'random'
-num_random_samples = 10000
+num_random_samples = 5000
 limit_max_queued_jobs = 150
 
 resource = ''
@@ -26,7 +27,7 @@ submit_cmd = 'sbatch'
 
 num_repetitions = 10
 
-run_label = 'fisher2016_random_Mratio_5try_repetitions{num_repetitions}_240818'
+run_label = 'fisher2016_random_Mratio_5try_fixed_repetitions{num_repetitions}_240818'
 sleeping_period = dict(min=10, max=30)
 
 pbs_submission_infos = dict(
@@ -72,7 +73,7 @@ pbs_submission_infos = dict(
     pbs_submit_cmd=submit_cmd,
     limit_max_queued_jobs=limit_max_queued_jobs,
     source_dir=os.environ['WORKDIR_DROP'],
-    submit_label='fisher_5try_2408',
+    submit_label='fisher_5try',
     resource=resource,
     partition=partition,
     qos='auto')
@@ -83,27 +84,29 @@ def filtering_function(new_parameters,
                        dict_parameters_range,
                        function_parameters=None):
   '''
-    Given M, will adapt it to the closest squared value.
+    Given M and ratio_conj, will adapt them so that M_conj is always correct and integer.
 
     or if should_clamp is False, will not change them
     '''
-  M_conj_prior = int(new_parameters['M'])
-  M_conj_true = int(np.floor(M_conj_prior**0.5)**2.)
+
+  M_true, ratio_true = utils.fix_M_ratioconj(new_parameters['M'],
+                                             new_parameters['ratio_conj'])
 
   if function_parameters['should_clamp']:
     # Clamp them and return true
-    new_parameters['M'] = M_conj_true
+    new_parameters['M'] = M_true
+    new_parameters['ratio_conj'] = ratio_true
+
     return True
   else:
-    return np.allclose(M_conj_true, new_parameters['M'])
+    return np.allclose(M_true, new_parameters['M'])
 
 
 filtering_function_parameters = {'should_clamp': True}
 
 dict_parameters_range = {
     'M': dict(sampling_type='randint', low=6, high=625, dtype=int),
-    'ratio_conj': dict(
-        sampling_type='uniform', low=0.01, high=1.0, dtype=float),
+    'ratio_conj': dict(sampling_type='uniform', low=0.01, high=1., dtype=float),
 }
 
 if __name__ == '__main__':
