@@ -13,14 +13,14 @@ parameters_entryscript = dict(
 submit_jobs = True
 
 parameter_generation = 'random'
-num_random_samples = 5000
+num_random_samples = 300
 limit_max_queued_jobs = 150
 
 resource = ''
 
-# partition = 'wrkstn'
+partition = 'wrkstn'
 # partition = 'test'
-partition = 'intel-ivy'
+# partition = 'intel-ivy'
 
 # submit_cmd = 'qsub'
 submit_cmd = 'sbatch'
@@ -36,7 +36,7 @@ pbs_submission_infos = dict(
     command='python $WORKDIR/experimentlauncher.py',
     other_options=dict(
         action_to_do='launcher_check_fisher_fit_1obj_2016',
-        code_type='mixed',
+        code_type='conj',
         output_directory='.',
         ratio_conj=1,
         autoset_parameters=None,
@@ -106,7 +106,7 @@ filtering_function_parameters = {'should_clamp': True}
 
 dict_parameters_range = {
     'M': dict(sampling_type='randint', low=6, high=625, dtype=int),
-    'ratio_conj': dict(sampling_type='uniform', low=0.01, high=1., dtype=float),
+    'ratio_conj': dict(sampling_type='uniform', low=1., high=1., dtype=float),
 }
 
 if __name__ == '__main__':
