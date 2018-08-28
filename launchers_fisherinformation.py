@@ -57,8 +57,7 @@ def launcher_check_fisher_fit_1obj_2016(args):
       (all_parameters['num_repetitions']), dtype=float)
   result_marginal_inv_FI = np.nan * np.ones(
       (2, all_parameters['num_repetitions']))
-  result_marginal_FI = np.nan * np.ones((2,
-                                         all_parameters['num_repetitions']))
+  result_marginal_FI = np.nan * np.ones((2, all_parameters['num_repetitions']))
 
   result_em_fits = np.nan * np.empty((6, all_parameters['num_repetitions']))
 
@@ -69,8 +68,8 @@ def launcher_check_fisher_fit_1obj_2016(args):
                                     search_progress.time_remaining_str(),
                                     search_progress.eta_str())
 
-    print "Fisher Info check, rep %d/%d" % (
-        repet_i + 1, all_parameters['num_repetitions'])
+    print "Fisher Info check, rep %d/%d" % (repet_i + 1,
+                                            all_parameters['num_repetitions'])
 
     ### WORK WORK WORK work? ###
 
@@ -85,16 +84,17 @@ def launcher_check_fisher_fit_1obj_2016(args):
     result_all_precisions[repet_i] = sampler.get_precision()
 
     # Theoretical Fisher info
-    print "theoretical FI"
-    result_FI_rc_theo[:, repet_i] = (
-        sampler.estimate_fisher_info_theocov(use_theoretical_cov=False))
-    result_FI_rc_theocov[:, repet_i] = (
-        sampler.estimate_fisher_info_theocov(use_theoretical_cov=True))
-    result_FI_rc_theo_largeN[repet_i] = (
-        sampler.estimate_fisher_info_theocov_largen(
-            use_theoretical_cov=True))
-    result_FI_rc_theo_circulant[:, repet_i] = (
-        sampler.estimate_fisher_info_circulant())
+    if all_parameters['code_type'] != 'hierarchical':
+      print "theoretical FI"
+      result_FI_rc_theo[:, repet_i] = (
+          sampler.estimate_fisher_info_theocov(use_theoretical_cov=False))
+      result_FI_rc_theocov[:, repet_i] = (
+          sampler.estimate_fisher_info_theocov(use_theoretical_cov=True))
+      result_FI_rc_theo_largeN[repet_i] = (
+          sampler.estimate_fisher_info_theocov_largen(use_theoretical_cov=True)
+      )
+      result_FI_rc_theo_circulant[:, repet_i] = (
+          sampler.estimate_fisher_info_circulant())
     # Fisher Info from curvature
     print "Compute fisher from curvature"
     fi_curv_dict = sampler.estimate_fisher_info_from_posterior_avg(
