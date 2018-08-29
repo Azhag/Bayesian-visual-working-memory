@@ -67,6 +67,8 @@ class DataGeneratorRFN(DataGenerator):
             time_weights=time_weights,
             time_weights_parameters=time_weights_parameters)
 
+        self.stimuli_generation = stimuli_generation
+
         # This is the noise on specific memories. Belongs here.
         self.init_all_sigma(
             sigma_x, sigma_y, sigma_baseline, renormalize=renormalize_sigma)

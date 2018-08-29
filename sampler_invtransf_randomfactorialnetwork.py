@@ -4,29 +4,21 @@
 
 Created by Loic Matthey on 2016-03-27.
 """
-
+import collections
 import numpy as np
-# import scipy.special as scsp
-# from scipy.stats import vonmises as vm
 import scipy.stats as spst
 import scipy.optimize as spopt
 import scipy.integrate as spintg
 import scipy.interpolate as spinter
 import matplotlib.patches as plt_patches
-# import matplotlib.collections as plt_collections
 import matplotlib.pyplot as plt
-
+import pandas as pd
+import progress
 import sys
-
-import utils
 
 import em_circularmixture
 import em_circularmixture_allitems_uniquekappa
-
-# import slicesampler
-
-# from dataio import *
-import progress
+import utils
 
 
 def loglike_theta_fct_single(new_theta, (
@@ -660,6 +652,12 @@ class Sampler:
                    np.arange(self.N), self.data_gen.cued_features[:self.N, 1],
                    self.data_gen.cued_features[:self.N, 0]]
 
+  def get_target_angles(self):
+    """Get target angles."""
+    return self.data_gen.stimuli_correct[np.arange(
+        self.N), self.data_gen.cued_features[:self.N, 1],
+                                         self.theta_target_index[:self.N]]
+
   def collect_responses(self):
     """Gather and return the responses, target angles and non-target angles.
 
@@ -668,9 +666,7 @@ class Sampler:
     # Current inferred responses
     responses = self.theta[np.arange(self.N), self.theta_target_index[:self.N]]
     # Target angles. Funny indexing, maybe not the best place for t_r
-    target = self.data_gen.stimuli_correct[np.arange(
-        self.N), self.data_gen.cued_features[:self.N, 1],
-                                           self.theta_target_index[:self.N]]
+    target = self.get_target_angles()
     # Non-target angles
     nontargets = self.data_gen.stimuli_correct[
         np.arange(self.N), self.data_gen.nontargets_indices[:self.N].T,
@@ -1097,6 +1093,7 @@ class Sampler:
                                          show_legend=True,
                                          show_current_theta=True,
                                          debug=True,
+                                         pretty_xlabels=True,
                                          ax_handle=None):
     """Plot the log-likelihood function, over the space of the sampled theta,
     keeping the other thetas fixed to their correct cued value."""
@@ -1163,11 +1160,12 @@ class Sampler:
             color='k',
             linestyle="--")
 
-      ax_handle.set_xticks((-np.pi, -np.pi / 2, 0, np.pi / 2., np.pi))
-      ax_handle.set_xticklabels(
-          (r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$',
-           r'$\pi$'),
-          fontsize=15)
+      if pretty_xlabels:
+        ax_handle.set_xticks((-np.pi, -np.pi / 2, 0, np.pi / 2., np.pi))
+        ax_handle.set_xticklabels(
+            (r'$-\pi$', r'$-\frac{\pi}{2}$', r'$0$', r'$\frac{\pi}{2}$',
+             r'$\pi$'),
+            fontsize=15)
       ax_handle.set_yticks([])
       ax_handle.get_figure().canvas.draw()
 
@@ -1583,129 +1581,42 @@ class Sampler:
     else:
       return utils.nanmean(precisions)
 
-  def estimate_precision_from_samples(self,
-                                      n=0,
-                                      num_samples=1000,
-                                      num_repetitions=1,
-                                      selection_method='median',
-                                      return_samples=False):
+  def estimate_precision_datapoint_from_samples(self, n=0):
     """Take samples of theta for a particular datapoint, and estimate the
     precision from their distribution."""
 
-    all_precisions = np.zeros(num_repetitions)
+    # Get samples
+    samples = self.sample_theta(return_samples=True, subset_theta=[n])[0]
 
-    if return_samples:
-      all_samples = np.zeros((num_repetitions, num_samples))
+    # Estimate the circular standard deviation of those samples
+    circ_std_dev = utils.angle_circular_std_dev(samples)
 
-    for repet_i in xrange(num_repetitions):
+    # And now get the precision (uncorrected for chance level)
+    return utils.compute_angle_precision_from_std(circ_std_dev)
 
-      # Get samples
-      samples = self.sample_theta(return_samples=True, subset_theta=[n])[0]
-
-      # Estimate the circular standard deviation of those samples
-      circ_std_dev = utils.angle_circular_std_dev(samples)
-
-      # And now get the precision (uncorrected for chance level)
-      all_precisions[repet_i] = utils.compute_angle_precision_from_std(
-          circ_std_dev)
-
-      if return_samples:
-        all_samples[repet_i] = samples
-
-    output = dict(
-        mean=np.mean(all_precisions),
-        std=np.std(all_precisions),
-        all=all_precisions)
-
-    if return_samples:
-      output['samples'] = all_samples
-
-    return output
-
-  def estimate_precision_from_samples_avg(self,
-                                          num_samples=1000,
-                                          num_repetitions=1,
-                                          full_stats=False,
-                                          selection_method='median',
-                                          return_samples=False):
+  def estimate_precision_from_samples(self,
+                                      num_repetitions=1,
+                                      full_stats=False):
     """Estimate precision from the samples.
 
     Get it for every datapoint.
     """
 
-    all_precision = np.zeros(self.N)
-    all_precision_everything = np.zeros((self.N, num_repetitions))
+    all_precisions = np.zeros((self.N, num_repetitions))
 
-    if return_samples:
-      all_samples = np.zeros((self.N, num_repetitions, num_samples))
-
-    for i in progress.ProgressDisplay(
-        xrange(self.N), display=progress.SINGLE_LINE):
-      # print i
-      res = self.estimate_precision_from_samples(
-          n=i,
-          num_samples=num_samples,
-          num_repetitions=num_repetitions,
-          selection_method=selection_method,
-          return_samples=return_samples)
-
-      all_precision[i] = res['mean']
-      all_precision_everything[i] = res['all']
-
-      if return_samples:
-        all_samples[i] = res['samples']
+    for repet_i in xrange(num_repetitions):
+      for n in xrange(self.N):
+        all_precisions[
+            n, repet_i] = self.estimate_precision_datapoint_from_samples(n)
 
     if full_stats:
       return dict(
-          mean=utils.nanmean(all_precision),
-          std=utils.nanstd(all_precision),
-          median=utils.nanmedian(all_precision),
-          all=all_precision_everything)
+          mean=utils.nanmean(all_precisions),
+          std=utils.nanstd(all_precisions),
+          median=utils.nanmedian(all_precisions),
+          all=all_precisions)
     else:
-      return utils.nanmean(all_precision)
-
-  def estimate_precision_from_samples_avg_randomsubset(
-      self,
-      subset_size=1,
-      num_samples=1000,
-      num_repetitions=1,
-      full_stats=False,
-      selection_method='median',
-      return_samples=False):
-    """Estimate precision from the samples. Get it for every datapoint.
-
-    Takes the mean over a subset of datapoints.
-    """
-
-    random_subset = np.random.randint(self.N, size=subset_size)
-
-    all_precision = np.zeros(subset_size)
-    all_precision_everything = np.zeros((subset_size, num_repetitions))
-    if return_samples:
-      all_samples = np.zeros((subset_size, num_repetitions, num_samples))
-
-    for i in progress.ProgressDisplay(
-        xrange(subset_size), display=progress.SINGLE_LINE):
-      res = self.estimate_precision_from_samples(
-          n=random_subset[i],
-          num_samples=num_samples,
-          num_repetitions=num_repetitions,
-          selection_method=selection_method,
-          return_samples=return_samples)
-
-      all_precision[i] = res['mean']
-      all_precision_everything[i] = res['all']
-      if return_samples:
-        all_samples[i] = res['samples']
-
-    if full_stats:
-      return dict(
-          mean=utils.nanmean(all_precision),
-          std=utils.nanstd(all_precision),
-          median=utils.nanmedian(all_precision),
-          all=all_precision_everything)
-    else:
-      return utils.nanmean(all_precision)
+      return utils.nanmean(all_precisions)
 
   def estimate_truevariance_from_posterior(self,
                                            n=0,
@@ -1791,6 +1702,63 @@ class Sampler:
     # Try to get a median over multiple tries
     print all_gaussianity
     return np.median(all_gaussianity) == 1
+
+  def estimate_precision_per_angle(self,
+                                   num_bins=30,
+                                   units='inv_variance',
+                                   num_repetitions=10,
+                                   fit_mixture_model=False):
+    """Will compute the precision as a function of recall angle.
+
+    Can be useful to characterise "holes" in the representation.
+
+    Requires a "random" DataGenerator to be meaningful, as we quantize the
+    angles currently available.
+
+    Can also fit mixture models, but that's super slow...
+    """
+    # Bin and quantize the datapoints angles to know what to average where.
+    targets = self.get_target_angles()
+    angle_bins = utils.init_feature_space(precision=num_bins + 1)
+    angle_bins_middle = (angle_bins[:-1] + angle_bins[1:]) / 2.
+    angles_qi = pd.cut(targets, angle_bins, labels=False)
+
+    ## Collect precision / emfits for all datapoints
+    data = collections.defaultdict(list)
+    for repet_i in progress.ProgressDisplay(
+        xrange(num_repetitions), display=progress.SINGLE_LINE):
+      responses = self.sample_theta(return_samples=True)
+      errors_targets = utils.wrap_angles(targets[:, np.newaxis] - responses)
+
+      # Compute precision across samples of the same target datapoint
+      data['precisions'].extend(
+          utils.compute_precision_samples(errors_targets.T))
+      data['repetition'].extend(repet_i * np.ones(self.N))
+      data['angles_qi'].extend(angles_qi)
+
+      # Fit mixture model per datapoint
+      if fit_mixture_model:
+        for n in xrange(self.N):
+          params = em_circularmixture.fit(responses[n], targets[n])
+          for k in ('kappa', 'mixt_target', 'mixt_random'):
+            data[k].append(params[k])
+
+    # Convert to Dataframe and do a groupby to get mean/std directly
+    data_pd = pd.DataFrame(data)
+    data_pd['precisions_stddev'] = 1. / data_pd['precisions']**0.5
+    if fit_mixture_model:
+      data_pd['memory_fidelity'] = 1. / data_pd['kappa']**0.5
+
+    df_avgstd = data_pd.groupby(
+        'angles_qi', as_index=False).agg(('mean', 'std')).reset_index()
+    df_avgstd.columns = [
+        '_'.join(col).strip() if col[1] else col[0]
+        for col in df_avgstd.columns.values
+    ]
+    df_avgstd.columns = [s.split('_mean')[0] for s in df_avgstd.columns]
+    df_avgstd.loc[:, 'angle_middle'] = angle_bins_middle[df_avgstd.angles_qi]
+
+    return df_avgstd
 
   def plot_comparison_samples_fit_posterior(self,
                                             n=0,
@@ -1965,9 +1933,7 @@ class Sampler:
         '''
 
     # Get the target angles
-    true_angles = self.data_gen.stimuli_correct[
-        np.arange(self.N), self.data_gen.cued_features[:self.N, 1],
-        self.theta_target_index[:self.N]]
+    true_angles = self.get_target_angles()
 
     # Compute the angle difference error between predicted and ground truth
     angle_errors = true_angles - self.theta[np.arange(self.N),

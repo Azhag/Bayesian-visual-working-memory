@@ -79,6 +79,7 @@ class HierarchialRandomNetwork(object):
 
     self.R = R
     self.gain = gain
+    self.sparsity_weights = sparsity_weights
 
     self.layer_one_network = None
     self.current_layer_one_response = None
