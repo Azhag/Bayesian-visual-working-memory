@@ -1725,8 +1725,7 @@ class Sampler:
 
     ## Collect precision / emfits for all datapoints
     data = collections.defaultdict(list)
-    for repet_i in progress.ProgressDisplay(
-        xrange(num_repetitions), display=progress.SINGLE_LINE):
+    for repet_i in xrange(num_repetitions):
       responses = self.sample_theta(return_samples=True)
       errors_targets = utils.wrap_angles(targets[:, np.newaxis] - responses)
 
@@ -1738,7 +1737,8 @@ class Sampler:
 
       # Fit mixture model per datapoint
       if fit_mixture_model:
-        for n in xrange(self.N):
+        for n in progress.ProgressDisplay(
+            xrange(self.N), display=progress.SINGLE_LINE):
           params = em_circularmixture.fit(responses[n], targets[n])
           for k in ('kappa', 'mixt_target', 'mixt_random'):
             data[k].append(params[k])
@@ -1747,6 +1747,7 @@ class Sampler:
     data_pd = pd.DataFrame(data)
     data_pd['precisions_stddev'] = 1. / data_pd['precisions']**0.5
     if fit_mixture_model:
+      data_pd['kappa'] += 1e-1
       data_pd['memory_fidelity'] = 1. / data_pd['kappa']**0.5
 
     df_avgstd = data_pd.groupby(
