@@ -16,13 +16,13 @@ submit_jobs = True
 
 parameter_generation = 'random'
 num_random_samples = 10000
-limit_max_queued_jobs = 150
+limit_max_queued_jobs = 200
 
 resource = ''
 
-# partition = 'wrkstn'
+partition = 'wrkstn'
 # partition = 'test'
-partition = 'intel-ivy'
+# partition = 'intel-ivy'
 
 # submit_cmd = 'qsub'
 submit_cmd = 'sbatch'
