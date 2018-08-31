@@ -1705,7 +1705,6 @@ class Sampler:
 
   def estimate_precision_per_angle(self,
                                    num_bins=30,
-                                   units='inv_variance',
                                    num_repetitions=10,
                                    fit_mixture_model=False):
     """Will compute the precision as a function of recall angle.
@@ -1758,6 +1757,79 @@ class Sampler:
     ]
     df_avgstd.columns = [s.split('_mean')[0] for s in df_avgstd.columns]
     df_avgstd.loc[:, 'angle_middle'] = angle_bins_middle[df_avgstd.angles_qi]
+
+    return df_avgstd
+
+  def estimate_precision_twoangles(self,
+                                   num_bins=20,
+                                   num_repetitions=3,
+                                   fit_mixture_model=False):
+    """Will compute the precision as a function of both angles (recall/cue)
+
+    Can be useful to characterise "holes" in the representation.
+
+    Will force the data.
+
+    Can also fit mixture models, but that's super slow...
+    """
+    # Generate data covering the full space
+    coverage_1d = utils.init_feature_space(precision=num_bins, endpoint=False)
+    target_data = np.array(utils.cross(coverage_1d, coverage_1d))
+    target_data = np.repeat(
+        target_data, num_repetitions, axis=0)[:, np.newaxis, :]
+
+    # Force it into the data_gen
+    self.data_gen.N = target_data.shape[0]
+    self.data_gen.set_stimuli(target_data)
+    self.data_gen.build_dataset(self.data_gen.cued_feature_time)
+    self.init_from_data_gen(self.data_gen)
+
+    # Bin and quantize the datapoints angles to know what to average where.
+    targets = self.get_target_angles()
+    cued = self.theta[:, 1]
+    angle_bins = utils.init_feature_space(precision=num_bins + 1)
+    angle_bins_middle = (angle_bins[:-1] + angle_bins[1:]) / 2.
+    target_qi = pd.cut(targets, angle_bins, labels=False)
+    cued_qi = pd.cut(cued, angle_bins, labels=False)
+
+    ## Collect precision / emfits for all datapoints
+    data = collections.defaultdict(list)
+    for repet_i in progress.ProgressDisplay(xrange(num_repetitions), display=progress.SINGLE_LINE):
+      responses = self.sample_theta(return_samples=True)
+      errors_targets = utils.wrap_angles(targets[:, np.newaxis] - responses)
+
+      # Compute precision across samples of the same target datapoint
+      data['precisions'].extend(
+          utils.compute_precision_samples(errors_targets.T))
+      data['repetition'].extend(repet_i * np.ones(self.N))
+      data['target_qi'].extend(target_qi)
+      data['cued_qi'].extend(cued_qi)
+
+      # Fit mixture model per datapoint
+      if fit_mixture_model:
+        for n in progress.ProgressDisplay(
+            xrange(self.N), display=progress.SINGLE_LINE):
+          params = em_circularmixture.fit(responses[n], targets[n])
+          for k in ('kappa', 'mixt_target', 'mixt_random'):
+            data[k].append(params[k])
+
+    # Convert to Dataframe and do a groupby to get mean/std directly
+    data_pd = pd.DataFrame(data)
+    data_pd['precisions_stddev'] = 1. / data_pd['precisions']**0.5
+    if fit_mixture_model:
+      data_pd['kappa'] += 1e-1
+      data_pd['memory_fidelity'] = 1. / data_pd['kappa']**0.5
+
+    df_avgstd = data_pd.groupby(
+        ('target_qi', 'cued_qi'), as_index=False).agg(('mean',
+                                                      'std')).reset_index()
+    df_avgstd.columns = [
+        '_'.join(col).strip() if col[1] else col[0]
+        for col in df_avgstd.columns.values
+    ]
+    df_avgstd.columns = [s.split('_mean')[0] for s in df_avgstd.columns]
+    df_avgstd.loc[:, 'target_angle'] = angle_bins_middle[df_avgstd.target_qi]
+    df_avgstd.loc[:, 'cued_angle'] = angle_bins_middle[df_avgstd.cued_qi]
 
     return df_avgstd
 
