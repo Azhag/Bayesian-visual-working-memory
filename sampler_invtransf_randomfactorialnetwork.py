@@ -1724,7 +1724,8 @@ class Sampler:
 
     ## Collect precision / emfits for all datapoints
     data = collections.defaultdict(list)
-    for repet_i in xrange(num_repetitions):
+    for repet_i in progress.ProgressDisplay(
+        xrange(num_repetitions), display=progress.SINGLE_LINE):
       responses = self.sample_theta(return_samples=True)
       errors_targets = utils.wrap_angles(targets[:, np.newaxis] - responses)
 
@@ -1733,6 +1734,7 @@ class Sampler:
           utils.compute_precision_samples(errors_targets.T))
       data['repetition'].extend(repet_i * np.ones(self.N))
       data['angles_qi'].extend(angles_qi)
+      data['target'].extend(targets)
 
       # Fit mixture model per datapoint
       if fit_mixture_model:
@@ -1756,7 +1758,7 @@ class Sampler:
         for col in df_avgstd.columns.values
     ]
     df_avgstd.columns = [s.split('_mean')[0] for s in df_avgstd.columns]
-    df_avgstd.loc[:, 'angle_middle'] = angle_bins_middle[df_avgstd.angles_qi]
+    df_avgstd.loc[:, 'angles_middle'] = angle_bins_middle[df_avgstd.angles_qi]
 
     return df_avgstd
 
@@ -1794,7 +1796,8 @@ class Sampler:
 
     ## Collect precision / emfits for all datapoints
     data = collections.defaultdict(list)
-    for repet_i in progress.ProgressDisplay(xrange(num_repetitions), display=progress.SINGLE_LINE):
+    for repet_i in progress.ProgressDisplay(
+        xrange(num_repetitions), display=progress.SINGLE_LINE):
       responses = self.sample_theta(return_samples=True)
       errors_targets = utils.wrap_angles(targets[:, np.newaxis] - responses)
 
@@ -1802,6 +1805,8 @@ class Sampler:
       data['precisions'].extend(
           utils.compute_precision_samples(errors_targets.T))
       data['repetition'].extend(repet_i * np.ones(self.N))
+      data['target'].extend(targets)
+      data['cued'].extend(cued)
       data['target_qi'].extend(target_qi)
       data['cued_qi'].extend(cued_qi)
 
@@ -1822,16 +1827,77 @@ class Sampler:
 
     df_avgstd = data_pd.groupby(
         ('target_qi', 'cued_qi'), as_index=False).agg(('mean',
-                                                      'std')).reset_index()
+                                                       'std')).reset_index()
     df_avgstd.columns = [
         '_'.join(col).strip() if col[1] else col[0]
         for col in df_avgstd.columns.values
     ]
     df_avgstd.columns = [s.split('_mean')[0] for s in df_avgstd.columns]
-    df_avgstd.loc[:, 'target_angle'] = angle_bins_middle[df_avgstd.target_qi]
-    df_avgstd.loc[:, 'cued_angle'] = angle_bins_middle[df_avgstd.cued_qi]
+    df_avgstd.loc[:, 'target_middle'] = angle_bins_middle[df_avgstd.target_qi]
+    df_avgstd.loc[:, 'cued_middle'] = angle_bins_middle[df_avgstd.cued_qi]
 
     return df_avgstd
+
+  def plot_precision_per_angle(self,
+                               df_precision_angle,
+                               x='angles_middle',
+                               value='precisions',
+                               ax=None):
+    if ax is None:
+      _, ax = plt.subplots()
+
+    utils.plot_mean_std_area(
+        df_precision_angle[x],
+        df_precision_angle[value],
+        df_precision_angle['{}_std'.format(value)],
+        ax_handle=ax)
+
+    ax.set_xticks(np.linspace(-np.pi, np.pi, 7))
+    ax.set_xticklabels(
+        (r'$-\pi$', r'$-\frac{2\pi}{3}$', r'$-\frac{\pi}{3}$', r'$0$',
+         r'$\frac{\pi}{3}$', r'$\frac{2\pi}{3}$', r'$\pi$'),
+        rotation=0,
+        fontsize=18)
+    ax.set_xlim((-np.pi, np.pi))
+
+    return ax
+
+  def plot_precision_twoangles(self,
+                               df,
+                               x='target',
+                               y='cued',
+                               value='precisions',
+                               cmap='cubehelix',
+                               vmin=None,
+                               vmax=None,
+                               ax=None):
+    assert value in df, "Unknown value column?"
+
+    data_pivot = df.pivot_table(
+        index="{}_qi".format(x), columns="{}_qi".format(y),
+          values=value).as_matrix()
+
+    if ax is None:
+      _, ax = plt.subplots()
+    utils.pcolor_2d_data(
+        data_pivot,
+        x=df[x].unique(),
+        y=df[y].unique(),
+        ticks_interpolate=7,
+        cmap=cmap,
+        xlabel=x,
+        ylabel=y,
+        vmin=vmin,
+        vmax=vmax,
+        title=value,
+        ax_handle=ax)
+    ax.set_xticklabels(
+        (r'$-\pi$', r'$-\frac{2\pi}{3}$', r'$-\frac{\pi}{3}$', r'$0$',
+         r'$\frac{\pi}{3}$', r'$\frac{2\pi}{3}$', r'$\pi$'),
+        rotation=0,
+        fontsize=18)
+
+    return ax
 
   def plot_comparison_samples_fit_posterior(self,
                                             n=0,
