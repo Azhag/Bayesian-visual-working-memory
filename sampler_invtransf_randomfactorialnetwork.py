@@ -1706,7 +1706,8 @@ class Sampler:
   def estimate_precision_per_angle(self,
                                    num_bins=30,
                                    num_repetitions=10,
-                                   fit_mixture_model=False):
+                                   fit_mixture_model=False,
+                                   force_stimulus=False):
     """Will compute the precision as a function of recall angle.
 
     Can be useful to characterise "holes" in the representation.
@@ -1716,6 +1717,20 @@ class Sampler:
 
     Can also fit mixture models, but that's super slow...
     """
+    if force_stimulus:
+      # Force the cued angle to be in the middle of some receptive fields
+      cued_angle = np.min(np.abs(self.random_network.neurons_preferred_stimulus))
+      coverage_1d = utils.init_feature_space(precision=num_bins, endpoint=False)
+      target_data = np.array(utils.cross(coverage_1d, [cued_angle]))
+      target_data = np.repeat(
+          target_data, num_repetitions, axis=0)[:, np.newaxis, :]
+
+      # Force it into the data_gen
+      self.data_gen.N = target_data.shape[0]
+      self.data_gen.set_stimuli(target_data)
+      self.data_gen.build_dataset(self.data_gen.cued_feature_time)
+      self.init_from_data_gen(self.data_gen)
+
     # Bin and quantize the datapoints angles to know what to average where.
     targets = self.get_target_angles()
     angle_bins = utils.init_feature_space(precision=num_bins + 1)
