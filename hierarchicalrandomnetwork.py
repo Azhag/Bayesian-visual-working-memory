@@ -481,8 +481,8 @@ class HierarchialRandomNetwork(object):
         mean_activity,
         x=coverage_1D,
         y=coverage_1D,
-        xlabel='Color',
-        ylabel='Orientation',
+        xlabel='Orientation',
+        ylabel='Colour',
         colorbar=True,
         ticks_interpolate=5,
         cmap='RdBu_r')
