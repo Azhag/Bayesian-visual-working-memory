@@ -347,9 +347,9 @@ def aic(em_fit_result_dict):
         Compute Akaike Information Criterion.
     '''
     # Number of parameters:
-    # - mixt_target_tr: Tnum
-    # - mixt_random_tr: Tnum
-    # - mixt_nontarget: sum(T_space - 1)
+    # - mixt_target_tr: 1
+    # - mixt_random_tr: 1
+    # - mixt_nontarget: 1
     # - alpha: 1
     # - beta: 1
     K = em_fit_result_dict['mixt_target_tr'].size + em_fit_result_dict['mixt_random_tr'].size + em_fit_result_dict['mixt_nontargets_tr'].size + 2
@@ -365,9 +365,9 @@ def bic(em_fit_result_dict, LL_all):
     '''
 
     # Number of parameters:
-    # - mixt_target_tr: Tnum * (Tnum + 1)/2
-    # - mixt_random_tr: Tnum * (Tnum + 1)/2
-    # - mixt_nontarget_trk: Tnum * (Tnum + 1)/2
+    # - mixt_target_tr: 1
+    # - mixt_random_tr: 1
+    # - mixt_nontarget_trk: 1
     # - alpha: 1
     # - beta: 1
     # - gamma: 1
