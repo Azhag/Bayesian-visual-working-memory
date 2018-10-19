@@ -24,16 +24,16 @@ submit_cmd = 'sbatch'
 
 resource = ''
 
-# partition = 'wrkstn'
+partition = 'wrkstn'
 # partition = 'test'
-partition = 'intel-ivy'
+# partition = 'intel-ivy'
 
 num_repetitions = 3
-experiment_id = 'gorgo11'
+experiment_id = 'bays09'
 
 # This was a mistake, with only layer 2 outputted
-# run_label = 'cmaes_hier_gorgo11_4try_emfitscaled_Mratiosigmaxsigmabaselinelapserate_repetitions{num_repetitions}_100118'
-run_label = 'cmaes_hier_gorgo11_4try_emfitscaled_Mratiosigmaxsigmabaselinelapserate_repetitions{num_repetitions}_110118'
+# run_label = 'cmaes_hier_bays09_4try_emfitscaled_Mratiosigmaxsigmabaselinelapserate_repetitions{num_repetitions}_100118'
+run_label = 'cmaes_hier_bays09_5try_emfitscaled_Mratiosigmaxsigmabaselinelapserateptheta_repetitions{num_repetitions}_181018'
 simul_out_dir = os.path.join(os.getcwd(), run_label.format(**locals()))
 
 parameter_generation = 'cma-es'
@@ -50,15 +50,15 @@ sleeping_period = dict(min=1, max=5)
 
 pbs_submission_infos = dict(
     description=
-    '''Fit experiments (gorgo11), using dist_emfit_scaled ResultComputation), using the CMA-ES code. Now with sigma_baseline instead of sigma_output.
+    '''Fit experiments (bays09), using dist_emfit_scaled ResultComputation), using the CMA-ES code. Now with sigma_baseline instead of sigma_output.
 
-  HIERARCHICAL CODE. Trying with only layer 2 now, to see what happens.
+    HIERARCHICAL CODE. Trying with only layer 2 now, to see what happens.
 
-  Changes M, ratio_conj, sigmax, sigma baseline, lapse rate.
-  Looks at all t<=T.
+    Changes M, ratio_conj, sigmax, sigma baseline, lapse rate.
+    Looks at all t<=T.
 
-  New Scaled EM Fit metric, which requires samples.
-  ''',
+    New Scaled EM Fit metric, which requires samples.
+    ''',
     command='python $WORKDIR/experimentlauncher.py',
     other_options=dict(
         action_to_do='launcher_do_fitexperiment_allmetrics',
@@ -66,13 +66,15 @@ pbs_submission_infos = dict(
         output_directory='.',
         experiment_id=experiment_id,
         type_layer_one='feature',
-        output_both_layers=None,
         normalise_weights=1,
+        output_both_layers=None,
         ratio_hierarchical=0.5,
+        normalise_gain=None,
         threshold=1.0,
-        bic_K=5,
-        session_id='cmaes_hier_4_Mratiosigmaxlapsesigmabase_gorgo11',
-        result_computation='dist_emf,it_scaled',
+        sparsity=1.0,
+        bic_K=7,
+        session_id='cmaes_hier_5_Mratiosigmaxlapsesigmabaseptheta_bays09',
+        result_computation='dist_emfit_scaled',
         M=100,
         sigmax=0.1,
         renormalize_sigma=None,
@@ -105,7 +107,7 @@ pbs_submission_infos = dict(
     simul_out_dir=os.path.join(os.getcwd(), run_label.format(**locals())),
     pbs_submit_cmd=submit_cmd,
     source_dir=os.environ['WORKDIR_DROP'],
-    submit_label='cmaes_hier_4_g11',
+    submit_label='cmaes_hier_5_b09',
     resource=resource,
     partition=partition,
     qos='auto')
@@ -170,13 +172,29 @@ lapserate_range = dict(
     transform_fct=utils.tsfr_square,
     transform_inv_fct=utils.tsfr_square_inv)
 M_range = dict(low=20, high=400, dtype=int)
+sparsity_range = dict(
+    low=0.0,
+    high=1.0,
+    x0=0.5,
+    scaling=cma_sigma0 / 3.,
+    dtype=float,
+)
+threshold_range = dict(
+    low=0.0,
+    high=2.0,
+    x0=1.0,
+    scaling=cma_sigma0 / 3.,
+    dtype=float,
+)
 
 dict_parameters_range = dict(
     M=M_range,
     lapse_rate=lapserate_range,
     ratio_hierarchical=ratiohier_range,
     sigmax=sigmax_range,
-    sigma_baseline=sigmabaseline_range)
+    sigma_baseline=sigmabaseline_range,
+    sparsity=sparsity_range,
+    threshold=threshold_range)
 # ============================================================================
 
 # result_callback_function to track best parameter
@@ -189,15 +207,16 @@ best_parameters_seen = dict(
 
 
 def best_parameters_callback(job, parameters=None):
-  if not np.any(np.isnan(
-      job.get_result())) and (np.any(np.isnan(parameters['result'])) or
-                              (job.get_result() <= parameters['result'])):
+
+  if not np.any(np.isnan(job.get_result())) and (
+          np.any(np.isnan(parameters['result'])) or
+      (job.get_result() <= parameters['result'])):
     # New best parameter!
     parameters['result'] = job.get_result()
     parameters['job_name'] = job.job_name
     parameters['parameters'] = job.experiment_parameters
-    parameters['best_parameters'] = utils.subdict(job.experiment_parameters,
-                                                  dict_parameters_range.keys())
+    parameters['best_parameters'] = utils.subdict(
+        job.experiment_parameters, dict_parameters_range.keys())
 
     print "\n\n>>>>>> Found new best parameters: \n%s %s %s\n\n" % (
         parameters['best_parameters'], parameters['result'],

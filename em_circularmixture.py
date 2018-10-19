@@ -10,7 +10,7 @@ Copyright (c) 2013 Gatsby Unit. All rights reserved.
 import numpy as np
 import scipy.special as spsp
 import scipy.stats as spst
-from sklearn.cross_validation import KFold
+from sklearn.model_selection import KFold
 import statsmodels.distributions as stmodsdist
 
 import utils

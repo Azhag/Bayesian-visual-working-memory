@@ -123,6 +123,9 @@ def launcher_do_fitexperiment_subject_allmetrics(args):
                         results['result_em_fits']))
                 results['result_emfit_mse'] = emfits_distances['all_mse']
                 results['result_emfit_mixt_kl'] = emfits_distances['mixt_kl']
+                results['result_emfit_mse_scaled'] = emfits_distances[
+                    'mse_scaled']
+
 
                 # Compute fisher info
                 print " compute fisher info"
