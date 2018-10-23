@@ -231,7 +231,6 @@ cma_iter_callback_function_infos = dict(function=cma_iter_plot_scatter3d_candida
 
 
 if __name__ == '__main__':
-
   this_file = inspect.getfile(inspect.currentframe())
   print "Running ", this_file
 

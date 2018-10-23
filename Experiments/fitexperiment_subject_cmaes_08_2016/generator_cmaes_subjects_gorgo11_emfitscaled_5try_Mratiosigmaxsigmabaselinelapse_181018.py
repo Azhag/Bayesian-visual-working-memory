@@ -23,9 +23,9 @@ submit_cmd = 'sbatch'
 
 resource = ''
 
-# partition = 'wrkstn'
+partition = 'wrkstn'
 # partition = 'test'
-partition = 'intel-ivy'
+# partition = 'intel-ivy'
 
 
 num_repetitions = 5

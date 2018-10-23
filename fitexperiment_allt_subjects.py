@@ -103,17 +103,18 @@ class FitExperimentAllTSubject(FitExperimentAllT):
 
     T_i = np.nonzero(self.T_space == self.enforced_T)[0][0]
 
-    data_mixture_subject = self.get_em_fits_arrays()['mean']
+    data_mixture_subject = self.get_em_fits_arrays()['mean'].copy()
 
     distances['all_mse'] = (data_mixture_subject[:4, T_i] - model_fits[:4])**2.
     distances['mixt_kl'] = utils.KL_div(data_mixture_subject[1:4, T_i],
                                         model_fits[1:4])
 
     # Let's cheat, and renormalize Kappa by the kappa at T=0.
-    model_fits[0] /= data_mixture_subject[0, 0]
+    model_fits_ = model_fits.copy()
+    model_fits_[0] /= data_mixture_subject[0, 0]
     data_mixture_subject[0] /= data_mixture_subject[0, 0]
     distances['mse_scaled'] = (
-        data_mixture_subject[:4, T_i] - model_fits[:4])**2.
+        data_mixture_subject[:4, T_i] - model_fits_[:4])**2.
 
     return distances
 
