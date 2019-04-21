@@ -261,7 +261,10 @@ class DataIO:
             dict_selected_vars['args'] = remove_functions_dict(argparse_2_dict(dict_selected_vars['args']))
 
         # Save them as a numpy array
-        np.save(self.filename, dict_selected_vars)
+        try:
+            np.save(self.filename, dict_selected_vars)
+        except IOError:
+            pass
 
         # Remember the set of variables we just saved
         self.saved_variables = selected_variables
