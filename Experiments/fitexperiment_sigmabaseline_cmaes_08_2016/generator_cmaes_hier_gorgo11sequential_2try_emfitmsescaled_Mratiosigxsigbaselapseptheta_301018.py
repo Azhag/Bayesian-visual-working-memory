@@ -22,14 +22,14 @@ submit_cmd = 'sbatch'
 
 resource = ''
 
-# partition = 'wrkstn'
+partition = 'wrkstn'
 # partition = 'test'
-partition = 'intel-ivy'
+# partition = 'intel-ivy'
 
 
 num_repetitions = 3
 
-run_label = 'cmaes_hier_gorgo11sequential_1try_emfitmsescaled_Mratiosigxsigbaselapsealpha_rep{num_repetitions}_181018'
+run_label = 'cmaes_hier_gorgo11sequential_2try_emfitmsescaled_Mratiosigxsigbaselapsealphaptheta_rep{num_repetitions}_301018'
 simul_out_dir = os.path.join(os.getcwd(), run_label.format(**locals()))
 
 parameter_generation = 'cma-es'
@@ -48,7 +48,7 @@ pbs_submission_infos = dict(
     description=
     '''Fit sequential experiment (gorgo11 sequential), using dist_collapsedemfit_gorgo11seq ResultComputation), using the CMA-ES code. Now with sigma_baseline instead of sigma_output. Using new fixed Covariance matrix for Sampler, should change N=1 case most.
 
-    HIERARCHICAL CODE.
+    HIERARCHICAL CODE. Optimizes Sparsity and Threshold of the hierarchical connectivity.
 
     Changes M, ratio_conj, sigmax, sigma baseline, lapse rate.
     Looks at all subjects, T and trecall.
@@ -71,7 +71,8 @@ pbs_submission_infos = dict(
         ratio_hierarchical=0.5,
         normalise_gain=None,
         threshold=1.0,
-        session_id='cmaes_hier_1try_Mratiosigxlrsigbase_gorgo11seq',
+        sparsity=1.0,
+        session_id='cmaes_hier_2try_Mratiosigxlrsigbase_gorgo11seq',
         result_computation='dist_collapsedemfit_gorgo11seq',  # This is scaled.
         M=100,
         sigmax=0.1,
@@ -105,7 +106,7 @@ pbs_submission_infos = dict(
     simul_out_dir=os.path.join(os.getcwd(), run_label.format(**locals())),
     pbs_submit_cmd=submit_cmd,
     source_dir=os.environ['WORKDIR_DROP'],
-    submit_label='cma_h_gorgoseq_1',
+    submit_label='cma_h_gorgoseq_2',
     resource=resource,
     partition=partition,
     qos='auto')
@@ -173,6 +174,20 @@ lapserate_range = dict(
 M_range = dict(low=20, high=400, dtype=int)
 alpha_range = dict(
     low=0.5, high=1.0, x0=0.8, scaling=cma_sigma0 / 6., dtype=float)
+sparsity_range = dict(
+    low=0.0,
+    high=1.0,
+    x0=0.5,
+    scaling=cma_sigma0 / 3.,
+    dtype=float,
+)
+threshold_range = dict(
+    low=0.0,
+    high=2.0,
+    x0=1.0,
+    scaling=cma_sigma0 / 3.,
+    dtype=float,
+)
 
 dict_parameters_range = dict(
     M=M_range,
@@ -180,7 +195,9 @@ dict_parameters_range = dict(
     ratio_hierarchical=ratiohier_range,
     sigmax=sigmax_range,
     sigma_baseline=sigmabaseline_range,
-    alpha=alpha_range)
+    alpha=alpha_range,
+    sparsity=sparsity_range,
+    threshold=threshold_range)
 
 # ============================================================================
 
