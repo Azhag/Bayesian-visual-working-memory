@@ -130,16 +130,12 @@ def plot_mean_std_area(x, y, std, ax_handle=None, fignum=None, linewidth=1, fmt=
         f = plt.figure(fignum)
         ax_handle = f.add_subplot(111)
 
-    ishold = plt.ishold()
-
     if color is not None:
         ax = ax_handle.plot(x, y, fmt, linewidth=linewidth, markersize=markersize, color=color, label=label, zorder=zorder)
     else:
         ax = ax_handle.plot(x, y, fmt, linewidth=linewidth, markersize=markersize, label=label, zorder=zorder)
 
     current_color = ax[-1].get_c()
-
-    plt.hold(True)
 
     if std is not None and np.any(std > 1e-6):
         ax_handle.fill_between(x, y-std, y+std, facecolor=current_color, alpha=0.4, zorder=zorder)
@@ -154,8 +150,6 @@ def plot_mean_std_area(x, y, std, ax_handle=None, fignum=None, linewidth=1, fmt=
         ax_handle.set_title(title)
 
     ax_handle.get_figure().canvas.draw()
-
-    plt.hold(ishold)
 
     return ax_handle
 
