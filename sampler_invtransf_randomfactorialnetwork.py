@@ -325,6 +325,9 @@ class Sampler:
       self.normalization[n] = np.log(
           spintg.quad(like_theta_fct_single, -np.pi, np.pi, args=params)[0])
 
+    if np.any(np.isinf(self.normalization)):
+      raise ValueError("Normalisation constant -inf, bad parameters?")
+
     print "... done"
 
   def compute_inverse_transform_parameters(self, n):
